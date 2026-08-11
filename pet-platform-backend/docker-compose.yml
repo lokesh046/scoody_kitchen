@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: pet_platform_db
+
+    environment:
+      POSTGRES_USER: pet_user
+      POSTGRES_PASSWORD: pet_password
+      POSTGRES_DB: pet_platform
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
