@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-
+from app.models.enums import UserRole
 
 class UserRegister(BaseModel):
     email: EmailStr
@@ -9,19 +9,23 @@ class UserRegister(BaseModel):
     phone: str | None = Field(default=None, max_length=20)
 
 
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
 class UserResponse(BaseModel):
-    id: int
+    id: int 
     email:EmailStr
     first_name: str
     last_name: str | None
     phone: str | None
-    role: str
+    role: UserRole
     is_active: bool
 
+    model_config = {
+        "from_attributes" : True
+    }
 
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: set
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -29,6 +33,4 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
-    model_config = {
-        "from_attributes" : True
-    }
+   

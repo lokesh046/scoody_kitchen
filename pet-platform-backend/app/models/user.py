@@ -1,7 +1,9 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, String, func
+from sqlalchemy import Boolean, DateTime, String, func,Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
+
+from app.models.enums import UserRole
 
 from app.core.database import Base
 
@@ -48,10 +50,14 @@ class User(Base):
 
     )
 
-    role: Mapped[str] = mapped_column(
-        String(20),
-        nullable=False,
-        default = "customer"
+    role: Mapped[UserRole] = mapped_column(
+    SQLEnum(
+        UserRole,
+        name="user_role",
+        values_callable=lambda enum: [item.value for item in enum],
+    ),
+    nullable=False,
+    default=UserRole.CUSTOMER
     )
 
     is_active: Mapped[bool] = mapped_column(

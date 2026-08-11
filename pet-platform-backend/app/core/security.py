@@ -2,12 +2,26 @@
 
 from datetime import datetime, timedelta, timezone
 
+import hashlib
 import jwt
 from pwdlib import PasswordHash
 
 from app.core.config import settings
 
 password_hash = PasswordHash.recommended()
+
+
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(
+        token.encode("utf-8")
+    ).hexdigest()
+
+
+def get_refresh_token_expiration() -> datetime:
+    return datetime.now(timezone.utc) + timedelta(
+        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+    )
 
 
 def hash_password(password: str) -> str:
@@ -43,7 +57,9 @@ def create_access_token(
     )
 
 
-def create_refresh_token(user_id: int) -> str:
+def create_refresh_token(user_id: int) -> tuple[str,datetime]:
+
+    expire = get_refresh_token_expiration()
 
     expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
@@ -54,8 +70,10 @@ def create_refresh_token(user_id: int) -> str:
         "exp": expire
         }
     
-    return jwt.encode(
+    token  = jwt.encode(
         payload,
         settings.JWT_SECRET_KEY,
         algorithm= settings.JWT_ALGORITHM
     )
+
+    return token,expire
