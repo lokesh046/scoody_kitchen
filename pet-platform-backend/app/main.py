@@ -8,6 +8,8 @@ load_dotenv()
 from app.core.config import settings
 from app.core.database import get_db
 
+from app.api.auth import router as auth_router
+
 
 
 app = FastAPI(
@@ -15,6 +17,9 @@ app = FastAPI(
     version="1.0.0",
     description="Backend API for a pet commerce and pet-care platform",
 )
+
+
+app.include_router(auth_router)
 
 
 @app.get("/")
