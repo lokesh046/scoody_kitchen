@@ -3,8 +3,9 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
-from core.config import settings
-from core.database import  Base
+from app.core.config import settings
+from app.core.database import Base
+import app.models  # load models for Alembic autogenerate
 
 from alembic import context
 
