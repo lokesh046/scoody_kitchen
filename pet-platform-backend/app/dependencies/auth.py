@@ -80,3 +80,5 @@ def require_role(required_role: UserRole) -> Callable:
         return current_user
 
     return role_checker
+
+require_admin = require_role(UserRole.ADMIN)

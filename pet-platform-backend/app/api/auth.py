@@ -69,13 +69,15 @@ def login(
 @router.post("/logout")
 def logout(
     refresh_token: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
 
     token_hash = hash_token(refresh_token)
     statement = select(RefreshToken).where(
         RefreshToken.token_hash == token_hash,
-        RefreshToken.revoked.is_(False)
+        RefreshToken.revoked.is_(False),
+        RefreshToken.user_id == current_user.id
     )
     
     stored_token = db.scalar(statement)

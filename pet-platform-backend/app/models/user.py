@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, String, func,Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.enums import UserRole
 
@@ -77,4 +77,25 @@ class User(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+
+    pets = relationship(
+        "Pet",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+
+
+    cart = relationship(
+    "Cart",
+    back_populates="user",
+    uselist=False,
+    cascade="all, delete-orphan",
+    
+    )
+
+    orders = relationship(
+    "Order",
+    back_populates="user",
     )

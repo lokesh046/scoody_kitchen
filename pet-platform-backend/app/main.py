@@ -9,9 +9,13 @@ from app.core.config import settings
 from app.core.database import get_db
 
 from app.api.auth import router as auth_router
-
-
-
+from app.api.admin import router as admin_router
+from app.api.pets import router as pet_router
+from app.api.product import router as product_router
+from app.api.categories import router as categories_router
+from app.api.inventory import router as inventory_router
+from app.api.cart import router as cart_router
+from app.api.order import router as orders_router
 app = FastAPI(
     title=settings.APP_NAME,
     version="1.0.0",
@@ -20,6 +24,14 @@ app = FastAPI(
 
 
 app.include_router(auth_router)
+app.include_router(admin_router)
+app.include_router(pet_router)
+app.include_router(product_router)
+app.include_router(categories_router)
+app.include_router(inventory_router)
+app.include_router(cart_router)
+app.include_router(orders_router)
+
 
 
 @app.get("/")
