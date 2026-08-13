@@ -58,6 +58,7 @@ class ProductResponse(BaseModel):
     description: str | None
     sku: str
     price: Decimal
+    image_url: str | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime

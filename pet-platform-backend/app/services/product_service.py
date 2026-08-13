@@ -10,6 +10,7 @@ from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
 def create_product(
     db: Session,
     product_data: ProductCreate,
+    image_url: str | None = None,
 ) -> Product:
     
     category = db.get(Category,product_data.category_id)
@@ -26,7 +27,7 @@ def create_product(
         description=product_data.description,
         sku=product_data.sku,
         price=product_data.price,
-
+        image_url=image_url,
     )
 
     db.add(product)
@@ -65,13 +66,14 @@ def update_product(
     db: Session,
     product: Product,
     product_data: ProductUpdate,
+    image_url: str | None = None,
 ) -> Product:
 
     update_data = product_data.model_dump(
         exclude_unset=True
     )
 
-    if "category_id" in update_data:
+    if "category_id" in update_data and update_data["category_id"] is not None:
         category = db.get(
             Category,
             update_data["category_id"],
@@ -82,6 +84,9 @@ def update_product(
 
     for field, value in update_data.items():
         setattr(product, field, value)
+
+    if image_url is not None:
+        product.image_url = image_url
 
     db.commit()
     db.refresh(product)
@@ -101,10 +106,22 @@ def deactivate_product(
     return product
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 def delete_product(
     db: Session,
     product: Product,
 ) -> None:
-
+    image_url = product.image_url
     db.delete(product)
-    db.commit() 
+    db.commit()
+
+    if image_url:
+        try:
+            from app.services.storage_service import get_storage_provider
+            storage_provider = get_storage_provider()
+            storage_provider.delete_image(image_url)
+        except Exception as exc:
+            logger.warning(f"Failed to delete storage image '{image_url}' for deleted product {product.id}: {exc}")

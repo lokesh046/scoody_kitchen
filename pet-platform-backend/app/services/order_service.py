@@ -146,12 +146,15 @@ def get_user_orders(
 
     statement = (
         select(Order)
+        .options(
+            joinedload(Order.items).joinedload(OrderItem.product)
+        )
         .where(Order.user_id == user_id)
         .order_by(Order.created_at.desc())
     )
 
     return list(
-        db.scalars(statement).all()
+        db.scalars(statement).unique().all()
     )
 
 
@@ -163,6 +166,9 @@ def get_user_order(
 
     statement = (
         select(Order)
+        .options(
+            joinedload(Order.items).joinedload(OrderItem.product)
+        )
         .where(
             Order.id == order_id,
             Order.user_id == user_id,

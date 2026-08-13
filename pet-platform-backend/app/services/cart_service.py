@@ -77,6 +77,7 @@ def build_cart_item_response(
         price=cart_item.product.price,
         quantity=cart_item.quantity,
         subtotal=subtotal,
+        image_url=cart_item.product.image_url,
         created_at=cart_item.created_at,
         updated_at=cart_item.updated_at,
     )

@@ -36,6 +36,15 @@ app.include_router(cart_router)
 app.include_router(orders_router)
 app.include_router(payment_router)
 
+if settings.IMAGE_STORAGE_PROVIDER.lower() == "local":
+    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    from fastapi.staticfiles import StaticFiles
+    app.mount(
+        f"/{settings.UPLOAD_DIR}",
+        StaticFiles(directory=settings.UPLOAD_DIR),
+        name=settings.UPLOAD_DIR,
+    )
+
 
 
 @app.get("/")

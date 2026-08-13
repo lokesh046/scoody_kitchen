@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException,status
+from decimal import Decimal
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session  
 
@@ -21,6 +22,8 @@ from app.services.product_service import (
 )
 
 from app.services.inventory_service import (get_available_stock,get_product_inventory)
+from app.services.storage_service import get_storage_provider, validate_image_file
+
 router = APIRouter(
     prefix="/product",
     tags=["Products"]
@@ -80,27 +83,59 @@ def get_product_details(
     response_model=ProductResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_new_product(
-    product_data: ProductCreate,
+async def create_new_product(
+    category_id: int = Form(...),
+    name: str = Form(...),
+    price: Decimal = Form(...),
+    sku: str = Form(...),
+    description: str | None = Form(None),
+    image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.ADMIN)),
 ):
+    product_data = ProductCreate(
+        category_id=category_id,
+        name=name,
+        description=description,
+        sku=sku,
+        price=price,
+    )
+
+    image_url = None
+    storage_provider = None
+
+    if image is not None and image.filename:
+        file_bytes = await image.read()
+        validate_image_file(image, file_bytes)
+        storage_provider = get_storage_provider()
+        image_url = storage_provider.upload_image(
+            file_bytes=file_bytes,
+            original_filename=image.filename,
+            content_type=image.content_type or "image/jpeg",
+        )
 
     try:
-        return create_product(db,product_data)
-
-    except IntegrityError:
+        return create_product(db, product_data, image_url=image_url)
+    except Exception as exc:
+        if image_url and storage_provider:
+            try:
+                storage_provider.delete_image(image_url)
+            except Exception:
+                pass
         db.rollback()
-
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="SKU already exists",
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
+        if isinstance(exc, HTTPException):
+            raise exc
+        if isinstance(exc, IntegrityError):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="SKU already exists",
+            )
+        if isinstance(exc, ValueError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            )
+        raise exc
 
 
 
@@ -108,9 +143,15 @@ def create_new_product(
     "/{product_id}",
     response_model=ProductResponse,
 )
-def update_existing_product(
+async def update_existing_product(
     product_id: int,
-    product_data: ProductUpdate,
+    category_id: int | None = Form(None),
+    name: str | None = Form(None),
+    price: Decimal | None = Form(None),
+    sku: str | None = Form(None),
+    description: str | None = Form(None),
+    is_active: bool | None = Form(None),
+    image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_role(UserRole.ADMIN)
@@ -127,26 +168,68 @@ def update_existing_product(
             detail="Product not found",
         )
 
+    product_data = ProductUpdate(
+        category_id=category_id,
+        name=name,
+        description=description,
+        sku=sku,
+        price=price,
+        is_active=is_active,
+    )
+
+    old_image_url = product.image_url
+    new_image_url = None
+    storage_provider = None
+
+    if image is not None and image.filename:
+        file_bytes = await image.read()
+        validate_image_file(image, file_bytes)
+        storage_provider = get_storage_provider()
+        new_image_url = storage_provider.upload_image(
+            file_bytes=file_bytes,
+            original_filename=image.filename,
+            content_type=image.content_type or "image/jpeg",
+        )
+
     try:
-        return update_product(
+        updated = update_product(
             db,
             product,
             product_data,
+            image_url=new_image_url,
         )
 
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        )
+        if new_image_url and old_image_url:
+            if storage_provider is None:
+                storage_provider = get_storage_provider()
+            try:
+                storage_provider.delete_image(old_image_url)
+            except Exception:
+                pass
 
-    except IntegrityError:
+        return updated
+
+    except Exception as exc:
         db.rollback()
+        if new_image_url and storage_provider:
+            try:
+                storage_provider.delete_image(new_image_url)
+            except Exception:
+                pass
 
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="SKU already exists",
-        )
+        if isinstance(exc, HTTPException):
+            raise exc
+        if isinstance(exc, ValueError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            )
+        if isinstance(exc, IntegrityError):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="SKU already exists",
+            )
+        raise exc
 
 
 @router.delete(

@@ -28,6 +28,7 @@ class CartItemResponse(BaseModel):
     price: Decimal
     quantity: int
     subtotal: Decimal
+    image_url: str | None = None
 
     created_at: datetime
     updated_at: datetime
