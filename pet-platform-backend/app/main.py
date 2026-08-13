@@ -16,6 +16,9 @@ from app.api.categories import router as categories_router
 from app.api.inventory import router as inventory_router
 from app.api.cart import router as cart_router
 from app.api.order import router as orders_router
+from app.api.payments import router as payment_router
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     version="1.0.0",
@@ -31,6 +34,7 @@ app.include_router(categories_router)
 app.include_router(inventory_router)
 app.include_router(cart_router)
 app.include_router(orders_router)
+app.include_router(payment_router)
 
 
 

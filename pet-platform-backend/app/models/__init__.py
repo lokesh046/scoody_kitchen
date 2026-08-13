@@ -1,3 +1,5 @@
+# pyrefly: ignore [missing-import]
+from app.models.payment import Payment, PaymentStatus
 from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.cart import Cart
@@ -22,5 +24,7 @@ __all__ = [
     "Order",
     "OrderItem",
     "OrderStatus",
-    
+    "Payment",
+    "PaymentStatus",
+
 ]
