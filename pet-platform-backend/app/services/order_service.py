@@ -11,6 +11,31 @@ from app.models.order_item import OrderItem
 from app.schemas.order import CheckoutRequest
 from app.services.inventory_service import release_stock, reserve_stock
 
+VALID_ORDER_TRANSITIONS: dict[OrderStatus, set[OrderStatus]] = {
+    OrderStatus.PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED},
+    OrderStatus.CONFIRMED: {OrderStatus.PROCESSING},
+    OrderStatus.PROCESSING: {OrderStatus.SHIPPED},
+    OrderStatus.SHIPPED: {OrderStatus.DELIVERED, OrderStatus.COMPLETED},
+    OrderStatus.DELIVERED: set(),
+    OrderStatus.COMPLETED: set(),
+    OrderStatus.CANCELLED: set(),
+}
+
+
+def validate_order_status_transition(
+    current_status: OrderStatus,
+    new_status: OrderStatus,
+) -> None:
+    """
+    Validates whether changing an order from current_status to new_status is allowed.
+    Raises ValueError with a user-friendly detail message if the transition is invalid.
+    """
+    allowed = VALID_ORDER_TRANSITIONS.get(current_status, set())
+    if new_status not in allowed:
+        raise ValueError(
+            f"Invalid order status transition from '{current_status.value}' to '{new_status.value}'"
+        )
+
 
 def create_order_from_cart(
     db: Session,
@@ -149,15 +174,83 @@ def get_user_order(
 
     return db.scalar(statement)
 
+
+def get_all_orders(
+    db: Session,
+) -> list[Order]:
+    statement = (
+        select(Order)
+        .options(
+            joinedload(Order.items).joinedload(OrderItem.product)
+        )
+        .order_by(Order.created_at.desc())
+    )
+    return list(db.scalars(statement).unique().all())
+
+
+def get_order_by_id(
+    db: Session,
+    order_id: int,
+) -> Order | None:
+    statement = (
+        select(Order)
+        .options(
+            joinedload(Order.items).joinedload(OrderItem.product)
+        )
+        .where(Order.id == order_id)
+    )
+    return db.scalar(statement)
+
+def confirm_order(
+    db: Session,
+    order: Order,
+) -> Order:
+    validate_order_status_transition(order.status, OrderStatus.CONFIRMED)
+    order.status = OrderStatus.CONFIRMED
+    db.commit()
+    db.refresh(order)
+    return order
+
+
+def process_order(
+    db: Session,
+    order: Order,
+) -> Order:
+    validate_order_status_transition(order.status, OrderStatus.PROCESSING)
+    order.status = OrderStatus.PROCESSING
+    db.commit()
+    db.refresh(order)
+    return order
+
+
+def ship_order(
+    db: Session,
+    order: Order,
+) -> Order:
+    validate_order_status_transition(order.status, OrderStatus.SHIPPED)
+    order.status = OrderStatus.SHIPPED
+    db.commit()
+    db.refresh(order)
+    return order
+
+
+def deliver_order(
+    db: Session,
+    order: Order,
+) -> Order:
+    validate_order_status_transition(order.status, OrderStatus.DELIVERED)
+    order.status = OrderStatus.DELIVERED
+    db.commit()
+    db.refresh(order)
+    return order
+
+
 def cancel_order(
     db: Session,
     order: Order,
 ) -> Order:
 
-    if order.status != OrderStatus.PENDING:
-        raise ValueError(
-            "Only pending orders can be cancelled"
-        )
+    validate_order_status_transition(order.status, OrderStatus.CANCELLED)
 
     statement = (
         select(OrderItem)

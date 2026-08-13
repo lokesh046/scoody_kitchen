@@ -9,6 +9,7 @@ from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.payment import Payment, PaymentStatus
 from app.services.inventory_service import finalize_stock, release_stock
+from app.services.order_service import validate_order_status_transition
 
 
 def create_payment(
@@ -59,11 +60,7 @@ def process_payment_success(
         )
 
     order = payment.order
-
-    if order.status != OrderStatus.PENDING:
-        raise ValueError(
-            "Order is no longer pending"
-        )
+    validate_order_status_transition(order.status, OrderStatus.CONFIRMED)
 
     order_items = list(
         db.scalars(
@@ -105,6 +102,7 @@ def process_payment_failure(
         )
 
     order = payment.order
+    validate_order_status_transition(order.status, OrderStatus.CANCELLED)
 
     order_items = list(
         db.scalars(

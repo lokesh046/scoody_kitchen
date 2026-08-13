@@ -40,3 +40,7 @@ class OrderResponse(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+
+class OrderStatusUpdate(BaseModel):
+    status: OrderStatus
