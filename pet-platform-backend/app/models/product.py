@@ -75,8 +75,24 @@ class Product(Base):
     )
         
     inventory = relationship(
-    "Inventory",
-    back_populates="product",
-    uselist=False,
-    cascade="all, delete-orphan",
+        "Inventory",
+        back_populates="product",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
+
+    @property
+    def available_stock(self):
+        return getattr(self, "_available_stock", None)
+
+    @available_stock.setter
+    def available_stock(self, value):
+        self._available_stock = value
+
+    @property
+    def is_in_stock(self):
+        return getattr(self, "_is_in_stock", None)
+
+    @is_in_stock.setter
+    def is_in_stock(self, value):
+        self._is_in_stock = value

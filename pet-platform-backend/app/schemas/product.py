@@ -3,6 +3,9 @@ from decimal import Decimal
 from pydantic import BaseModel, Field
 
 
+from app.schemas.category import CategoryResponse
+
+
 class ProductCreate(BaseModel):
     category_id: int = Field(gt=0)
 
@@ -63,6 +66,18 @@ class ProductResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    category: CategoryResponse | None = None
+    available_stock: int | None = None
+    is_in_stock: bool | None = None
+
     model_config = {
         "from_attributes": True
     }
+
+
+class PaginatedProductResponse(BaseModel):
+    items: list[ProductResponse]
+    total: int
+    page: int
+    limit: int
+    pages: int

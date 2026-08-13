@@ -1,5 +1,5 @@
 from decimal import Decimal
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session  
 
@@ -9,6 +9,7 @@ from app.dependencies.auth import get_current_user, require_role
 from app.models.enums import UserRole
 from app.models.user import User
 from app.schemas.product import (
+    PaginatedProductResponse,
     ProductCreate,
     ProductResponse,
     ProductUpdate,
@@ -18,6 +19,7 @@ from app.services.product_service import (
     deactivate_product,
     get_product,
     get_products,
+    get_products_paginated,
     update_product,
 )
 
@@ -32,19 +34,41 @@ router = APIRouter(
 
 @router.get(
     "",
-    response_model = list[ProductResponse],
+    response_model=PaginatedProductResponse,
     status_code=status.HTTP_200_OK,
 )
-
-async def get_all_products(
+def get_all_products(
+    search: str | None = Query(None),
+    category_id: int | None = Query(None),
+    min_price: Decimal | None = Query(None),
+    max_price: Decimal | None = Query(None),
+    sort_by: str = Query("created_at"),
+    sort_order: str = Query("desc"),
+    page: int = Query(1),
+    limit: int = Query(20),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
+    include_inactive = current_user.role == UserRole.ADMIN
 
-    if current_user.role == UserRole.ADMIN:
-        return get_products(db,include_inactive=True)
-    
-    return get_products(db,include_inactive=False)
+    try:
+        return get_products_paginated(
+            db=db,
+            search=search,
+            category_id=category_id,
+            min_price=min_price,
+            max_price=max_price,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            page=page,
+            limit=limit,
+            include_inactive=include_inactive,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
 
 
 
