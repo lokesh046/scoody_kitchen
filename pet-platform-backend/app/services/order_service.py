@@ -9,6 +9,7 @@ from app.models.inventory import Inventory
 from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.schemas.order import CheckoutRequest
+from app.services.inventory_service import release_stock, reserve_stock
 
 
 def create_order_from_cart(
@@ -56,32 +57,11 @@ def create_order_from_cart(
                 f"Product '{product.name}' is no longer available"
             )
 
-        inventory_statement = (
-            select(Inventory)
-            .where(
-                Inventory.product_id == product.id
-            )
-            .with_for_update()
+        inventory = reserve_stock(
+            db,
+            product.id,
+            cart_item.quantity,
         )
-
-        inventory = db.scalar(
-            inventory_statement
-        )
-
-        if inventory is None:
-            raise ValueError(
-                f"Inventory not found for '{product.name}'"
-            )
-
-        available_stock = (
-            inventory.stock_quantity
-            - inventory.reserved_quantity
-        )
-
-        if available_stock < cart_item.quantity:
-            raise ValueError(
-                f"Insufficient stock for '{product.name}'"
-            )
 
         subtotal = (
             product.price * cart_item.quantity
@@ -120,14 +100,6 @@ def create_order_from_cart(
         )
 
         db.add(order_item)
-
-    for item_data in order_items_data:
-
-        inventory = item_data["inventory"]
-
-        inventory.reserved_quantity += (
-            item_data["quantity"]
-        )
 
     for cart_item in cart.items:
         db.delete(cart_item)
@@ -197,24 +169,11 @@ def cancel_order(
     )
 
     for order_item in order_items:
-
-        inventory_statement = (
-            select(Inventory)
-            .where(
-                Inventory.product_id
-                == order_item.product_id
-            )
-            .with_for_update()
+        release_stock(
+            db,
+            order_item.product_id,
+            order_item.quantity,
         )
-
-        inventory = db.scalar(
-            inventory_statement
-        )
-
-        if inventory is not None:
-            inventory.reserved_quantity -= (
-                order_item.quantity
-            )
 
     order.status = OrderStatus.CANCELLED
 

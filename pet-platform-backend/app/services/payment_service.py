@@ -8,6 +8,7 @@ from app.models.inventory import Inventory
 from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.payment import Payment, PaymentStatus
+from app.services.inventory_service import finalize_stock, release_stock
 
 
 def create_payment(
@@ -73,36 +74,10 @@ def process_payment_success(
     )
 
     for order_item in order_items:
-
-        inventory = db.scalar(
-            select(Inventory)
-            .where(
-                Inventory.product_id
-                == order_item.product_id
-            )
-            .with_for_update()
-        )
-
-        if inventory is None:
-            raise ValueError(
-                f"Inventory not found for product "
-                f"{order_item.product_id}"
-            )
-
-        if (
-            inventory.reserved_quantity
-            < order_item.quantity
-        ):
-            raise ValueError(
-                "Reserved inventory is insufficient"
-            )
-
-        inventory.stock_quantity -= (
-            order_item.quantity
-        )
-
-        inventory.reserved_quantity -= (
-            order_item.quantity
+        finalize_stock(
+            db,
+            order_item.product_id,
+            order_item.quantity,
         )
 
     payment.status = PaymentStatus.SUCCESS
@@ -140,21 +115,11 @@ def process_payment_failure(
     )
 
     for order_item in order_items:
-
-        inventory = db.scalar(
-            select(Inventory)
-            .where(
-                Inventory.product_id
-                == order_item.product_id
-            )
-            .with_for_update()
+        release_stock(
+            db,
+            order_item.product_id,
+            order_item.quantity,
         )
-
-        if inventory is not None:
-
-            inventory.reserved_quantity -= (
-                order_item.quantity
-            )
 
     payment.status = PaymentStatus.FAILED
 

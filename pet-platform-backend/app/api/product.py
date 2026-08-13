@@ -21,7 +21,7 @@ from app.services.product_service import (
     update_product,
 )
 
-from app.services.inventory_service import (get_available_stock,get_product_inventory)
+from app.services.inventory_service import (get_available_stock, get_product_inventory, is_low_stock)
 from app.services.storage_service import get_storage_provider, validate_image_file
 
 router = APIRouter(
@@ -284,9 +284,6 @@ def get_product_stock(
         "stock_quantity": inventory.stock_quantity,
         "reserved_quantity": inventory.reserved_quantity,
         "available_stock": get_available_stock(inventory),
-        "low_stock": (
-            get_available_stock(inventory)
-            <= inventory.low_stock_threshold
-        ),
+        "low_stock": is_low_stock(inventory),
     }
 
