@@ -19,6 +19,7 @@ from app.api.inventory import router as inventory_router
 from app.api.cart import router as cart_router
 from app.api.order import router as orders_router
 from app.api.payments import router as payment_router
+from app.api.consultations import router as consultations_router
 
 
 app = FastAPI(
@@ -39,6 +40,7 @@ app.include_router(inventory_router)
 app.include_router(cart_router)
 app.include_router(orders_router)
 app.include_router(payment_router)
+app.include_router(consultations_router)
 
 if settings.IMAGE_STORAGE_PROVIDER.lower() == "local":
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)

@@ -18,6 +18,8 @@ from app.models.payment import Payment
 from app.models.refresh_token import RefreshToken
 from app.models.clinic import Clinic
 from app.models.doctor import Doctor
+from app.models.doctor_availability import DoctorAvailability
+from app.models.consultation import Consultation
 
 from alembic import context
 

@@ -121,3 +121,9 @@ class Doctor(Base):
         "Clinic",
         back_populates="doctors",
     )
+
+    availabilities = relationship(
+        "DoctorAvailability",
+        back_populates="doctor",
+        cascade="all, delete-orphan",
+    )

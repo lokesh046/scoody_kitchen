@@ -8,6 +8,9 @@ from app.services.doctor_service import (
     get_doctors_paginated,
     get_nearby_doctors,
 )
+from app.schemas.doctor_availability import DoctorSchedulePublicResponse
+from app.services.doctor_availability_service import get_doctor_availabilities
+
 
 
 router = APIRouter(
@@ -101,3 +104,55 @@ def get_public_doctor_detail(
     if doctor is None or not doctor.is_active or not doctor.is_verified:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found")
     return doctor
+
+
+
+
+@router.get(
+    "/{doctor_id}/availability",
+    response_model=DoctorSchedulePublicResponse,
+)
+def get_public_doctor_schedule(
+    doctor_id: int,
+    db: Session = Depends(get_db),
+):
+    doctor = get_doctor(db, doctor_id)
+    if doctor is None or not doctor.is_active or not doctor.is_verified:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found")
+
+    availabilities = get_doctor_availabilities(db, doctor_id, is_available_only=True)
+    return {
+        "doctor_id": doctor.id,
+        "is_accepting_consultations": doctor.is_available,
+        "schedule": availabilities,
+    }
+
+
+from datetime import date
+from app.schemas.consultation import DoctorSlotsResponse
+from app.services.consultation_service import get_available_slots
+
+
+@router.get(
+    "/{doctor_id}/slots",
+    response_model=DoctorSlotsResponse,
+)
+def get_public_doctor_slots(
+    doctor_id: int,
+    date_param: date = Query(..., alias="date"),
+    db: Session = Depends(get_db),
+):
+    try:
+        slots = get_available_slots(
+            db=db,
+            doctor_id=doctor_id,
+            target_date=date_param,
+        )
+        return {
+            "doctor_id": doctor_id,
+            "date": date_param.isoformat(),
+            "duration_minutes": 30,
+            "slots": slots,
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
