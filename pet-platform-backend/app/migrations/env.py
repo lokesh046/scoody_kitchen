@@ -5,7 +5,19 @@ from sqlalchemy import pool
 
 from app.core.config import settings
 from app.core.database import Base
-import app.models # load models for Alembic autogenerate
+from app.models.user import User
+from app.models.pet import Pet
+from app.models.category import Category
+from app.models.product import Product
+from app.models.inventory import Inventory
+from app.models.cart import Cart
+from app.models.cart_item import CartItem
+from app.models.order import Order
+from app.models.order_item import OrderItem
+from app.models.payment import Payment
+from app.models.refresh_token import RefreshToken
+from app.models.clinic import Clinic
+from app.models.doctor import Doctor
 
 from alembic import context
 

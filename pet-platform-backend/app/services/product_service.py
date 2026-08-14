@@ -126,8 +126,9 @@ def get_products_paginated(
         in_stock = None
         if product.inventory:
             try:
-                avail_stock = get_available_stock(product.inventory)
-                in_stock = avail_stock > 0
+                stock_val = get_available_stock(product.inventory)
+                avail_stock = stock_val
+                in_stock = stock_val > 0
             except ValueError:
                 avail_stock = 0
                 in_stock = False
@@ -169,8 +170,9 @@ def get_products(
     for product in products:
         if product.inventory:
             try:
-                product.available_stock = get_available_stock(product.inventory)
-                product.is_in_stock = product.available_stock > 0
+                stock_val = get_available_stock(product.inventory)
+                product.available_stock = stock_val
+                product.is_in_stock = stock_val > 0
             except ValueError:
                 product.available_stock = 0
                 product.is_in_stock = False
@@ -195,8 +197,9 @@ def get_product(
     product = db.scalar(statement)
     if product and product.inventory:
         try:
-            product.available_stock = get_available_stock(product.inventory)
-            product.is_in_stock = product.available_stock > 0
+            stock_val = get_available_stock(product.inventory)
+            product.available_stock = stock_val
+            product.is_in_stock = stock_val > 0
         except ValueError:
             product.available_stock = 0
             product.is_in_stock = False

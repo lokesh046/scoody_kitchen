@@ -9,7 +9,8 @@ from app.models.product import Product
 from app.models.category import Category
 from app.models.pet import Pet
 from app.models.refresh_token import RefreshToken
-from app.models.user import User
+from app.models.clinic import Clinic
+from app.models.doctor import Doctor
 
 
 __all__ = [
@@ -26,5 +27,6 @@ __all__ = [
     "OrderStatus",
     "Payment",
     "PaymentStatus",
-
+    "Clinic",
+    "Doctor",
 ]

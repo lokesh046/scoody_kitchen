@@ -1,7 +1,8 @@
 from enum import Enum
 
 class UserRole(str, Enum):
-    CUSTOMER ="customer"
+    CUSTOMER = "customer"
+    DOCTOR = "doctor"
     ADMIN = "admin"
 
 

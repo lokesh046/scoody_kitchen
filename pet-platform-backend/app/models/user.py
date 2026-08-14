@@ -96,6 +96,13 @@ class User(Base):
     )
 
     orders = relationship(
-    "Order",
-    back_populates="user",
+        "Order",
+        back_populates="user",
+    )
+
+    doctor_profile = relationship(
+        "Doctor",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
     )

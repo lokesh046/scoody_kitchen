@@ -10,6 +10,8 @@ from app.core.database import get_db
 
 from app.api.auth import router as auth_router
 from app.api.admin import router as admin_router
+from app.api.doctor import router as doctor_router
+from app.api.public_doctors import router as public_doctors_router
 from app.api.pets import router as pet_router
 from app.api.product import router as product_router
 from app.api.categories import router as categories_router
@@ -28,6 +30,8 @@ app = FastAPI(
 
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(doctor_router)
+app.include_router(public_doctors_router)
 app.include_router(pet_router)
 app.include_router(product_router)
 app.include_router(categories_router)
