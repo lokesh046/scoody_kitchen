@@ -26,28 +26,58 @@ class User(Base):
     )
 
 
-    password_hash: Mapped[str] = mapped_column(
+    password_hash: Mapped[str | None] = mapped_column(
         String(255),
-        nullable=False,
-       
+        nullable=True,
     )
 
-    first_name: Mapped[str] = mapped_column(
+    first_name: Mapped[str | None] = mapped_column(
         String(50),
-        nullable=False,
-
+        nullable=True,
     )
 
-    last_name: Mapped[str] = mapped_column(
+    last_name: Mapped[str | None] = mapped_column(
         String(50),
-        nullable=False,
-        
+        nullable=True,
     )
 
-    phone: Mapped[str] = mapped_column(
+    phone: Mapped[str | None] = mapped_column(
         String(20),
-        nullable=False,
+        nullable=True,
+    )
 
+    profile_image_url: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
+    auth_provider: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="magic_link",
+    )
+
+    oauth_sub: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+    )
+
+    is_email_verified: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+
+    magic_link_token: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+    )
+
+    magic_link_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     role: Mapped[UserRole] = mapped_column(

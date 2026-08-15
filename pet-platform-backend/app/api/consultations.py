@@ -44,9 +44,17 @@ def book_consultation(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
+from app.schemas.consultation import (
+    ConsultationCreate,
+    ConsultationResponse,
+    DoctorSlotsResponse,
+    PaginatedConsultationResponse,
+)
+
+
 @router.get(
     "",
-    response_model=dict,
+    response_model=PaginatedConsultationResponse,
 )
 def list_my_consultations(
     page: int = Query(default=1, ge=1),

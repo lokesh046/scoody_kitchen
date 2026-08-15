@@ -75,9 +75,8 @@ class ProductResponse(BaseModel):
     }
 
 
-class PaginatedProductResponse(BaseModel):
-    items: list[ProductResponse]
-    total: int
-    page: int
-    limit: int
-    pages: int
+from app.schemas.pagination import PaginatedResponse
+
+
+class PaginatedProductResponse(PaginatedResponse[ProductResponse]):
+    pass

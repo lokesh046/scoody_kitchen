@@ -47,6 +47,9 @@ def create_product(
     return product
 
 
+from app.core.pagination import paginate_query
+
+
 def get_products_paginated(
     db: Session,
     search: str | None = None,
@@ -84,11 +87,17 @@ def get_products_paginated(
         statement = statement.where(Product.is_active.is_(True))
 
     if search and search.strip():
-        search_term = f"%{search.strip()}%"
+        search_str = search.strip()
+        ts_vector = func.to_tsvector(
+            "english",
+            func.coalesce(Product.name, "") + " " + func.coalesce(Product.description, "")
+        )
+        ts_query = func.plainto_tsquery("english", search_str)
         statement = statement.where(
             or_(
-                Product.name.ilike(search_term),
-                Product.description.ilike(search_term)
+                ts_vector.op("@@")(ts_query),
+                Product.name.ilike(f"%{search_str}%"),
+                Product.description.ilike(f"%{search_str}%"),
             )
         )
 
@@ -103,25 +112,15 @@ def get_products_paginated(
     if max_price is not None:
         statement = statement.where(Product.price <= max_price)
 
-    # Count query
-    count_statement = select(func.count()).select_from(statement.subquery())
-    total = db.scalar(count_statement) or 0
-
-    # Sorting
     sort_col = ALLOWED_SORT_FIELDS[sort_by]
     if sort_order.lower() == "asc":
         statement = statement.order_by(sort_col.asc(), Product.id.asc())
     else:
         statement = statement.order_by(sort_col.desc(), Product.id.desc())
 
-    # Pagination
-    offset = (page - 1) * limit
-    statement = statement.offset(offset).limit(limit)
+    result = paginate_query(db, statement, page=page, limit=limit)
 
-    products = list(db.scalars(statement).unique().all())
-
-    # Attach customer availability
-    for product in products:
+    for product in result["items"]:
         avail_stock = None
         in_stock = None
         if product.inventory:
@@ -136,15 +135,7 @@ def get_products_paginated(
         product.available_stock = avail_stock
         product.is_in_stock = in_stock
 
-    pages = math.ceil(total / limit) if total > 0 else 0
-
-    return {
-        "items": products,
-        "total": total,
-        "page": page,
-        "limit": limit,
-        "pages": pages,
-    }
+    return result
 
 
 def get_products(

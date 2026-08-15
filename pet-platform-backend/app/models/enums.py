@@ -24,3 +24,16 @@ class ConsultationStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+class HealthRecordType(str, Enum):
+    GENERAL = "general"
+    SYMPTOM = "symptom"
+    DIAGNOSIS = "diagnosis"
+    TREATMENT = "treatment"
+    VACCINATION = "vaccination"
+    MEDICATION = "medication"
+    LAB_RESULT = "lab_result"
+    SURGERY = "surgery"
+    ALLERGY = "allergy"
+    FOLLOW_UP = "follow_up"
+
+

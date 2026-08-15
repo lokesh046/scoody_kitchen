@@ -37,6 +37,20 @@ def admin_test(
     }
 
 
+@router.delete("/users/cleanup-unverified")
+def cleanup_unverified_users_admin(
+    max_age_hours: int = 24,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    from app.services.auth_service import cleanup_unverified_users
+    deleted_count = cleanup_unverified_users(db, max_age_hours=max_age_hours)
+    return {
+        "message": f"Successfully deleted {deleted_count} unverified typo accounts older than {max_age_hours} hours.",
+        "deleted_count": deleted_count,
+    }
+
+
 @router.get(
     "/orders",
     response_model=list[OrderResponse],
@@ -200,7 +214,7 @@ def update_clinic_admin(
 # ADMIN DOCTOR MANAGEMENT
 # ==================================================
 
-from app.schemas.doctor import DoctorCreate, DoctorResponse, DoctorUpdateAdmin
+from app.schemas.doctor import DoctorCreate, DoctorResponse, DoctorUpdateAdmin, PaginatedDoctorResponse
 from app.services.doctor_service import (
     create_doctor,
     deactivate_doctor,
@@ -229,7 +243,7 @@ def create_doctor_admin(
 
 @router.get(
     "/doctors",
-    response_model=dict,
+    response_model=PaginatedDoctorResponse,
 )
 def list_doctors_admin(
     page: int = 1,

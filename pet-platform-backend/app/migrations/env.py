@@ -20,6 +20,7 @@ from app.models.clinic import Clinic
 from app.models.doctor import Doctor
 from app.models.doctor_availability import DoctorAvailability
 from app.models.consultation import Consultation
+from app.models.health_record import HealthRecord
 
 from alembic import context
 

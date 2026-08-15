@@ -61,3 +61,10 @@ class DoctorSlotsResponse(BaseModel):
     date: str
     duration_minutes: int
     slots: list[str]
+
+
+from app.schemas.pagination import PaginatedResponse
+
+
+class PaginatedConsultationResponse(PaginatedResponse[ConsultationResponse]):
+    pass

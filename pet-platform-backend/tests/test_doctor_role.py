@@ -11,7 +11,6 @@ def test_public_registration_defaults_to_customer():
     db = MagicMock()
     user_data = UserRegister(
         email="testcustomer@example.com",
-        password="Password123!",
         first_name="Jane",
         last_name="Doe",
         phone="1234567890",
@@ -29,6 +28,8 @@ def test_user_response_schema_role_serialization():
         first_name="Doc",
         last_name="Smith",
         phone="9876543210",
+        auth_provider="magic_link",
+        is_email_verified=True,
         role=UserRole.DOCTOR,
         is_active=True,
     )

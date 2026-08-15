@@ -33,6 +33,20 @@ from app.services.doctor_availability_service import (
     update_availability,
 )
 
+from app.models.enums import HealthRecordType
+from app.schemas.health_record import (
+    HealthRecordCreate,
+    HealthRecordResponse,
+    HealthRecordUpdate,
+    PetHealthHistoryResponse,
+)
+from app.services.health_record_service import (
+    create_health_record_by_doctor,
+    get_health_record_by_id,
+    get_pet_health_records_for_doctor,
+    update_health_record_by_doctor,
+)
+
 
 router = APIRouter(
     prefix="/doctor",
@@ -272,5 +286,121 @@ def update_doctor_consultation_status(
             new_status=status_update.status,
             doctor_notes=status_update.doctor_notes,
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+# ==================================================
+# DOCTOR HEALTH RECORDS
+# ==================================================
+
+
+
+@router.get(
+    "/pets/{pet_id}/health-records",
+    response_model=PetHealthHistoryResponse,
+)
+def list_doctor_pet_health_records(
+    pet_id: int,
+    record_type: HealthRecordType | None = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.DOCTOR)),
+):
+    doctor = get_doctor_by_user_id(db, current_user.id)
+    if doctor is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor profile not found")
+
+    try:
+        records = get_pet_health_records_for_doctor(
+            db=db,
+            doctor_id=doctor.id,
+            pet_id=pet_id,
+            record_type=record_type,
+        )
+        return {
+            "pet_id": pet_id,
+            "records": records,
+        }
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc).strip("'"))
+
+
+@router.post(
+    "/pets/{pet_id}/health-records",
+    response_model=HealthRecordResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_doctor_health_record(
+    pet_id: int,
+    create_data: HealthRecordCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.DOCTOR)),
+):
+    doctor = get_doctor_by_user_id(db, current_user.id)
+    if doctor is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor profile not found")
+
+    if create_data.pet_id != pet_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="pet_id path parameter mismatch")
+
+    try:
+        return create_health_record_by_doctor(
+            db=db,
+            doctor_id=doctor.id,
+            create_data=create_data,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc).strip("'"))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.get(
+    "/health-records/{record_id}",
+    response_model=HealthRecordResponse,
+)
+def get_doctor_health_record_detail(
+    record_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.DOCTOR)),
+):
+    doctor = get_doctor_by_user_id(db, current_user.id)
+    if doctor is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor profile not found")
+
+    record = get_health_record_by_id(db, record_id)
+    if record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Health record not found")
+
+    return record
+
+
+@router.patch(
+    "/health-records/{record_id}",
+    response_model=HealthRecordResponse,
+)
+def update_doctor_health_record(
+    record_id: int,
+    update_data: HealthRecordUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.DOCTOR)),
+):
+    doctor = get_doctor_by_user_id(db, current_user.id)
+    if doctor is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor profile not found")
+
+    record = get_health_record_by_id(db, record_id)
+    if record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Health record not found")
+
+    try:
+        return update_health_record_by_doctor(
+            db=db,
+            doctor_id=doctor.id,
+            record=record,
+            update_data=update_data,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))

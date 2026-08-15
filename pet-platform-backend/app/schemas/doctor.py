@@ -87,12 +87,11 @@ class DoctorPublicResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class PaginatedDoctorResponse(BaseModel):
-    items: list[DoctorResponse]
-    total: int
-    page: int
-    limit: int
-    pages: int
+from app.schemas.pagination import PaginatedResponse
+
+
+class PaginatedDoctorResponse(PaginatedResponse[DoctorResponse]):
+    pass
 
 
 class NearbyDoctorResponse(BaseModel):

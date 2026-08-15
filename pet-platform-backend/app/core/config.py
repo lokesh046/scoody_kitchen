@@ -22,6 +22,17 @@ class Setting(BaseSettings):
     CLOUDINARY_API_KEY: str | None = None
     CLOUDINARY_API_SECRET: str | None = None
 
+    # Google OAuth 2.0 / OIDC
+    GOOGLE_CLIENT_ID: str | None = None
+
+    # SMTP & Email Settings
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    EMAILS_FROM: str | None = None
+    FRONTEND_URL: str = "http://127.0.0.1:8000"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",

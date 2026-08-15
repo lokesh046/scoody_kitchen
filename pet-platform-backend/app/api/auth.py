@@ -1,107 +1,220 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+import jwt
+from jwt.exceptions import InvalidTokenError
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import hash_token
-from app.schemas.auth import (UserRegister,UserResponse,UserLogin,TokenResponse)
-from app.services.auth_service import (create_user,get_user_by_email,authenticate_user,create_tokens)
 from app.dependencies.auth import get_current_user
 from app.models.refresh_token import RefreshToken
-
-from datetime import datetime, timezone
-
-import jwt
-from jwt.exceptions import InvalidTokenError
-from sqlalchemy import select
 from app.models.user import User
+from app.schemas.auth import (
+    GoogleOAuthRequest,
+    MagicLinkRequest,
+    MagicLinkVerifyCode,
+    MagicLinkVerifyToken,
+    TokenResponse,
+    UserRegister,
+    UserResponse,
+)
+from app.services.auth_service import (
+    authenticate_google_user,
+    create_tokens,
+    create_user,
+    get_user_by_email,
+    request_magic_link,
+    verify_magic_link_code,
+    verify_magic_link_token,
+)
 
-router = APIRouter(prefix="/auth",tags=["Authentication"])
-
-@router.post("/register",response_model = UserResponse,status_code=status.HTTP_201_CREATED)
-
-def register(
-    user_data: UserRegister,
-    db: Session = Depends(get_db)
-):
-
-
-    existing_user = get_user_by_email(db,user_data.email)
-
-
-    if existing_user:
-        raise  HTTPException(
-            status_code= status.HTTP_409_CONFLICT,
-            detail="Email is already register"
-        )
-
-    return create_user(db,user_data)
-
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-@router.post("/login",response_model = TokenResponse,status_code=status.HTTP_200_OK)
-
-def login(
-    user_login: UserLogin,
-    db: Session = Depends(get_db)
-):
-
-    user = authenticate_user(
-        db,
-        user_login.email,
-        user_login.password
+def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600,
     )
 
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid Credentials"
+
+@router.post(
+    "/register",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def register(
+    user_data: UserRegister,
+    db: Session = Depends(get_db),
+):
+    existing_user = get_user_by_email(db, user_data.email)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email is already registered",
         )
+    return create_user(db, user_data)
 
-    if not user.is_active:
-        raise HTTPException(status_code = status.HTTP_403_FORBIDDEN,
-        detail = "User account is not acttive")
-    
-    token = create_tokens(db,user)
 
-    return token
+from app.core.limiter import limiter
+
+@router.post(
+    "/magic-link",
+    status_code=status.HTTP_200_OK,
+)
+@limiter.limit("5/minute")
+def request_login_magic_link(
+    request: Request,
+    magic_data: MagicLinkRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        request_magic_link(
+            db=db,
+            email=magic_data.email,
+            first_name=magic_data.first_name,
+            last_name=magic_data.last_name,
+        )
+        return {
+            "message": "If the email is valid, a login magic link has been sent to your inbox."
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.get(
+    "/magic-link/verify",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+)
+def verify_magic_link_via_url(
+    response: Response,
+    token: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    try:
+        user = verify_magic_link_token(db, token)
+        tokens = create_tokens(db, user)
+        _set_refresh_cookie(response, tokens["refresh_token"])
+        return tokens
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.post(
+    "/magic-link/verify-token",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+)
+def verify_magic_link_via_post(
+    response: Response,
+    verify_data: MagicLinkVerifyToken,
+    db: Session = Depends(get_db),
+):
+    try:
+        user = verify_magic_link_token(db, verify_data.token)
+        tokens = create_tokens(db, user)
+        _set_refresh_cookie(response, tokens["refresh_token"])
+        return tokens
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.post(
+    "/magic-link/verify-code",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+)
+@limiter.limit("10/minute")
+def verify_magic_link_via_code(
+    request: Request,
+    response: Response,
+    verify_data: MagicLinkVerifyCode,
+    db: Session = Depends(get_db),
+):
+    try:
+        user = verify_magic_link_code(db, verify_data.email, verify_data.code)
+        tokens = create_tokens(db, user)
+        _set_refresh_cookie(response, tokens["refresh_token"])
+        return tokens
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.post(
+    "/google",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+)
+@limiter.limit("10/minute")
+def authenticate_with_google(
+    request: Request,
+    response: Response,
+    google_data: GoogleOAuthRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        user = authenticate_google_user(db, google_data.id_token)
+        tokens = create_tokens(db, user)
+        _set_refresh_cookie(response, tokens["refresh_token"])
+        return tokens
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 @router.post("/logout")
 def logout(
-    refresh_token: str,
+    response: Response,
+    request: Request,
+    refresh_token: str | None = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
+    actual_token = refresh_token or request.cookies.get("refresh_token")
 
-    token_hash = hash_token(refresh_token)
-    statement = select(RefreshToken).where(
-        RefreshToken.token_hash == token_hash,
-        RefreshToken.revoked.is_(False),
-        RefreshToken.user_id == current_user.id
-    )
-    
-    stored_token = db.scalar(statement)
+    if actual_token:
+        token_hash = hash_token(actual_token)
+        statement = select(RefreshToken).where(
+            RefreshToken.token_hash == token_hash,
+            RefreshToken.revoked.is_(False),
+            RefreshToken.user_id == current_user.id,
+        )
+        stored_token = db.scalar(statement)
+        if stored_token:
+            stored_token.revoked = True
+            db.commit()
 
-    if stored_token:
-        stored_token.revoked = True
-        db.commit()
-
+    response.delete_cookie(key="refresh_token")
     return {"message": "User Logged Out Successfully"}
+
 
 @router.post(
     "/refresh",
     response_model=TokenResponse,
 )
-
-
-
-def refresh_token(
-    refresh_token: str,
+def refresh_token_endpoint(
+    response: Response,
+    request: Request,
+    refresh_token: str | None = None,
     db: Session = Depends(get_db),
 ):
+    token_val = refresh_token or request.cookies.get("refresh_token")
+
+    if not token_val:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token is required",
+        )
+
     try:
         payload = jwt.decode(
-            refresh_token,
+            token_val,
             settings.JWT_SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM],
         )
@@ -113,7 +226,6 @@ def refresh_token(
             )
 
         user_id = payload.get("sub")
-
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -126,7 +238,7 @@ def refresh_token(
             detail="Invalid or expired refresh token",
         )
 
-    token_hash = hash_token(refresh_token)
+    token_hash = hash_token(token_val)
 
     statement = select(RefreshToken).where(
         RefreshToken.token_hash == token_hash,
@@ -155,19 +267,15 @@ def refresh_token(
             detail="Invalid user",
         )
 
-    # Rotate the refresh token
     stored_token.revoked = True
-
     tokens = create_tokens(db, user)
+    _set_refresh_cookie(response, tokens["refresh_token"])
 
     return tokens
 
-@router.get("/me",response_model=UserResponse)
 
+@router.get("/me", response_model=UserResponse)
 def get_me(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     return current_user
-
-
-

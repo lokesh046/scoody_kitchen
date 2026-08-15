@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.schemas.doctor import DoctorResponse, NearbyDoctorResponse
+from app.schemas.doctor import DoctorResponse, NearbyDoctorResponse, PaginatedDoctorResponse
 from app.services.doctor_service import (
     get_doctor,
     get_doctors_paginated,
@@ -21,7 +21,7 @@ router = APIRouter(
 
 @router.get(
     "",
-    response_model=dict,
+    response_model=PaginatedDoctorResponse,
 )
 def list_public_doctors(
     page: int = 1,

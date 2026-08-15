@@ -3,6 +3,8 @@ from decimal import Decimal
 from sqlalchemy import select, func, or_, and_, Float
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.pagination import paginate_query
+
 from app.models.doctor import Doctor
 from app.models.clinic import Clinic
 from app.models.user import User
@@ -114,9 +116,21 @@ def get_doctors_paginated(
         query = query.where(func.lower(Clinic.city) == city.strip().lower())
 
     if search and search.strip():
-        search_pattern = f"%{search.strip()}%"
+        search_str = search.strip()
+        search_pattern = f"%{search_str}%"
+        doc_tsvector = func.to_tsvector(
+            "english",
+            func.coalesce(Doctor.specialization, "")
+            + " "
+            + func.coalesce(Doctor.qualification, "")
+            + " "
+            + func.coalesce(Doctor.bio, "")
+        )
+        doc_tsquery = func.plainto_tsquery("english", search_str)
+
         query = query.where(
             or_(
+                doc_tsvector.op("@@")(doc_tsquery),
                 User.first_name.ilike(search_pattern),
                 User.last_name.ilike(search_pattern),
                 Doctor.specialization.ilike(search_pattern),
@@ -127,22 +141,8 @@ def get_doctors_paginated(
             )
         )
 
-    count_statement = select(func.count()).select_from(query.subquery())
-    total = db.scalar(count_statement) or 0
-
-    offset = (page - 1) * limit
-    statement = query.order_by(Doctor.id.desc()).offset(offset).limit(limit)
-    doctors = list(db.scalars(statement).unique().all())
-
-    pages = math.ceil(total / limit) if total > 0 else 0
-
-    return {
-        "items": doctors,
-        "total": total,
-        "page": page,
-        "limit": limit,
-        "pages": pages,
-    }
+    query = query.order_by(Doctor.id.desc())
+    return paginate_query(db, query, page=page, limit=limit)
 
 
 def update_doctor(

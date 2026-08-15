@@ -214,6 +214,9 @@ def get_consultation_by_id(
     return db.scalar(query)
 
 
+from app.core.pagination import paginate_query
+
+
 def get_customer_consultations(
     db: Session,
     customer_id: int,
@@ -234,15 +237,7 @@ def get_customer_consultations(
         query = query.where(Consultation.status == status_filter)
 
     query = query.order_by(Consultation.scheduled_at.desc())
-
-    offset = (page - 1) * limit
-    consultations = list(db.scalars(query.offset(offset).limit(limit)).unique().all())
-
-    return {
-        "items": consultations,
-        "page": page,
-        "limit": limit,
-    }
+    return paginate_query(db, query, page=page, limit=limit)
 
 
 def get_doctor_consultations(
@@ -265,15 +260,7 @@ def get_doctor_consultations(
         query = query.where(Consultation.status == status_filter)
 
     query = query.order_by(Consultation.scheduled_at.desc())
-
-    offset = (page - 1) * limit
-    consultations = list(db.scalars(query.offset(offset).limit(limit)).unique().all())
-
-    return {
-        "items": consultations,
-        "page": page,
-        "limit": limit,
-    }
+    return paginate_query(db, query, page=page, limit=limit)
 
 
 def update_consultation_status(

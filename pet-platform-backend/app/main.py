@@ -22,10 +22,49 @@ from app.api.payments import router as payment_router
 from app.api.consultations import router as consultations_router
 
 
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup cleanup of unverified typo accounts older than 24 hours
+    try:
+        from app.core.database import SessionLocal
+        from app.services.auth_service import cleanup_unverified_users
+        db = SessionLocal()
+        count = cleanup_unverified_users(db, max_age_hours=24)
+        db.close()
+    except Exception:
+        pass
+    yield
+
+from fastapi.middleware.cors import CORSMiddleware
+
+from slowapi.errors import RateLimitExceeded
+from app.core.limiter import limiter, rate_limit_handler
+
 app = FastAPI(
     title=settings.APP_NAME,
     version="1.0.0",
     description="Backend API for a pet commerce and pet-care platform",
+    lifespan=lifespan,
+)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
+
+# Configure CORS Middleware for secure cross-origin requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+        settings.FRONTEND_URL,
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -50,6 +89,10 @@ if settings.IMAGE_STORAGE_PROVIDER.lower() == "local":
         StaticFiles(directory=settings.UPLOAD_DIR),
         name=settings.UPLOAD_DIR,
     )
+
+os.makedirs("static", exist_ok=True)
+from fastapi.staticfiles import StaticFiles
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 
