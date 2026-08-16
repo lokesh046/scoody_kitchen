@@ -69,17 +69,6 @@ class User(Base):
         default=False,
     )
 
-    magic_link_token: Mapped[str | None] = mapped_column(
-        String(255),
-        nullable=True,
-        index=True,
-    )
-
-    magic_link_expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-    )
-
     role: Mapped[UserRole] = mapped_column(
     SQLEnum(
         UserRole,
@@ -134,5 +123,11 @@ class User(Base):
         "Doctor",
         back_populates="user",
         uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+    magic_link_tokens = relationship(
+        "MagicLinkToken",
+        back_populates="user",
         cascade="all, delete-orphan",
     )

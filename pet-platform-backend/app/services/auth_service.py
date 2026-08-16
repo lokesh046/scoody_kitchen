@@ -12,6 +12,7 @@ from app.core.security import (
     hash_token,
 )
 from app.models.enums import UserRole
+from app.models.magic_link_token import MagicLinkToken
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.schemas.auth import UserRegister
@@ -87,11 +88,13 @@ def request_magic_link(
     raw_token = secrets.token_urlsafe(32)
     otp_code = f"{random.randint(100000, 999999)}"
 
-    # Combined payload stored as hash: SHA256(raw_token):SHA256(otp_code)
-    token_hash = hash_token(raw_token)
-    code_hash = hash_token(otp_code)
-    user.magic_link_token = f"{token_hash}:{code_hash}"
-    user.magic_link_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    magic_token = MagicLinkToken(
+        user_id=user.id,
+        token_hash=hash_token(raw_token),
+        code_hash=hash_token(otp_code),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+    )
+    db.add(magic_token)
     db.commit()
 
     return send_magic_link_email(
@@ -103,81 +106,83 @@ def request_magic_link(
 
 def verify_magic_link_token(db: Session, raw_token: str) -> User:
     incoming_hash = hash_token(raw_token)
-    users = db.scalars(
-        select(User).where(
-            User.magic_link_token.isnot(None),
-            User.magic_link_expires_at > datetime.now(timezone.utc),
-        )
-    ).all()
+    statement = select(MagicLinkToken).where(
+        MagicLinkToken.token_hash == incoming_hash,
+        MagicLinkToken.used.is_(False),
+        MagicLinkToken.expires_at > datetime.now(timezone.utc),
+    )
+    token_record = db.scalar(statement)
 
-    matched_user = None
-    for u in users:
-        if u.magic_link_token and u.magic_link_token.startswith(incoming_hash):
-            matched_user = u
-            break
-
-    if matched_user is None:
+    if token_record is None:
         raise ValueError("Invalid or expired magic link")
 
-    matched_user.is_email_verified = True
-    matched_user.magic_link_token = None
-    matched_user.magic_link_expires_at = None
+    token_record.used = True
+    user = db.get(User, token_record.user_id)
+    if user is None or not user.is_active:
+        raise ValueError("User account is inactive or not found")
+
+    user.is_email_verified = True
     db.commit()
-    db.refresh(matched_user)
-    return matched_user
+    db.refresh(user)
+    return user
 
 
 def verify_magic_link_code(db: Session, email: str, code: str) -> User:
     user = get_user_by_email(db, email)
-    if user is None or user.magic_link_token is None:
+    if user is None:
         raise ValueError("Invalid or expired login code")
 
-    if user.magic_link_expires_at is None or user.magic_link_expires_at <= datetime.now(timezone.utc):
-        raise ValueError("Login code has expired")
+    statement = (
+        select(MagicLinkToken)
+        .where(
+            MagicLinkToken.user_id == user.id,
+            MagicLinkToken.used.is_(False),
+            MagicLinkToken.expires_at > datetime.now(timezone.utc),
+        )
+        .order_by(MagicLinkToken.created_at.desc())
+    )
+    token_record = db.scalar(statement)
+
+    if token_record is None:
+        raise ValueError("Invalid or expired login code")
+
+    if token_record.failed_attempts >= 5:
+        token_record.used = True
+        db.commit()
+        raise ValueError("Too many failed attempts. Login code has been invalidated.")
 
     incoming_code_hash = hash_token(code)
-    if not user.magic_link_token.endswith(incoming_code_hash):
+    if token_record.code_hash != incoming_code_hash:
+        token_record.failed_attempts += 1
+        if token_record.failed_attempts >= 5:
+            token_record.used = True
+            db.commit()
+            raise ValueError("Too many failed attempts. Login code has been invalidated.")
+        db.commit()
         raise ValueError("Invalid login code")
 
+    token_record.used = True
     user.is_email_verified = True
-    user.magic_link_token = None
-    user.magic_link_expires_at = None
     db.commit()
     db.refresh(user)
     return user
 
 
 def authenticate_google_user(db: Session, id_token: str) -> User:
-    payload = None
-    if settings.GOOGLE_CLIENT_ID:
-        try:
-            from google.oauth2 import id_token as google_id_token
-            from google.auth.transport import requests as google_requests
+    if not settings.GOOGLE_CLIENT_ID:
+        raise ValueError("Google OAuth is not configured on the server")
 
-            payload = google_id_token.verify_oauth2_token(
-                id_token,
-                google_requests.Request(),
-                settings.GOOGLE_CLIENT_ID,
-            )
-        except Exception:
-            payload = None
+    try:
+        from google.oauth2 import id_token as google_id_token
+        from google.auth.transport import requests as google_requests
 
-    if not payload:
-        # Development / Testing fallback decode
-        import json, base64, jwt as pyjwt
-        try:
-            payload = pyjwt.decode(id_token, options={"verify_signature": False})
-        except Exception:
-            try:
-                parts = id_token.split(".")
-                if len(parts) >= 2:
-                    padded = parts[1] + "=" * (-len(parts[1]) % 4)
-                    payload = json.loads(base64.b64decode(padded).decode("utf-8"))
-            except Exception:
-                payload = None
-
-    if not payload or "email" not in payload:
-        raise ValueError("Invalid Google ID token format")
+        payload = google_id_token.verify_oauth2_token(
+            id_token,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+    except Exception as exc:
+        raise ValueError(f"Invalid Google ID token signature or claims: {exc}")
 
     if not payload or "email" not in payload:
         raise ValueError("Google ID token missing email claim")
@@ -206,7 +211,6 @@ def authenticate_google_user(db: Session, id_token: str) -> User:
         db.commit()
         db.refresh(user)
     else:
-        # Update OAuth metadata
         user.auth_provider = "google"
         if sub and not user.oauth_sub:
             user.oauth_sub = sub

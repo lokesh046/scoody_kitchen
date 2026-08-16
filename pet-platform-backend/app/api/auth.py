@@ -44,25 +44,31 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
     )
 
 
+from app.core.limiter import limiter
+
+
 @router.post(
     "/register",
-    response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
 )
+@limiter.limit("5/minute")
 def register(
+    request: Request,
     user_data: UserRegister,
     db: Session = Depends(get_db),
 ):
-    existing_user = get_user_by_email(db, user_data.email)
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Email is already registered",
+    try:
+        request_magic_link(
+            db=db,
+            email=user_data.email,
+            first_name=user_data.first_name,
+            last_name=user_data.last_name,
         )
-    return create_user(db, user_data)
-
-
-from app.core.limiter import limiter
+        return {
+            "message": "If the email is valid, a magic link has been sent to your inbox."
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 @router.post(
     "/magic-link",
