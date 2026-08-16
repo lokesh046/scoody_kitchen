@@ -68,6 +68,8 @@ app.add_middleware(
 )
 
 
+from app.api.webhooks import router as webhooks_router
+
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(doctor_router)
@@ -80,6 +82,7 @@ app.include_router(cart_router)
 app.include_router(orders_router)
 app.include_router(payment_router)
 app.include_router(consultations_router)
+app.include_router(webhooks_router)
 
 if settings.IMAGE_STORAGE_PROVIDER.lower() == "local":
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)

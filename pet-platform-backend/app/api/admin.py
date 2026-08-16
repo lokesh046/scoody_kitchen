@@ -340,3 +340,33 @@ def update_doctor_status_admin(
     db.commit()
     db.refresh(doctor)
     return doctor
+
+
+from app.schemas.shipping import CreateShipmentRequest, OrderTrackingResponse
+from app.services.shipping_service import create_shipment_for_order, get_tracking_details
+
+
+@router.post(
+    "/orders/{order_id}/shipment",
+    response_model=OrderTrackingResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_order_shipment_admin(
+    order_id: int,
+    shipment_data: CreateShipmentRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    try:
+        await create_shipment_for_order(
+            db,
+            order_id=order_id,
+            tracking_number=shipment_data.tracking_number,
+            carrier=shipment_data.carrier,
+        )
+        return get_tracking_details(db, order_id=order_id, current_user=current_user)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )

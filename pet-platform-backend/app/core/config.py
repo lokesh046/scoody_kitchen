@@ -33,6 +33,18 @@ class Setting(BaseSettings):
     EMAILS_FROM: str | None = None
     FRONTEND_URL: str = "http://127.0.0.1:8000"
 
+    # EasyPost Shipping Configuration
+    EASYPOST_API_KEY: str | None = None
+    EASYPOST_WEBHOOK_SECRET: str | None = None
+    EASYPOST_ENABLED: bool = False
+
+    # Shiprocket Shipping Configuration
+    SHIPPING_PROVIDER: str = "easypost"
+    SHIPROCKET_EMAIL: str | None = None
+    SHIPROCKET_PASSWORD: str | None = None
+    SHIPROCKET_ENABLED: bool = False
+    SHIPROCKET_WEBHOOK_TOKEN: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",

@@ -19,6 +19,11 @@ from app.models.health_record import HealthRecord
 from app.models.enums import ConsultationStatus, HealthRecordType
 
 
+from app.models.shipment import Shipment
+from app.models.order_status_history import OrderStatusHistory
+from app.models.webhook_event import ProcessedWebhookEvent
+
+
 __all__ = [
     "User",
     "RefreshToken",
@@ -34,6 +39,9 @@ __all__ = [
     "OrderStatus",
     "Payment",
     "PaymentStatus",
+    "Shipment",
+    "OrderStatusHistory",
+    "ProcessedWebhookEvent",
     "Clinic",
     "Doctor",
     "DoctorAvailability",

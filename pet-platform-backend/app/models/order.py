@@ -17,13 +17,18 @@ import enum
 
 
 class OrderStatus(str, enum.Enum):
-    PENDING = "pending"
-    CONFIRMED = "confirmed"
+    PENDING = "PENDING"
+    CONFIRMED = "CONFIRMED"
     PROCESSING = "processing"
+    PACKED = "packed"
     SHIPPED = "shipped"
+    IN_TRANSIT = "in_transit"
+    OUT_FOR_DELIVERY = "out_for_delivery"
     DELIVERED = "delivered"
-    CANCELLED = "cancelled"
-    COMPLETED = "completed"
+    RETURNED = "returned"
+    DELIVERY_FAILED = "delivery_failed"
+    CANCELLED = "CANCELLED"
+    COMPLETED = "COMPLETED"
 
 
 class Order(Base):
@@ -44,6 +49,7 @@ class Order(Base):
         Enum(
             OrderStatus,
             name="order_status",
+            values_callable=lambda enum: [item.value for item in enum],
         ),
         nullable=False,
         default=OrderStatus.PENDING,
@@ -84,8 +90,21 @@ class Order(Base):
     )
 
     payment = relationship(
-    "Payment",
-    back_populates="order",
-    uselist=False,
-    cascade="all, delete-orphan",
+        "Payment",
+        back_populates="order",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+    shipment = relationship(
+        "Shipment",
+        back_populates="order",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+    status_history = relationship(
+        "OrderStatusHistory",
+        back_populates="order",
+        cascade="all, delete-orphan",
     )
