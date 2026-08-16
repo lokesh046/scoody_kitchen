@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -56,12 +56,15 @@ def cleanup_unverified_users_admin(
     response_model=list[OrderResponse],
 )
 def list_all_orders_admin(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    status: OrderStatus | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_role(UserRole.ADMIN)
     ),
 ):
-    return get_all_orders(db)
+    return get_all_orders(db, skip=skip, limit=limit, status=status)
 
 
 @router.get(

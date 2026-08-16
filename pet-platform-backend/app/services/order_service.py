@@ -194,6 +194,9 @@ def get_user_order(
 
 def get_all_orders(
     db: Session,
+    skip: int = 0,
+    limit: int = 20,
+    status: OrderStatus | None = None,
 ) -> list[Order]:
     statement = (
         select(Order)
@@ -202,8 +205,11 @@ def get_all_orders(
             joinedload(Order.status_history),
             joinedload(Order.shipment),
         )
-        .order_by(Order.created_at.desc())
     )
+    if status is not None:
+        statement = statement.where(Order.status == status)
+
+    statement = statement.order_by(Order.created_at.desc()).offset(skip).limit(limit)
     return list(db.scalars(statement).unique().all())
 
 
