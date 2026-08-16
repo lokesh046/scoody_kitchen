@@ -1,7 +1,7 @@
 import math
 from decimal import Decimal
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from fastapi import HTTPException, status
 
 
@@ -80,7 +80,8 @@ def get_products_paginated(
 
     statement = select(Product).options(
         joinedload(Product.category),
-        joinedload(Product.inventory)
+        joinedload(Product.inventory),
+        selectinload(Product.images),
     )
 
     if not include_inactive:
@@ -145,7 +146,8 @@ def get_products(
 
     statement = select(Product).options(
         joinedload(Product.category),
-        joinedload(Product.inventory)
+        joinedload(Product.inventory),
+        selectinload(Product.images),
     )
 
     if not include_inactive:
@@ -180,7 +182,8 @@ def get_product(
         select(Product)
         .options(
             joinedload(Product.category),
-            joinedload(Product.inventory)
+            joinedload(Product.inventory),
+            selectinload(Product.images),
         )
         .where(Product.id == product_id)
     )

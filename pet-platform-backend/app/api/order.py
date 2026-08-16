@@ -45,7 +45,7 @@ def checkout(
             detail=str(exc),
         )
 
-router.get(
+@router.get(
     "",
     response_model=list[OrderResponse],
 )

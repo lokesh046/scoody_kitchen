@@ -53,6 +53,7 @@ class Order(Base):
         ),
         nullable=False,
         default=OrderStatus.PENDING,
+        index=True,
     )
 
     total_amount: Mapped[Decimal] = mapped_column(
@@ -69,6 +70,7 @@ class Order(Base):
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
+        index=True,
     )
 
     updated_at: Mapped[datetime] = mapped_column(

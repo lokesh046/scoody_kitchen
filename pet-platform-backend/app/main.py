@@ -38,6 +38,7 @@ async def lifespan(app: FastAPI):
     yield
 
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from slowapi.errors import RateLimitExceeded
 from app.core.limiter import limiter, rate_limit_handler
@@ -48,6 +49,9 @@ app = FastAPI(
     description="Backend API for a pet commerce and pet-care platform",
     lifespan=lifespan,
 )
+
+# GZip response compression middleware (compresses responses > 1KB)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_handler)

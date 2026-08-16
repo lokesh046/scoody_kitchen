@@ -77,6 +77,69 @@ class LocalStorageProvider(BaseStorageProvider):
                     pass
 
 
+class CloudinaryStorageProvider(BaseStorageProvider):
+    """Cloudinary cloud media storage provider with automatic CDN distribution."""
+
+    def __init__(
+        self,
+        cloud_name: str | None = None,
+        api_key: str | None = None,
+        api_secret: str | None = None,
+    ):
+        self.cloud_name = settings.CLOUDINARY_CLOUD_NAME if cloud_name is None else cloud_name
+        self.api_key = settings.CLOUDINARY_API_KEY if api_key is None else api_key
+        self.api_secret = settings.CLOUDINARY_API_SECRET if api_secret is None else api_secret
+
+        if not (self.cloud_name and self.api_key and self.api_secret):
+            raise ValueError(
+                "Cloudinary credentials (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET) must be configured."
+            )
+
+        import cloudinary
+        cloudinary.config(
+            cloud_name=self.cloud_name,
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+            secure=True,
+        )
+
+    def upload_image(
+        self,
+        file_bytes: bytes,
+        original_filename: str,
+        content_type: str,
+    ) -> str:
+        import cloudinary.uploader
+
+        response = cloudinary.uploader.upload(
+            file_bytes,
+            folder="scooby_kitchen",
+            resource_type="image",
+            fetch_format="auto",
+            quality="auto",
+        )
+        url = response.get("secure_url") or response.get("url")
+        if not url:
+            raise RuntimeError("Cloudinary upload did not return a valid URL.")
+        return url
+
+    def delete_image(self, image_url: str) -> None:
+        if not image_url:
+            return
+        import cloudinary.uploader
+        try:
+            parts = image_url.split("/upload/")
+            if len(parts) > 1:
+                path = parts[1]
+                # strip version prefix if present e.g. v12345/
+                if path.startswith("v") and "/" in path:
+                    path = path.split("/", 1)[1]
+                public_id = os.path.splitext(path)[0]
+                cloudinary.uploader.destroy(public_id)
+        except Exception:
+            pass
+
+
 def get_storage_provider() -> BaseStorageProvider:
     """Factory function returning configured storage provider instance."""
     provider_name = settings.IMAGE_STORAGE_PROVIDER.lower()
@@ -84,6 +147,12 @@ def get_storage_provider() -> BaseStorageProvider:
         return LocalStorageProvider(
             upload_dir=settings.UPLOAD_DIR,
             base_url=settings.BASE_URL,
+        )
+    elif provider_name == "cloudinary":
+        return CloudinaryStorageProvider(
+            cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+            api_key=settings.CLOUDINARY_API_KEY,
+            api_secret=settings.CLOUDINARY_API_SECRET,
         )
     raise NotImplementedError(
         f"Storage provider '{provider_name}' is not configured or supported."

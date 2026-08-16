@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.cache import cache
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user, require_role
 from app.models.enums import UserRole
@@ -34,40 +35,50 @@ def list_categories(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return get_categories(db)
+    cached = cache.get("categories:all")
+    if cached is not None:
+        return cached
+    result = get_categories(db)
+    cache.set("categories:all", result, ttl_seconds=300)
+    return result
 
-router.get(
+
+@router.get(
     "/{category_id}",
     response_model=CategoryResponse,
     status_code=status.HTTP_200_OK,
 )
-def api_get_category_by_id(category_id: int, 
-       db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user),
+def api_get_category_by_id(
+    category_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     category = get_category_by_id(db, category_id)
     if not category:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail="Category not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Category not found",
+        )
     return category
-    
 
 
-@router.post("",
-response_model= CategoryResponse,status_code=status.HTTP_201_CREATED)
-
-
+@router.post(
+    "",
+    response_model=CategoryResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_new_category(
     category_data: CategoryCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.ADMIN)),
 ):
-
     try:
-        return create_category(
+        created = create_category(
             db,
             category_data,
         )
+        cache.delete("categories:all")
+        return created
     except IntegrityError:
         db.rollback()
 
@@ -75,6 +86,7 @@ def create_new_category(
             status_code=status.HTTP_409_CONFLICT,
             detail="Category already exists",
         )
+
 
 @router.patch(
     "/{category_id}",
@@ -100,11 +112,13 @@ def update_existing_category(
         )
 
     try:
-        return update_category(
+        updated = update_category(
             db,
             category,
             category_data,
         )
+        cache.delete("categories:all")
+        return updated
 
     except IntegrityError:
         db.rollback()
@@ -112,7 +126,7 @@ def update_existing_category(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Category already exists",
-        )   
+        )
 
 
 @router.delete(
@@ -142,6 +156,7 @@ def delete_existing_category(
             db,
             category,
         )
+        cache.delete("categories:all")
 
     except IntegrityError:
         db.rollback()

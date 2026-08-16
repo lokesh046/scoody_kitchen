@@ -1,12 +1,14 @@
 from decimal import Decimal
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session  
 
-
+from app.core.cache import cache
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user, require_role
 from app.models.enums import UserRole
+from app.models.product import ProductImage
 from app.models.user import User
 from app.schemas.product import (
     PaginatedProductResponse,
@@ -50,9 +52,14 @@ def get_all_products(
     current_user: User = Depends(get_current_user),
 ):
     include_inactive = current_user.role == UserRole.ADMIN
+    cache_key = f"products:{page}_{limit}_{category_id}_{min_price}_{max_price}_{search}_{sort_by}_{sort_order}_{include_inactive}"
+
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
 
     try:
-        return get_products_paginated(
+        result = get_products_paginated(
             db=db,
             search=search,
             category_id=category_id,
@@ -64,6 +71,8 @@ def get_all_products(
             limit=limit,
             include_inactive=include_inactive,
         )
+        cache.set(cache_key, result, ttl_seconds=120)
+        return result
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -139,7 +148,9 @@ async def create_new_product(
         )
 
     try:
-        return create_product(db, product_data, image_url=image_url)
+        created = create_product(db, product_data, image_url=image_url)
+        cache.clear_prefix("products:")
+        return created
     except Exception as exc:
         if image_url and storage_provider:
             try:
@@ -231,6 +242,7 @@ async def update_existing_product(
             except Exception:
                 pass
 
+        cache.clear_prefix("products:")
         return updated
 
     except Exception as exc:
@@ -278,10 +290,12 @@ def delete_existing_product(
             detail="Product not found",
         )
 
-    return deactivate_product(
+    deactivated = deactivate_product(
         db,
         product,
     )
+    cache.clear_prefix("products:")
+    return deactivated
 
 
 @router.get(
@@ -310,4 +324,103 @@ def get_product_stock(
         "available_stock": get_available_stock(inventory),
         "low_stock": is_low_stock(inventory),
     }
+
+
+@router.post(
+    "/{product_id}/gallery",
+    response_model=ProductResponse,
+)
+async def upload_product_gallery_images(
+    product_id: int,
+    images: list[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    product = get_product(db, product_id)
+    if product is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found",
+        )
+
+    if not images:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No image files provided",
+        )
+
+    storage_provider = get_storage_provider()
+    existing_count = len(product.images)
+
+    for index, image_file in enumerate(images):
+        if not image_file.filename:
+            continue
+        file_bytes = await image_file.read()
+        validate_image_file(image_file, file_bytes)
+
+        uploaded_url = storage_provider.upload_image(
+            file_bytes=file_bytes,
+            original_filename=image_file.filename,
+            content_type=image_file.content_type or "image/jpeg",
+        )
+
+        img_record = ProductImage(
+            product_id=product.id,
+            image_url=uploaded_url,
+            display_order=existing_count + index,
+        )
+        db.add(img_record)
+        if hasattr(product, "images") and isinstance(product.images, list):
+            product.images.append(img_record)
+
+        if not product.image_url:
+            product.image_url = uploaded_url
+
+    db.commit()
+    db.refresh(product)
+    cache.clear_prefix("products:")
+    return product
+
+
+@router.delete(
+    "/{product_id}/gallery/{image_id}",
+    response_model=ProductResponse,
+)
+def delete_product_gallery_image(
+    product_id: int,
+    image_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    product = get_product(db, product_id)
+    if product is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found",
+        )
+
+    img_record = db.scalars(
+        select(ProductImage).where(
+            ProductImage.id == image_id,
+            ProductImage.product_id == product_id,
+        )
+    ).unique().one_or_none()
+
+    if img_record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Gallery image not found",
+        )
+
+    storage_provider = get_storage_provider()
+    try:
+        storage_provider.delete_image(img_record.image_url)
+    except Exception:
+        pass
+
+    db.delete(img_record)
+    db.commit()
+    db.refresh(product)
+    cache.clear_prefix("products:")
+    return product
 

@@ -54,6 +54,17 @@ class ProductUpdate(BaseModel):
     is_active: bool | None = None
 
 
+class ProductImageResponse(BaseModel):
+    id: int | None = None
+    product_id: int
+    image_url: str
+    display_order: int
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
 class ProductResponse(BaseModel):
     id: int
     category_id: int
@@ -69,6 +80,7 @@ class ProductResponse(BaseModel):
     category: CategoryResponse | None = None
     available_stock: int | None = None
     is_in_stock: bool | None = None
+    images: list[ProductImageResponse] = []
 
     model_config = {
         "from_attributes": True
