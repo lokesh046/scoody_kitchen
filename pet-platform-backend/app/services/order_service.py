@@ -158,6 +158,9 @@ def create_order_from_cart(
 def get_user_orders(
     db: Session,
     user_id: int,
+    skip: int = 0,
+    limit: int = 20,
+    status: OrderStatus | None = None,
 ) -> list[Order]:
     statement = (
         select(Order)
@@ -167,8 +170,11 @@ def get_user_orders(
             joinedload(Order.shipment),
         )
         .where(Order.user_id == user_id)
-        .order_by(Order.created_at.desc())
     )
+    if status is not None:
+        statement = statement.where(Order.status == status)
+
+    statement = statement.order_by(Order.created_at.desc()).offset(skip).limit(limit)
     return list(db.scalars(statement).unique().all())
 
 

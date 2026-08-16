@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
+from app.models.order import OrderStatus
 from app.models.user import User
 from app.schemas.order import CheckoutRequest, OrderResponse
 from app.services.order_service import (
@@ -49,12 +50,18 @@ router.get(
     response_model=list[OrderResponse],
 )
 def get_my_orders(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    status: OrderStatus | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     return get_user_orders(
         db,
         current_user.id,
+        skip=skip,
+        limit=limit,
+        status=status,
     )
 
 @router.get(
