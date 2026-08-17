@@ -9,6 +9,12 @@ class Setting(BaseSettings):
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256" # default algorithm
 
+
+  # Internal service-to-service auth (used by pet-platform-mcp-server only —
+    # never exposed to customer-facing clients).
+    INTERNAL_SERVICE_API_KEY: str | None = None
+
+    
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30 # 30 minutes
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7 # 7 days
 

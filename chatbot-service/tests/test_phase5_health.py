@@ -1,5 +1,7 @@
 import sys
 import os
+import base64
+import json
 import pytest
 from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
@@ -12,12 +14,26 @@ if service_dir not in sys.path:
 from main import app
 
 client = TestClient(app)
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "test_jwt_secret_key_123456789")
+
+
+def _make_auth_header(user_id: int = 1) -> dict:
+    try:
+        import jwt
+        token = jwt.encode({"sub": str(user_id), "role": "customer"}, JWT_SECRET_KEY, algorithm="HS256")
+    except Exception:
+        header = base64.b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).decode().rstrip("=")
+        payload = base64.b64encode(json.dumps({"sub": str(user_id), "role": "customer"}).encode()).decode().rstrip("=")
+        token = f"{header}.{payload}.sig"
+    return {"Authorization": f"Bearer {token}"}
 
 
 def test_health_agent_emergency_red_alert():
     # Emergency symptom: seizure + chocolate poison
+    headers = _make_auth_header()
     response = client.post(
         "/chat",
+        headers=headers,
         json={
             "message": "My dog ate chocolate and is having a seizure and severe bleeding!",
             "session_id": "test_health_sess_emergency",
@@ -33,8 +49,10 @@ def test_health_agent_emergency_red_alert():
 
 def test_health_agent_non_emergency_guidance_with_disclaimer():
     # Mild symptom: skin dryness
+    headers = _make_auth_header()
     response = client.post(
         "/chat",
+        headers=headers,
         json={
             "message": "My cat has mild dry skin symptoms and occasional sneezing.",
             "session_id": "test_health_sess_mild",

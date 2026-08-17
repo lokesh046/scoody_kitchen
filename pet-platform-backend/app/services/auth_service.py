@@ -41,7 +41,8 @@ def create_user(db: Session, user_data: UserRegister) -> User:
 
 
 def create_tokens(db: Session, user: User) -> dict[str, str]:
-    access_token = create_access_token(user.id)
+    user_role_str = user.role.value if hasattr(user.role, "value") else str(user.role)
+    access_token = create_access_token(user.id, role=user_role_str)
     refresh_token, refresh_expire = create_refresh_token(user.id)
 
     refresh_token_record = RefreshToken(

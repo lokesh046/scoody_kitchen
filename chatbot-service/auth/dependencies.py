@@ -1,83 +1,58 @@
 import os
-from fastapi import Depends, HTTPException, Security, status
+from fastapi import HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "test_jwt_secret_key_123456789")
-ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "admin_secret_key_999")
 
 security = HTTPBearer(auto_error=False)
 
 
 def get_current_chat_user(
     auth: HTTPAuthorizationCredentials | None = Security(security),
-) -> int | None:
-    """FastAPI Dependency: Authoritatively decodes JWT token to inject user_id server-side (IDOR Protection)."""
-    if not auth:
-        return None
+) -> int:
+    """FastAPI Dependency: Authoritatively decodes & verifies JWT signature. Raises 401 on missing/invalid token."""
+    if not auth or not auth.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required. Please provide a valid Authorization Bearer token.",
+        )
 
-    token = auth.credentials
-    if token == ADMIN_API_KEY:
-        return 1
+    token = auth.credentials.strip()
+    secret_key = os.getenv("JWT_SECRET_KEY", "test_jwt_secret_key_123456789")
 
     try:
-        try:
-            import jwt
-            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
-        except ImportError:
-            from jose import jwt
-            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
-            
+        import jwt
+        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
         sub = payload.get("sub") or payload.get("user_id")
         if sub is not None:
             return int(sub)
-        return None
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token subject payload.",
+        )
+    except HTTPException:
+        raise
     except Exception:
-        # If token is invalid or unparseable, attempt fallback payload parsing
-        try:
-            import base64, json
-            parts = token.split(".")
-            if len(parts) == 3:
-                padded = parts[1] + "=" * (-len(parts[1]) % 4)
-                payload = json.loads(base64.b64decode(padded).decode("utf-8"))
-                sub = payload.get("sub") or payload.get("user_id")
-                if sub is not None:
-                    return int(sub)
-        except Exception:
-            pass
-        return None
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired authentication token signature.",
+        )
 
 
 def require_admin_role(
     auth: HTTPAuthorizationCredentials | None = Security(security),
 ) -> dict:
-    """FastAPI Dependency: Enforces strict Admin Role Authentication & Authorization on protected routes."""
-    if not auth:
+    """FastAPI Dependency: Enforces strict Admin Role Authentication & Cryptographic Signature Verification."""
+    if not auth or not auth.credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing Authorization header. Admin bearer token or API key required.",
+            detail="Missing Authorization header. Admin bearer token required.",
         )
 
-    token = auth.credentials
+    token = auth.credentials.strip()
+    secret_key = os.getenv("JWT_SECRET_KEY", "test_jwt_secret_key_123456789")
 
-    # 1. Direct Admin API Key Check
-    if token == ADMIN_API_KEY:
-        return {"user_id": 1, "role": "admin"}
-
-    # 2. JWT Token Decoding & Admin Role Verification
     try:
-        try:
-            import jwt
-            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
-        except Exception:
-            try:
-                from jose import jwt
-                payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
-            except Exception:
-                import base64, json
-                parts = token.split(".")
-                padded = parts[1] + "=" * (-len(parts[1]) % 4)
-                payload = json.loads(base64.b64decode(padded).decode("utf-8"))
-
+        import jwt
+        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
         role = payload.get("role", payload.get("user_role"))
         is_admin = payload.get("is_admin", False)
 
@@ -86,12 +61,12 @@ def require_admin_role(
         else:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access Denied: Admin privileges required to access this RAG management endpoint.",
+                detail="Access Denied: Admin privileges required to access this endpoint.",
             )
-    except Exception as exc:
-        if isinstance(exc, HTTPException):
-            raise exc
+    except HTTPException:
+        raise
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired admin authentication token.",
+            detail="Invalid or forged admin authentication token signature.",
         )

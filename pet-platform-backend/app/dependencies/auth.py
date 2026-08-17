@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status,Header
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -100,3 +100,26 @@ def require_roles(*required_roles: UserRole) -> Callable:
 
 require_admin = require_role(UserRole.ADMIN)
 require_doctor = require_roles(UserRole.DOCTOR, UserRole.ADMIN)
+
+
+
+def verify_internal_service(x_internal_api_key: str = Header(...)) -> None:
+    """Authenticates a trusted internal caller (e.g. pet-platform-mcp-server).
+
+    This is NOT a substitute for per-user authorization. Any endpoint using
+    this dependency must still independently verify that the acting_user_id
+    it receives actually owns whatever resource is being accessed — never
+    trust the caller's word for that, only that the caller is a genuine
+    internal service.
+    """
+    if not settings.INTERNAL_SERVICE_API_KEY:
+        # Fail closed: an unconfigured key must never silently grant access.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Internal service authentication is not configured.",
+        )
+    if x_internal_api_key != settings.INTERNAL_SERVICE_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid internal service credential.",
+        )

@@ -50,6 +50,7 @@ def test_upload_text_file_rag_ingestion_with_admin_auth():
     # Query public chatbot for training advice
     chat_res = client.post(
         "/chat",
+        headers=ADMIN_HEADERS,
         json={"message": "positive reinforcement training", "session_id": "test_upload_sess_01"},
     )
     assert chat_res.status_code == 200

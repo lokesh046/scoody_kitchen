@@ -1,7 +1,23 @@
-"""MCP Client Manager - Connects to FastMCP Server via langchain-mcp-adapters."""
+"""MCP Client Manager - Connects to FastMCP Server via langchain-mcp-adapters.
 
+IMPORTANT: this client talks to pet-platform-mcp-server over real MCP (SSE)
+and nothing else. There used to be a silent in-process fallback here that
+imported the MCP server's tool functions directly and called them without
+going over the network at all — meaning a real request could quietly bypass
+the MCP protocol and the mcp-server container entirely, with no error and no
+log line telling you it happened. That fallback is now only reachable when
+ALLOW_MCP_FALLBACK=true is explicitly set (intended for local unit tests that
+don't spin up the full docker-compose stack) — never in the normal request
+path.
+"""
+
+import logging
 import os
 import sys
+
+logger = logging.getLogger(__name__)
+
+ALLOW_MCP_FALLBACK = os.getenv("ALLOW_MCP_FALLBACK", "false").lower() == "true"
 
 # Set dummy env vars if not present in env for unit tests
 if not os.environ.get("JWT_SECRET_KEY"):
@@ -26,29 +42,50 @@ class MCPClientManager:
         self.server_url = MCP_SERVER_URL
 
     def get_mcp_tools(self) -> list[Any]:
-        """Load tools from FastMCP server using langchain-mcp-adapters with direct fallback."""
-        try:
-            from langchain_mcp_adapters.client import MultiServerMCPClient
-            import asyncio
-            
-            # Synchronous wrapper around MultiServerMCPClient for LangGraph node compatibility
-            async def _fetch():
-                async with MultiServerMCPClient(
-                    {"pet_tools": {"url": self.server_url, "transport": "sse"}}
-                ) as client:
-                    return client.get_tools()
+        """Load tools from the real FastMCP server over SSE.
 
+        Raises if the MCP server is unreachable, rather than silently
+        returning in-process tool calls — a caller needs to know when a
+        request could not actually reach the MCP layer, not have it disguised
+        as a normal, successful tool list.
+        """
+        from langchain_mcp_adapters.client import MultiServerMCPClient
+        import asyncio
+
+        async def _fetch():
+            async with MultiServerMCPClient(
+                {"pet_tools": {"url": self.server_url, "transport": "sse"}}
+            ) as client:
+                return client.get_tools()
+
+        try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                # If event loop is running, use fallback for thread safety
-                return self._get_fallback_mcp_tools()
-            tools = loop.run_until_complete(_fetch())
-            if tools:
-                return tools
-        except Exception:
-            pass
+                # We're already inside an async context (e.g. FastAPI request
+                # handler). Run the fetch on a fresh event loop in a thread
+                # rather than silently switching to the in-process fallback.
+                import concurrent.futures
 
-        return self._get_fallback_mcp_tools()
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    tools = pool.submit(lambda: asyncio.run(_fetch())).result(timeout=10)
+            else:
+                tools = loop.run_until_complete(_fetch())
+        except Exception as exc:
+            logger.error("MCP server unreachable at %s: %s", self.server_url, exc)
+            if ALLOW_MCP_FALLBACK:
+                logger.warning("ALLOW_MCP_FALLBACK=true — using in-process tools for this call.")
+                return self._get_fallback_mcp_tools()
+            raise RuntimeError(
+                f"Could not reach pet-platform-mcp-server at {self.server_url}. "
+                "Tool calls are unavailable until the MCP server is reachable."
+            ) from exc
+
+        if not tools:
+            logger.error("MCP server returned no tools from %s.", self.server_url)
+            raise RuntimeError("MCP server returned no tools.")
+
+        logger.info("Loaded %d tools via real MCP/SSE from %s.", len(tools), self.server_url)
+        return tools
 
     def _get_fallback_mcp_tools(self) -> list[Any]:
         """Direct python tool wrappers for headless testing."""

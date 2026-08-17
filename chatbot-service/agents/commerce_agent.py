@@ -16,8 +16,19 @@ def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     user_query = messages[-1]["content"] if messages else ""
     query_lower = user_query.lower()
 
-    # 1. Fetch FastMCP Tools via langchain-mcp-adapters
-    mcp_tools = mcp_client.get_mcp_tools()
+    # 1. Fetch FastMCP Tools via langchain-mcp-adapters (real MCP/SSE — see
+    # mcp_client.py). If the MCP server is unreachable, this now raises
+    # rather than silently degrading to in-process calls, so we handle that
+    # explicitly here with a clear message to the user instead of a 500.
+    try:
+        mcp_tools = mcp_client.get_mcp_tools()
+    except RuntimeError:
+        reply = (
+            "I'm having trouble reaching our order/booking system right now. "
+            "Please try again in a moment, or contact support directly."
+        )
+        return {"messages": messages + [{"role": "assistant", "content": reply}]}
+
     tools_by_name = {t.name: t for t in mcp_tools}
 
     # 2. Check for Pending HITL Action from previous turn

@@ -1,6 +1,8 @@
 import io
 import sys
 import os
+import base64
+import json
 import pytest
 from fastapi.testclient import TestClient
 
@@ -13,6 +15,18 @@ from main import app
 from agents.supervisor import route_intent
 
 client = TestClient(app)
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "test_jwt_secret_key_123456789")
+
+
+def _make_auth_header(user_id: int = 1) -> dict:
+    try:
+        import jwt
+        token = jwt.encode({"sub": str(user_id), "role": "customer"}, JWT_SECRET_KEY, algorithm="HS256")
+    except Exception:
+        header = base64.b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).decode().rstrip("=")
+        payload = base64.b64encode(json.dumps({"sub": str(user_id), "role": "customer"}).encode()).decode().rstrip("=")
+        token = f"{header}.{payload}.sig"
+    return {"Authorization": f"Bearer {token}"}
 
 
 def test_supervisor_intent_classification():
@@ -30,9 +44,11 @@ def test_supervisor_intent_classification():
 
 def test_multimodal_voice_chat_endpoint():
     audio_content = b"RIFF....WAVEfmt ....data...."  # Simulated WAV audio
+    headers = _make_auth_header()
     
     response = client.post(
         "/chat/voice",
+        headers=headers,
         files={"file": ("speech.wav", io.BytesIO(audio_content), "audio/wav")},
         data={"session_id": "test_voice_sess_01"},
     )
@@ -44,9 +60,11 @@ def test_multimodal_voice_chat_endpoint():
 
 def test_multimodal_image_chat_endpoint():
     image_content = b"\xFF\xD8\xFF\xE0\x00\x10JFIF\x00..."  # Simulated JPEG image
+    headers = _make_auth_header()
     
     response = client.post(
         "/chat/image",
+        headers=headers,
         files={"file": ("pet_rash.jpg", io.BytesIO(image_content), "image/jpeg")},
         data={
             "message": "My dog has a red rash on his ear",
