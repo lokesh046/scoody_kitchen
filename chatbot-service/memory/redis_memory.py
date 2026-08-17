@@ -14,7 +14,7 @@ class RedisSessionMemory:
     def __init__(self, ttl_seconds: int = 1800):
         self.ttl_seconds = ttl_seconds
         self.redis_active = False
-        self._in_memory: dict[str, list[dict[str, Any]]] = {}
+        self._in_memory: dict[str, Any] = {}
 
         try:
             import redis
@@ -84,6 +84,47 @@ class RedisSessionMemory:
             except Exception:
                 pass
         return key in self._in_memory
+
+    def set_pending_action(self, session_id: str, action: str, args: dict) -> None:
+        """Store pending state-changing action for verification on the next turn."""
+        key = f"pending_action:{session_id}"
+        data = json.dumps({"action": action, "args": args})
+        if self.redis_active:
+            try:
+                self.client.setex(key, 300, data)
+                return
+            except Exception:
+                pass
+        self._in_memory[key] = data
+
+    def get_pending_action(self, session_id: str) -> dict | None:
+        """Retrieve and parse pending action details."""
+        key = f"pending_action:{session_id}"
+        raw = None
+        if self.redis_active:
+            try:
+                raw = self.client.get(key)
+            except Exception:
+                pass
+        else:
+            raw = self._in_memory.get(key)
+
+        if raw:
+            try:
+                return json.loads(raw)
+            except Exception:
+                pass
+        return None
+
+    def clear_pending_action(self, session_id: str) -> None:
+        """Clear pending action status once completed or expired."""
+        key = f"pending_action:{session_id}"
+        if self.redis_active:
+            try:
+                self.client.delete(key)
+            except Exception:
+                pass
+        self._in_memory.pop(key, None)
 
 
 session_memory = RedisSessionMemory()

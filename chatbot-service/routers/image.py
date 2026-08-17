@@ -1,7 +1,7 @@
 import os
 import base64
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
-from auth.dependencies import get_current_chat_user
+from auth.dependencies import get_current_chat_user, validate_session_ownership
 from utils.image_validator import validate_image_file
 from schemas.chat import ChatResponse
 from graph.workflow import chatbot_graph
@@ -56,6 +56,8 @@ async def image_chat_endpoint(
     # 3. Execute Multi-turn Chat Workflow with Vision Context & Server-Side Injected user_id
     combined_query = f"User uploaded an image. Question: '{message}'. Visual Analysis: '{vision_description}'"
     
+    validate_session_ownership(session_id, current_user_id)
+
     history = session_memory.get_history(session_id)
     input_messages = history + [{"role": "user", "content": combined_query}]
 

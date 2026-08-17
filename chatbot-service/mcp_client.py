@@ -19,11 +19,10 @@ logger = logging.getLogger(__name__)
 
 ALLOW_MCP_FALLBACK = os.getenv("ALLOW_MCP_FALLBACK", "false").lower() == "true"
 
-# Set dummy env vars if not present in env for unit tests
 if not os.environ.get("JWT_SECRET_KEY"):
-    os.environ["JWT_SECRET_KEY"] = "test_jwt_secret_key_123456789_long_key_for_sha256"
+    raise RuntimeError("JWT_SECRET_KEY environment variable is not configured.")
 if not os.environ.get("DATABASE_URL"):
-    os.environ["DATABASE_URL"] = "postgresql+psycopg://pet_user:pet_password@localhost:5432/pet_platform"
+    raise RuntimeError("DATABASE_URL environment variable is not configured.")
 
 from typing import Any
 
@@ -32,7 +31,9 @@ mcp_server_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../pet
 if mcp_server_dir not in sys.path:
     sys.path.insert(0, mcp_server_dir)
 
-MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://mcp-server:8001/sse")
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL")
+if not MCP_SERVER_URL:
+    raise RuntimeError("MCP_SERVER_URL environment variable is not configured.")
 
 
 class MCPClientManager:

@@ -3,7 +3,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
-from auth.dependencies import get_current_chat_user
+from auth.dependencies import get_current_chat_user, validate_session_ownership
 from graph.workflow import chatbot_graph
 from memory.redis_memory import session_memory
 from schemas.chat import ChatRequest, ChatResponse
@@ -28,6 +28,9 @@ async def chat_endpoint(
 
     # 2. LangChain Prompt Safety & PII Redaction Pipeline
     sanitized_message = validate_prompt_safety(request_data.message)
+
+    # Validate session ownership context (IDOR defense)
+    validate_session_ownership(request_data.session_id, current_user_id)
 
     # 3. Load multi-turn history from Redis session memory
     history = session_memory.get_history(request_data.session_id)
@@ -78,6 +81,9 @@ async def chat_stream_endpoint(
     # 1. Enforce Rate Limiting & Safety Guardrails
     enforce_rate_limit(req, user_id=current_user_id)
     sanitized_message = validate_prompt_safety(request_data.message)
+
+    # Validate session ownership context (IDOR defense)
+    validate_session_ownership(request_data.session_id, current_user_id)
 
     # 2. Load multi-turn history from Redis session memory
     history = session_memory.get_history(request_data.session_id)
@@ -145,7 +151,11 @@ async def chat_stream_endpoint(
 
 
 @router.delete("/session/{session_id}")
-def clear_session_endpoint(session_id: str) -> dict[str, str]:
+def clear_session_endpoint(
+    session_id: str,
+    current_user_id: int = Depends(get_current_chat_user),
+) -> dict[str, str]:
     """Purge session conversation history (e.g. on logout)."""
+    validate_session_ownership(session_id, current_user_id)
     session_memory.clear_session(session_id)
     return {"status": "success", "message": f"Session {session_id} purged."}

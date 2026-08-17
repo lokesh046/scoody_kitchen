@@ -33,13 +33,24 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
         return {"messages": messages + [{"role": "assistant", "content": reply}]}
 
     tools_by_name = {t.name: t for t in mcp_tools}
+    session_id = state.get("session_id")
 
     # 2. Check for Pending HITL Action from previous turn
     pending_action = state.get("pending_action")
     pending_args = state.get("pending_action_args") or {}
 
+    from memory.redis_memory import session_memory
+
+    if session_id:
+        redis_pending = session_memory.get_pending_action(session_id)
+        if redis_pending:
+            pending_action = redis_pending.get("action")
+            pending_args = redis_pending.get("args") or {}
+
     if not pending_action:
         for msg in reversed(messages[:-1]):
+            if msg.get("role") != "assistant":
+                continue
             content = msg.get("content", "")
             if "⚠️ CONFIRMATION REQUIRED" in content:
                 match = re.search(r"action\s+'([^']+)'\s+for\s+order\s+#(\d+)", content)
@@ -66,6 +77,8 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                 "idempotency_key": idempotency_key,
             })
             reply = f"Order Cancellation Response:\n{tool_res}"
+            if session_id:
+                session_memory.clear_pending_action(session_id)
             return {
                 "messages": messages + [{"role": "assistant", "content": reply}],
                 "sources": ["Scooby Order Service"],
@@ -90,6 +103,8 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                 "idempotency_key": idempotency_key,
             })
             reply = f"Vet Booking Response:\n{tool_res}"
+            if session_id:
+                session_memory.clear_pending_action(session_id)
             return {
                 "messages": messages + [{"role": "assistant", "content": reply}],
                 "sources": ["Scooby Vet Booking Service"],
@@ -106,6 +121,8 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             f"⚠️ CONFIRMATION REQUIRED: Are you sure you want to execute action 'cancel_order' for order #{target_order_id}? "
             f"This will release reserved stock back to inventory. Please reply 'Yes, confirm' to proceed."
         )
+        if session_id:
+            session_memory.set_pending_action(session_id, "cancel_order", {"order_id": target_order_id})
         return {
             "messages": messages + [{"role": "assistant", "content": reply}],
             "requires_confirmation": True,
@@ -119,6 +136,14 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
         pet_match = re.search(r"pet\s+#?(\d+)", query_lower)
         pet_id = int(pet_match.group(1)) if pet_match else 1
 
+        args = {
+            "doctor_id": doctor_id,
+            "pet_id": pet_id,
+            "scheduled_at_iso": "2026-08-20T10:00:00Z",
+            "reason": "Vet Consultation",
+        }
+        if session_id:
+            session_memory.set_pending_action(session_id, "book_consultation", args)
         reply = (
             f"⚠️ CONFIRMATION REQUIRED: Are you sure you want to execute action 'book_consultation' for doctor #{doctor_id} and pet #{pet_id}? "
             f"Please reply 'Yes, confirm' to proceed."
@@ -127,12 +152,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             "messages": messages + [{"role": "assistant", "content": reply}],
             "requires_confirmation": True,
             "pending_action": "book_consultation",
-            "pending_action_args": {
-                "doctor_id": doctor_id,
-                "pet_id": pet_id,
-                "scheduled_at_iso": "2026-08-20T10:00:00Z",
-                "reason": "Vet Consultation",
-            },
+            "pending_action_args": args,
         }
 
     # 5. Native ChatLiteLLM Tool Binding Execution Loop

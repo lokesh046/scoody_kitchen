@@ -15,6 +15,7 @@ from typing import Callable
 from app.models.enums import UserRole
 
 
+
 def get_current_user(request: Request, db: Session = Depends(get_db)):
     token = request.cookies.get("access_token")
     if not token:
@@ -115,7 +116,8 @@ require_doctor = require_roles(UserRole.DOCTOR, UserRole.ADMIN)
 
 def verify_internal_service(x_internal_api_key: str = Header(...)) -> None:
     """Authenticates a trusted internal caller (e.g. pet-platform-mcp-server) using short-lived JWTs."""
-    if not settings.INTERNAL_SERVICE_API_KEY:
+    secret_key = settings.INTERNAL_SERVICE_API_KEY
+    if not secret_key:
         # Fail closed: an unconfigured key must never silently grant access.
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -125,7 +127,7 @@ def verify_internal_service(x_internal_api_key: str = Header(...)) -> None:
     try:
         payload = jwt.decode(
             x_internal_api_key,
-            settings.INTERNAL_SERVICE_API_KEY,
+            secret_key,
             algorithms=["HS256"],
         )
         if payload.get("iss") not in ("pet-platform-mcp-server", "chatbot-service"):

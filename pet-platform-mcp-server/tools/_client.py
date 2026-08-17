@@ -11,8 +11,13 @@ from datetime import datetime, timedelta, timezone
 import httpx
 import jwt
 
-BACKEND_URL = os.getenv("BACKEND_URL", "http://backend:8000")
-INTERNAL_SERVICE_API_KEY = os.getenv("INTERNAL_SERVICE_API_KEY", "")
+BACKEND_URL = os.getenv("BACKEND_URL")
+if not BACKEND_URL:
+    raise RuntimeError("BACKEND_URL environment variable is not configured.")
+
+INTERNAL_SERVICE_API_KEY = os.getenv("INTERNAL_SERVICE_API_KEY")
+if not INTERNAL_SERVICE_API_KEY:
+    raise RuntimeError("INTERNAL_SERVICE_API_KEY environment variable is not configured.")
 
 
 def _get_headers() -> dict:

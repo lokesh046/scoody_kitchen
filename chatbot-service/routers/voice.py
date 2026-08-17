@@ -1,7 +1,7 @@
 import os
 import base64
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
-from auth.dependencies import get_current_chat_user
+from auth.dependencies import get_current_chat_user, validate_session_ownership
 from schemas.chat import ChatResponse
 from graph.workflow import chatbot_graph
 from memory.redis_memory import session_memory
@@ -54,7 +54,8 @@ async def voice_chat_endpoint(
     if not transcribed_text.strip():
         transcribed_text = "What is your return policy for unopened items?"
 
-    # 2. Execute Multi-turn Chat Workflow with Transcribed Text & Server-Side Injected user_id
+    validate_session_ownership(session_id, current_user_id)
+
     history = session_memory.get_history(session_id)
     input_messages = history + [{"role": "user", "content": f"[Voice Message]: {transcribed_text}"}]
 
