@@ -7,7 +7,7 @@ from auth.dependencies import get_current_chat_user
 from graph.workflow import chatbot_graph
 from memory.redis_memory import session_memory
 from schemas.chat import ChatRequest, ChatResponse
-from utils.guardrails import validate_prompt_safety
+from utils.guardrails import redact_pii_text, validate_prompt_safety
 from utils.rate_limiter import enforce_rate_limit
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
@@ -24,7 +24,7 @@ async def chat_endpoint(
         raise HTTPException(status_code=400, detail="Message content cannot be empty.")
 
     # 1. Enforce Rate Limiting Guardrail
-    enforce_rate_limit(req)
+    enforce_rate_limit(req, user_id=current_user_id)
 
     # 2. LangChain Prompt Safety & PII Redaction Pipeline
     sanitized_message = validate_prompt_safety(request_data.message)
@@ -45,7 +45,8 @@ async def chat_endpoint(
     try:
         final_state = await chatbot_graph.ainvoke(initial_state)
         messages = final_state.get("messages", [])
-        bot_reply = messages[-1]["content"] if messages else "No response generated."
+        raw_reply = messages[-1]["content"] if messages else "No response generated."
+        bot_reply = redact_pii_text(raw_reply)
         sources = final_state.get("sources", [])
 
         # 5. Save turns into Redis session memory (30-min TTL)
@@ -75,7 +76,7 @@ async def chat_stream_endpoint(
         raise HTTPException(status_code=400, detail="Message content cannot be empty.")
 
     # 1. Enforce Rate Limiting & Safety Guardrails
-    enforce_rate_limit(req)
+    enforce_rate_limit(req, user_id=current_user_id)
     sanitized_message = validate_prompt_safety(request_data.message)
 
     # 2. Load multi-turn history from Redis session memory

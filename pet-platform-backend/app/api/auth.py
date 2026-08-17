@@ -33,14 +33,24 @@ from app.services.auth_service import (
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
+def _set_auth_cookies(response: Response, tokens: dict) -> None:
     response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
+        key="access_token",
+        value=tokens["access_token"],
         httponly=True,
         secure=not settings.DEBUG,
-        samesite="lax",
+        samesite="strict",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=tokens["refresh_token"],
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="strict",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600,
+        path="/",
     )
 
 
@@ -107,7 +117,7 @@ def verify_magic_link_via_url(
     try:
         user = verify_magic_link_token(db, token)
         tokens = create_tokens(db, user)
-        _set_refresh_cookie(response, tokens["refresh_token"])
+        _set_auth_cookies(response, tokens)
         return tokens
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -126,7 +136,7 @@ def verify_magic_link_via_post(
     try:
         user = verify_magic_link_token(db, verify_data.token)
         tokens = create_tokens(db, user)
-        _set_refresh_cookie(response, tokens["refresh_token"])
+        _set_auth_cookies(response, tokens)
         return tokens
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -147,7 +157,7 @@ def verify_magic_link_via_code(
     try:
         user = verify_magic_link_code(db, verify_data.email, verify_data.code)
         tokens = create_tokens(db, user)
-        _set_refresh_cookie(response, tokens["refresh_token"])
+        _set_auth_cookies(response, tokens)
         return tokens
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -168,7 +178,7 @@ def authenticate_with_google(
     try:
         user = authenticate_google_user(db, google_data.id_token)
         tokens = create_tokens(db, user)
-        _set_refresh_cookie(response, tokens["refresh_token"])
+        _set_auth_cookies(response, tokens)
         return tokens
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -182,6 +192,24 @@ def logout(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    access_token = request.cookies.get("access_token")
+    if access_token:
+        try:
+            payload = jwt.decode(
+                access_token,
+                settings.JWT_SECRET_KEY,
+                algorithms=[settings.JWT_ALGORITHM],
+            )
+            exp = payload.get("exp")
+            if exp:
+                remaining_time = exp - int(datetime.now(timezone.utc).timestamp())
+                if remaining_time > 0:
+                    from app.core.cache import cache
+                    acc_hash = hash_token(access_token)
+                    cache.set(f"blacklist:access:{acc_hash}", "revoked", ttl_seconds=int(remaining_time))
+        except Exception:
+            pass
+
     actual_token = refresh_token or request.cookies.get("refresh_token")
 
     if actual_token:
@@ -196,7 +224,8 @@ def logout(
             stored_token.revoked = True
             db.commit()
 
-    response.delete_cookie(key="refresh_token")
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/")
     return {"message": "User Logged Out Successfully"}
 
 
@@ -275,7 +304,7 @@ def refresh_token_endpoint(
 
     stored_token.revoked = True
     tokens = create_tokens(db, user)
-    _set_refresh_cookie(response, tokens["refresh_token"])
+    _set_auth_cookies(response, tokens)
 
     return tokens
 

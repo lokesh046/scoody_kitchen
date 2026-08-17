@@ -21,6 +21,8 @@ dependencies = [
     "redis>=5.0.0",
     "slowapi>=0.1.9",
     "requests>=2.31.0",
+    "cloudinary>=1.41.0",
+    "google-auth>=2.0.0",
 ]
 
 [build-system]

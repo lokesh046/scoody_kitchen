@@ -625,6 +625,7 @@ dependencies = [
     { name = "langchain-mcp-adapters" },
     { name = "mcp", extra = ["cli"] },
     { name = "pydantic" },
+    { name = "pyjwt" },
     { name = "requests" },
     { name = "uvicorn" },
 ]
@@ -636,6 +637,7 @@ requires-dist = [
     { name = "langchain-mcp-adapters", specifier = ">=0.3.2" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.2.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "pyjwt", specifier = ">=2.13.0" },
     { name = "requests", specifier = ">=2.31.0" },
     { name = "uvicorn", specifier = ">=0.30.0" },
 ]

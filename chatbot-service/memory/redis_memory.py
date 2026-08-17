@@ -64,5 +64,26 @@ class RedisSessionMemory:
                 pass
         self._in_memory.pop(session_id, None)
 
+    def blacklist_token(self, token_hash: str, ttl_seconds: int) -> None:
+        """Blacklist an access token on logout."""
+        key = f"blacklist:access:{token_hash}"
+        if self.redis_active:
+            try:
+                self.client.setex(key, ttl_seconds, "revoked")
+                return
+            except Exception:
+                pass
+        self._in_memory[key] = [{"role": "revoked", "content": "revoked"}]
+
+    def is_token_blacklisted(self, token_hash: str) -> bool:
+        """Check if an access token hash is blacklisted."""
+        key = f"blacklist:access:{token_hash}"
+        if self.redis_active:
+            try:
+                return bool(self.client.get(key))
+            except Exception:
+                pass
+        return key in self._in_memory
+
 
 session_memory = RedisSessionMemory()

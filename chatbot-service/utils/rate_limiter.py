@@ -113,7 +113,34 @@ class RedisSlidingWindowRateLimiter:
 rate_limiter = RedisSlidingWindowRateLimiter()
 
 
-def enforce_rate_limit(request: Request) -> None:
-    """FastAPI Dependency enforcing per-client rate limiting."""
-    client_ip = request.client.host if request.client else "127.0.0.1"
-    rate_limiter.check_rate_limit(client_ip)
+def get_client_ip(request: Request) -> str:
+    """Extract real client IP address from request headers or socket address.
+    
+    Checks X-Forwarded-For and X-Real-IP headers for requests coming through reverse proxies.
+    """
+    x_forwarded_for = request.headers.get("x-forwarded-for")
+    if x_forwarded_for:
+        client_ip = x_forwarded_for.split(",")[0].strip()
+        if client_ip:
+            return client_ip
+
+    x_real_ip = request.headers.get("x-real-ip")
+    if x_real_ip and x_real_ip.strip():
+        return x_real_ip.strip()
+
+    return request.client.host if request.client else "127.0.0.1"
+
+
+def enforce_rate_limit(request: Request, user_id: int | None = None) -> None:
+    """Enforce per-user (primary) or per-IP (secondary) sliding-window rate limiting.
+    
+    Prevents IP rotation evasions and proxy-throttling collisions by tying rate limit 
+    buckets directly to authenticated user_id post-JWT authorization.
+    """
+    if user_id is not None:
+        identifier = f"user:{user_id}"
+    else:
+        client_ip = get_client_ip(request)
+        identifier = f"ip:{client_ip}"
+
+    rate_limiter.check_rate_limit(identifier)

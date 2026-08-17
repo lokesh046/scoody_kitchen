@@ -3,7 +3,7 @@ import os
 
 # Set dummy env vars if not present in env for unit tests
 if not os.environ.get("JWT_SECRET_KEY"):
-    os.environ["JWT_SECRET_KEY"] = "test_jwt_secret_key_123456789"
+    os.environ["JWT_SECRET_KEY"] = "test_jwt_secret_key_123456789_long_key_for_sha256"
 if not os.environ.get("DATABASE_URL"):
     os.environ["DATABASE_URL"] = "postgresql+psycopg://pet_user:pet_password@localhost:5432/pet_platform"
 

@@ -4,6 +4,7 @@ import os
 import re
 from typing import Any
 from mcp_client import mcp_client
+from utils.guardrails import redact_pii_text
 from utils.llm_gateway import get_llm_with_fallback
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -12,7 +13,9 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     """LangGraph Commerce ReAct Agent node using ChatLiteLLM native tool binding."""
     messages = state.get("messages", [])
-    session_user_id = state.get("user_id") or 1
+    session_user_id = state.get("user_id")
+    if session_user_id is None:
+        raise ValueError("Authentication context missing: session_user_id is required to perform commerce operations.")
     user_query = messages[-1]["content"] if messages else ""
     query_lower = user_query.lower()
 
@@ -149,7 +152,8 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                             # Inject session_user_id authoritatively
                             t_args["session_user_id"] = session_user_id
                             tool_res = tools_by_name[t_name].invoke(t_args)
-                            reply = f"Response from {t_name}:\n{tool_res}"
+                            sanitized_res = redact_pii_text(str(tool_res))
+                            reply = f"Response from {t_name}:\n{sanitized_res}"
                             return {
                                 "messages": messages + [{"role": "assistant", "content": reply}],
                                 "sources": ["Scooby FastMCP Tool Engine"],

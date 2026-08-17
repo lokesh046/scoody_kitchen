@@ -13,8 +13,11 @@ from main import app
 
 client = TestClient(app)
 
-ADMIN_HEADERS = {"Authorization": "Bearer admin_secret_key_999"}
-NON_ADMIN_HEADERS = {"Authorization": "Bearer invalid_user_token"}
+import jwt
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "test_jwt_secret_key_123456789_long_key_for_sha256")
+admin_token = jwt.encode({"sub": "999", "role": "admin"}, JWT_SECRET_KEY, algorithm="HS256")
+ADMIN_COOKIES = {"access_token": admin_token}
+NON_ADMIN_COOKIES = {"access_token": "invalid_user_token"}
 
 
 def test_rag_admin_unauthorized_rejection():
@@ -26,7 +29,7 @@ def test_rag_admin_unauthorized_rejection():
     content = b"Some document text"
     res_bad_auth = client.post(
         "/rag/upload",
-        headers=NON_ADMIN_HEADERS,
+        cookies=NON_ADMIN_COOKIES,
         files={"file": ("test.txt", io.BytesIO(content), "text/plain")},
     )
     assert res_bad_auth.status_code in [401, 403]
@@ -37,7 +40,7 @@ def test_upload_text_file_rag_ingestion_with_admin_auth():
     
     response = client.post(
         "/rag/upload",
-        headers=ADMIN_HEADERS,
+        cookies=ADMIN_COOKIES,
         files={"file": ("training_guide.txt", io.BytesIO(content), "text/plain")},
         data={"title": "Dog Training Guide", "category": "training"},
     )
@@ -50,7 +53,7 @@ def test_upload_text_file_rag_ingestion_with_admin_auth():
     # Query public chatbot for training advice
     chat_res = client.post(
         "/chat",
-        headers=ADMIN_HEADERS,
+        cookies=ADMIN_COOKIES,
         json={"message": "positive reinforcement training", "session_id": "test_upload_sess_01"},
     )
     assert chat_res.status_code == 200
@@ -60,7 +63,7 @@ def test_upload_text_file_rag_ingestion_with_admin_auth():
 
 def test_list_and_delete_documents_with_admin_auth():
     # 1. List docs as Admin
-    list_res = client.get("/rag/documents", headers=ADMIN_HEADERS)
+    list_res = client.get("/rag/documents", cookies=ADMIN_COOKIES)
     assert list_res.status_code == 200
     docs = list_res.json()
     assert isinstance(docs, list)
@@ -68,6 +71,6 @@ def test_list_and_delete_documents_with_admin_auth():
 
     # 2. Delete doc as Admin
     target_id = docs[0]["doc_id"]
-    del_res = client.delete(f"/rag/documents/{target_id}", headers=ADMIN_HEADERS)
+    del_res = client.delete(f"/rag/documents/{target_id}", cookies=ADMIN_COOKIES)
     assert del_res.status_code == 200
     assert del_res.json()["status"] == "success"

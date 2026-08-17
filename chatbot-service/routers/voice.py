@@ -1,10 +1,12 @@
 import os
 import base64
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from auth.dependencies import get_current_chat_user
 from schemas.chat import ChatResponse
 from graph.workflow import chatbot_graph
 from memory.redis_memory import session_memory
+from utils.guardrails import redact_pii_text
+from utils.rate_limiter import enforce_rate_limit
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
@@ -13,11 +15,13 @@ router = APIRouter(prefix="/chat", tags=["Voice Chat"])
 
 @router.post("/voice", response_model=ChatResponse)
 async def voice_chat_endpoint(
+    req: Request,
     file: UploadFile = File(...),
     session_id: str = Form(...),
     current_user_id: int | None = Depends(get_current_chat_user),
 ) -> ChatResponse:
     """[MULTIMODAL] Upload audio file (.mp3, .wav, .m4a), transcribe speech, and execute AI chatbot workflow."""
+    enforce_rate_limit(req, user_id=current_user_id)
     if not file.filename:
         raise HTTPException(status_code=400, detail="No audio file provided.")
 
@@ -63,9 +67,10 @@ async def voice_chat_endpoint(
     }
 
     try:
-        final_state = chatbot_graph.invoke(initial_state)
+        final_state = await chatbot_graph.ainvoke(initial_state)
         messages = final_state.get("messages", [])
-        bot_reply = messages[-1]["content"] if messages else "No response generated."
+        raw_reply = messages[-1]["content"] if messages else "No response generated."
+        bot_reply = redact_pii_text(raw_reply)
         sources = final_state.get("sources", [])
 
         session_memory.save_message(session_id, "user", f"[Voice Message]: {transcribed_text}")

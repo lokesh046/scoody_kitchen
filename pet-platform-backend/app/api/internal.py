@@ -126,8 +126,8 @@ def internal_search_products(
         db=db, search=search, category_id=category_id, limit=limit, include_inactive=False,
     )
     return {
-        "total": paginated.total,
-        "page": paginated.page,
+        "total": paginated["total"],
+        "page": paginated["page"],
         "products": [
             {
                 "id": p.id,
@@ -137,7 +137,7 @@ def internal_search_products(
                 "category_id": p.category_id,
                 "in_stock": getattr(p, "is_in_stock", True),
             }
-            for p in paginated.items
+            for p in paginated["items"]
         ],
     }
 

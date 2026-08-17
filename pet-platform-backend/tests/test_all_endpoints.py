@@ -75,3 +75,34 @@ def test_admin_access_control_rules():
         assert res_doc.json()["role"] == "admin"
     finally:
         app.dependency_overrides.clear()
+
+
+def test_internal_service_jwt_authentication():
+    import jwt
+    from datetime import datetime, timezone, timedelta
+    from app.core.config import settings
+
+    # 1. No header -> 422 Unprocessable (since X-Internal-Api-Key header is required)
+    res = client.get("/internal/products/search?search=Food")
+    assert res.status_code in (401, 422)
+
+    # 2. Invalid header -> 401 Unauthorized
+    res = client.get(
+        "/internal/products/search?search=Food",
+        headers={"X-Internal-Api-Key": "invalid-token-string"}
+    )
+    assert res.status_code == 401
+
+    # 3. Valid short-lived JWT -> 200 OK
+    payload = {
+        "iss": "pet-platform-mcp-server",
+        "exp": datetime.now(timezone.utc) + timedelta(seconds=60)
+    }
+    token = jwt.encode(payload, settings.INTERNAL_SERVICE_API_KEY, algorithm="HS256")
+    
+    res = client.get(
+        "/internal/products/search?search=Food",
+        headers={"X-Internal-Api-Key": token}
+    )
+    assert res.status_code == 200
+    assert "products" in res.json()

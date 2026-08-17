@@ -1,5 +1,4 @@
-from fastapi import Depends, HTTPException, status,Header
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends, HTTPException, status, Header, Request
 from sqlalchemy.orm import Session
 
 import jwt
@@ -16,12 +15,23 @@ from typing import Callable
 from app.models.enums import UserRole
 
 
-security =  HTTPBearer()
+def get_current_user(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required. Please log in.",
+        )
 
-
-def get_current_user(credentials: HTTPAuthorizationCredentials=Depends(security),db:Session=Depends(get_db)):
-
-    token = credentials.credentials
+    # Check if token is blacklisted in Redis (revoked on logout)
+    from app.core.security import hash_token
+    from app.core.cache import cache
+    token_hash = hash_token(token)
+    if cache.get(f"blacklist:access:{token_hash}"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked. Please log in again.",
+        )
 
     try:
         payload = jwt.decode(
@@ -104,22 +114,32 @@ require_doctor = require_roles(UserRole.DOCTOR, UserRole.ADMIN)
 
 
 def verify_internal_service(x_internal_api_key: str = Header(...)) -> None:
-    """Authenticates a trusted internal caller (e.g. pet-platform-mcp-server).
-
-    This is NOT a substitute for per-user authorization. Any endpoint using
-    this dependency must still independently verify that the acting_user_id
-    it receives actually owns whatever resource is being accessed — never
-    trust the caller's word for that, only that the caller is a genuine
-    internal service.
-    """
+    """Authenticates a trusted internal caller (e.g. pet-platform-mcp-server) using short-lived JWTs."""
     if not settings.INTERNAL_SERVICE_API_KEY:
         # Fail closed: an unconfigured key must never silently grant access.
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Internal service authentication is not configured.",
         )
-    if x_internal_api_key != settings.INTERNAL_SERVICE_API_KEY:
+
+    try:
+        payload = jwt.decode(
+            x_internal_api_key,
+            settings.INTERNAL_SERVICE_API_KEY,
+            algorithms=["HS256"],
+        )
+        if payload.get("iss") not in ("pet-platform-mcp-server", "chatbot-service"):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid internal service issuer.",
+            )
+    except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid internal service credential.",
+            detail="Internal service credential has expired.",
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid internal service credential signature.",
         )

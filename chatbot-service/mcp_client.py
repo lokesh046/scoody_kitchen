@@ -21,7 +21,7 @@ ALLOW_MCP_FALLBACK = os.getenv("ALLOW_MCP_FALLBACK", "false").lower() == "true"
 
 # Set dummy env vars if not present in env for unit tests
 if not os.environ.get("JWT_SECRET_KEY"):
-    os.environ["JWT_SECRET_KEY"] = "test_jwt_secret_key_123456789"
+    os.environ["JWT_SECRET_KEY"] = "test_jwt_secret_key_123456789_long_key_for_sha256"
 if not os.environ.get("DATABASE_URL"):
     os.environ["DATABASE_URL"] = "postgresql+psycopg://pet_user:pet_password@localhost:5432/pet_platform"
 
@@ -93,8 +93,8 @@ class MCPClientManager:
 
         try:
             from tools.orders import tool_get_order_status, tool_get_order_tracking
-            from tools.products import tool_search_products, tool_get_product_stock
-            from tools.bookings import tool_get_available_slots, tool_get_my_consultations
+            from tools.products import tool_search_products, tool_get_product_stock 
+            from tools.bookings import tool_get_available_slots, tool_get_my_consultations 
             from tools.actions import tool_book_consultation, tool_cancel_order, tool_cancel_consultation
 
             return [
