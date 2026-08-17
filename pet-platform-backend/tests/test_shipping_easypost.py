@@ -2,7 +2,7 @@ import hmac
 import hashlib
 import json
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -101,17 +101,20 @@ def test_webhook_idempotency_and_status_progression():
     }
 
     payload_bytes = json.dumps(webhook_payload).encode("utf-8")
+    secret = "test_easypost_secret"
+    valid_sig = hmac.new(secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
 
-    # First call: process event
-    res1 = process_easypost_webhook(db, payload_bytes, None, webhook_payload)
-    assert res1["status"] == "processed"
-    assert shipment.status == "in_transit"
-    assert order.status == OrderStatus.IN_TRANSIT
+    with patch("app.core.config.settings.EASYPOST_WEBHOOK_SECRET", secret):
+        # First call: process event
+        res1 = process_easypost_webhook(db, payload_bytes, valid_sig, webhook_payload)
+        assert res1["status"] == "processed"
+        assert shipment.status == "in_transit"
+        assert order.status == OrderStatus.IN_TRANSIT
 
-    # Second call with same event ID: return already_processed
-    db.scalar.return_value = MagicMock()  # Event now exists
-    res2 = process_easypost_webhook(db, payload_bytes, None, webhook_payload)
-    assert res2["status"] == "already_processed"
+        # Second call with same event ID: return already_processed
+        db.scalar.return_value = MagicMock()  # Event now exists
+        res2 = process_easypost_webhook(db, payload_bytes, valid_sig, webhook_payload)
+        assert res2["status"] == "already_processed"
 
 
 def test_webhook_hmac_signature_verification():

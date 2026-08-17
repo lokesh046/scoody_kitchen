@@ -62,17 +62,28 @@ def test_shiprocket_webhook_idempotency_and_status_progression():
         "current_status": "IN TRANSIT",
     }
 
-    with patch("app.core.config.settings.SHIPROCKET_WEBHOOK_TOKEN", None):
+    with patch("app.core.config.settings.SHIPROCKET_WEBHOOK_TOKEN", "valid_token_123"):
         # First call: process event
-        res1 = process_shiprocket_webhook(db, None, webhook_payload)
+        res1 = process_shiprocket_webhook(db, "valid_token_123", webhook_payload)
         assert res1["status"] == "processed"
         assert shipment.status == "in_transit"
         assert order.status == OrderStatus.IN_TRANSIT
 
         # Second call with same event ID: return already_processed
         db.scalar.return_value = MagicMock()  # Event now exists
-        res2 = process_shiprocket_webhook(db, None, webhook_payload)
+        res2 = process_shiprocket_webhook(db, "valid_token_123", webhook_payload)
         assert res2["status"] == "already_processed"
+
+
+def test_shiprocket_webhook_fails_closed_when_token_missing():
+    from app.services.shipping_service import process_shiprocket_webhook
+
+    db = MagicMock()
+    webhook_payload = {"awb": "SR2000000002", "current_status": "IN TRANSIT"}
+
+    with patch("app.core.config.settings.SHIPROCKET_WEBHOOK_TOKEN", None):
+        with pytest.raises(ValueError, match="Shiprocket webhook verification token is not configured on server"):
+            process_shiprocket_webhook(db, "some_token", webhook_payload)
 
 
 def test_shiprocket_webhook_token_verification():

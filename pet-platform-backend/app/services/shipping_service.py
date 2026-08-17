@@ -218,9 +218,11 @@ def process_easypost_webhook(
     signature_header: str | None,
     payload_json: dict[str, Any],
 ) -> dict[str, Any]:
-    if settings.EASYPOST_WEBHOOK_SECRET:
-        if not verify_easypost_hmac_signature(payload_bytes, signature_header):
-            raise ValueError("Invalid EasyPost webhook HMAC signature")
+    if not settings.EASYPOST_WEBHOOK_SECRET:
+        raise ValueError("EasyPost webhook secret is not configured on server")
+
+    if not verify_easypost_hmac_signature(payload_bytes, signature_header):
+        raise ValueError("Invalid EasyPost webhook HMAC signature")
 
     event_id = payload_json.get("id")
     event_type = payload_json.get("event", "tracker.updated")
@@ -284,10 +286,12 @@ def process_shiprocket_webhook(
     token_header: str | None,
     payload_json: dict[str, Any],
 ) -> dict[str, Any]:
-    # 1. Token Verification
-    if settings.SHIPROCKET_WEBHOOK_TOKEN:
-        if token_header != settings.SHIPROCKET_WEBHOOK_TOKEN:
-            raise ValueError("Invalid Shiprocket webhook verification token")
+    # 1. Token Verification (Fail Closed)
+    if not settings.SHIPROCKET_WEBHOOK_TOKEN:
+        raise ValueError("Shiprocket webhook verification token is not configured on server")
+
+    if token_header != settings.SHIPROCKET_WEBHOOK_TOKEN:
+        raise ValueError("Invalid Shiprocket webhook verification token")
 
     # 2. Extract Event Info
     awb = payload_json.get("awb") or payload_json.get("awb_code") or payload_json.get("tracking_code")
