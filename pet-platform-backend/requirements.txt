@@ -16,3 +16,4 @@ pwdlib[argon2]
 pytest
 httpx
 cloudinary>=1.41.0
+redis>=5.0.0

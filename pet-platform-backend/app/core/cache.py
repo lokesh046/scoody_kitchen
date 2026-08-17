@@ -1,5 +1,10 @@
+import json
+import logging
+import os
 import time
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class InMemoryTTLCache:
@@ -34,4 +39,77 @@ class InMemoryTTLCache:
         self._cache.clear()
 
 
-cache = InMemoryTTLCache()
+class RedisCacheManager:
+    """Hybrid Redis Cache Manager with automatic graceful fallback to InMemoryTTLCache."""
+
+    def __init__(self, default_ttl_seconds: int = 300):
+        self.default_ttl = default_ttl_seconds
+        self.fallback = InMemoryTTLCache(default_ttl_seconds=default_ttl_seconds)
+        self.redis_active = False
+        self.client = None
+        self._init_redis()
+
+    def _init_redis(self) -> None:
+        try:
+            import redis
+            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+            self.client = redis.Redis.from_url(redis_url, decode_responses=True)
+            self.client.ping()
+            self.redis_active = True
+            logger.info("Redis cache manager connected successfully.")
+        except Exception as exc:
+            self.redis_active = False
+            logger.warning("Redis unavailable (%s) — falling back to InMemoryTTLCache.", exc)
+
+    def get(self, key: str) -> Any | None:
+        if self.redis_active and self.client:
+            try:
+                raw_val = self.client.get(key)
+                if raw_val is not None:
+                    return json.loads(raw_val)
+                return None
+            except Exception as exc:
+                logger.warning("Redis get error: %s — using fallback.", exc)
+        return self.fallback.get(key)
+
+    def set(self, key: str, value: Any, ttl_seconds: int | None = None) -> None:
+        ttl = ttl_seconds if ttl_seconds is not None else self.default_ttl
+        if self.redis_active and self.client:
+            try:
+                serialized = json.dumps(value, default=str)
+                self.client.set(key, serialized, ex=ttl)
+                self.fallback.set(key, value, ttl_seconds=ttl)
+                return
+            except Exception as exc:
+                logger.warning("Redis set error: %s — using fallback.", exc)
+        self.fallback.set(key, value, ttl_seconds=ttl)
+
+    def delete(self, key: str) -> None:
+        if self.redis_active and self.client:
+            try:
+                self.client.delete(key)
+            except Exception as exc:
+                logger.warning("Redis delete error: %s — using fallback.", exc)
+        self.fallback.delete(key)
+
+    def clear_prefix(self, prefix: str) -> None:
+        if self.redis_active and self.client:
+            try:
+                pattern = f"{prefix}*"
+                keys = list(self.client.scan_iter(pattern))
+                if keys:
+                    self.client.delete(*keys)
+            except Exception as exc:
+                logger.warning("Redis clear_prefix error: %s — using fallback.", exc)
+        self.fallback.clear_prefix(prefix)
+
+    def clear(self) -> None:
+        if self.redis_active and self.client:
+            try:
+                self.client.flushdb()
+            except Exception as exc:
+                logger.warning("Redis clear error: %s — using fallback.", exc)
+        self.fallback.clear()
+
+
+cache = RedisCacheManager()

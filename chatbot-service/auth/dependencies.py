@@ -16,7 +16,7 @@ def get_current_chat_user(
         )
 
     token = auth.credentials.strip()
-    secret_key = os.getenv("JWT_SECRET_KEY", "test_jwt_secret_key_123456789")
+    secret_key = os.getenv("JWT_SECRET_KEY")
 
     try:
         import jwt
@@ -48,7 +48,7 @@ def require_admin_role(
         )
 
     token = auth.credentials.strip()
-    secret_key = os.getenv("JWT_SECRET_KEY", "test_jwt_secret_key_123456789")
+    secret_key = os.getenv("JWT_SECRET_KEY")
 
     try:
         import jwt

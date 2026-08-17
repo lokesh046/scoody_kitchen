@@ -40,7 +40,7 @@ class EmbeddingGenerator:
             except Exception:
                 pass
         # Fallback dummy 768-dim vector for testing
-        return [0.0] * 768
+        return [0.0] * 1024
 
     def embed_chunks(self, chunks: list[str]) -> list[list[float]]:
         """Embed a list of text chunks."""

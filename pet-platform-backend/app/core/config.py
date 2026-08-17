@@ -5,6 +5,7 @@ class Setting(BaseSettings):
     DEBUG: bool = False
 
     DATABASE_URL: str = ""
+    REDIS_URL: str = "redis://localhost:6379/0"
 
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256" # default algorithm

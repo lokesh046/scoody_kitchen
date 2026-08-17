@@ -53,10 +53,10 @@ class MCPClientManager:
         import asyncio
 
         async def _fetch():
-            async with MultiServerMCPClient(
+            client = MultiServerMCPClient(
                 {"pet_tools": {"url": self.server_url, "transport": "sse"}}
-            ) as client:
-                return client.get_tools()
+            )
+            return await client.get_tools()
 
         try:
             loop = asyncio.get_event_loop()
