@@ -7,7 +7,7 @@ from rag.vector_store import vector_store
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
 
-def knowledge_agent_node(state: dict[str, Any]) -> dict[str, Any]:
+async def knowledge_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     """LangGraph node for static domain knowledge queries (pet care, FAQs, policies)."""
     messages = state.get("messages", [])
     user_query = messages[-1]["content"] if messages else ""
@@ -43,7 +43,7 @@ def knowledge_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                 f"Reference Context:\n{context_str}\n\n"
                 f"Customer Question: {user_query}"
             )
-            response = llm.invoke(prompt)
+            response = await llm.ainvoke(prompt)
             reply = response.content if hasattr(response, "content") else str(response)
         except Exception:
             reply = f"Based on our official reference ({sources[0]}):\n{docs[0]['content']}"

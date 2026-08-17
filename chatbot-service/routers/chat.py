@@ -14,7 +14,7 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 
 
 @router.post("", response_model=ChatResponse)
-def chat_endpoint(
+async def chat_endpoint(
     request_data: ChatRequest,
     req: Request,
     current_user_id: int | None = Depends(get_current_chat_user),
@@ -43,7 +43,7 @@ def chat_endpoint(
     }
 
     try:
-        final_state = chatbot_graph.invoke(initial_state)
+        final_state = await chatbot_graph.ainvoke(initial_state)
         messages = final_state.get("messages", [])
         bot_reply = messages[-1]["content"] if messages else "No response generated."
         sources = final_state.get("sources", [])
@@ -91,27 +91,48 @@ async def chat_stream_endpoint(
     }
 
     async def sse_event_generator():
+        accumulated_text = ""
+        collected_sources = []
         try:
-            loop = asyncio.get_running_loop()
-            final_state = await loop.run_in_executor(None, lambda: chatbot_graph.invoke(initial_state))
+            async for event in chatbot_graph.astream_events(initial_state, version="v2"):
+                kind = event.get("event")
 
-            messages = final_state.get("messages", [])
-            bot_reply = messages[-1]["content"] if messages else "No response generated."
-            sources = final_state.get("sources", [])
+                # 1. Native Real-Time LLM Token Emission
+                if kind == "on_chat_model_stream":
+                    chunk = event.get("data", {}).get("chunk")
+                    content = getattr(chunk, "content", None)
+                    if content and isinstance(content, str):
+                        accumulated_text += content
+                        yield f"data: {json.dumps({'type': 'token', 'content': content})}\n\n"
 
-            # Emit sources metadata event
-            yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
+                # 2. FastMCP Tool Execution Status Notification
+                elif kind == "on_tool_start":
+                    tool_name = event.get("name", "tool")
+                    yield f"data: {json.dumps({'type': 'status', 'content': f'Executing tool {tool_name}...'})}\n\n"
 
-            # Stream token chunks for typewriter UI experience
-            words = bot_reply.split(" ")
-            for idx, word in enumerate(words):
-                chunk = word if idx == len(words) - 1 else word + " "
-                yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
-                await asyncio.sleep(0.015)
+                # 3. Capture Node Output Sources
+                elif kind == "on_chain_end":
+                    output = event.get("data", {}).get("output")
+                    if isinstance(output, dict) and "sources" in output and output["sources"]:
+                        for s in output["sources"]:
+                            if s not in collected_sources:
+                                collected_sources.append(s)
 
-            # Persist session conversation history
+            # Fallback for static responses / offline mode if no live LLM tokens were streamed
+            if not accumulated_text.strip():
+                final_state = await chatbot_graph.ainvoke(initial_state)
+                messages = final_state.get("messages", [])
+                accumulated_text = messages[-1]["content"] if messages else "No response generated."
+                collected_sources = final_state.get("sources", [])
+                
+                yield f"data: {json.dumps({'type': 'sources', 'sources': collected_sources})}\n\n"
+                yield f"data: {json.dumps({'type': 'token', 'content': accumulated_text})}\n\n"
+            else:
+                yield f"data: {json.dumps({'type': 'sources', 'sources': collected_sources})}\n\n"
+
+            # Persist session conversation history into Redis memory
             session_memory.save_message(request_data.session_id, "user", sanitized_message)
-            session_memory.save_message(request_data.session_id, "assistant", bot_reply)
+            session_memory.save_message(request_data.session_id, "assistant", accumulated_text)
 
             # Emit completion event
             yield f"data: {json.dumps({'type': 'done', 'session_id': request_data.session_id, 'status': 'success'})}\n\n"

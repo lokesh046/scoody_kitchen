@@ -9,7 +9,7 @@ from utils.llm_gateway import get_llm_with_fallback
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
 
-def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
+async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     """LangGraph Commerce ReAct Agent node using ChatLiteLLM native tool binding."""
     messages = state.get("messages", [])
     session_user_id = state.get("user_id") or 1
@@ -138,7 +138,7 @@ def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             llm = get_llm_with_fallback(model_name="gemini/gemini-2.5-flash", temperature=0.1)
             if hasattr(llm, "bind_tools"):
                 llm_with_tools = llm.bind_tools(mcp_tools)
-                ai_msg = llm_with_tools.invoke(user_query)
+                ai_msg = await llm_with_tools.ainvoke(user_query)
 
                 # Check if LLM generated tool calls natively
                 if hasattr(ai_msg, "tool_calls") and ai_msg.tool_calls:

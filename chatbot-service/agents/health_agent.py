@@ -30,7 +30,7 @@ MEDICAL_DISCLAIMER = (
 )
 
 
-def health_agent_node(state: dict[str, Any]) -> dict[str, Any]:
+async def health_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     """LangGraph node for pet health triage & symptom evaluation."""
     messages = state.get("messages", [])
     user_query = messages[-1]["content"] if messages else ""
@@ -59,7 +59,7 @@ def health_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                 "and helpful general pet health guidance for the user's inquiry.\n\n"
                 f"User Question: {user_query}"
             )
-            response = llm.invoke(prompt)
+            response = await llm.ainvoke(prompt)
             base_reply = response.content if hasattr(response, "content") else str(response)
         except Exception:
             base_reply = (
