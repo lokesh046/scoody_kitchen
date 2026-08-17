@@ -1,44 +1,40 @@
-"""Supervisor Router Node - Multi-agent Intent Classification Engine."""
+"""Supervisor Router Node - Multi-agent Intent Classification Engine powered by ChatLiteLLM."""
 
 import os
 from typing import Any
+from utils.llm_gateway import get_llm_with_fallback
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
 
 def route_intent(query: str) -> str:
-    """Classify customer intent to route to health_agent, commerce_agent, or knowledge_agent."""
-    clean = query.lower().strip()
+    """Classify customer intent dynamically using ChatLiteLLM to route to health_agent, commerce_agent, or knowledge_agent."""
+    if not query or not query.strip():
+        return "knowledge_agent"
 
-    # 1. Urgent Health & Symptom Indicators
-    health_terms = ["sick", "vomit", "bleeding", "diarrhea", "lethargic", "fever", "cough", "health", "symptom", "seizure", "poison", "pain", "limping", "rash"]
-    if any(term in clean for term in health_terms):
-        return "health_agent"
-
-    # 2. Commerce, Product & Booking Indicators
-    commerce_terms = ["order", "track", "status", "cancel", "product", "stock", "vet", "slot", "book", "buy", "price", "cart"]
-    if any(term in clean for term in commerce_terms):
-        return "commerce_agent"
-
-    # 3. LLM Intent Classifier for ambiguous cases
     if GEMINI_API_KEY:
         try:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-            llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GEMINI_API_KEY, temperature=0.0)
+            llm = get_llm_with_fallback(model_name="gemini/gemini-2.5-flash", temperature=0.0)
             prompt = (
-                "Classify the following customer question into exactly one of three categories:\n"
-                "1. 'health_agent' (pet medical symptoms, illness, health concerns)\n"
-                "2. 'commerce_agent' (order status, product inventory, vet booking, cancellations)\n"
-                "3. 'knowledge_agent' (general store policies, FAQs, pet care articles)\n\n"
+                "Classify the following customer query into exactly ONE of three category names:\n"
+                "1. 'health_agent' (for pet medical symptoms, illness, fever, bleeding, or health concerns)\n"
+                "2. 'commerce_agent' (for order status, shipment tracking, product inventory, vet booking, or cancellations)\n"
+                "3. 'knowledge_agent' (for store policies, FAQs, return rules, and pet care articles)\n\n"
                 f"Customer Query: {query}\n"
-                "Return ONLY the category name."
+                "Return ONLY the category name string ('health_agent', 'commerce_agent', or 'knowledge_agent')."
             )
-            res = llm.invoke(prompt)
-            cat = res.content.strip().lower() if hasattr(res, "content") else str(res).strip().lower()
-            if cat in ["health_agent", "commerce_agent", "knowledge_agent"]:
-                return cat
+            response = llm.invoke(prompt)
+            raw = response.content if hasattr(response, "content") else str(response)
+            clean = raw.strip().lower().replace("'", "").replace('"', "")
+            if clean in ["health_agent", "commerce_agent", "knowledge_agent"]:
+                return clean
         except Exception:
             pass
 
-    # 4. Default Fallback
+    # Basic fallback string check if LLM API is unavailable
+    clean_q = query.lower()
+    if any(k in clean_q for k in ["sick", "vomit", "bleeding", "health", "symptom", "rash"]):
+        return "health_agent"
+    if any(k in clean_q for k in ["order", "track", "status", "cancel", "product", "vet", "book", "slot", "yes", "confirm", "proceed"]):
+        return "commerce_agent"
     return "knowledge_agent"

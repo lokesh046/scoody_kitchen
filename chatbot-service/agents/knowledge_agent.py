@@ -34,8 +34,8 @@ def knowledge_agent_node(state: dict[str, Any]) -> dict[str, Any]:
 
     if GEMINI_API_KEY:
         try:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-            llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GEMINI_API_KEY, temperature=0.2)
+            from utils.llm_gateway import get_llm_with_fallback
+            llm = get_llm_with_fallback(model_name="gemini/gemini-2.5-flash", temperature=0.2)
             
             prompt = (
                 f"You are Scooby Kitchen's AI Pet Assistant. Answer the customer's question strictly "

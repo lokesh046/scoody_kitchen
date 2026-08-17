@@ -1,6 +1,8 @@
 import os
 import base64
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from auth.dependencies import get_current_chat_user
+from utils.image_validator import validate_image_file
 from schemas.chat import ChatResponse
 from graph.workflow import chatbot_graph
 from memory.redis_memory import session_memory
@@ -15,17 +17,18 @@ async def image_chat_endpoint(
     file: UploadFile = File(...),
     message: str = Form(default="Please analyze this pet image."),
     session_id: str = Form(...),
-    user_id: int | None = Form(default=None),
+    current_user_id: int | None = Depends(get_current_chat_user),
 ) -> ChatResponse:
-    """[MULTIMODAL] Upload image file (pet skin condition, rash, product label), perform vision analysis, and execute AI workflow."""
+    """[MULTIMODAL] Upload image file, validate file size/magic bytes (Edge Case #11), perform vision analysis, and execute AI workflow."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No image file provided.")
 
     contents = await file.read()
-    if not contents:
-        raise HTTPException(status_code=400, detail="Image file is empty (0 bytes).")
 
-    # 1. Perform Gemini 2.5 Flash Vision Analysis
+    # 1. Edge Case #11: Validate Image Size, MIME Type, and Magic Bytes
+    mime_type = validate_image_file(file, contents)
+
+    # 2. Perform Gemini 2.5 Flash Vision Analysis
     vision_description = ""
     if GEMINI_API_KEY:
         try:
@@ -33,7 +36,6 @@ async def image_chat_endpoint(
             from langchain_core.messages import HumanMessage
             
             b64_image = base64.b64encode(contents).decode("utf-8")
-            mime_type = file.content_type or "image/jpeg"
 
             llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GEMINI_API_KEY)
             msg = HumanMessage(content=[
@@ -47,7 +49,7 @@ async def image_chat_endpoint(
     else:
         vision_description = f"[Image Visual Analysis]: The uploaded image shows pet rash / product packaging related to: '{message}'."
 
-    # 2. Execute Multi-turn Chat Workflow with Vision Context
+    # 3. Execute Multi-turn Chat Workflow with Vision Context & Server-Side Injected user_id
     combined_query = f"User uploaded an image. Question: '{message}'. Visual Analysis: '{vision_description}'"
     
     history = session_memory.get_history(session_id)
@@ -56,7 +58,7 @@ async def image_chat_endpoint(
     initial_state = {
         "messages": input_messages,
         "session_id": session_id,
-        "user_id": user_id,
+        "user_id": current_user_id,
         "context_found": True,
         "sources": [],
     }

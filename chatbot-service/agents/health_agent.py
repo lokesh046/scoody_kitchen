@@ -2,6 +2,7 @@
 
 import os
 from typing import Any
+from utils.llm_gateway import get_llm_with_fallback
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
@@ -49,11 +50,10 @@ def health_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             "sources": ["Scooby Emergency Vet Protocol"],
         }
 
-    # 2. Non-Emergency Health Guidance Synthesis
+    # 2. Non-Emergency Health Guidance Synthesis via ChatLiteLLM
     if GEMINI_API_KEY:
         try:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-            llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GEMINI_API_KEY, temperature=0.2)
+            llm = get_llm_with_fallback(model_name="gemini/gemini-2.5-flash", temperature=0.2)
             prompt = (
                 "You are Scooby Kitchen's AI Veterinary Health Advisor. Provide safe, empathetic, "
                 "and helpful general pet health guidance for the user's inquiry.\n\n"

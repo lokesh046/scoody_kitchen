@@ -1,6 +1,7 @@
 import os
 import base64
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from auth.dependencies import get_current_chat_user
 from schemas.chat import ChatResponse
 from graph.workflow import chatbot_graph
 from memory.redis_memory import session_memory
@@ -14,7 +15,7 @@ router = APIRouter(prefix="/chat", tags=["Voice Chat"])
 async def voice_chat_endpoint(
     file: UploadFile = File(...),
     session_id: str = Form(...),
-    user_id: int | None = Form(default=None),
+    current_user_id: int | None = Depends(get_current_chat_user),
 ) -> ChatResponse:
     """[MULTIMODAL] Upload audio file (.mp3, .wav, .m4a), transcribe speech, and execute AI chatbot workflow."""
     if not file.filename:
@@ -49,14 +50,14 @@ async def voice_chat_endpoint(
     if not transcribed_text.strip():
         transcribed_text = "What is your return policy for unopened items?"
 
-    # 2. Execute Multi-turn Chat Workflow with Transcribed Text
+    # 2. Execute Multi-turn Chat Workflow with Transcribed Text & Server-Side Injected user_id
     history = session_memory.get_history(session_id)
     input_messages = history + [{"role": "user", "content": f"[Voice Message]: {transcribed_text}"}]
 
     initial_state = {
         "messages": input_messages,
         "session_id": session_id,
-        "user_id": user_id,
+        "user_id": current_user_id,
         "context_found": True,
         "sources": [],
     }
