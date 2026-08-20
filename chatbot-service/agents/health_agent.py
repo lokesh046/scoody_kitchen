@@ -3,6 +3,7 @@
 import os
 from typing import Any
 from utils.llm_gateway import get_llm_with_fallback
+from rag.vector_store import vector_store
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
@@ -50,17 +51,28 @@ async def health_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             "sources": ["Scooby Emergency Vet Protocol"],
         }
 
-    # 2. Non-Emergency Health Guidance Synthesis via ChatLiteLLM
+    # 2. Retrieve Grounding Docs from Vector Store (RAG)
+    docs = vector_store.search_knowledge(user_query, top_k=2)
+
+    # 3. Non-Emergency Health Guidance Synthesis via ChatLiteLLM
     if GEMINI_API_KEY:
         try:
             llm = get_llm_with_fallback(model_name="gemini/gemini-2.5-flash", temperature=0.2)
+            
+            context_str = ""
+            if docs:
+                context_str = "\n\nReference Context:\n" + "\n\n".join([f"--- [{d['title']}] ---\n{d['content']}" for d in docs])
+            
             prompt = (
                 "You are Scooby Kitchen's AI Veterinary Health Advisor. Provide safe, empathetic, "
-                "and helpful general pet health guidance for the user's inquiry.\n\n"
+                "and helpful general pet health guidance for the user's inquiry.\n"
+                "CRITICAL: Keep your response short, concise, and direct (maximum 4 sentences or a few short bullet points).\n"
+                f"{context_str}\n\n"
                 f"User Question: {user_query}"
             )
-            response = await llm.ainvoke(prompt)
-            base_reply = response.content if hasattr(response, "content") else str(response)
+            base_reply = ""
+            async for chunk in llm.with_config({"tags": ["agent_response"]}).astream(prompt):
+                base_reply += chunk.content if hasattr(chunk, "content") else str(chunk)
         except Exception:
             base_reply = (
                 "For mild symptoms like minor skin dryness or occasional sneezing, ensure your pet remains "
@@ -73,8 +85,10 @@ async def health_agent_node(state: dict[str, Any]) -> dict[str, Any]:
         )
 
     full_reply = base_reply + MEDICAL_DISCLAIMER
+    sources = [d["title"] for d in docs] if docs else ["Scooby Veterinary Guidance"]
+    
     return {
         "messages": messages + [{"role": "assistant", "content": full_reply}],
         "is_emergency": False,
-        "sources": ["Scooby Veterinary Guidance"],
+        "sources": sources,
     }

@@ -72,6 +72,25 @@ app.add_middleware(
 )
 
 
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    print("\n--- 422 Request Validation Error Details ---")
+    print("Errors:", exc.errors())
+    try:
+        body = await request.body()
+        print("Body:", body.decode("utf-8"))
+    except Exception:
+        pass
+    print("---------------------------------------------\n")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
+
+
 from app.api.webhooks import router as webhooks_router
 
 app.include_router(auth_router)

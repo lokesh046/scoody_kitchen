@@ -138,11 +138,16 @@ def create_consultation(
 
     # 3. Validate scheduled_at is in the future
     now_utc = datetime.now(timezone.utc)
-    if create_data.scheduled_at <= now_utc:
+    requested_start_dt = create_data.scheduled_at
+    if requested_start_dt.tzinfo is None:
+        requested_start_dt = requested_start_dt.replace(tzinfo=timezone.utc)
+    else:
+        requested_start_dt = requested_start_dt.astimezone(timezone.utc)
+
+    if requested_start_dt <= now_utc:
         raise ValueError("Scheduled time must be in the future")
 
     duration = 30
-    requested_start_dt = create_data.scheduled_at
     requested_end_dt = requested_start_dt + timedelta(minutes=duration)
 
     # 4. Validate doctor availability for day of week & window
@@ -236,7 +241,7 @@ def get_customer_consultations(
     if status_filter is not None:
         query = query.where(Consultation.status == status_filter)
 
-    query = query.order_by(Consultation.scheduled_at.desc())
+    query = query.order_by(Consultation.created_at.desc())
     return paginate_query(db, query, page=page, limit=limit)
 
 
@@ -259,7 +264,7 @@ def get_doctor_consultations(
     if status_filter is not None:
         query = query.where(Consultation.status == status_filter)
 
-    query = query.order_by(Consultation.scheduled_at.desc())
+    query = query.order_by(Consultation.created_at.desc())
     return paginate_query(db, query, page=page, limit=limit)
 
 

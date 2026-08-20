@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.cache import cache
 from app.core.database import get_db
-from app.dependencies.auth import get_current_user, require_role
+from app.dependencies.auth import get_current_user, get_current_user_optional, require_role
 from app.models.enums import UserRole
 from app.models.product import ProductImage
 from app.models.user import User
@@ -49,9 +49,9 @@ def get_all_products(
     page: int = Query(1),
     limit: int = Query(20),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
-    include_inactive = current_user.role == UserRole.ADMIN
+    include_inactive = current_user is not None and current_user.role == UserRole.ADMIN
     cache_key = f"products:{page}_{limit}_{category_id}_{min_price}_{max_price}_{search}_{sort_by}_{sort_order}_{include_inactive}"
 
     cached = cache.get(cache_key)
@@ -71,8 +71,16 @@ def get_all_products(
             limit=limit,
             include_inactive=include_inactive,
         )
-        cache.set(cache_key, result, ttl_seconds=120)
-        return result
+        serialized_items = [
+            ProductResponse.model_validate(item).model_dump(mode="json")
+            for item in result["items"]
+        ]
+        cache_data = {
+            **result,
+            "items": serialized_items
+        }
+        cache.set(cache_key, cache_data, ttl_seconds=120)
+        return cache_data
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -89,7 +97,7 @@ def get_all_products(
 def get_product_details(
     product_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     product = get_product(
         db,
@@ -102,7 +110,7 @@ def get_product_details(
             detail="Product not found",
         )
 
-    if not product.is_active and current_user.role != UserRole.ADMIN:
+    if not product.is_active and (current_user is None or current_user.role != UserRole.ADMIN):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found",
@@ -122,6 +130,8 @@ async def create_new_product(
     price: Decimal = Form(...),
     sku: str = Form(...),
     description: str | None = Form(None),
+    image_url: str | None = Form(None),
+    available_stock: int | None = Form(None),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.ADMIN)),
@@ -134,27 +144,40 @@ async def create_new_product(
         price=price,
     )
 
-    image_url = None
+    final_image_url = image_url
     storage_provider = None
 
     if image is not None and image.filename:
         file_bytes = await image.read()
         validate_image_file(image, file_bytes)
         storage_provider = get_storage_provider()
-        image_url = storage_provider.upload_image(
+        final_image_url = storage_provider.upload_image(
             file_bytes=file_bytes,
             original_filename=image.filename,
             content_type=image.content_type or "image/jpeg",
         )
 
     try:
-        created = create_product(db, product_data, image_url=image_url)
+        created = create_product(db, product_data, image_url=final_image_url)
+        
+        # Create corresponding inventory record if stock is specified
+        if available_stock is not None:
+            from app.models.inventory import Inventory
+            inventory = Inventory(
+                product_id=created.id,
+                stock_quantity=available_stock,
+            )
+            db.add(inventory)
+            db.commit()
+            db.refresh(created)
+            created.available_stock = available_stock
+
         cache.clear_prefix("products:")
         return created
     except Exception as exc:
-        if image_url and storage_provider:
+        if final_image_url and storage_provider:
             try:
-                storage_provider.delete_image(image_url)
+                storage_provider.delete_image(final_image_url)
             except Exception:
                 pass
         db.rollback()
@@ -186,6 +209,8 @@ async def update_existing_product(
     sku: str | None = Form(None),
     description: str | None = Form(None),
     is_active: bool | None = Form(None),
+    image_url: str | None = Form(None),
+    available_stock: int | None = Form(None),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(
@@ -203,24 +228,31 @@ async def update_existing_product(
             detail="Product not found",
         )
 
-    product_data = ProductUpdate(
-        category_id=category_id,
-        name=name,
-        description=description,
-        sku=sku,
-        price=price,
-        is_active=is_active,
-    )
+    update_dict = {}
+    if category_id is not None:
+        update_dict["category_id"] = category_id
+    if name is not None:
+        update_dict["name"] = name
+    if description is not None:
+        update_dict["description"] = description
+    if sku is not None:
+        update_dict["sku"] = sku
+    if price is not None:
+        update_dict["price"] = price
+    if is_active is not None:
+        update_dict["is_active"] = is_active
+
+    product_data = ProductUpdate(**update_dict)
 
     old_image_url = product.image_url
-    new_image_url = None
+    final_image_url = image_url
     storage_provider = None
 
     if image is not None and image.filename:
         file_bytes = await image.read()
         validate_image_file(image, file_bytes)
         storage_provider = get_storage_provider()
-        new_image_url = storage_provider.upload_image(
+        final_image_url = storage_provider.upload_image(
             file_bytes=file_bytes,
             original_filename=image.filename,
             content_type=image.content_type or "image/jpeg",
@@ -231,10 +263,25 @@ async def update_existing_product(
             db,
             product,
             product_data,
-            image_url=new_image_url,
+            image_url=final_image_url,
         )
 
-        if new_image_url and old_image_url:
+        # Update or create corresponding inventory record
+        if available_stock is not None:
+            if updated.inventory:
+                updated.inventory.stock_quantity = available_stock
+            else:
+                from app.models.inventory import Inventory
+                inventory = Inventory(
+                    product_id=updated.id,
+                    stock_quantity=available_stock,
+                )
+                db.add(inventory)
+            db.commit()
+            db.refresh(updated)
+            updated.available_stock = available_stock
+
+        if final_image_url and old_image_url and final_image_url != old_image_url:
             if storage_provider is None:
                 storage_provider = get_storage_provider()
             try:
@@ -247,9 +294,9 @@ async def update_existing_product(
 
     except Exception as exc:
         db.rollback()
-        if new_image_url and storage_provider:
+        if final_image_url and storage_provider:
             try:
-                storage_provider.delete_image(new_image_url)
+                storage_provider.delete_image(final_image_url)
             except Exception:
                 pass
 

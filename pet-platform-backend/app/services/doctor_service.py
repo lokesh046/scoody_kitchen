@@ -18,8 +18,9 @@ def create_doctor(db: Session, doctor_data: DoctorCreate) -> Doctor:
         raise ValueError("User not found")
 
     if user.role != UserRole.DOCTOR:
-        user.role = UserRole.DOCTOR
-        db.add(user)
+        if user.role != UserRole.ADMIN:
+            user.role = UserRole.DOCTOR
+            db.add(user)
 
     existing_profile = db.scalar(
         select(Doctor).where(Doctor.user_id == doctor_data.user_id)

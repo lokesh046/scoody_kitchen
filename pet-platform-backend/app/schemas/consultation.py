@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.enums import ConsultationStatus
 
@@ -16,6 +16,13 @@ class ConsultationCreate(BaseModel):
 class ConsultationStatusUpdate(BaseModel):
     status: ConsultationStatus
     doctor_notes: str | None = None
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def normalize_status(cls, v: str) -> str:
+        if isinstance(v, str):
+            return v.lower()
+        return v
 
 
 class PetMinimalResponse(BaseModel):

@@ -1,6 +1,7 @@
 import math
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import Session
+from app.core.pagination import paginate_query
 
 from app.models.clinic import Clinic
 from app.schemas.clinic import ClinicCreate, ClinicUpdate
@@ -50,22 +51,8 @@ def get_clinics_paginated(
             )
         )
 
-    count_statement = select(func.count()).select_from(query.subquery())
-    total = db.scalar(count_statement) or 0
-
-    offset = (page - 1) * limit
-    statement = query.order_by(Clinic.id.desc()).offset(offset).limit(limit)
-    clinics = list(db.scalars(statement).all())
-
-    pages = math.ceil(total / limit) if total > 0 else 0
-
-    return {
-        "items": clinics,
-        "total": total,
-        "page": page,
-        "limit": limit,
-        "pages": pages,
-    }
+    query = query.order_by(Clinic.id.desc())
+    return paginate_query(db, query, page=page, limit=limit)
 
 
 def update_clinic(db: Session, clinic: Clinic, clinic_data: ClinicUpdate) -> Clinic:

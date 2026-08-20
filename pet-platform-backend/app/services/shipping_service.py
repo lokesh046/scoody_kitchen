@@ -4,11 +4,12 @@ import hashlib
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.config import settings
 from app.models.enums import UserRole
 from app.models.order import Order, OrderStatus
+from app.models.order_item import OrderItem
 from app.models.order_status_history import OrderStatusHistory
 from app.models.shipment import Shipment
 from app.models.user import User
@@ -43,9 +44,25 @@ async def create_shipment_for_order(
     tracking_number: str,
     carrier: str | None = None,
 ) -> tuple[Shipment, Order]:
-    order = get_order_by_id(db, order_id)
+    # Lock the parent Order row pessimistically to prevent concurrent duplicate API calls to EasyPost/Shiprocket
+    statement = (
+        select(Order)
+        .options(
+            selectinload(Order.items).selectinload(OrderItem.product),
+            selectinload(Order.status_history),
+            selectinload(Order.shipment),
+        )
+        .where(Order.id == order_id)
+        .with_for_update()
+    )
+    order = db.scalars(statement).unique().one_or_none()
+    
     if order is None:
         raise ValueError(f"Order {order_id} not found")
+        
+    # If a shipment is already created (unblocked concurrent request), skip API calling and return it
+    if order.shipment is not None:
+        return order.shipment, order
 
     provider_name = settings.SHIPPING_PROVIDER.strip().lower()
     default_carrier = "Shiprocket" if provider_name == "shiprocket" else "USPS"

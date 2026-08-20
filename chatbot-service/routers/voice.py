@@ -1,6 +1,9 @@
 import os
 import base64
+import logging
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+
+logger = logging.getLogger(__name__)
 from auth.dependencies import get_current_chat_user, validate_session_ownership
 from schemas.chat import ChatResponse
 from graph.workflow import chatbot_graph
@@ -84,4 +87,8 @@ async def voice_chat_endpoint(
             sources=sources,
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Error executing voice chatbot workflow: {str(exc)}")
+        logger.error("Voice chat failed for session %s: %s", session_id, exc, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Something went wrong processing your voice chat. Please try again."
+        )

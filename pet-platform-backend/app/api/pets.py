@@ -17,7 +17,7 @@ from app.services.health_record_service import (
 
 router = APIRouter(prefix="/pets",tags=["Pets"])
 
-@router.post("/",response_model=PetResponse, status_code = status.HTTP_201_CREATED)
+@router.post("",response_model=PetResponse, status_code = status.HTTP_201_CREATED)
 
 def create_new_pet(
     pet_data: PetCreate,

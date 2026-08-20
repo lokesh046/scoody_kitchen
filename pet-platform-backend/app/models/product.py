@@ -107,6 +107,18 @@ class Product(Base):
     def is_in_stock(self, value):
         self._is_in_stock = value
 
+    @property
+    def inventory_id(self):
+        return self.inventory.id if self.inventory else None
+
+    @property
+    def reserved_stock(self):
+        return self.inventory.reserved_quantity if self.inventory else 0
+
+    @property
+    def low_stock_threshold(self):
+        return self.inventory.low_stock_threshold if self.inventory else 5
+
 
 class ProductImage(Base):
     __tablename__ = "product_images"

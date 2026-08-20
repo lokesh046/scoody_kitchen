@@ -28,7 +28,7 @@ router = APIRouter(
 def book_consultation(
     create_data: ConsultationCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.CUSTOMER)),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
 ):
     try:
         return create_consultation(
@@ -61,7 +61,7 @@ def list_my_consultations(
     limit: int = Query(default=20, ge=1, le=100),
     status_filter: ConsultationStatus | None = Query(default=None, alias="status"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.CUSTOMER)),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
 ):
     return get_customer_consultations(
         db=db,
@@ -79,7 +79,7 @@ def list_my_consultations(
 def get_my_consultation_detail(
     consultation_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.CUSTOMER)),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
 ):
     consultation = get_consultation_by_id(db, consultation_id)
     if consultation is None or consultation.customer_id != current_user.id:
@@ -94,7 +94,7 @@ def get_my_consultation_detail(
 def cancel_my_consultation(
     consultation_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.CUSTOMER)),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
 ):
     consultation = get_consultation_by_id(db, consultation_id)
     if consultation is None or consultation.customer_id != current_user.id:

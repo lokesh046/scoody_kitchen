@@ -80,6 +80,9 @@ class ProductResponse(BaseModel):
     category: CategoryResponse | None = None
     available_stock: int | None = None
     is_in_stock: bool | None = None
+    inventory_id: int | None = None
+    reserved_stock: int | None = None
+    low_stock_threshold: int | None = None
     images: list[ProductImageResponse] = []
 
     model_config = {

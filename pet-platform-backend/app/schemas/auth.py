@@ -29,6 +29,13 @@ class GoogleOAuthRequest(BaseModel):
     id_token: str
 
 
+class UserUpdate(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    phone: str | None = None
+    profile_image_url: str | None = None
+
+
 class UserResponse(BaseModel):
     id: int
     email: EmailStr
@@ -48,3 +55,4 @@ class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    user: UserResponse | None = None

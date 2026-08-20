@@ -11,7 +11,7 @@ from app.services.doctor_service import (
     update_doctor,
 )
 from app.models.enums import ConsultationStatus
-from app.schemas.consultation import ConsultationResponse, ConsultationStatusUpdate
+from app.schemas.consultation import ConsultationResponse, ConsultationStatusUpdate, PaginatedConsultationResponse
 from app.services.consultation_service import (
     get_consultation_by_id,
     get_doctor_consultations,
@@ -220,14 +220,14 @@ def delete_my_availability(
 
 @router.get(
     "/consultations",
-    response_model=dict,
+    response_model=PaginatedConsultationResponse,
 )
 def list_doctor_consultations(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
     status_filter: ConsultationStatus | None = Query(default=None, alias="status"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.DOCTOR)),
+    current_user: User = Depends(require_roles(UserRole.DOCTOR, UserRole.ADMIN)),
 ):
     doctor = get_doctor_by_user_id(db, current_user.id)
     if doctor is None:
@@ -249,7 +249,7 @@ def list_doctor_consultations(
 def get_doctor_consultation_detail(
     consultation_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.DOCTOR)),
+    current_user: User = Depends(require_roles(UserRole.DOCTOR, UserRole.ADMIN)),
 ):
     doctor = get_doctor_by_user_id(db, current_user.id)
     if doctor is None:
@@ -269,7 +269,7 @@ def update_doctor_consultation_status(
     consultation_id: int,
     status_update: ConsultationStatusUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.DOCTOR)),
+    current_user: User = Depends(require_roles(UserRole.DOCTOR, UserRole.ADMIN)),
 ):
     doctor = get_doctor_by_user_id(db, current_user.id)
     if doctor is None:

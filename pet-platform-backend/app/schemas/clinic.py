@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from pydantic import BaseModel, EmailStr, Field
+from app.schemas.pagination import PaginatedResponse
 
 
 class ClinicCreate(BaseModel):
@@ -50,3 +51,7 @@ class ClinicResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PaginatedClinicResponse(PaginatedResponse[ClinicResponse]):
+    pass

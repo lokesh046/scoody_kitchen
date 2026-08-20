@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.cache import cache
 from app.core.database import get_db
-from app.dependencies.auth import get_current_user, require_role
+from app.dependencies.auth import get_current_user, get_current_user_optional, require_role
 from app.models.enums import UserRole
 from app.models.user import User
 from app.schemas.category import (
@@ -33,14 +33,15 @@ router = APIRouter(
 )
 def list_categories(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     cached = cache.get("categories:all")
     if cached is not None:
         return cached
     result = get_categories(db)
-    cache.set("categories:all", result, ttl_seconds=300)
-    return result
+    serialized = [CategoryResponse.model_validate(c).model_dump(mode="json") for c in result]
+    cache.set("categories:all", serialized, ttl_seconds=300)
+    return serialized
 
 
 @router.get(

@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()  # Loads the .env file immediately before other modules load
+
 from mcp.server.fastmcp import FastMCP
 
 from tools.orders import tool_get_order_status, tool_get_order_tracking
@@ -10,8 +13,9 @@ from tools.actions import (
     tool_cancel_consultation,
 )
 
-# Create FastMCP server instance
-mcp = FastMCP("Pet Platform MCP Server", host="0.0.0.0", port=8001)
+
+# Create FastMCP server instance (listening on local loopback, port 8001)
+mcp = FastMCP("Pet Platform MCP Server", host="127.0.0.1", port=8001)
 
 
 @mcp.tool()

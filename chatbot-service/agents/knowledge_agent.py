@@ -39,12 +39,14 @@ async def knowledge_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             
             prompt = (
                 f"You are Scooby Kitchen's AI Pet Assistant. Answer the customer's question strictly "
-                f"using the provided reference context below. Do NOT hallucinate or guess instructions.\n\n"
+                f"using the provided reference context below. Do NOT hallucinate or guess instructions.\n"
+                f"CRITICAL: Keep your response short, concise, and direct (maximum 4 sentences or a few short bullet points).\n\n"
                 f"Reference Context:\n{context_str}\n\n"
                 f"Customer Question: {user_query}"
             )
-            response = await llm.ainvoke(prompt)
-            reply = response.content if hasattr(response, "content") else str(response)
+            reply = ""
+            async for chunk in llm.with_config({"tags": ["agent_response"]}).astream(prompt):
+                reply += chunk.content if hasattr(chunk, "content") else str(chunk)
         except Exception:
             reply = f"Based on our official reference ({sources[0]}):\n{docs[0]['content']}"
     else:

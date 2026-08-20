@@ -19,6 +19,19 @@ class DoctorCreate(BaseModel):
     longitude: Decimal | None = Field(default=None, ge=Decimal("-180.0"), le=Decimal("180.0"))
 
 
+class DoctorCreateAdmin(BaseModel):
+    user_email: str
+    clinic_id: int | None = None
+    specialization: str = Field(min_length=1, max_length=150)
+    qualification: str = Field(default="Degree in Veterinary Medicine", min_length=1, max_length=150)
+    experience_years: int = Field(default=0, ge=0)
+    consultation_fee: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"))
+    license_number: str = Field(min_length=1, max_length=100)
+    bio: str | None = None
+    latitude: Decimal | None = Field(default=None, ge=Decimal("-90.0"), le=Decimal("90.0"))
+    longitude: Decimal | None = Field(default=None, ge=Decimal("-180.0"), le=Decimal("180.0"))
+
+
 class DoctorUpdateAdmin(BaseModel):
     clinic_id: int | None = None
     specialization: str | None = Field(default=None, min_length=1, max_length=150)

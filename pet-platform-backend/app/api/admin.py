@@ -133,7 +133,7 @@ def update_order_status_admin(
 # ADMIN CLINIC MANAGEMENT
 # ==================================================
 
-from app.schemas.clinic import ClinicCreate, ClinicResponse, ClinicUpdate
+from app.schemas.clinic import ClinicCreate, ClinicResponse, ClinicUpdate, PaginatedClinicResponse
 from app.services.clinic_service import (
     create_clinic,
     deactivate_clinic,
@@ -158,7 +158,7 @@ def create_clinic_admin(
 
 @router.get(
     "/clinics",
-    response_model=dict,
+    response_model=PaginatedClinicResponse,
 )
 def list_clinics_admin(
     page: int = 1,
@@ -217,7 +217,7 @@ def update_clinic_admin(
 # ADMIN DOCTOR MANAGEMENT
 # ==================================================
 
-from app.schemas.doctor import DoctorCreate, DoctorResponse, DoctorUpdateAdmin, PaginatedDoctorResponse
+from app.schemas.doctor import DoctorCreate, DoctorCreateAdmin, DoctorResponse, DoctorUpdateAdmin, PaginatedDoctorResponse
 from app.services.doctor_service import (
     create_doctor,
     deactivate_doctor,
@@ -234,12 +234,35 @@ from app.services.doctor_service import (
     status_code=status.HTTP_201_CREATED,
 )
 def create_doctor_admin(
-    doctor_data: DoctorCreate,
+    doctor_data: DoctorCreateAdmin,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.ADMIN)),
 ):
+    from sqlalchemy import select, func
+    user = db.scalar(
+        select(User).where(func.lower(User.email) == doctor_data.user_email.strip().lower())
+    )
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please use a registered email ID."
+        )
+
+    create_dto = DoctorCreate(
+        user_id=user.id,
+        clinic_id=doctor_data.clinic_id,
+        specialization=doctor_data.specialization,
+        qualification=doctor_data.qualification,
+        experience_years=doctor_data.experience_years,
+        consultation_fee=doctor_data.consultation_fee,
+        license_number=doctor_data.license_number,
+        bio=doctor_data.bio,
+        latitude=doctor_data.latitude,
+        longitude=doctor_data.longitude,
+    )
+
     try:
-        return create_doctor(db, doctor_data)
+        return create_doctor(db, create_dto)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
@@ -373,3 +396,59 @@ async def create_order_shipment_admin(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         )
+
+
+from app.models.consultation import Consultation
+from app.models.enums import ConsultationStatus
+from app.schemas.consultation import ConsultationResponse, ConsultationStatusUpdate, PaginatedConsultationResponse
+from app.services.consultation_service import get_consultation_by_id, update_consultation_status
+from app.core.pagination import paginate_query
+from sqlalchemy.orm import joinedload
+from sqlalchemy import select
+
+@router.get(
+    "/consultations",
+    response_model=PaginatedConsultationResponse,
+)
+def list_all_consultations_admin(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
+    status_filter: ConsultationStatus | None = Query(default=None, alias="status"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    query = (
+        select(Consultation)
+        .options(
+            joinedload(Consultation.pet),
+            joinedload(Consultation.doctor),
+        )
+    )
+    if status_filter is not None:
+        query = query.where(Consultation.status == status_filter)
+    query = query.order_by(Consultation.created_at.desc())
+    return paginate_query(db, query, page=page, limit=limit)
+
+
+@router.patch(
+    "/consultations/{consultation_id}/status",
+    response_model=ConsultationResponse,
+)
+def update_consultation_status_admin(
+    consultation_id: int,
+    status_update: ConsultationStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    consultation = get_consultation_by_id(db, consultation_id)
+    if consultation is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation not found")
+    try:
+        return update_consultation_status(
+            db=db,
+            consultation=consultation,
+            new_status=status_update.status,
+            doctor_notes=status_update.doctor_notes,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))

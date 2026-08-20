@@ -18,6 +18,13 @@ from app.models.enums import UserRole
 
 def get_current_user(request: Request, db: Session = Depends(get_db)):
     token = request.cookies.get("access_token")
+    
+    # Fallback to Authorization Header if cookie is blocked or missing
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -145,3 +152,39 @@ def verify_internal_service(x_internal_api_key: str = Header(...)) -> None:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid internal service credential signature.",
         )
+
+
+def get_current_user_optional(request: Request, db: Session = Depends(get_db)) -> User | None:
+    token = request.cookies.get("access_token")
+    if not token:
+        # Check authorization header as fallback
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+        else:
+            return None
+
+    from app.core.security import hash_token
+    from app.core.cache import cache
+    token_hash = hash_token(token)
+    if cache.get(f"blacklist:access:{token_hash}"):
+        return None
+
+    try:
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM]
+        )
+        user_id = payload.get("sub")
+        token_type = payload.get("type")
+        if user_id is None or token_type != "access":
+            return None
+    except Exception:
+        return None
+
+    user = db.get(User, int(user_id))
+    if user is None or not user.is_active:
+        return None
+
+    return user

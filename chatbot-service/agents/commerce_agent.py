@@ -161,7 +161,16 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             llm = get_llm_with_fallback(model_name="gemini/gemini-2.5-flash", temperature=0.1)
             if hasattr(llm, "bind_tools"):
                 llm_with_tools = llm.bind_tools(mcp_tools)
-                ai_msg = await llm_with_tools.ainvoke(user_query)
+                from langchain_core.messages import SystemMessage, HumanMessage
+                messages_input = [
+                    SystemMessage(content=(
+                        "You are Scooby Kitchen's AI Commerce Assistant. "
+                        "Answer customer requests about products, orders, and bookings. "
+                        "CRITICAL: Keep your response short, concise, and clear (maximum 3 sentences or a few brief bullet points)."
+                    )),
+                    HumanMessage(content=user_query)
+                ]
+                ai_msg = await llm_with_tools.with_config({"tags": ["agent_response"]}).ainvoke(messages_input)
 
                 # Check if LLM generated tool calls natively
                 if hasattr(ai_msg, "tool_calls") and ai_msg.tool_calls:

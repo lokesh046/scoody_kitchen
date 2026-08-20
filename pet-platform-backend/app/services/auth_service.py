@@ -15,7 +15,7 @@ from app.models.enums import UserRole
 from app.models.magic_link_token import MagicLinkToken
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
-from app.schemas.auth import UserRegister
+from app.schemas.auth import UserRegister, UserUpdate
 from app.services.email_service import send_magic_link_email
 
 
@@ -244,3 +244,18 @@ def cleanup_unverified_users(db: Session, max_age_hours: int = 24) -> int:
         db.commit()
 
     return count
+
+
+def update_user_profile(db: Session, user: User, update_data: UserUpdate) -> User:
+    if update_data.first_name is not None:
+        user.first_name = update_data.first_name.strip()
+    if update_data.last_name is not None:
+        user.last_name = update_data.last_name.strip()
+    if update_data.phone is not None:
+        user.phone = update_data.phone.strip()
+    if update_data.profile_image_url is not None:
+        user.profile_image_url = update_data.profile_image_url.strip()
+
+    db.commit()
+    db.refresh(user)
+    return user

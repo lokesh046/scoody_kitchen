@@ -65,11 +65,12 @@ def create_refresh_token(user_id: int) -> tuple[str,datetime]:
 
     expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
-
+    import uuid
     payload = {
         "sub": str(user_id),
         "type": "refresh",
-        "exp": expire
+        "exp": expire,
+        "jti": str(uuid.uuid4())
         }
     
     token  = jwt.encode(

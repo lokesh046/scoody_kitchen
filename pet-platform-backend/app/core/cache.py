@@ -62,15 +62,30 @@ class RedisCacheManager:
             logger.warning("Redis unavailable (%s) — falling back to InMemoryTTLCache.", exc)
 
     def get(self, key: str) -> Any | None:
+        # Ignore security tokens and internal blacklist logs to keep stdout clean
+        is_token_log = "blacklist" in key or "token" in key
+        
         if self.redis_active and self.client:
             try:
                 raw_val = self.client.get(key)
                 if raw_val is not None:
+                    if not is_token_log:
+                        print(f"🐾 [CACHE HIT] (Redis) Key: {key}")
                     return json.loads(raw_val)
+                if not is_token_log:
+                    print(f"🐾 [CACHE MISS] (Redis) Key: {key}")
                 return None
             except Exception as exc:
                 logger.warning("Redis get error: %s — using fallback.", exc)
-        return self.fallback.get(key)
+        
+        fallback_val = self.fallback.get(key)
+        if fallback_val is not None:
+            if not is_token_log:
+                print(f"🐾 [CACHE HIT] (InMemory) Key: {key}")
+        else:
+            if not is_token_log:
+                print(f"🐾 [CACHE MISS] (InMemory) Key: {key}")
+        return fallback_val
 
     def set(self, key: str, value: Any, ttl_seconds: int | None = None) -> None:
         ttl = ttl_seconds if ttl_seconds is not None else self.default_ttl

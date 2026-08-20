@@ -1,6 +1,9 @@
 import os
 import base64
+import logging
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+
+logger = logging.getLogger(__name__)
 from auth.dependencies import get_current_chat_user, validate_session_ownership
 from utils.image_validator import validate_image_file
 from schemas.chat import ChatResponse
@@ -86,4 +89,8 @@ async def image_chat_endpoint(
             sources=sources,
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Error executing image chatbot workflow: {str(exc)}")
+        logger.error("Image chat failed for session %s: %s", session_id, exc, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Something went wrong processing your image chat. Please try again."
+        )

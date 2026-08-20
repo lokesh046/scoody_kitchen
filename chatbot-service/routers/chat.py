@@ -1,6 +1,9 @@
 import asyncio
 import json
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
+
+logger = logging.getLogger(__name__)
 from fastapi.responses import StreamingResponse
 
 from auth.dependencies import get_current_chat_user, validate_session_ownership
@@ -52,6 +55,29 @@ async def chat_endpoint(
         bot_reply = redact_pii_text(raw_reply)
         sources = final_state.get("sources", [])
 
+        # Find tool calls in message list
+        tools_used = []
+        for msg in messages:
+            if isinstance(msg, dict):
+                if msg.get("role") == "tool":
+                    name = msg.get("name")
+                    if name and name not in tools_used:
+                        tools_used.append(name)
+            else:
+                if hasattr(msg, "type") and msg.type == "tool":
+                    name = getattr(msg, "name", None)
+                    if name and name not in tools_used:
+                        tools_used.append(name)
+
+        # Print session summary to terminal
+        print(f"\n========================================\n"
+              f"[CHAT RESPONSE SUMMARY]\n"
+              f"Session ID: {request_data.session_id}\n"
+              f"User Query: {sanitized_message}\n"
+              f"Tools Used: {', '.join(tools_used) if tools_used else 'None (Direct Answer)'}\n"
+              f"Response Length: {len(bot_reply)} chars\n"
+              f"========================================\n", flush=True)
+
         # 5. Save turns into Redis session memory (30-min TTL)
         session_memory.save_message(request_data.session_id, "user", sanitized_message)
         session_memory.save_message(request_data.session_id, "assistant", bot_reply)
@@ -65,7 +91,11 @@ async def chat_endpoint(
     except Exception as exc:
         if isinstance(exc, HTTPException):
             raise exc
-        raise HTTPException(status_code=500, detail=f"Error executing chatbot workflow: {str(exc)}")
+        logger.error("Chat workflow failed for session %s: %s", request_data.session_id, exc, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Something went wrong processing your message. Please try again."
+        )
 
 
 @router.post("/stream")
@@ -100,21 +130,29 @@ async def chat_stream_endpoint(
     async def sse_event_generator():
         accumulated_text = ""
         collected_sources = []
+        tools_used = []
         try:
             async for event in chatbot_graph.astream_events(initial_state, version="v2"):
                 kind = event.get("event")
 
                 # 1. Native Real-Time LLM Token Emission
                 if kind == "on_chat_model_stream":
-                    chunk = event.get("data", {}).get("chunk")
-                    content = getattr(chunk, "content", None)
-                    if content and isinstance(content, str):
-                        accumulated_text += content
-                        yield f"data: {json.dumps({'type': 'token', 'content': content})}\n\n"
+                    tags = event.get("tags", [])
+                    if "agent_response" in tags:
+                        chunk = event.get("data", {}).get("chunk")
+                        content = getattr(chunk, "content", None)
+                        if content and isinstance(content, str):
+                            accumulated_text += content
+                            yield f"data: {json.dumps({'type': 'token', 'content': content})}\n\n"
 
                 # 2. FastMCP Tool Execution Status Notification
                 elif kind == "on_tool_start":
                     tool_name = event.get("name", "tool")
+                    tool_input = event.get("data", {}).get("input", {})
+                    if tool_name not in tools_used:
+                        tools_used.append(tool_name)
+                    # Print to terminal console
+                    print(f"\n[TOOL CALL] Executing tool: {tool_name} | Input: {tool_input}", flush=True)
                     yield f"data: {json.dumps({'type': 'status', 'content': f'Executing tool {tool_name}...'})}\n\n"
 
                 # 3. Capture Node Output Sources
@@ -141,11 +179,21 @@ async def chat_stream_endpoint(
             session_memory.save_message(request_data.session_id, "user", sanitized_message)
             session_memory.save_message(request_data.session_id, "assistant", accumulated_text)
 
+            # Print session summary to terminal
+            print(f"\n========================================\n"
+                  f"[CHAT RESPONSE STREAM SUMMARY]\n"
+                  f"Session ID: {request_data.session_id}\n"
+                  f"User Query: {sanitized_message}\n"
+                  f"Tools Used: {', '.join(tools_used) if tools_used else 'None (Direct Answer)'}\n"
+                  f"Response Length: {len(accumulated_text)} chars\n"
+                  f"========================================\n", flush=True)
+
             # Emit completion event
             yield f"data: {json.dumps({'type': 'done', 'session_id': request_data.session_id, 'status': 'success'})}\n\n"
 
         except Exception as exc:
-            yield f"data: {json.dumps({'type': 'error', 'detail': str(exc)})}\n\n"
+            logger.error("Streaming chat failed for session %s: %s", request_data.session_id, exc, exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'detail': 'Something went wrong. Please try again.'})}\n\n"
 
     return StreamingResponse(sse_event_generator(), media_type="text/event-stream")
 

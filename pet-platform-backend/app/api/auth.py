@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status, File, UploadFile
 import jwt
 from jwt.exceptions import InvalidTokenError
 from sqlalchemy import select
@@ -19,6 +19,7 @@ from app.schemas.auth import (
     TokenResponse,
     UserRegister,
     UserResponse,
+    UserUpdate,
 )
 from app.services.auth_service import (
     authenticate_google_user,
@@ -28,6 +29,7 @@ from app.services.auth_service import (
     request_magic_link,
     verify_magic_link_code,
     verify_magic_link_token,
+    update_user_profile,
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -39,7 +41,7 @@ def _set_auth_cookies(response: Response, tokens: dict) -> None:
         value=tokens["access_token"],
         httponly=True,
         secure=not settings.DEBUG,
-        samesite="strict",
+        samesite="lax",
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
@@ -48,7 +50,7 @@ def _set_auth_cookies(response: Response, tokens: dict) -> None:
         value=tokens["refresh_token"],
         httponly=True,
         secure=not settings.DEBUG,
-        samesite="strict",
+        samesite="lax",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600,
         path="/",
     )
@@ -240,6 +242,11 @@ def refresh_token_endpoint(
     db: Session = Depends(get_db),
 ):
     token_val = refresh_token or request.cookies.get("refresh_token")
+    try:
+        with open("/media/ganesh/2EB4C64AB4C613ED/scooby_pets/pet-platform-backend/refresh_debug.log", "a") as f:
+            f.write(f"REFRESH CALL: cookies={token_val[:15] if token_val else None}\n")
+    except Exception:
+        pass
 
     if not token_val:
         raise HTTPException(
@@ -305,7 +312,7 @@ def refresh_token_endpoint(
     stored_token.revoked = True
     tokens = create_tokens(db, user)
     _set_auth_cookies(response, tokens)
-
+    tokens["user"] = user
     return tokens
 
 
@@ -314,3 +321,32 @@ def get_me(
     current_user: User = Depends(get_current_user),
 ):
     return current_user
+
+
+@router.patch("/me", response_model=UserResponse)
+def update_me(
+    update_data: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return update_user_profile(db, current_user, update_data)
+
+
+@router.post("/upload-avatar")
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    from app.services.storage_service import get_storage_provider, validate_image_file
+    
+    file_bytes = await file.read()
+    validate_image_file(file, file_bytes)
+    
+    provider = get_storage_provider()
+    avatar_url = provider.upload_image(
+        file_bytes=file_bytes,
+        original_filename=file.filename or "avatar.jpg",
+        content_type=file.content_type or "image/jpeg",
+    )
+    
+    return {"url": avatar_url}
