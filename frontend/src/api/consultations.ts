@@ -135,3 +135,31 @@ export const cancelConsultation = async (consultationId: number): Promise<Consul
   const response = await apiClient.patch<ConsultationResponse>(`/consultations/${consultationId}/cancel`);
   return response.data;
 };
+
+export interface NearbyDoctorResponse extends DoctorResponse {
+  name: string;
+  distance_km: number;
+}
+
+export interface DoctorSchedulePublicResponse {
+  doctor_id: number;
+  is_accepting_consultations: boolean;
+  schedule: any[];
+}
+
+export const fetchDoctorById = async (doctorId: number): Promise<DoctorResponse> => {
+  const response = await apiClient.get<DoctorResponse>(`/doctors/${doctorId}`);
+  return response.data;
+};
+
+export const fetchDoctorAvailability = async (doctorId: number): Promise<DoctorSchedulePublicResponse> => {
+  const response = await apiClient.get<DoctorSchedulePublicResponse>(`/doctors/${doctorId}/availability`);
+  return response.data;
+};
+
+export const fetchNearbyDoctors = async (latitude: number, longitude: number, radiusKm: number = 10): Promise<NearbyDoctorResponse[]> => {
+  const response = await apiClient.get<NearbyDoctorResponse[]>('/doctors/nearby', {
+    params: { latitude, longitude, radius_km: radiusKm }
+  });
+  return response.data;
+};

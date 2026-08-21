@@ -3,11 +3,11 @@ import { useAuthStore } from '../store/auth';
 import { cancelOrder } from '../api/orders';
 import { cancelConsultation } from '../api/consultations';
 import { 
-  streamChat, postImageChat, postVoiceChat, clearChatSession 
+  streamChat, postImageChat, postVoiceChat, clearChatSession, fetchChatbotHealth
 } from '../api/chatbot';
 import { 
   Sparkles, X, MessageSquare, Send, Mic, MicOff, 
-  Trash2, ShieldAlert, Loader2, Paperclip, User, PawPrint
+  Trash2, ShieldAlert, Loader2, Paperclip, User
 } from 'lucide-react';
 
 interface Message {
@@ -87,6 +87,15 @@ export const ChatbotWidget: React.FC = () => {
   const [sessionId, setSessionId] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [statusText, setStatusText] = useState('');
+  const [showPopMessage, setShowPopMessage] = useState(false);
+
+  useEffect(() => {
+    // Show popup message on mount after a 1.5 second delay
+    const timer = setTimeout(() => {
+      setShowPopMessage(true);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Image Upload State
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -107,6 +116,29 @@ export const ChatbotWidget: React.FC = () => {
     const randomId = Math.random().toString(36).substring(2, 9);
     setSessionId(`u${userId}_widget_${randomId}`);
   }, [user]);
+
+  const [engineHealth, setEngineHealth] = useState<'online' | 'offline' | 'checking'>('checking');
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const response = await fetchChatbotHealth();
+        if (response && response.status === 'ok') {
+          setEngineHealth('online');
+        } else {
+          setEngineHealth('offline');
+        }
+      } catch (e) {
+        console.error('Widget chatbot health check failed:', e);
+        setEngineHealth('offline');
+      }
+    };
+    if (isOpen) {
+      checkHealth();
+      const interval = setInterval(checkHealth, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isOpen]);
 
   // Scroll to bottom
   useEffect(() => {
@@ -351,10 +383,10 @@ export const ChatbotWidget: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 font-body">
+    <div className={`z-50 font-body transition-all duration-300 ${isOpen ? 'fixed bottom-6 right-6' : 'fixed top-1/2 right-0 -translate-y-1/2'}`}>
       {isOpen ? (
         /* Expanded Chatbox Widget panel */
-        <div className="w-80 sm:w-96 h-[500px] bg-paperLight border border-cardboard rounded-sm shadow-2xl flex flex-col justify-between overflow-hidden text-left relative">
+        <div className="w-80 sm:w-96 h-[500px] bg-paperLight border border-cardboard rounded-2xl shadow-2xl flex flex-col justify-between overflow-hidden text-left relative">
           {/* Spine Binding styling */}
           <div className="absolute top-0 bottom-0 left-1 border-l border-dashed border-cardboard opacity-35"></div>
 
@@ -364,20 +396,38 @@ export const ChatbotWidget: React.FC = () => {
               <Sparkles className="w-4 h-4 text-turmeric shrink-0" />
               <div>
                 <h4 className="font-display font-bold text-xs text-ink">Scooby's AI Help</h4>
-                <span className="font-mono text-[7px] uppercase font-bold text-herb">STREAM TOKEN CHAT</span>
+                <div className="flex items-center space-x-1.5">
+                  <span className="font-mono text-[7px] uppercase font-bold text-herb">STREAM TOKEN CHAT</span>
+                  <span className="font-mono text-[7px] uppercase font-bold tracking-wider flex items-center">
+                    {engineHealth === 'online' ? (
+                      <span className="flex items-center text-herb">
+                        <span className="w-1 h-1 rounded-full bg-herb animate-ping mr-0.5"></span>
+                        <span>● Live</span>
+                      </span>
+                    ) : engineHealth === 'offline' ? (
+                      <span className="flex items-center text-paprika">
+                        <span>● Offline</span>
+                      </span>
+                    ) : (
+                      <span className="flex items-center text-cardboard animate-pulse">
+                        <span>● Check</span>
+                      </span>
+                    )}
+                  </span>
+                </div>
               </div>
             </div>
             <div className="flex items-center space-x-2">
               <button 
                 onClick={clearChat}
-                className="p-1 text-paprika hover:bg-red-50 rounded-sm"
+                className="p-1 text-paprika hover:bg-red-50 rounded-full"
                 title="Clear Conversation"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
               <button 
                 onClick={() => setIsOpen(false)}
-                className="p-1 text-ink hover:bg-paper rounded-sm"
+                className="p-1 text-ink hover:bg-paper rounded-full"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -416,12 +466,12 @@ export const ChatbotWidget: React.FC = () => {
                 >
                   {/* Modern Avatar */}
                   {msg.role === 'user' ? (
-                    <div className="w-6 h-6 rounded-full bg-turmeric bg-opacity-20 border border-turmeric border-opacity-40 flex items-center justify-center text-turmeric shadow-sm shrink-0 ml-2">
-                      <User className="w-3.5 h-3.5" />
+                    <div className="w-6 h-6 rounded-full bg-turmeric text-paperLight flex items-center justify-center shadow-sm shrink-0 ml-2">
+                      <User className="w-3.5 h-3.5 text-paperLight" />
                     </div>
                   ) : (
-                    <div className="w-6 h-6 rounded-full bg-paprika bg-opacity-20 border border-paprika border-opacity-40 flex items-center justify-center text-paprika shadow-sm shrink-0 mr-2">
-                      <PawPrint className="w-3.5 h-3.5 animate-pulse" />
+                    <div className="w-6 h-6 rounded-full border border-cardboard overflow-hidden shadow-sm shrink-0 mr-2 bg-white flex items-center justify-center p-0.5">
+                      <img src="/chatbot-avatar.jpg" alt="Scooby AI Logo" className="w-full h-full object-contain" />
                     </div>
                   )}
 
@@ -433,7 +483,7 @@ export const ChatbotWidget: React.FC = () => {
                     </span>
                     <div className={`p-3 rounded-2xl shadow-sm ${
                       msg.role === 'user' 
-                        ? 'bg-ink text-paper border border-cardboard border-opacity-40 rounded-tr-none' 
+                        ? 'bg-turmeric bg-opacity-15 text-ink border border-turmeric border-opacity-35 rounded-tr-none' 
                         : 'bg-paper text-ink border border-cardboard border-opacity-30 rounded-tl-none'
                     }`}>
                       {renderFormattedText(msg.content)}
@@ -441,7 +491,7 @@ export const ChatbotWidget: React.FC = () => {
                     {msg.sources && msg.sources.length > 0 && (
                       <div className="mt-2 pt-1.5 border-t border-cardboard border-dashed flex flex-wrap gap-1">
                         {msg.sources.map((s, idx) => (
-                          <span key={idx} className="font-mono text-[9px] bg-paper px-1 py-0.2 border border-cardboard rounded-sm text-ink opacity-80">
+                          <span key={idx} className="font-mono text-[9px] bg-paper px-1 py-0.2 border border-cardboard rounded-full text-ink opacity-80">
                             {s}
                           </span>
                         ))}
@@ -449,18 +499,18 @@ export const ChatbotWidget: React.FC = () => {
                     )}
 
                     {msg.hasActionConfirmation && msg.hasActionConfirmation.confirmed === undefined && (
-                      <div className="mt-2.5 p-2 bg-red-50 border border-paprika border-opacity-40 rounded-sm space-y-2 text-[11px]">
+                      <div className="mt-2.5 p-2 bg-red-50 border border-paprika border-opacity-40 rounded-xl space-y-2 text-[11px]">
                         <span className="font-mono font-bold text-paprika block">⚠️ AUTHORIZE CANCELLATION</span>
                         <div className="flex space-x-1.5">
                           <button
                             onClick={() => handleConfirmAction(msg.id, msg.hasActionConfirmation!.actionType, msg.hasActionConfirmation!.targetId)}
-                            className="bg-herb text-paperLight font-mono text-[9px] uppercase font-bold py-1 px-2.5 rounded-sm"
+                            className="bg-herb text-paperLight font-mono text-[9px] uppercase font-bold py-1 px-2.5 rounded-full"
                           >
                             Confirm
                           </button>
                           <button
                             onClick={() => handleDeclineAction(msg.id)}
-                            className="border border-cardboard text-ink font-mono text-[9px] uppercase font-bold py-1 px-2.5 rounded-sm"
+                            className="border border-cardboard text-ink font-mono text-[9px] uppercase font-bold py-1 px-2.5 rounded-full"
                           >
                             Decline
                           </button>
@@ -486,8 +536,8 @@ export const ChatbotWidget: React.FC = () => {
           {/* Input Sender footer */}
           <div className="border-t border-cardboard p-3 bg-paper bg-opacity-40 space-y-2 pl-6">
             {imagePreview && (
-              <div className="flex items-center space-x-2 bg-paper p-1.5 border border-cardboard border-dashed rounded-sm text-[10px]">
-                <img src={imagePreview} alt="upload preview" className="w-8 h-8 object-cover rounded-sm border border-cardboard" />
+              <div className="flex items-center space-x-2 bg-paper p-1.5 border border-cardboard border-dashed rounded-xl text-[10px]">
+                <img src={imagePreview} alt="upload preview" className="w-8 h-8 object-cover rounded-lg border border-cardboard" />
                 <span className="truncate flex-1 text-ink opacity-80">{selectedImage?.name}</span>
                 <button 
                   onClick={() => { setSelectedImage(null); setImagePreview(''); }}
@@ -499,7 +549,7 @@ export const ChatbotWidget: React.FC = () => {
             )}
 
             <form onSubmit={handleSendMessage} className="flex items-center space-x-1.5">
-              <label className="p-1.5 border border-cardboard rounded-sm hover:bg-paper cursor-pointer text-ink relative">
+              <label className="p-1.5 border border-cardboard rounded-full hover:bg-paper cursor-pointer text-ink relative">
                 <Paperclip className="w-3.5 h-3.5" />
                 <input 
                   type="file" 
@@ -514,7 +564,7 @@ export const ChatbotWidget: React.FC = () => {
                 <button
                   type="button"
                   onClick={stopRecording}
-                  className="p-1.5 bg-paprika text-paperLight rounded-sm animate-pulse"
+                  className="p-1.5 bg-paprika text-paperLight rounded-full animate-pulse"
                 >
                   <MicOff className="w-3.5 h-3.5" />
                 </button>
@@ -522,7 +572,7 @@ export const ChatbotWidget: React.FC = () => {
                 <button
                   type="button"
                   onClick={startRecording}
-                  className="p-1.5 border border-cardboard rounded-sm hover:bg-paper text-ink"
+                  className="p-1.5 border border-cardboard rounded-full hover:bg-paper text-ink"
                   disabled={isStreaming}
                 >
                   <Mic className="w-3.5 h-3.5" />
@@ -534,13 +584,13 @@ export const ChatbotWidget: React.FC = () => {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder="Type help request..."
-                className="flex-1 px-2.5 py-1.5 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric"
+                className="flex-1 px-2.5 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric"
                 disabled={isStreaming}
               />
 
               <button
                 type="submit"
-                className="p-1.5 bg-paprika hover:bg-opacity-95 text-paperLight rounded-sm disabled:opacity-50"
+                className="p-1.5 bg-paprika hover:bg-opacity-95 text-paperLight rounded-full disabled:opacity-50"
                 disabled={isStreaming || (!inputMessage.trim() && !selectedImage)}
               >
                 <Send className="w-3.5 h-3.5" />
@@ -549,14 +599,34 @@ export const ChatbotWidget: React.FC = () => {
           </div>
         </div>
       ) : (
-        /* Floating collapsed badge */
-        <button
-          onClick={() => setIsOpen(true)}
-          className="flex items-center space-x-2 bg-paprika text-paperLight px-4 py-3 rounded-full shadow-2xl hover:bg-opacity-95 transition-transform hover:-translate-y-0.5 duration-200 cursor-pointer border border-cardboard animate-pulse"
-        >
-          <Sparkles className="w-4 h-4 text-paperLight" />
-          <span className="font-display font-bold text-xs uppercase tracking-wider">Chat Assistant 🐾</span>
-        </button>
+        /* Floating collapsed vertical tab sticking to the right edge */
+        <div className="relative flex items-center">
+          {showPopMessage && (
+            <div className="absolute right-14 top-1/2 -translate-y-1/2 mr-2 bg-paperLight border border-cardboard px-3.5 py-2 rounded-xl shadow-xl flex items-center space-x-2 z-50 animate-bounce">
+              <span className="font-body text-xs text-ink font-bold">Hi buddy! 🐾</span>
+              <button 
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setShowPopMessage(false); }}
+                className="text-ink opacity-60 hover:opacity-100 p-0.5 border-0 bg-transparent cursor-pointer flex items-center"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+              {/* Triangle arrow pointing right */}
+              <div className="absolute top-1/2 -translate-y-1/2 left-full w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-l-[5px] border-l-cardboard"></div>
+              <div className="absolute top-1/2 -translate-y-1/2 left-full -translate-x-[1px] w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[4px] border-l-paperLight"></div>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => { setIsOpen(true); setShowPopMessage(false); }}
+            className="bg-paprika hover:bg-opacity-95 text-paperLight rounded-l-2xl border border-paprika border-r-0 shadow-2xl cursor-pointer flex flex-col items-center justify-center py-4 px-2.5 hover:-translate-x-0.5 transition-all duration-200 select-none"
+          >
+            <Sparkles className="w-3.5 h-3.5 mb-2 text-paperLight animate-pulse" />
+            <span className="font-display font-bold text-[9px] uppercase tracking-widest [writing-mode:vertical-rl] leading-none text-paperLight">
+              Chat Assistant 🐾
+            </span>
+          </button>
+        </div>
       )}
     </div>
   );

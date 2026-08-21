@@ -172,3 +172,13 @@ export const deleteRAGDocument = async (docId: string): Promise<any> => {
   const response = await chatbotClient.delete(`/rag/documents/${docId}`);
   return response.data;
 };
+
+export interface ChatbotHealthResponse {
+  status: string;
+  service: string;
+}
+
+export const fetchChatbotHealth = async (): Promise<ChatbotHealthResponse> => {
+  const response = await chatbotClient.get<ChatbotHealthResponse>('/health');
+  return response.data;
+};

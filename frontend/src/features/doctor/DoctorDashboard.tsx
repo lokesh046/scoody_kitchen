@@ -10,9 +10,15 @@ import {
   getDoctorAvailabilities, 
   createDoctorAvailability, 
   deleteDoctorAvailability, 
+  replaceDoctorAvailabilityBulk,
   getDoctorConsultations, 
   updateConsultationStatus 
 } from '../../api/doctor';
+import {
+  fetchPetHealthRecords,
+  createHealthRecord,
+  updateHealthRecord
+} from '../../api/pets';
 import type { DoctorAvailabilityResponse } from '../../api/doctor';
 import type { DoctorResponse, ConsultationResponse } from '../../api/consultations';
 import { logoutUser } from '../../api/auth';
@@ -28,7 +34,8 @@ import {
   ShoppingCart, 
   PawPrint,
   Stethoscope,
-  Briefcase
+  Briefcase,
+  FileText
 } from 'lucide-react';
 
 const DAYS_OF_WEEK = [
@@ -40,6 +47,22 @@ const DAYS_OF_WEEK = [
   { value: 'saturday', label: 'Saturday' },
   { value: 'sunday', label: 'Sunday' },
 ];
+
+const mapRecordType = (type: string | undefined | null): string => {
+  if (!type) return 'general';
+  const norm = type.toLowerCase().trim();
+  if (norm === 'general') return 'general';
+  if (norm === 'diagnostic' || norm === 'diagnosis') return 'diagnosis';
+  if (norm === 'surgery') return 'surgery';
+  if (norm === 'vaccination') return 'vaccination';
+  if (norm === 'treatment') return 'treatment';
+  if (norm === 'symptom') return 'symptom';
+  if (norm === 'medication') return 'medication';
+  if (norm === 'lab_result') return 'lab_result';
+  if (norm === 'allergy') return 'allergy';
+  if (norm === 'follow_up') return 'follow_up';
+  return 'general';
+};
 
 export const DoctorDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -56,6 +79,11 @@ export const DoctorDashboard: React.FC = () => {
   const [availStart, setAvailStart] = useState('09:00');
   const [availEnd, setAvailEnd] = useState('17:00');
 
+  // Form States - Bulk Availability
+  const [bulkStart, setBulkStart] = useState('09:00');
+  const [bulkEnd, setBulkEnd] = useState('17:00');
+  const [bulkDays, setBulkDays] = useState<string[]>(['monday', 'tuesday', 'wednesday', 'thursday', 'friday']);
+
   // Form States - Profile
   const [spec, setSpec] = useState('');
   const [qual, setQual] = useState('');
@@ -63,6 +91,97 @@ export const DoctorDashboard: React.FC = () => {
   const [expYears, setExpYears] = useState('');
   const [bioText, setBioText] = useState('');
   const [isProfileInitialized, setIsProfileInitialized] = useState(false);
+
+  // Form States - Medical Log Modal
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [selectedConsultationForLog, setSelectedConsultationForLog] = useState<ConsultationResponse | null>(null);
+  const [logId, setLogId] = useState<number | null>(null);
+  const [logRecordType, setLogRecordType] = useState('general');
+  const [logTitle, setLogTitle] = useState('');
+  const [logSymptoms, setLogSymptoms] = useState('');
+  const [logClinicalFindings, setLogClinicalFindings] = useState('');
+  const [logDiagnosis, setLogDiagnosis] = useState('');
+  const [logTreatment, setLogTreatment] = useState('');
+  const [logMedications, setLogMedications] = useState('');
+  const [logFollowUpDate, setLogFollowUpDate] = useState('');
+  const [logNotes, setLogNotes] = useState('');
+  const [isSearchingLog, setIsSearchingLog] = useState(false);
+  const [isSavingLog, setIsSavingLog] = useState(false);
+
+  const handleOpenLogModal = async (consultation: ConsultationResponse) => {
+    setSelectedConsultationForLog(consultation);
+    setIsLogModalOpen(true);
+    setLogId(null);
+    setLogRecordType('general');
+    setLogTitle(`Consultation for ${consultation.pet?.name || 'Pet'}`);
+    setLogSymptoms('');
+    setLogClinicalFindings('');
+    setLogDiagnosis('');
+    setLogTreatment('');
+    setLogMedications('');
+    setLogFollowUpDate('');
+    setLogNotes('');
+    
+    if (consultation.pet_id) {
+      setIsSearchingLog(true);
+      try {
+        const history = await fetchPetHealthRecords(consultation.pet_id);
+        const existingRecord = history.records?.find(r => r.consultation_id === consultation.id);
+        if (existingRecord) {
+          setLogId(existingRecord.id);
+          setLogRecordType(mapRecordType(existingRecord.record_type));
+          setLogTitle(existingRecord.title);
+          setLogSymptoms(existingRecord.symptoms || '');
+          setLogClinicalFindings(existingRecord.clinical_findings || '');
+          setLogDiagnosis(existingRecord.diagnosis || '');
+          setLogTreatment(existingRecord.treatment || '');
+          setLogMedications(existingRecord.medications || '');
+          setLogFollowUpDate(existingRecord.follow_up_date || '');
+          setLogNotes(existingRecord.notes || '');
+        }
+      } catch (err) {
+        console.error('Failed to search existing consultation medical log:', err);
+      } finally {
+        setIsSearchingLog(false);
+      }
+    }
+  };
+
+  const handleSaveLogSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedConsultationForLog || !selectedConsultationForLog.pet_id) return;
+    
+    setIsSavingLog(true);
+    try {
+      const payload = {
+        pet_id: selectedConsultationForLog.pet_id,
+        consultation_id: selectedConsultationForLog.id,
+        record_type: mapRecordType(logRecordType),
+        title: logTitle,
+        symptoms: logSymptoms || null,
+        clinical_findings: logClinicalFindings || null,
+        diagnosis: logDiagnosis || null,
+        treatment: logTreatment || null,
+        medications: logMedications || null,
+        follow_up_date: logFollowUpDate || null,
+        notes: logNotes || null,
+      };
+
+      if (logId) {
+        await updateHealthRecord(logId, payload);
+        alert('Medical log updated successfully!');
+      } else {
+        await createHealthRecord(selectedConsultationForLog.pet_id, payload);
+        alert('Medical log created successfully!');
+      }
+      setIsLogModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['doctorConsultations'] });
+    } catch (err: any) {
+      alert(`Failed to save medical log: ${err?.response?.data?.detail || err.message}`);
+    } finally {
+      setIsSavingLog(false);
+    }
+  };
 
   // Queries
   const { data: consultations, isLoading: consultationsLoading } = useQuery<ConsultationResponse[], Error>({
@@ -127,6 +246,17 @@ export const DoctorDashboard: React.FC = () => {
     }
   });
 
+  const bulkReplaceMutation = useMutation({
+    mutationFn: replaceDoctorAvailabilityBulk,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['doctorAvailabilities'] });
+      alert('Standard weekly schedule applied successfully! All previous availability shifts have been replaced.');
+    },
+    onError: (err: any) => {
+      alert(`Failed to set bulk schedule: ${err?.response?.data?.detail || err.message}`);
+    }
+  });
+
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => updateConsultationStatus(id, status),
     onSuccess: () => {
@@ -166,6 +296,31 @@ export const DoctorDashboard: React.FC = () => {
       start_time: availStart,
       end_time: availEnd
     });
+  };
+
+  const handleBulkScheduleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (bulkDays.length === 0) {
+      alert('Please select at least one day for your standard weekly schedule.');
+      return;
+    }
+    if (bulkStart >= bulkEnd) {
+      alert('Start shift time must be earlier than end shift time.');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to replace all current availability shifts with this bulk standard schedule? This cannot be undone.')) {
+      return;
+    }
+
+    const schedule = bulkDays.map((day) => ({
+      day_of_week: day as any,
+      start_time: bulkStart,
+      end_time: bulkEnd,
+      is_available: true
+    }));
+
+    bulkReplaceMutation.mutate(schedule);
   };
 
   return (
@@ -400,7 +555,7 @@ export const DoctorDashboard: React.FC = () => {
                                 )}
 
                                 {c.status?.toUpperCase() === 'IN_PROGRESS' && (
-                                  <div className="flex justify-center space-x-2">
+                                  <div className="flex justify-center items-center space-x-2">
                                     <button
                                       onClick={() => updateStatusMutation.mutate({ id: c.id, status: 'completed' })}
                                       disabled={updateStatusMutation.isPending}
@@ -408,11 +563,31 @@ export const DoctorDashboard: React.FC = () => {
                                     >
                                       Complete
                                     </button>
+                                    <button
+                                      onClick={() => handleOpenLogModal(c)}
+                                      className="bg-paper hover:bg-paperLight text-ink font-mono text-[8px] uppercase px-2 py-1 font-bold rounded-sm border border-cardboard flex items-center space-x-1"
+                                    >
+                                      <FileText className="w-3 h-3" />
+                                      <span>Medical Log</span>
+                                    </button>
                                   </div>
                                 )}
 
-                                {['COMPLETED', 'CANCELLED'].includes(c.status?.toUpperCase()) && (
+                                {c.status?.toUpperCase() === 'CANCELLED' && (
                                   <span className="font-mono text-[9px] text-ink opacity-50 font-bold uppercase tracking-wider">Finalized</span>
+                                )}
+                                
+                                {c.status?.toUpperCase() === 'COMPLETED' && (
+                                  <div className="flex justify-center items-center space-x-2">
+                                    <span className="font-mono text-[9px] text-ink opacity-50 font-bold uppercase tracking-wider mr-2">Completed</span>
+                                    <button
+                                      onClick={() => handleOpenLogModal(c)}
+                                      className="bg-paper hover:bg-paperLight text-ink font-mono text-[8px] uppercase px-2 py-1 font-bold rounded-sm border border-cardboard flex items-center space-x-1"
+                                    >
+                                      <FileText className="w-3 h-3" />
+                                      <span>View/Edit Log</span>
+                                    </button>
+                                  </div>
                                 )}
                               </td>
                             </tr>
@@ -486,6 +661,79 @@ export const DoctorDashboard: React.FC = () => {
                     <>
                       <Plus className="w-3.5 h-3.5" />
                       <span>Register Shift</span>
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <hr className="border-t border-dashed border-cardboard my-6" />
+
+              <div className="border-b border-cardboard border-dashed pb-3">
+                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Standard Presets</span>
+                <h3 className="font-display font-bold text-lg text-ink mt-0.5">Bulk Weekly Shifts</h3>
+              </div>
+
+              <form onSubmit={handleBulkScheduleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Start Time:</label>
+                    <input
+                      type="time"
+                      required
+                      value={bulkStart}
+                      onChange={(e) => setBulkStart(e.target.value)}
+                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">End Time:</label>
+                    <input
+                      type="time"
+                      required
+                      value={bulkEnd}
+                      onChange={(e) => setBulkEnd(e.target.value)}
+                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Select Days:</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {DAYS_OF_WEEK.map((day) => {
+                      const isChecked = bulkDays.includes(day.value);
+                      return (
+                        <label key={day.value} className="flex items-center space-x-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setBulkDays(bulkDays.filter((d) => d !== day.value));
+                              } else {
+                                setBulkDays([...bulkDays, day.value]);
+                              }
+                            }}
+                            className="w-3.5 h-3.5 rounded border-cardboard text-turmeric focus:ring-turmeric focus:ring-opacity-40"
+                          />
+                          <span className="font-body text-xs text-ink">{day.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={bulkReplaceMutation.isPending}
+                  className="w-full bg-turmeric hover:bg-opacity-95 text-paperLight font-mono text-[9px] uppercase px-4 py-2.5 font-bold rounded-sm hover-bounce disabled:opacity-50 flex items-center justify-center space-x-1.5 shadow-sm"
+                >
+                  {bulkReplaceMutation.isPending ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>Set Standard Schedule</span>
                     </>
                   )}
                 </button>
@@ -715,6 +963,187 @@ export const DoctorDashboard: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Medical Log Editor Modal */}
+      {isLogModalOpen && selectedConsultationForLog && (
+        <div className="fixed inset-0 bg-ink bg-opacity-65 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-paper border border-cardboard max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl p-6 flex flex-col space-y-4 text-left">
+            <div className="flex justify-between items-start border-b border-cardboard border-dashed pb-3">
+              <div>
+                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">
+                  Patient Dietary & Medical Journal
+                </span>
+                <h3 className="font-display font-bold text-xl text-ink mt-0.5">
+                  {logId ? 'Edit Medical Log Entry' : 'Create Medical Log Entry'}
+                </h3>
+                <p className="font-body text-[10px] text-ink opacity-70 mt-0.5">
+                  Consulting for <span className="font-bold text-ink">{selectedConsultationForLog.pet?.name || 'Pet'}</span> (ID: #{selectedConsultationForLog.pet_id})
+                </p>
+              </div>
+              <button
+                onClick={() => setIsLogModalOpen(false)}
+                className="text-ink opacity-50 hover:opacity-100 font-mono text-xs uppercase"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            {isSearchingLog ? (
+              <div className="flex flex-col items-center justify-center py-16 space-y-2 text-ink opacity-60">
+                <Loader2 className="w-6 h-6 animate-spin text-turmeric" />
+                <span className="font-mono text-[10px] uppercase font-bold tracking-wider">Searching Consultation Records...</span>
+              </div>
+            ) : (
+              <form onSubmit={handleSaveLogSubmit} className="space-y-4 font-body text-xs text-ink">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  {/* Title field */}
+                  <div className="md:col-span-8 space-y-1">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Log Entry Title:</label>
+                    <input
+                      type="text"
+                      required
+                      value={logTitle}
+                      onChange={(e) => setLogTitle(e.target.value)}
+                      className="w-full px-3 py-2 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                      placeholder="e.g. Annual Checkup or Nutrition Diagnostic"
+                    />
+                  </div>
+
+                  {/* Record Type field */}
+                  <div className="md:col-span-4 space-y-1">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Record Type:</label>
+                    <select
+                      value={logRecordType}
+                      onChange={(e) => setLogRecordType(e.target.value)}
+                      className="w-full px-3 py-2 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                    >
+                      <option value="general">General Log</option>
+                      <option value="diagnosis">Diagnostic Log</option>
+                      <option value="surgery">Surgery Log</option>
+                      <option value="vaccination">Vaccination Log</option>
+                      <option value="treatment">Treatment Log</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Symptoms */}
+                  <div className="space-y-1">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Observed Symptoms:</label>
+                    <textarea
+                      rows={2}
+                      value={logSymptoms}
+                      onChange={(e) => setLogSymptoms(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
+                      placeholder="List any signs or symptoms reported by the owner..."
+                    />
+                  </div>
+
+                  {/* Clinical Findings */}
+                  <div className="space-y-1">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Clinical Findings:</label>
+                    <textarea
+                      rows={2}
+                      value={logClinicalFindings}
+                      onChange={(e) => setLogClinicalFindings(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
+                      placeholder="Physical exam results, vital signs..."
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Diagnosis */}
+                  <div className="space-y-1">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Diagnosis conclusion:</label>
+                    <textarea
+                      rows={2}
+                      value={logDiagnosis}
+                      onChange={(e) => setLogDiagnosis(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
+                      placeholder="Primary medical conclusions..."
+                    />
+                  </div>
+
+                  {/* Treatment */}
+                  <div className="space-y-1">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Prescribed Treatment:</label>
+                    <textarea
+                      rows={2}
+                      value={logTreatment}
+                      onChange={(e) => setLogTreatment(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
+                      placeholder="Recommended therapeutic or dietary changes..."
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                  {/* Medications */}
+                  <div className="md:col-span-8 space-y-1">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Prescribed Medications:</label>
+                    <input
+                      type="text"
+                      value={logMedications}
+                      onChange={(e) => setLogMedications(e.target.value)}
+                      className="w-full px-3 py-2 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                      placeholder="e.g. Amoxicillin 250mg once daily for 5 days"
+                    />
+                  </div>
+
+                  {/* Follow-up Date */}
+                  <div className="md:col-span-4 space-y-1">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Follow-up Date:</label>
+                    <input
+                      type="date"
+                      value={logFollowUpDate}
+                      onChange={(e) => setLogFollowUpDate(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div className="space-y-1">
+                  <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Internal Notes:</label>
+                  <textarea
+                    rows={2}
+                    value={logNotes}
+                    onChange={(e) => setLogNotes(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
+                    placeholder="Any private case notes, specific recommendations..."
+                  />
+                </div>
+
+                {/* Footer buttons */}
+                <div className="flex justify-end space-x-2 pt-4 border-t border-cardboard border-dashed">
+                  <button
+                    type="button"
+                    onClick={() => setIsLogModalOpen(false)}
+                    className="px-4 py-2 border border-cardboard rounded-full font-mono text-[10px] uppercase font-bold text-ink hover:bg-paper transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingLog}
+                    className="px-4 py-2 bg-paprika text-paperLight rounded-full font-mono text-[10px] uppercase font-bold hover:opacity-95 transition-opacity flex items-center space-x-1.5 disabled:opacity-50"
+                  >
+                    {isSavingLog ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <>
+                        <Save className="w-3.5 h-3.5" />
+                        <span>Save Log Entry</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>

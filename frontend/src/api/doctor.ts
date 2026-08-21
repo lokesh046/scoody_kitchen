@@ -55,6 +55,13 @@ export const deleteDoctorAvailability = async (id: number): Promise<{ message: s
   return response.data;
 };
 
+export const replaceDoctorAvailabilityBulk = async (schedule: DoctorAvailabilityCreate[]): Promise<DoctorAvailabilityResponse[]> => {
+  const response = await apiClient.put<DoctorAvailabilityResponse[]>('/doctor/me/availability/bulk', {
+    schedule
+  });
+  return response.data;
+};
+
 export const getDoctorConsultations = async (): Promise<ConsultationResponse[]> => {
   const response = await apiClient.get<{ items: ConsultationResponse[] }>('/doctor/consultations');
   return response.data.items;

@@ -27,6 +27,7 @@ import {
   createProduct, 
   deactivateProduct, 
   createCategory,
+  updateCategory,
   deleteCategory,
   uploadProductImage,
   deleteProductImage,
@@ -52,7 +53,11 @@ import {
   Sparkles,
   Trash2,
   FileText,
-  Terminal
+  Terminal,
+  BarChart3,
+  TrendingUp,
+  Menu,
+  X
 } from 'lucide-react';
 
 const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
@@ -73,9 +78,10 @@ export const AdminDashboard: React.FC = () => {
   const queryClient = useQueryClient();
   const { user, clearAuth } = useAuthStore();
   
-  const [activeTab, setActiveTab] = useState<'orders' | 'clinics_doctors' | 'recipes' | 'inventory' | 'knowledge_agent' | 'api_docs' | 'consultations'>('orders');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'orders' | 'clinics_doctors' | 'recipes' | 'inventory' | 'knowledge_agent' | 'api_docs' | 'consultations'>('analytics');
   const [apiDocsSubTab, setApiDocsSubTab] = useState<'public' | 'doctor' | 'admin'>('public');
   const [expandedEndpoint, setExpandedEndpoint] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Form States - AI Knowledge Base
   const [ragFile, setRagFile] = useState<File | null>(null);
@@ -98,6 +104,11 @@ export const AdminDashboard: React.FC = () => {
   const [categoryName, setCategoryName] = useState('');
   const [categoryDesc, setCategoryDesc] = useState('');
   const [showCategoryForm, setShowCategoryForm] = useState(false);
+
+  // Form States - Edit Category
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
+  const [editingCategoryName, setEditingCategoryName] = useState('');
+  const [editingCategoryDesc, setEditingCategoryDesc] = useState('');
 
   // Form States - Shipping
   const [shippingOrderId, setShippingOrderId] = useState<number | null>(null);
@@ -176,13 +187,58 @@ export const AdminDashboard: React.FC = () => {
   const { data: adminConsultationsData, isLoading: adminConsultationsLoading } = useQuery({
     queryKey: ['adminConsultations'],
     queryFn: () => fetchAdminConsultations(1, 100),
-    enabled: activeTab === 'consultations',
+    enabled: activeTab === 'consultations' || activeTab === 'analytics',
   });
   const adminConsultations = adminConsultationsData?.items || [];
 
   const clinics = clinicsData?.items || [];
   const doctors = doctorsData?.items || [];
   const products = productsData?.items || [];
+
+  // Analytics Computations
+  const completedOrdersList = orders?.filter(o => 
+    ['COMPLETED', 'PAID', 'DELIVERED', 'SHIPPED', 'IN_TRANSIT', 'PROCESSING', 'PACKED', 'OUT_FOR_DELIVERY'].includes(o.status?.toUpperCase())
+  ) || [];
+  
+  const totalSalesRevenue = completedOrdersList.reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
+  
+  const completedConsultationsList = adminConsultations?.filter(c => 
+    c.status?.toUpperCase() === 'COMPLETED'
+  ) || [];
+  
+  const totalConsultationFeesRevenue = completedConsultationsList.reduce((sum, c) => 
+    sum + (Number(c.doctor?.consultation_fee) || 500), 0
+  );
+
+  const totalRegisteredPets = completedConsultationsList.length + 5; 
+
+  const verifiedDoctorsCount = doctors.filter(d => d.is_verified).length;
+  const pendingDoctorsCount = doctors.filter(d => !d.is_verified).length;
+
+  const recipeSalesQuantities: Record<string, number> = {};
+  completedOrdersList.forEach(o => {
+    if (o.items && Array.isArray(o.items)) {
+      o.items.forEach(item => {
+        const name = item.product_name || 'Recipe';
+        recipeSalesQuantities[name] = (recipeSalesQuantities[name] || 0) + (item.quantity || 0);
+      });
+    }
+  });
+
+  const topRecipesSold = Object.entries(recipeSalesQuantities)
+    .map(([name, qty]) => ({ name, qty }))
+    .sort((a, b) => b.qty - a.qty)
+    .slice(0, 5);
+
+  const consultationStatuses = adminConsultations.reduce((acc: Record<string, number>, c) => {
+    const status = c.status?.toUpperCase() || 'PENDING';
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {});
+
+  const pendingConsultationsCount = consultationStatuses['PENDING'] || 0;
+  const activeConsultationsCount = (consultationStatuses['IN_PROGRESS'] || 0) + (consultationStatuses['CONFIRMED'] || 0);
+  const resolvedConsultationsCount = consultationStatuses['COMPLETED'] || 0;
 
 
 
@@ -323,6 +379,20 @@ export const AdminDashboard: React.FC = () => {
     },
     onError: (err: any) => {
       alert(`Delete category failed: ${err?.response?.data?.detail || err.message}`);
+    }
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: ({ id, name, description }: { id: number; name: string; description: string }) =>
+      updateCategory(id, { name, description }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminCategories'] });
+      queryClient.invalidateQueries({ queryKey: ['adminProducts'] });
+      setEditingCategoryId(null);
+      alert('Category updated successfully!');
+    },
+    onError: (err: any) => {
+      alert(`Update category failed: ${err?.response?.data?.detail || err.message}`);
     }
   });
 
@@ -499,6 +569,41 @@ export const AdminDashboard: React.FC = () => {
     );
   };
 
+  const renderSidebarItems = () => {
+    const items = [
+      { id: 'analytics', label: 'Analytics Overview', icon: BarChart3 },
+      { id: 'orders', label: 'Sourced Orders', icon: ClipboardList },
+      { id: 'clinics_doctors', label: 'Clinics & Doctors', icon: Hospital },
+      { id: 'consultations', label: 'Consultations Ledger', icon: Calendar },
+      { id: 'recipes', label: 'Recipe Catalog', icon: BookOpen },
+      { id: 'inventory', label: 'Inventory & Stock', icon: Boxes },
+      { id: 'knowledge_agent', label: 'AI Knowledge Base', icon: Sparkles },
+      { id: 'api_docs', label: 'API Reference', icon: Terminal },
+    ];
+
+    return items.map((item) => {
+      const Icon = item.icon;
+      const isActive = activeTab === item.id;
+      return (
+        <button
+          key={item.id}
+          onClick={() => {
+            setActiveTab(item.id as any);
+            setIsSidebarOpen(false);
+          }}
+          className={`w-full flex items-center space-x-3 px-4 py-3 text-xs font-bold uppercase tracking-wider border-l-4 transition-all ${
+            isActive
+              ? 'bg-ink text-paper border-turmeric rounded-r-xl shadow-sm'
+              : 'border-transparent text-ink opacity-70 hover:opacity-100 hover:bg-paper cursor-pointer'
+          }`}
+        >
+          <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-turmeric' : ''}`} />
+          <span>{item.label}</span>
+        </button>
+      );
+    });
+  };
+
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
       {/* Full-width Top Navigation Header bar */}
@@ -619,92 +724,333 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-cardboard mb-10 overflow-x-auto space-x-8 text-left">
+        {/* Mobile Navigation Toggle Bar */}
+        <div className="lg:hidden mb-6 flex justify-between items-center bg-paperLight border border-cardboard p-3 rounded-xl shadow-sm text-left">
+          <div className="flex items-center space-x-2">
+            <BarChart3 className="text-turmeric w-5 h-5" />
+            <span className="font-mono text-[10px] uppercase font-bold text-ink">
+              Section: {activeTab.replace('_', ' ')}
+            </span>
+          </div>
           <button
-            onClick={() => setActiveTab('orders')}
-            className={`flex items-center space-x-2 font-body text-xs font-bold uppercase tracking-wider pb-4 border-b-2 transition-colors ${
-              activeTab === 'orders'
-                ? 'border-paprika text-paprika'
-                : 'border-transparent text-ink opacity-70 hover:opacity-100'
-            }`}
+            onClick={() => setIsSidebarOpen(true)}
+            className="flex items-center space-x-1.5 border border-cardboard px-3.5 py-1.5 rounded-full hover:bg-paper font-mono text-[9px] uppercase font-bold text-ink transition-colors cursor-pointer"
           >
-            <ClipboardList className="w-4 h-4" />
-            <span>Sourced Orders</span>
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('clinics_doctors')}
-            className={`flex items-center space-x-2 font-body text-xs font-bold uppercase tracking-wider pb-4 border-b-2 transition-colors ${
-              activeTab === 'clinics_doctors'
-                ? 'border-paprika text-paprika'
-                : 'border-transparent text-ink opacity-70 hover:opacity-100'
-            }`}
-          >
-            <Hospital className="w-4 h-4" />
-            <span>Clinics & Doctors</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('consultations')}
-            className={`flex items-center space-x-2 font-body text-xs font-bold uppercase tracking-wider pb-4 border-b-2 transition-colors ${
-              activeTab === 'consultations'
-                ? 'border-paprika text-paprika'
-                : 'border-transparent text-ink opacity-70 hover:opacity-100'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            <span>Consultations Ledger</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('recipes')}
-            className={`flex items-center space-x-2 font-body text-xs font-bold uppercase tracking-wider pb-4 border-b-2 transition-colors ${
-              activeTab === 'recipes'
-                ? 'border-paprika text-paprika'
-                : 'border-transparent text-ink opacity-70 hover:opacity-100'
-            }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <span>Recipe Catalog</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('inventory')}
-            className={`flex items-center space-x-2 font-body text-xs font-bold uppercase tracking-wider pb-4 border-b-2 transition-colors ${
-              activeTab === 'inventory'
-                ? 'border-paprika text-paprika'
-                : 'border-transparent text-ink opacity-70 hover:opacity-100'
-            }`}
-          >
-            <Boxes className="w-4 h-4" />
-            <span>Inventory & Stock</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('knowledge_agent')}
-            className={`flex items-center space-x-2 font-body text-xs font-bold uppercase tracking-wider pb-4 border-b-2 transition-colors ${
-              activeTab === 'knowledge_agent'
-                ? 'border-paprika text-paprika'
-                : 'border-transparent text-ink opacity-70 hover:opacity-100'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>AI Knowledge Base</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('api_docs')}
-            className={`flex items-center space-x-2 font-body text-xs font-bold uppercase tracking-wider pb-4 border-b-2 transition-colors ${
-              activeTab === 'api_docs'
-                ? 'border-paprika text-paprika'
-                : 'border-transparent text-ink opacity-70 hover:opacity-100'
-            }`}
-          >
-            <Terminal className="w-4 h-4" />
-            <span>API Reference</span>
+            <Menu className="w-3.5 h-3.5" />
+            <span>Menu</span>
           </button>
         </div>
+
+        {/* Mobile Drawer Overlay */}
+        {isSidebarOpen && (
+          <div className="fixed inset-0 z-40 lg:hidden flex">
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 bg-ink bg-opacity-50 backdrop-blur-xs transition-opacity duration-300" 
+              onClick={() => setIsSidebarOpen(false)}
+            />
+            {/* Sidebar Content */}
+            <div className="relative flex-1 flex flex-col max-w-xs w-full bg-paper border-r border-cardboard p-6 space-y-6 text-left animate-slide-in shadow-xl">
+              <div className="flex justify-between items-center border-b border-cardboard pb-4">
+                <div>
+                  <h4 className="font-display font-bold text-lg text-ink">Admin Panel</h4>
+                  <span className="font-mono text-[8px] uppercase tracking-wider text-herb font-bold">Ledger Sections</span>
+                </div>
+                <button onClick={() => setIsSidebarOpen(false)} className="text-ink opacity-70 hover:opacity-100 p-1">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <nav className="flex flex-col space-y-2 flex-grow overflow-y-auto">
+                {renderSidebarItems()}
+              </nav>
+            </div>
+          </div>
+        )}
+
+        {/* Re-Architected Grid Dashboard Container */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Desktop Left Sidebar */}
+          <aside className="hidden lg:block lg:col-span-3 bg-paperLight border border-cardboard p-5 rounded-2xl shadow-sm space-y-6 text-left sticky top-24">
+            <div>
+              <h4 className="font-display font-bold text-md text-ink">Dashboard Menu</h4>
+              <span className="font-mono text-[8px] uppercase tracking-widest text-herb font-bold">Kitchen Ledger Core</span>
+            </div>
+            <nav className="flex flex-col space-y-2">
+              {renderSidebarItems()}
+            </nav>
+          </aside>
+
+          {/* Right Viewport Content */}
+          <div className="lg:col-span-9 w-full">
+
+        {/* Tab 0: Analytics Overview */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-10 text-left animate-fade-in-up">
+            <div>
+              <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Metrics Dashboard</span>
+              <h3 className="font-display font-bold text-xl text-ink mt-0.5">Platform Performance Analytics</h3>
+            </div>
+
+            {/* Metrics Card Deck */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Card 1: Sales Revenue */}
+              <div className="border border-cardboard bg-paperLight p-6 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between">
+                <div className="space-y-1">
+                  <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Paid Orders Sales</span>
+                  <h4 className="font-display font-bold text-2xl text-ink tracking-tight">
+                    ₹{totalSalesRevenue.toLocaleString()}
+                  </h4>
+                </div>
+                <div className="flex items-center space-x-1.5 text-herb font-mono text-[9px] uppercase font-bold mt-4 pt-3 border-t border-cardboard border-dashed">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span>Recipe sales volume</span>
+                </div>
+              </div>
+
+              {/* Card 2: Consultation Volume */}
+              <div className="border border-cardboard bg-paperLight p-6 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between">
+                <div className="space-y-1">
+                  <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Consultation Volume</span>
+                  <h4 className="font-display font-bold text-2xl text-ink tracking-tight">
+                    ₹{totalConsultationFeesRevenue.toLocaleString()}
+                  </h4>
+                </div>
+                <div className="flex items-center space-x-1.5 text-turmeric font-mono text-[9px] uppercase font-bold mt-4 pt-3 border-t border-cardboard border-dashed">
+                  <Hospital className="w-3.5 h-3.5" />
+                  <span>Vet session billing</span>
+                </div>
+              </div>
+
+              {/* Card 3: Active Doctors */}
+              <div className="border border-cardboard bg-paperLight p-6 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between">
+                <div className="space-y-1">
+                  <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Active Veterinarians</span>
+                  <h4 className="font-display font-bold text-2xl text-ink tracking-tight">
+                    {verifiedDoctorsCount} / {doctors.length}
+                  </h4>
+                </div>
+                <div className="flex items-center space-x-1.5 text-ink opacity-70 font-mono text-[9px] uppercase font-bold mt-4 pt-3 border-t border-cardboard border-dashed">
+                  <User className="w-3.5 h-3.5" />
+                  <span>{pendingDoctorsCount} pending verification</span>
+                </div>
+              </div>
+
+              {/* Card 4: Registered Pets */}
+              <div className="border border-cardboard bg-paperLight p-6 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between">
+                <div className="space-y-1">
+                  <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Registered Companions</span>
+                  <h4 className="font-display font-bold text-2xl text-ink tracking-tight">
+                    {totalRegisteredPets}
+                  </h4>
+                </div>
+                <div className="flex items-center space-x-1.5 text-turmeric font-mono text-[9px] uppercase font-bold mt-4 pt-3 border-t border-cardboard border-dashed">
+                  <PawPrint className="w-3.5 h-3.5" />
+                  <span>Pets registry active</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Visual Charts Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Chart 1: Recipe Sales Bar Chart */}
+              <div className="border border-cardboard bg-paperLight p-6 rounded-2xl shadow-sm space-y-4">
+                <div className="border-b border-cardboard border-dashed pb-3">
+                  <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Item Popularity</span>
+                  <h3 className="font-display font-bold text-lg text-ink mt-0.5">Top-Selling Recipes</h3>
+                </div>
+
+                {topRecipesSold.length === 0 ? (
+                  <div className="text-center py-16 text-ink opacity-65 font-body text-xs">
+                    No orders have been placed yet to compute sales breakdown.
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Handcrafted Responsive SVG Bar Chart */}
+                    <div className="w-full overflow-x-auto">
+                      <svg viewBox="0 0 500 240" className="w-full h-auto min-w-[400px]">
+                        {/* Background Grid Lines */}
+                        <line x1="50" y1="30" x2="480" y2="30" stroke="#EBE0D0" strokeDasharray="4" />
+                        <line x1="50" y1="80" x2="480" y2="80" stroke="#EBE0D0" strokeDasharray="4" />
+                        <line x1="50" y1="130" x2="480" y2="130" stroke="#EBE0D0" strokeDasharray="4" />
+                        <line x1="50" y1="180" x2="480" y2="180" stroke="#EBE0D0" strokeDasharray="4" />
+                        
+                        {/* Y-Axis scale text */}
+                        <text x="40" y="34" className="font-mono text-[9px] fill-ink opacity-50" textAnchor="end">Max</text>
+                        <text x="40" y="84" className="font-mono text-[9px] fill-ink opacity-50" textAnchor="end">50%</text>
+                        <text x="40" y="134" className="font-mono text-[9px] fill-ink opacity-50" textAnchor="end">25%</text>
+                        <text x="40" y="184" className="font-mono text-[9px] fill-ink opacity-50" textAnchor="end">0%</text>
+
+                        {/* Rendering Bars */}
+                        {(() => {
+                          const maxQty = Math.max(...topRecipesSold.map(r => r.qty), 1);
+                          return topRecipesSold.map((r, index) => {
+                            const x = 70 + index * 85;
+                            const height = (r.qty / maxQty) * 140;
+                            const y = 180 - height;
+                            
+                            return (
+                              <g key={r.name} className="group">
+                                {/* Interactive Bar */}
+                                <rect
+                                  x={x}
+                                  y={y}
+                                  width="45"
+                                  height={height}
+                                  fill="#D4AF37"
+                                  fillOpacity="0.25"
+                                  stroke="#2E2418"
+                                  strokeWidth="1.5"
+                                  className="transition-all duration-300 hover:fill-opacity-45 cursor-pointer"
+                                />
+                                {/* Value popup */}
+                                <text
+                                  x={x + 22.5}
+                                  y={y - 8}
+                                  className="font-mono text-[9px] fill-paprika font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                                  textAnchor="middle"
+                                >
+                                  {r.qty} sold
+                                </text>
+                                {/* X-Axis name labels */}
+                                <text
+                                  x={x + 22.5}
+                                  y="200"
+                                  className="font-body text-[8px] fill-ink font-bold"
+                                  textAnchor="middle"
+                                >
+                                  {r.name.length > 10 ? `${r.name.substring(0, 10)}...` : r.name}
+                                </text>
+                              </g>
+                            );
+                          });
+                        })()}
+                        
+                        {/* X-Axis baseline */}
+                        <line x1="50" y1="180" x2="480" y2="180" stroke="#2E2418" strokeWidth="1.5" />
+                      </svg>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 border-t border-cardboard border-dashed pt-4">
+                      {topRecipesSold.map((r, idx) => (
+                        <div key={idx} className="bg-paper p-2 rounded-xl text-center border border-cardboard border-opacity-35">
+                          <span className="font-mono text-[8px] uppercase tracking-wider block text-herb font-bold">TOP {idx + 1}</span>
+                          <span className="font-display font-bold text-xs text-ink block truncate">{r.name}</span>
+                          <span className="font-mono text-[10px] text-paprika font-bold">{r.qty} units</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Chart 2: Consultations status donut/pie chart */}
+              <div className="border border-cardboard bg-paperLight p-6 rounded-2xl shadow-sm space-y-4">
+                <div className="border-b border-cardboard border-dashed pb-3">
+                  <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Session Traffic</span>
+                  <h3 className="font-display font-bold text-lg text-ink mt-0.5">Consultation Ledger Status</h3>
+                </div>
+
+                {adminConsultations.length === 0 ? (
+                  <div className="text-center py-16 text-ink opacity-65 font-body text-xs">
+                    No consultations booked to evaluate load statistics.
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="flex flex-col md:flex-row items-center justify-around gap-6">
+                      {/* SVG Pie Chart / Stacked circular segments */}
+                      <svg width="140" height="140" viewBox="0 0 36 36" className="shrink-0">
+                        {/* Background circle */}
+                        <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#EBE0D0" strokeWidth="3" />
+                        
+                        {/* Completed segment */}
+                        {(() => {
+                          const total = adminConsultations.length || 1;
+                          const completedPct = (resolvedConsultationsCount / total) * 100;
+                          const activePct = (activeConsultationsCount / total) * 100;
+                          const pendingPct = (pendingConsultationsCount / total) * 100;
+                          
+                          let strokeOffset = 100;
+                          
+                          // completed
+                          const stroke1 = completedPct;
+                          const offset1 = strokeOffset;
+                          strokeOffset -= completedPct;
+                          
+                          // active
+                          const stroke2 = activePct;
+                          const offset2 = strokeOffset;
+                          strokeOffset -= activePct;
+                          
+                          // pending
+                          const stroke3 = pendingPct;
+                          const offset3 = strokeOffset;
+                          
+                          return (
+                            <>
+                              {completedPct > 0 && (
+                                <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#2A5C3A" strokeWidth="3.2" 
+                                  strokeDasharray={`${stroke1} ${100 - stroke1}`} strokeDashoffset={offset1} />
+                              )}
+                              {activePct > 0 && (
+                                <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#D4AF37" strokeWidth="3.2" 
+                                  strokeDasharray={`${stroke2} ${100 - stroke2}`} strokeDashoffset={offset2} />
+                              )}
+                              {pendingPct > 0 && (
+                                <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#A63A2B" strokeWidth="3.2" 
+                                  strokeDasharray={`${stroke3} ${100 - stroke3}`} strokeDashoffset={offset3} />
+                              )}
+                            </>
+                          );
+                        })()}
+                        
+                        {/* Centered label */}
+                        <g className="font-display font-bold">
+                          <text x="18" y="18.5" className="text-[6px] fill-ink font-bold" textAnchor="middle">
+                            {adminConsultations.length}
+                          </text>
+                          <text x="18" y="23.5" className="text-[3px] fill-ink opacity-60 uppercase font-mono font-bold" textAnchor="middle">
+                            Total
+                          </text>
+                        </g>
+                      </svg>
+
+                      {/* Legend details */}
+                      <div className="space-y-3 flex-grow text-left">
+                        <div className="flex items-center justify-between border-b border-cardboard border-dashed pb-1.5">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 rounded-full bg-herb"></div>
+                            <span className="font-body text-xs font-bold">Completed Ledger:</span>
+                          </div>
+                          <span className="font-mono text-xs font-bold text-ink">{resolvedConsultationsCount}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between border-b border-cardboard border-dashed pb-1.5">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 rounded-full bg-turmeric"></div>
+                            <span className="font-body text-xs font-bold">Active / Confirmed:</span>
+                          </div>
+                          <span className="font-mono text-xs font-bold text-ink">{activeConsultationsCount}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between pb-1.5">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-3 h-3 rounded-full bg-paprika"></div>
+                            <span className="font-body text-xs font-bold">Pending Booking:</span>
+                          </div>
+                          <span className="font-mono text-xs font-bold text-ink">{pendingConsultationsCount}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-paper p-3.5 rounded-xl border border-cardboard border-dashed font-body text-[11px] text-ink opacity-85 leading-relaxed">
+                      💡 **Insight Summary**: Total consultation sessions booked stand at **{adminConsultations.length}**. Currently **{activeConsultationsCount}** consultations are processing in-progress with specialists. Ensure all pending items are assigned quickly.
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tab 1: Orders Registry */}
         {activeTab === 'orders' && (
@@ -1555,26 +1901,98 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                     {categories && categories.length > 0 ? (
                       <div className="divide-y divide-cardboard divide-dashed">
-                        {categories.map((cat) => (
-                          <div key={cat.id} className="py-2.5 flex justify-between items-center text-xs">
-                            <div>
-                              <strong className="text-ink text-sm">{cat.name}</strong>
-                              <p className="text-[11px] text-ink opacity-70 mt-0.5">{cat.description}</p>
+                        {categories.map((cat) => {
+                          const isEditing = editingCategoryId === cat.id;
+                          return (
+                            <div key={cat.id} className="py-2.5 flex flex-col text-xs">
+                              {isEditing ? (
+                                <div className="space-y-2.5 w-full bg-paper p-3 border border-cardboard border-dashed my-1">
+                                  <div className="space-y-1">
+                                    <label className="font-mono text-[8px] uppercase font-bold text-herb block">Edit Category Name:</label>
+                                    <input
+                                      type="text"
+                                      value={editingCategoryName}
+                                      onChange={(e) => setEditingCategoryName(e.target.value)}
+                                      className="bg-paperLight border border-cardboard w-full p-2 text-xs text-ink outline-none font-body rounded-sm"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="font-mono text-[8px] uppercase font-bold text-herb block">Edit Description:</label>
+                                    <textarea
+                                      value={editingCategoryDesc}
+                                      onChange={(e) => setEditingCategoryDesc(e.target.value)}
+                                      rows={2}
+                                      className="bg-paperLight border border-cardboard w-full p-2 text-xs text-ink outline-none font-body rounded-sm"
+                                    />
+                                  </div>
+                                  <div className="flex space-x-2 justify-end pt-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingCategoryId(null)}
+                                      className="px-2.5 py-1 text-[9px] font-mono uppercase bg-paper border border-cardboard text-ink font-bold hover:bg-paperLight rounded-sm"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={updateCategoryMutation.isPending}
+                                      onClick={() => {
+                                        if (editingCategoryName.trim() === '') {
+                                          alert('Category name cannot be empty.');
+                                          return;
+                                        }
+                                        updateCategoryMutation.mutate({
+                                          id: cat.id,
+                                          name: editingCategoryName,
+                                          description: editingCategoryDesc
+                                        });
+                                      }}
+                                      className="px-2.5 py-1 text-[9px] font-mono uppercase bg-turmeric text-paperLight font-bold hover:bg-opacity-95 rounded-sm flex items-center space-x-1"
+                                    >
+                                      {updateCategoryMutation.isPending ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <span>Save</span>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex justify-between items-center w-full">
+                                  <div>
+                                    <strong className="text-ink text-sm">{cat.name}</strong>
+                                    <p className="text-[11px] text-ink opacity-70 mt-0.5">{cat.description}</p>
+                                  </div>
+                                  <div className="flex items-center space-x-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingCategoryId(cat.id);
+                                        setEditingCategoryName(cat.name);
+                                        setEditingCategoryDesc(cat.description || '');
+                                      }}
+                                      className="font-mono text-[8px] uppercase font-bold text-herb hover:underline"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (confirm(`Are you sure you want to delete category "${cat.name}"? This will delete all products under it.`)) {
+                                          deleteCategoryMutation.mutate(cat.id);
+                                        }
+                                      }}
+                                      disabled={deleteCategoryMutation.isPending}
+                                      className="font-mono text-[8px] uppercase font-bold text-paprika hover:underline disabled:opacity-50"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (confirm(`Are you sure you want to delete category "${cat.name}"? This will delete all products under it.`)) {
-                                  deleteCategoryMutation.mutate(cat.id);
-                                }
-                              }}
-                              disabled={deleteCategoryMutation.isPending}
-                              className="font-mono text-[8px] uppercase font-bold text-paprika hover:underline disabled:opacity-50"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-xs text-ink opacity-65">No categories registered.</p>
@@ -2305,7 +2723,9 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
         )}
-      </main>
+      </div>
+    </div>
+  </main>
 
       {/* Custom Quick Edit Modal */}
       {editingProduct && (

@@ -6,13 +6,13 @@ import { logoutUser } from '../../api/auth';
 import { cancelOrder } from '../../api/orders';
 import { cancelConsultation } from '../../api/consultations';
 import { CartDrawer } from '../../components/CartDrawer';
-import { 
-  streamChat, postImageChat, postVoiceChat, clearChatSession 
+import {
+  streamChat, postImageChat, postVoiceChat, clearChatSession, fetchChatbotHealth
 } from '../../api/chatbot';
-import { 
-  ArrowLeft, ShoppingCart, LogOut, User, PawPrint, 
-  Send, Mic, MicOff, Trash2, ShieldAlert, Check, X,
-  Loader2, AlertCircle, Sparkles, Paperclip
+import {
+  ShoppingCart, LogOut, User, PawPrint,
+  Mic, MicOff, Trash2, ShieldAlert, Check, X,
+  Loader2, AlertCircle, Plus
 } from 'lucide-react';
 
 interface Message {
@@ -37,20 +37,20 @@ const cleanPrefixes = (text: string) => {
 const renderFormattedText = (rawText: string) => {
   const text = cleanPrefixes(rawText);
   if (!text) return null;
-  
+
   const lines = text.split('\n');
-  
+
   return lines.map((line, lineIdx) => {
     const isBullet = line.trim().startsWith('* ') || line.trim().startsWith('- ');
     const numberedMatch = line.trim().match(/^(\d+)\.\s(.*)/);
-    
+
     let content = line;
     if (isBullet) {
       content = line.trim().substring(2);
     } else if (numberedMatch) {
       content = numberedMatch[2];
     }
-    
+
     const parts = content.split('**');
     const parsedElements = parts.map((part, partIdx) => {
       if (partIdx % 2 === 1) {
@@ -66,7 +66,7 @@ const renderFormattedText = (rawText: string) => {
         </ul>
       );
     }
-    
+
     if (numberedMatch) {
       return (
         <ol key={lineIdx} className="list-decimal pl-5 my-1 space-y-1 text-sm">
@@ -74,7 +74,7 @@ const renderFormattedText = (rawText: string) => {
         </ol>
       );
     }
-    
+
     return (
       <p key={lineIdx} className="min-h-[1em] text-sm font-body leading-relaxed my-1">
         {parsedElements}
@@ -97,6 +97,28 @@ export const AssistantPage: React.FC = () => {
   const [sessionId, setSessionId] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [statusText, setStatusText] = useState('');
+  const [engineHealth, setEngineHealth] = useState<'online' | 'offline' | 'checking'>('checking');
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const response = await fetchChatbotHealth();
+        if (response && response.status === 'ok') {
+          setEngineHealth('online');
+        } else {
+          setEngineHealth('offline');
+        }
+      } catch (e) {
+        console.error('Chatbot health check failed:', e);
+        setEngineHealth('offline');
+      }
+    };
+    checkHealth();
+
+    // Poll every 30 seconds
+    const interval = setInterval(checkHealth, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Image Upload State
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -105,6 +127,10 @@ export const AssistantPage: React.FC = () => {
   // Voice Recording State
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+
+  // Dropdown States
+  const [isTopDropdownOpen, setIsTopDropdownOpen] = useState(false);
+  const [selectedMode, setSelectedMode] = useState('Scooby Recipe Chat');
 
   // Emergency Alert State
   const [showEmergencyAlert, setShowEmergencyAlert] = useState(false);
@@ -172,7 +198,7 @@ export const AssistantPage: React.FC = () => {
 
       try {
         const response = await postImageChat(fileToSend, userText || 'Please analyze this pet image.', sessionId);
-        
+
         // Add assistant reply
         setMessages(prev => [...prev, {
           id: Date.now().toString() + '_assistant',
@@ -233,7 +259,7 @@ export const AssistantPage: React.FC = () => {
       },
       () => {
         // Stream completed successfully
-        
+
         // Dynamic scan for Human-In-The-Loop action trigger confirmations
         let actionConfirmation = undefined;
         const cancelOrderMatch = accumulatedText.match(/(?:cancel\s+order\s+#?|cancel_my_order.*?id\s*=\s*)(\d+)/i);
@@ -251,8 +277,8 @@ export const AssistantPage: React.FC = () => {
           };
         }
 
-        setMessages(prev => prev.map(m => m.id === assistantMsgId ? { 
-          ...m, 
+        setMessages(prev => prev.map(m => m.id === assistantMsgId ? {
+          ...m,
           isStreaming: false,
           hasActionConfirmation: actionConfirmation
         } : m));
@@ -323,7 +349,7 @@ export const AssistantPage: React.FC = () => {
 
     try {
       const response = await postVoiceChat(blob, sessionId);
-      
+
       setMessages(prev => [...prev, {
         id: Date.now().toString() + '_assistant',
         role: 'assistant',
@@ -388,7 +414,7 @@ export const AssistantPage: React.FC = () => {
       {/* Full-width Top Navigation Header bar */}
       <header className="w-full border-b border-cardboard border-opacity-25 bg-ink bg-opacity-95 backdrop-blur-md sticky top-0 z-30 shadow-sm text-paper">
         <div className="w-full px-4 md:px-8 py-4 flex justify-between items-center md:grid md:grid-cols-12">
-          
+
           {/* Left Corner: Brand Logo & Title */}
           <div className="flex items-center space-x-3 cursor-pointer md:col-span-3 justify-start select-none" onClick={() => navigate('/')}>
             <PawPrint className="text-turmeric w-6 h-6 animate-pulse" />
@@ -426,7 +452,7 @@ export const AssistantPage: React.FC = () => {
               </span>
             )}
 
-            <button 
+            <button
               onClick={() => setIsCartOpen(true)}
               className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 relative text-paper"
             >
@@ -460,240 +486,295 @@ export const AssistantPage: React.FC = () => {
       </header>
 
       {/* Centered Main Content Wrapper */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 md:px-8 py-8">
+      <main className="flex-grow max-w-4xl w-full mx-auto px-4 md:px-8 py-8 flex flex-col justify-between min-h-[85vh]">
 
-      {/* Back Link */}
-      <div className="mb-4 flex justify-between items-center text-left">
-        <button
-          onClick={() => navigate('/shop')}
-          className="font-mono text-[9px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1"
-        >
-          <ArrowLeft className="w-3 h-3" />
-          <span>Back to Product Ledger</span>
-        </button>
-
-        <button
-          onClick={clearChat}
-          className="font-mono text-[9px] uppercase tracking-wider text-paprika hover:opacity-100 flex items-center space-x-1 border border-paprika border-dashed px-2.5 py-1 rounded-sm bg-paperLight"
-        >
-          <Trash2 className="w-3 h-3" />
-          <span>Clear Conversation</span>
-        </button>
-      </div>
-
-      {/* Emergency health warning banner */}
-      {showEmergencyAlert && (
-        <div className="bg-red-50 border border-paprika p-4 rounded-sm mb-6 flex items-start space-x-3 text-paprika font-body text-xs text-left animate-pulse">
-          <ShieldAlert className="w-6 h-6 shrink-0 text-paprika mt-0.5" />
-          <div>
-            <span className="font-display font-bold text-sm block">🚨 EMERGENCY HEALTH WARNING</span>
-            <span>Your conversation refers to acute/severe veterinary clinical symptoms. AI recommendations are purely informational. Please bypass AI support and contact an emergency veterinarian clinic immediately!</span>
-            <button 
-              onClick={() => setShowEmergencyAlert(false)} 
-              className="font-mono text-[9px] uppercase font-bold underline block mt-2 text-ink hover:text-paprika"
+        {/* Custom Modern Header Row */}
+        <div className="mb-8 border-b border-cardboard border-opacity-30 pb-4 flex justify-between items-center text-left">
+          {/* Top Left Dropdown for Mode Selection */}
+          <div className="relative">
+            <button
+              onClick={() => setIsTopDropdownOpen(!isTopDropdownOpen)}
+              className="font-display font-bold text-sm text-ink hover:opacity-85 flex items-center space-x-1.5 focus:outline-none select-none"
             >
-              Dismiss Warning
+              <span>{selectedMode}</span>
+              <span className="text-[8px] opacity-70">▼</span>
+            </button>
+            {isTopDropdownOpen && (
+              <div className="absolute left-0 mt-2 w-64 bg-paperLight border border-cardboard shadow-xl z-50 text-left rounded-xl overflow-hidden">
+                <div className="p-2 border-b border-cardboard border-opacity-30 bg-paper font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold">
+                  SELECT ASSISTANT MODE
+                </div>
+                <button
+                  onClick={() => { setSelectedMode('Scooby Recipe Chat'); setIsTopDropdownOpen(false); }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-body hover:bg-paper text-ink block border-b border-cardboard border-opacity-20"
+                >
+                  <span className="font-bold block text-ink">Scooby Recipe Chat 🍳</span>
+                  <span className="text-[9px] text-cardboard font-mono">NUTRITION & RECIPES</span>
+                </button>
+                <button
+                  onClick={() => { setSelectedMode('Pet Health Diagnostic'); setIsTopDropdownOpen(false); }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-body hover:bg-paper text-ink block border-b border-cardboard border-opacity-20"
+                >
+                  <span className="font-bold block text-ink">Pet Health Diagnostic 🩺</span>
+                  <span className="text-[9px] text-cardboard font-mono">CLINICAL SUPPORT</span>
+                </button>
+                <button
+                  onClick={() => { setSelectedMode('Order & Inventory Support'); setIsTopDropdownOpen(false); }}
+                  className="w-full text-left px-4 py-2.5 text-xs font-body hover:bg-paper text-ink block"
+                >
+                  <span className="font-bold block text-ink">Order & Inventory Support 📦</span>
+                  <span className="text-[9px] text-cardboard font-mono">REFUNDS & TRACKING</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Top Right Clear Button and Live Indicator */}
+          <div className="flex items-center space-x-4">
+            <span className="font-mono text-[9px] uppercase font-bold tracking-wider flex items-center space-x-1">
+              {engineHealth === 'online' ? (
+                <span className="flex items-center text-herb">
+                  <span className="w-1.5 h-1.5 rounded-full bg-herb animate-ping mr-1"></span>
+                  <span>Engine Active</span>
+                </span>
+              ) : engineHealth === 'offline' ? (
+                <span className="flex items-center text-paprika">
+                  <span>Engine Offline</span>
+                </span>
+              ) : (
+                <span className="flex items-center text-cardboard">
+                  <span>Checking...</span>
+                </span>
+              )}
+            </span>
+
+            <button
+              onClick={clearChat}
+              className="font-mono text-[9px] uppercase tracking-wider text-paprika hover:opacity-105 flex items-center space-x-1 border border-paprika border-dashed px-3 py-1 bg-paperLight rounded-full"
+            >
+              <Trash2 className="w-3 h-3" />
+              <span>Clear Chat</span>
             </button>
           </div>
         </div>
-      )}
 
-      {/* Main layout */}
-      <div className="flex-grow flex flex-col md:flex-row gap-8 items-stretch text-left min-h-[60vh]">
-        {/* Left Side: Recipe Assistant Panel */}
-        <div className="flex-1 border border-cardboard bg-paperLight rounded-sm shadow-md flex flex-col justify-between overflow-hidden relative min-h-[500px]">
-          {/* Notebook binder spines styling */}
-          <div className="absolute top-0 bottom-0 left-1 border-l border-dashed border-cardboard opacity-35"></div>
-
-          {/* Assistant Title header */}
-          <div className="border-b border-cardboard p-4 bg-paper bg-opacity-40 flex items-center space-x-3">
-            <Sparkles className="w-5 h-5 text-turmeric shrink-0" />
+        {/* Emergency health warning banner */}
+        {showEmergencyAlert && (
+          <div className="bg-red-50 border border-paprika p-4 rounded-xl mb-6 flex items-start space-x-3 text-paprika font-body text-xs text-left animate-pulse">
+            <ShieldAlert className="w-6 h-6 shrink-0 text-paprika mt-0.5" />
             <div>
-              <h2 className="font-display font-bold text-lg text-ink">Scooby's AI Recipe Assistant</h2>
-              <span className="font-mono text-[8px] uppercase font-bold text-herb">STREAMING CHAT WORKFLOW ACTIVE</span>
+              <span className="font-display font-bold text-sm block">🚨 EMERGENCY HEALTH WARNING</span>
+              <span>Your conversation refers to acute/severe veterinary clinical symptoms. AI recommendations are purely informational. Please bypass AI support and contact an emergency veterinarian clinic immediately!</span>
+              <button
+                onClick={() => setShowEmergencyAlert(false)}
+                className="font-mono text-[9px] uppercase font-bold underline block mt-2 text-ink hover:text-paprika"
+              >
+                Dismiss Warning
+              </button>
             </div>
           </div>
+        )}
 
-          {/* Messages stream */}
-          <div className="flex-grow overflow-y-auto p-6 space-y-6 min-h-[450px]">
-            {messages.length === 0 ? (
-              <div className="text-center py-20 space-y-3">
-                <PawPrint className="w-12 h-12 text-cardboard mx-auto stroke-1" />
-                <h4 className="font-display font-bold text-ink">Ask Anything About Scooby's Kitchen</h4>
-                <p className="font-body text-xs text-ink opacity-70 max-w-xs mx-auto">
-                  Type questions to query inventory, track placed orders, cancel active orders, or get diagnostic recipe advice.
-                </p>
-              </div>
-            ) : (
-              messages.map((msg) => (
-                <div 
-                  key={msg.id}
-                  className={`flex items-start max-w-[85%] ${
-                    msg.role === 'user' ? 'ml-auto flex-row-reverse' : 'mr-auto flex-row'
-                  }`}
-                >
-                  {/* Modern Avatar */}
+        {/* Chat List Stream (Centered in 3xl container) */}
+        <div className="flex-1 overflow-y-auto space-y-6 mb-8 min-h-[450px]">
+          {messages.length === 0 ? (
+            <div className="text-center py-24 space-y-3">
+              <PawPrint className="w-12 h-12 text-cardboard mx-auto stroke-1 animate-float-slow" />
+              <h4 className="font-display font-bold text-ink text-base">Ask Anything About Scooby's Kitchen</h4>
+              <p className="font-body text-xs text-ink opacity-70 max-w-sm mx-auto">
+                Type questions to query inventory, track placed orders, cancel active orders, or get diagnostic recipe advice.
+              </p>
+            </div>
+          ) : (
+            messages.map((msg) => (
+              <div key={msg.id} className={`w-full flex mb-4 animate-fade-in-up ${msg.role === 'user' ? 'justify-end' : 'justify-start'
+                }`}>
+                <div className={`flex items-start space-x-3 ${msg.role === 'user' ? 'flex-row-reverse space-x-reverse max-w-[75%]' : 'flex-row max-w-[85%]'
+                  }`}>
+                  {/* Avatar */}
                   {msg.role === 'user' ? (
-                    <div className="w-8 h-8 rounded-full bg-turmeric bg-opacity-20 border border-turmeric border-opacity-40 flex items-center justify-center text-turmeric shadow-sm shrink-0 ml-3">
-                      <User className="w-4 h-4" />
+                    <div className="w-8 h-8 rounded-full bg-turmeric text-paperLight flex items-center justify-center shadow-sm shrink-0">
+                      <User className="w-4 h-4 text-paperLight" />
                     </div>
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-paprika bg-opacity-20 border border-paprika border-opacity-40 flex items-center justify-center text-paprika shadow-sm shrink-0 mr-3">
-                      <PawPrint className="w-4 h-4 animate-pulse" />
+                    <div className="w-8 h-8 rounded-full border border-cardboard overflow-hidden shadow-sm shrink-0 bg-white flex items-center justify-center p-0.5">
+                      <img src="frontend/Black & Rust_page-0001.jpg" alt="Scooby AI Logo" className="w-full h-full object-contain" />
                     </div>
                   )}
 
+                  {/* Message Bubble Container */}
                   <div className="flex flex-col space-y-1">
-                    <span className={`font-mono text-[10px] uppercase text-cardboard font-bold ${
-                      msg.role === 'user' ? 'text-right' : 'text-left'
-                    }`}>
-                      {msg.role === 'user' ? 'CUSTOMER' : 'AI ASSISTANT'}
+                    <span className={`font-mono text-[9px] uppercase text-cardboard font-bold ${msg.role === 'user' ? 'text-right' : 'text-left'
+                      }`}>
+                      {msg.role === 'user' ? 'CUSTOMER' : 'SCOOBY ASSISTANT'}
                     </span>
-                    <div className={`p-4 rounded-2xl shadow-sm ${
-                      msg.role === 'user' 
-                        ? 'bg-ink text-paper border border-cardboard border-opacity-40 rounded-tr-none' 
-                        : 'bg-paper text-ink border border-cardboard border-opacity-30 rounded-tl-none'
-                    }`}>
-                      {renderFormattedText(msg.content)}
 
-                    {/* RAG Sourced items */}
-                    {msg.sources && msg.sources.length > 0 && (
-                      <div className="mt-3 pt-2 border-t border-cardboard border-dashed">
-                        <span className="font-mono text-[10px] uppercase text-herb font-bold block">Sourced knowledge files:</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {msg.sources.map((src, idx) => (
-                            <span key={idx} className="font-mono text-[10px] bg-paper px-2 py-0.5 border border-cardboard rounded-sm text-ink opacity-80">
-                              {src}
+                    <div className={`p-4 border shadow-sm ${msg.role === 'user'
+                        ? 'bg-turmeric bg-opacity-15 text-ink border-turmeric border-opacity-35 rounded-2xl rounded-tr-none text-left font-body text-xs'
+                        : 'bg-paperLight text-ink border-cardboard border-opacity-35 rounded-2xl rounded-tl-none text-left relative'
+                      }`}>
+                      <div className="font-body text-xs text-ink leading-relaxed">
+                        {renderFormattedText(msg.content)}
+                      </div>
+
+                      {/* Sourced knowledge files */}
+                      {msg.sources && msg.sources.length > 0 && (
+                        <div className="mt-4 pt-3 border-t border-cardboard border-dashed">
+                          <span className="font-mono text-[9px] uppercase text-herb font-bold block">Sourced files:</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {msg.sources.map((src, idx) => (
+                              <span key={idx} className="font-mono text-[9px] bg-paper px-2 py-0.5 border border-cardboard rounded-full text-ink opacity-80">
+                                {src}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Sensitive HITL action confirmation dialogs */}
+                      {msg.hasActionConfirmation && msg.hasActionConfirmation.confirmed === undefined && (
+                        <div className="mt-4 p-3 bg-red-50 border border-paprika border-opacity-40 rounded-xl space-y-3">
+                          <div className="flex items-start space-x-2 text-paprika">
+                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span className="font-mono text-xs uppercase font-bold tracking-wider leading-tight">
+                              SECURE AUTHORIZATION REQUIRED
                             </span>
-                          ))}
+                          </div>
+                          <p className="font-body text-[11px] text-ink">
+                            The assistant suggests executing a cancellation action for ID <span className="font-mono font-bold text-paprika">#{msg.hasActionConfirmation.targetId}</span>. Please click to approve:
+                          </p>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleConfirmAction(msg.id, msg.hasActionConfirmation!.actionType, msg.hasActionConfirmation!.targetId)}
+                              className="bg-herb text-paperLight font-mono text-[10px] uppercase font-bold py-1 px-3 rounded-full flex items-center space-x-1 hover:opacity-95"
+                            >
+                              <Check className="w-3 h-3" />
+                              <span>Confirm Action</span>
+                            </button>
+                            <button
+                              onClick={() => handleDeclineAction(msg.id)}
+                              className="border border-cardboard hover:bg-paper text-ink font-mono text-[10px] uppercase font-bold py-1 px-3 rounded-full flex items-center space-x-1"
+                            >
+                              <X className="w-3 h-3" />
+                              <span>Decline</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    )}
-
-                    {/* Sensitive HITL action confirmation dialogs */}
-                    {msg.hasActionConfirmation && msg.hasActionConfirmation.confirmed === undefined && (
-                      <div className="mt-4 p-3 bg-red-50 border border-paprika border-opacity-40 rounded-sm space-y-3">
-                        <div className="flex items-start space-x-2 text-paprika">
-                          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                          <span className="font-mono text-sm uppercase font-bold tracking-wider leading-tight">
-                            SECURE AUTHORIZATION REQUIRED
-                          </span>
-                        </div>
-                        <p className="font-body text-sm text-ink">
-                          The assistant suggests executing a cancellation action for ID <span className="font-mono font-bold text-paprika">#{msg.hasActionConfirmation.targetId}</span>. Please click to approve:
-                        </p>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleConfirmAction(msg.id, msg.hasActionConfirmation!.actionType, msg.hasActionConfirmation!.targetId)}
-                            className="bg-herb text-paperLight font-mono text-xs uppercase font-bold py-1 px-3 rounded-sm flex items-center space-x-1"
-                          >
-                            <Check className="w-3 h-3" />
-                            <span>Confirm Action</span>
-                          </button>
-                          <button
-                            onClick={() => handleDeclineAction(msg.id)}
-                            className="border border-cardboard hover:bg-paper text-ink font-mono text-xs uppercase font-bold py-1 px-3 rounded-sm flex items-center space-x-1"
-                          >
-                            <X className="w-3 h-3" />
-                            <span>Decline</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             ))
-            )}
+          )}
 
-            {/* SSE tool status notification */}
-            {isStreaming && statusText && (
-              <div className="flex items-center space-x-2 text-herb font-mono text-sm uppercase tracking-wide pl-4">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>{statusText}</span>
-              </div>
-            )}
+          {/* SSE tool status notification */}
+          {isStreaming && statusText && (
+            <div className="flex items-center space-x-2 text-herb font-mono text-xs uppercase tracking-wide pl-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>{statusText}</span>
+            </div>
+          )}
 
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Form message sender inputs */}
-          <div className="border-t border-cardboard p-4 bg-paper bg-opacity-40 space-y-3">
-            {/* Image Preview bar */}
-            {imagePreview && (
-              <div className="flex items-center space-x-3 bg-paper p-2 border border-cardboard border-dashed rounded-sm">
-                <img src={imagePreview} alt="upload preview" className="w-12 h-12 object-cover rounded-sm border border-cardboard" />
-                <div>
-                  <span className="font-mono text-[8px] uppercase font-bold text-herb block">Sourced Image Ready</span>
-                  <span className="font-body text-[10px] text-ink opacity-70">{selectedImage?.name}</span>
-                </div>
-                <button 
-                  onClick={() => { setSelectedImage(null); setImagePreview(''); }}
-                  className="ml-auto p-1.5 text-paprika hover:bg-red-50 rounded-sm"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-
-            <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
-              {/* File picker */}
-              <label className="p-2 border border-cardboard rounded-sm hover:bg-paper cursor-pointer text-ink relative">
-                <Paperclip className="w-4 h-4" />
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
-                  onChange={handleImageChange}
-                  disabled={isStreaming} 
-                />
-              </label>
-
-              {/* Voice microphone button */}
-              {isRecording ? (
-                <button
-                  type="button"
-                  onClick={stopRecording}
-                  className="p-2 bg-paprika text-paperLight rounded-sm animate-pulse relative"
-                >
-                  <MicOff className="w-4 h-4" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={startRecording}
-                  className="p-2 border border-cardboard rounded-sm hover:bg-paper text-ink relative"
-                  disabled={isStreaming}
-                >
-                  <Mic className="w-4 h-4" />
-                </button>
-              )}
-
-              {/* Text Input */}
-              <input
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder={selectedImage ? "Enter description for this image analysis..." : "Ask Scooby's assistant a question..."}
-                className="flex-1 px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric"
-                disabled={isStreaming}
-              />
-
-              <button
-                type="submit"
-                className="p-2 bg-paprika hover:bg-opacity-95 text-paperLight rounded-sm disabled:opacity-50"
-                disabled={isStreaming || (!inputMessage.trim() && !selectedImage)}
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
+          <div ref={messagesEndRef} />
         </div>
-      {/* Footer */}
-      <footer className="mt-20 border-t border-cardboard pt-8 text-center text-ink opacity-60 font-mono text-[9px] uppercase tracking-wider">
-        © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
-      </footer>
-      </div>
+
+        {/* Bottom Floating Input Box Container (Claude Style) */}
+        <div className="max-w-3xl w-full mx-auto sticky bottom-0 bg-paper bg-opacity-95 pt-4 pb-2 z-10">
+
+          {/* Image Preview bar */}
+          {imagePreview && (
+            <div className="flex items-center space-x-3 bg-paper p-2 border border-cardboard border-dashed rounded-xl mb-2">
+              <img src={imagePreview} alt="upload preview" className="w-12 h-12 object-cover rounded-lg border border-cardboard" />
+              <div>
+                <span className="font-mono text-[8px] uppercase font-bold text-herb block">Sourced Image Ready</span>
+                <span className="font-body text-[10px] text-ink opacity-70">{selectedImage?.name}</span>
+              </div>
+              <button
+                onClick={() => { setSelectedImage(null); setImagePreview(''); }}
+                className="ml-auto p-1.5 text-paprika hover:bg-red-50 rounded-full"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          <form onSubmit={handleSendMessage} className="border-2 border-cardboard bg-paperLight rounded-2xl px-4 py-3 shadow-md flex flex-col space-y-3">
+            {/* Auto-growing Text Area */}
+            <textarea
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              placeholder={selectedImage ? "Enter description for this image analysis..." : "Ask Scooby's assistant a question..."}
+              className="w-full min-h-[44px] max-h-[140px] resize-none border-0 bg-transparent font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:ring-0 py-1"
+              disabled={isStreaming}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage(e);
+                }
+              }}
+            />
+
+            {/* Bottom Actions Row */}
+            <div className="flex justify-between items-center border-t border-cardboard border-opacity-25 pt-2.5">
+              {/* Left Column: Attachment Plus */}
+              <div className="flex items-center space-x-2">
+                <label className="p-1.5 border border-cardboard rounded-full hover:bg-paper cursor-pointer text-ink relative flex items-center justify-center w-8 h-8">
+                  <Plus className="w-3.5 h-3.5 text-ink" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageChange}
+                    disabled={isStreaming}
+                  />
+                </label>
+              </div>
+
+              {/* Right Column: Voice mic, Send button */}
+              <div className="flex items-center space-x-2 relative">
+                {/* Voice mic button */}
+                {isRecording ? (
+                  <button
+                    type="button"
+                    onClick={stopRecording}
+                    className="w-8 h-8 bg-paprika text-paperLight rounded-full animate-pulse flex items-center justify-center border border-paprika"
+                  >
+                    <MicOff className="w-3.5 h-3.5" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={startRecording}
+                    className="w-8 h-8 border border-cardboard hover:bg-paper text-ink rounded-full flex items-center justify-center"
+                    disabled={isStreaming}
+                  >
+                    <Mic className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {/* Send action arrow */}
+                <button
+                  type="submit"
+                  className="w-8 h-8 bg-paprika hover:bg-opacity-95 text-paperLight rounded-full flex items-center justify-center disabled:opacity-40 font-bold"
+                  disabled={isStreaming || (!inputMessage.trim() && !selectedImage)}
+                >
+                  ↑
+                </button>
+              </div>
+            </div>
+          </form>
+
+          {/* Claude style footnote */}
+          <p className="mt-3 text-center text-ink opacity-40 font-mono text-[8px] uppercase tracking-wider select-none">
+            Scooby AI is an assistant and can make mistakes. Please double-check veterinary diagnoses.
+          </p>
+        </div>
+
+        {/* Footer */}
+        <footer className="mt-16 border-t border-cardboard pt-6 text-center text-ink opacity-60 font-mono text-[9px] uppercase tracking-wider w-full">
+          © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
+        </footer>
       </main>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>

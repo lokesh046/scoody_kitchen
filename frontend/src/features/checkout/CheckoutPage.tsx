@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import L from 'leaflet';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { checkoutCart } from '../../api/orders';
@@ -10,7 +11,7 @@ import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
 import { 
   ArrowLeft, ShoppingCart, LogOut, User, PawPrint, 
-  MapPin, ShieldCheck, Truck, Loader2, AlertCircle 
+  MapPin, ShieldCheck, Truck, Loader2, AlertCircle, Compass 
 } from 'lucide-react';
 
 export const CheckoutPage: React.FC = () => {
@@ -23,6 +24,9 @@ export const CheckoutPage: React.FC = () => {
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [country, setCountry] = useState('');
+  const [pincode, setPincode] = useState('');
+  const [isLookupLoading, setIsLookupLoading] = useState(false);
+  const [detectedCountryCode, setDetectedCountryCode] = useState('in');
   
   const [isLocating, setIsLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,47 +56,263 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
-  const handleDetectLocation = () => {
-    if (!navigator.geolocation) {
-      setErrorMessage('Geolocation is not supported by your browser.');
-      return;
-    }
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
 
+  // Dynamic Leaflet CSS Injection
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    link.id = 'leaflet-css';
+    document.head.appendChild(link);
+
+    return () => {
+      const existingLink = document.getElementById('leaflet-css');
+      if (existingLink) {
+        existingLink.remove();
+      }
+    };
+  }, []);
+
+  // Map Initialization via Callback Ref (Safe from hydration conditional rendering bugs)
+  const mapContainerRef = useCallback((node: HTMLDivElement | null) => {
+    if (node !== null) {
+      if (!mapRef.current) {
+        // Fix default marker icon issue in Leaflet + Vite
+        delete (L.Icon.Default.prototype as any)._getIconUrl;
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+          iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+          shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        });
+
+        const initialLat = 13.0827;
+        const initialLng = 80.2707;
+
+        const map = L.map(node, {
+          zoomControl: true,
+          scrollWheelZoom: true,
+        }).setView([initialLat, initialLng], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const marker = L.marker([initialLat, initialLng], {
+          draggable: true,
+        }).addTo(map);
+
+        // Listener on Pin drag
+        marker.on('dragend', async (e) => {
+          const { lat, lng } = e.target.getLatLng();
+          // Do not updateMap center on drag, just reverse-geocode to avoid jitter
+          await reverseGeocode(lat, lng, false);
+        });
+
+        // Listener on Map click to move pin
+        map.on('click', async (e) => {
+          const { lat, lng } = e.latlng;
+          marker.setLatLng([lat, lng]);
+          await reverseGeocode(lat, lng, false);
+        });
+
+        mapRef.current = map;
+        markerRef.current = marker;
+        
+        // Trigger tile size recalculation 250ms after element settles in layout
+        setTimeout(() => {
+          if (mapRef.current) {
+            mapRef.current.invalidateSize();
+          }
+        }, 250);
+      }
+    } else {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        markerRef.current = null;
+      }
+    }
+  }, []);
+
+  const updateMapMarker = (lat: number, lng: number) => {
+    if (mapRef.current && markerRef.current) {
+      markerRef.current.setLatLng([lat, lng]);
+      mapRef.current.setView([lat, lng], 15);
+      
+      // Force leaflet window resize trigger to fix grey tiles container bug
+      setTimeout(() => {
+        if (mapRef.current) {
+          mapRef.current.invalidateSize();
+        }
+      }, 250);
+    }
+  };
+
+  const reverseGeocode = async (lat: number, lon: number, updateMap = true) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`
+      );
+      const data = await res.json();
+      if (data && data.address) {
+        const addr = data.address;
+        setDoorNo(addr.house_number || addr.building || '');
+        
+        // Build a complete street description incorporating road, district, and postcode
+        const streetParts = [
+          addr.road || addr.pedestrian || addr.suburb || addr.neighbourhood || '',
+          addr.city_district || '',
+          addr.postcode || ''
+        ].filter(Boolean);
+        
+        setStreet(streetParts.join(', '));
+        setCity(addr.city || addr.town || addr.village || addr.county || '');
+        setState(addr.state || addr.region || '');
+        setCountry(addr.country || '');
+        
+        if (addr.postcode) {
+          setPincode(addr.postcode);
+        }
+
+        if (addr.country_code) {
+          setDetectedCountryCode(addr.country_code.toLowerCase());
+        }
+
+        if (updateMap) {
+          updateMapMarker(lat, lon);
+        }
+        
+        // Display approximate location status warning
+        setErrorMessage('⚠️ Location auto-detection is approximate. Please verify and edit all address fields below.');
+      } else {
+        setErrorMessage('Could not resolve coordinates to a physical address. Please enter details manually.');
+      }
+    } catch (err) {
+      console.error('Reverse geocoding failed:', err);
+      setErrorMessage('Failed to resolve address from coordinates.');
+    }
+  };
+
+  const handleDetectLocation = () => {
     setIsLocating(true);
     setErrorMessage('');
 
+    const fallbackToIpGeocode = async () => {
+      try {
+        const ipRes = await fetch('https://freeipapi.com/api/json');
+        if (!ipRes.ok) throw new Error('IP lookup returned error');
+        const ipData = await ipRes.json();
+        
+        if (ipData.latitude !== undefined && ipData.longitude !== undefined) {
+          await reverseGeocode(ipData.latitude, ipData.longitude, true);
+        } else {
+          throw new Error('IP coordinates not found');
+        }
+      } catch (err: any) {
+        console.error('IP geocoding fallback failed:', err);
+        setErrorMessage('Failed to detect location automatically. Please enter your address manually.');
+      } finally {
+        setIsLocating(false);
+      }
+    };
+
+    if (!navigator.geolocation) {
+      fallbackToIpGeocode();
+      return;
+    }
+
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const { latitude, longitude } = position.coords;
         try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
-          );
-          const data = await res.json();
-          if (data && data.address) {
-            const addr = data.address;
-            setDoorNo(addr.house_number || addr.building || '');
-            setStreet(addr.road || addr.suburb || '');
-            setCity(addr.city || addr.town || addr.village || addr.county || '');
-            setState(addr.state || addr.region || '');
-            setCountry(addr.country || '');
-          } else {
-            setErrorMessage('Could not resolve geolocation coordinates to a physical address.');
-          }
+          const { latitude, longitude } = position.coords;
+          await reverseGeocode(latitude, longitude, true);
         } catch (err) {
-          console.error('Reverse geocoding failed:', err);
-          setErrorMessage('Failed to resolve address from coordinates.');
+          console.error('Error reverse geocoding browser coordinates:', err);
         } finally {
           setIsLocating(false);
         }
       },
       (err) => {
-        console.error('Geolocation lookup failed:', err);
-        setIsLocating(false);
-        setErrorMessage('Location access denied or failed. Please type your address manually.');
+        console.warn('Browser Geolocation failed, attempting IP fallback...', err);
+        fallbackToIpGeocode();
       },
-      { enableHighAccuracy: true, timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
     );
+  };
+
+  const getCountryCode = (countryName: string): string => {
+    const name = countryName.trim().toLowerCase();
+    if (!name) return '';
+    if (name.includes('india')) return 'in';
+    if (name.includes('united states') || name.includes('usa') || name.includes('us')) return 'us';
+    if (name.includes('united kingdom') || name.includes('uk') || name.includes('gb') || name.includes('england')) return 'gb';
+    if (name.includes('canada')) return 'ca';
+    if (name.includes('australia')) return 'au';
+    if (name.includes('germany')) return 'de';
+    if (name.includes('france')) return 'fr';
+    return '';
+  };
+
+  const handleZipLookup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pincode.trim()) {
+      setErrorMessage('Please enter a Pincode / Zip Code.');
+      return;
+    }
+
+    setIsLookupLoading(true);
+    setErrorMessage('');
+
+    try {
+      let url = `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(pincode)}&format=json&limit=1`;
+      
+      const activeCountryCode = getCountryCode(country) || detectedCountryCode || 'in';
+      if (activeCountryCode) {
+        url += `&countrycodes=${activeCountryCode}`;
+      }
+
+      const res = await fetch(url);
+      const data = await res.json();
+      
+      if (data && data.length > 0) {
+        const result = data[0];
+        const lat = parseFloat(result.lat);
+        const lon = parseFloat(result.lon);
+        
+        await reverseGeocode(lat, lon, true);
+      } else {
+        setErrorMessage(`Pincode / Zip Code not found in selected country (${activeCountryCode.toUpperCase()}). Please enter details manually.`);
+      }
+    } catch (err) {
+      console.error('Pincode lookup failed:', err);
+      setErrorMessage('Failed to search pincode details.');
+    } finally {
+      setIsLookupLoading(false);
+    }
+  };
+
+  const handleIpLocate = async () => {
+    setIsLocating(true);
+    setErrorMessage('');
+    try {
+      const ipRes = await fetch('https://freeipapi.com/api/json');
+      if (!ipRes.ok) throw new Error('IP lookup returned error');
+      const ipData = await ipRes.json();
+      
+      if (ipData.latitude !== undefined && ipData.longitude !== undefined) {
+        await reverseGeocode(ipData.latitude, ipData.longitude, true);
+        setErrorMessage('🌐 Located approximately via IP Geolocation.');
+      } else {
+        throw new Error('IP coordinates not found');
+      }
+    } catch (err: any) {
+      console.error('IP geocoding failed:', err);
+      setErrorMessage('Failed to detect location via IP. Please enter your address manually.');
+    } finally {
+      setIsLocating(false);
+    }
   };
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
@@ -448,29 +668,83 @@ export const CheckoutPage: React.FC = () => {
                 <p className="font-body text-xs text-ink opacity-70 leading-relaxed pr-4">
                   Every order is prepared fresh in our veterinary kitchen. Provide a clear address for safe delivery.
                 </p>
-                <button
-                  type="button"
-                  onClick={handleDetectLocation}
-                  disabled={isLocating || isSubmitting}
-                  className="font-mono text-[9px] uppercase tracking-wider text-herb border border-herb border-dashed hover:bg-paper rounded-sm px-3 py-1.5 flex items-center space-x-1 hover:text-ink transition-colors disabled:opacity-50 shrink-0"
-                >
-                  {isLocating ? (
-                    <>
-                      <Loader2 className="w-3 h-3 animate-spin text-herb" />
-                      <span>Detecting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <MapPin className="w-3 h-3 text-herb" />
-                      <span>Detect Location 🐾</span>
-                    </>
-                  )}
-                </button>
+                <div className="flex space-x-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleDetectLocation}
+                    disabled={isLocating || isSubmitting}
+                    className="font-mono text-[9px] uppercase tracking-wider text-herb border border-herb border-dashed hover:bg-paper rounded-sm px-2.5 py-1.5 flex items-center space-x-1 hover:text-ink transition-colors disabled:opacity-50"
+                  >
+                    {isLocating ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin text-herb" />
+                        <span>Locating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Compass className="w-3 h-3 text-herb" />
+                        <span>GPS Locate 🐾</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleIpLocate}
+                    disabled={isLocating || isSubmitting}
+                    className="font-mono text-[9px] uppercase tracking-wider text-turmeric border border-turmeric border-dashed hover:bg-paper rounded-sm px-2.5 py-1.5 flex items-center space-x-1 hover:text-ink transition-colors disabled:opacity-50"
+                  >
+                    {isLocating ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin text-turmeric" />
+                        <span>Locating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <MapPin className="w-3 h-3 text-turmeric" />
+                        <span>IP Locate 🌐</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               <hr className="border-t border-dashed border-cardboard" />
 
               <form onSubmit={handlePlaceOrder} className="space-y-4">
+                {/* Pincode / Zip Code Quick Search Lookup */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <label htmlFor="pincode" className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                      🔍 Quick Zip / Pincode Lookup:
+                    </label>
+                    <input
+                      type="text"
+                      id="pincode"
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value)}
+                      placeholder="e.g. 600016 or 90210"
+                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                      disabled={isSubmitting || isLookupLoading}
+                    />
+                  </div>
+                  <div className="sm:col-span-1">
+                    <button
+                      type="button"
+                      onClick={handleZipLookup}
+                      disabled={isSubmitting || isLookupLoading || !pincode.trim()}
+                      className="w-full bg-herb hover:bg-opacity-95 text-paperLight font-mono text-[9px] uppercase py-2.5 font-bold rounded-sm disabled:opacity-50 transition-all flex items-center justify-center space-x-1.5 hover-bounce"
+                    >
+                      {isLookupLoading ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <span>Lookup 🔍</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <hr className="border-t border-dashed border-cardboard border-opacity-40" />
+
                 {/* Row 1: Door No & Street */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="sm:col-span-1 space-y-1.5">
@@ -554,6 +828,19 @@ export const CheckoutPage: React.FC = () => {
                     disabled={isSubmitting}
                     required
                   />
+                </div>
+
+                {/* Interactive Leaflet Map Container */}
+                <div className="space-y-1.5">
+                  <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                    📍 Verify Delivery Location (Drag pin or click map to refine):
+                  </label>
+                  <div 
+                    id="checkout-map" 
+                    ref={mapContainerRef}
+                    className="h-56 w-full border border-cardboard rounded-md shadow-sm relative overflow-hidden bg-paperLight bg-opacity-35"
+                    style={{ zIndex: 1 }}
+                  ></div>
                 </div>
 
                 {errorMessage && (
