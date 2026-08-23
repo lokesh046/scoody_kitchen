@@ -1,0 +1,24 @@
+import socket
+orig = socket.getaddrinfo
+socket.getaddrinfo = lambda host, port, family=0, type=0, proto=0, flags=0: orig(host, port, socket.AF_INET, type, proto, flags)
+
+from app.core.database import engine
+from sqlalchemy import text
+
+statements = [
+    "ALTER TABLE pets ADD COLUMN IF NOT EXISTS profile_image_url VARCHAR(500) DEFAULT NULL;"
+]
+
+print("Starting database schema updates for pets profile image url...")
+with engine.connect() as conn:
+    for stmt in statements:
+        try:
+            print(f"Executing: {stmt}")
+            conn.execute(text(stmt))
+            conn.commit()
+            print("Successfully applied.")
+        except Exception as e:
+            print(f"Error during execution: {e}")
+            conn.rollback()
+
+print("Schema update complete.")

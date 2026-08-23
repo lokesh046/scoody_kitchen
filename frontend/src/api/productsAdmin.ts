@@ -10,6 +10,7 @@ export interface CreateProductData {
   image_url?: string;
   available_stock: number;
   ingredients?: Array<{ name: string; percentage: number }>;
+  weight_options?: Array<{ weight: string; price: number | string }>;
 }
 
 export interface CreateCategoryData {
@@ -32,7 +33,14 @@ export const createProduct = async (productData: CreateProductData): Promise<Pro
   if (productData.available_stock !== undefined) {
     formData.append('available_stock', String(productData.available_stock));
   }
-  const response = await apiClient.post<ProductResponse>('/product/', formData);
+  if (productData.weight_options) {
+    formData.append('weight_options', JSON.stringify(productData.weight_options));
+  }
+  const response = await apiClient.post<ProductResponse>('/product/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };
 
@@ -62,7 +70,14 @@ export const updateProduct = async (
   if (productData.available_stock !== undefined) {
     formData.append('available_stock', String(productData.available_stock));
   }
-  const response = await apiClient.patch<ProductResponse>(`/product/${productId}`, formData);
+  if (productData.weight_options !== undefined) {
+    formData.append('weight_options', JSON.stringify(productData.weight_options));
+  }
+  const response = await apiClient.patch<ProductResponse>(`/product/${productId}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
   return response.data;
 };
 
@@ -88,7 +103,7 @@ export const deleteCategory = async (categoryId: number): Promise<any> => {
 export const uploadProductImage = async (productId: number, file: File): Promise<ProductResponse> => {
   const formData = new FormData();
   formData.append('image', file);
-  const response = await apiClient.post<ProductResponse>(`/product/${productId}/images`, formData, {
+  const response = await apiClient.patch<ProductResponse>(`/product/${productId}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }
@@ -97,7 +112,31 @@ export const uploadProductImage = async (productId: number, file: File): Promise
 };
 
 export const deleteProductImage = async (productId: number): Promise<ProductResponse> => {
-  const response = await apiClient.delete<ProductResponse>(`/product/${productId}/images`);
+  const formData = new FormData();
+  formData.append('image_url', '');
+  const response = await apiClient.patch<ProductResponse>(`/product/${productId}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+  return response.data;
+};
+
+export const uploadProductGallery = async (productId: number, files: File[]): Promise<ProductResponse> => {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append('images', file);
+  });
+  const response = await apiClient.post<ProductResponse>(`/product/${productId}/gallery`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  });
+  return response.data;
+};
+
+export const deleteProductGalleryImage = async (productId: number, imageId: number): Promise<ProductResponse> => {
+  const response = await apiClient.delete<ProductResponse>(`/product/${productId}/gallery/${imageId}`);
   return response.data;
 };
 
@@ -111,5 +150,44 @@ export const updateInventory = async (
   inventoryData: InventoryUpdate
 ): Promise<any> => {
   const response = await apiClient.patch(`/inventory/${inventoryId}`, inventoryData);
+  return response.data;
+};
+
+export interface ProductInventoryResponse {
+  product_id: number;
+  stock_quantity: number;
+  reserved_quantity: number;
+  available_stock: number;
+  low_stock: boolean;
+}
+
+export interface InventoryCreate {
+  product_id: number;
+  stock_quantity: number;
+  low_stock_threshold: number;
+}
+
+export interface InventoryDetailsResponse {
+  id: number;
+  product_id: number;
+  stock_quantity: number;
+  reserved_quantity: number;
+  low_stock_threshold: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export const fetchProductInventory = async (productId: number): Promise<ProductInventoryResponse> => {
+  const response = await apiClient.get<ProductInventoryResponse>(`/product/${productId}/inventory`);
+  return response.data;
+};
+
+export const fetchInventoryDetails = async (inventoryId: number): Promise<InventoryDetailsResponse> => {
+  const response = await apiClient.get<InventoryDetailsResponse>(`/inventory/${inventoryId}`);
+  return response.data;
+};
+
+export const createInventorySlot = async (inventoryData: InventoryCreate): Promise<InventoryDetailsResponse> => {
+  const response = await apiClient.post<InventoryDetailsResponse>('/inventory', inventoryData);
   return response.data;
 };

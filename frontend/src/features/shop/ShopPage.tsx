@@ -5,7 +5,7 @@ import { Search, ShoppingCart, User, LogOut, PawPrint } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { logoutUser } from '../../api/auth';
-import { fetchProducts, fetchCategories } from '../../api/products';
+import { fetchProducts, fetchCategories, fetchCategoryById } from '../../api/products';
 import { Eyebrow } from '../../components/Eyebrow';
 import { JournalCard } from '../../components/JournalCard';
 import { RecipeCard } from '../../components/RecipeCard';
@@ -44,6 +44,12 @@ export default function ShopPage() {
   const { data: categories, isLoading: categoriesLoading } = useQuery({
     queryKey: ['categories'],
     queryFn: fetchCategories,
+  });
+
+  const { data: categoryDetails } = useQuery({
+    queryKey: ['categoryDetails', selectedCategoryId],
+    queryFn: () => fetchCategoryById(selectedCategoryId!),
+    enabled: selectedCategoryId !== null,
   });
 
 
@@ -85,7 +91,7 @@ export default function ShopPage() {
           {/* Center: Navigation Menu */}
           <nav className="hidden md:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper md:col-span-6 justify-center">
             <button onClick={() => navigate('/shop')} className="hover:text-turmeric transition-colors border-b-2 border-turmeric pb-1">Shop Recipes</button>
-            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Pets Ledger</button>
+            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Know Your Pet</button>
             <button onClick={() => navigate('/consultations')} className="hover:text-turmeric transition-colors pb-1">Vet Consults</button>
             <button onClick={() => navigate('/orders')} className="hover:text-turmeric transition-colors pb-1">My Orders</button>
             <button onClick={() => navigate('/assistant')} className="hover:text-turmeric transition-colors pb-1">AI Assistant 🐾</button>
@@ -241,6 +247,23 @@ export default function ShopPage() {
               </button>
             ))}
         </div>
+
+        {/* Category Description Banner */}
+        {selectedCategoryId !== null && categoryDetails && (
+          <div className="p-6 border border-cardboard bg-paperLight rounded-sm shadow-sm space-y-2 text-left animate-fade-in-up">
+            <span className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold block">CATEGORY HIGHLIGHT</span>
+            <h3 className="font-display font-bold text-2xl text-ink uppercase tracking-tight">{categoryDetails.name}</h3>
+            {categoryDetails.description ? (
+              <p className="font-body text-sm text-ink opacity-90 leading-relaxed italic">
+                "{categoryDetails.description}"
+              </p>
+            ) : (
+              <p className="font-body text-xs text-ink opacity-60 italic">
+                No description logged for this recipe category.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Product Grid / States */}
         {productsLoading ? (

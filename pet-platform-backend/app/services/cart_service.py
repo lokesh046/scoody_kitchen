@@ -60,12 +60,21 @@ def get_user_cart(
     )
 
 
+def get_product_price(product: Product, selected_weight: str | None) -> Decimal:
+    if selected_weight and product.weight_options:
+        for option in product.weight_options:
+            if option.get("weight") == selected_weight:
+                return Decimal(str(option.get("price")))
+    return product.price
+
+
 def build_cart_item_response(
     cart_item: CartItem,
 ) -> CartItemResponse:
 
+    price = get_product_price(cart_item.product, cart_item.selected_weight)
     subtotal = (
-        cart_item.product.price
+        price
         * cart_item.quantity
     )
 
@@ -74,10 +83,11 @@ def build_cart_item_response(
         product_id=cart_item.product_id,
         name=cart_item.product.name,
         description=cart_item.product.description,
-        price=cart_item.product.price,
+        price=price,
         quantity=cart_item.quantity,
         subtotal=subtotal,
         image_url=cart_item.product.image_url,
+        selected_weight=cart_item.selected_weight,
         created_at=cart_item.created_at,
         updated_at=cart_item.updated_at,
     )
@@ -152,6 +162,7 @@ def add_item_to_cart(
     statement = select(CartItem).where(
         CartItem.cart_id == cart.id,
         CartItem.product_id == item_data.product_id,
+        CartItem.selected_weight == item_data.selected_weight,
     )
 
     existing_item = db.scalar(
@@ -194,6 +205,7 @@ def add_item_to_cart(
         cart_id=cart.id,
         product_id=item_data.product_id,
         quantity=item_data.quantity,
+        selected_weight=item_data.selected_weight,
     )
 
     db.add(cart_item)

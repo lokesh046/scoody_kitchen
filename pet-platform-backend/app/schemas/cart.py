@@ -6,10 +6,10 @@ from pydantic import BaseModel, Field
 
 class CartItemCreate(BaseModel):
     product_id: int = Field(gt=0)
-
     quantity: int = Field(
         gt=0,
     )
+    selected_weight: str | None = None
 
 
 class CartItemUpdate(BaseModel):
@@ -29,6 +29,7 @@ class CartItemResponse(BaseModel):
     quantity: int
     subtotal: Decimal
     image_url: str | None = None
+    selected_weight: str | None = None
 
     created_at: datetime
     updated_at: datetime

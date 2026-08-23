@@ -20,6 +20,7 @@ def create_pet(
         gender=pet_data.gender,
         date_of_birth=pet_data.date_of_birth,
         weight=pet_data.weight,
+        profile_image_url=pet_data.profile_image_url,
     )
 
 

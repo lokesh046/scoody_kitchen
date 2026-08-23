@@ -84,6 +84,7 @@ class ProductResponse(BaseModel):
     reserved_stock: int | None = None
     low_stock_threshold: int | None = None
     images: list[ProductImageResponse] = []
+    weight_options: list[dict] | None = None
 
     model_config = {
         "from_attributes": True

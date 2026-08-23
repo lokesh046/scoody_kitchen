@@ -91,7 +91,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                       {/* Info Area */}
                       <div className="flex-grow space-y-1.5 min-w-0 pr-6">
                         <h4 className="font-display font-bold text-sm text-ink truncate">
-                          {item.name}
+                          {item.name} {item.selected_weight && <span className="text-[10px] text-herb font-mono ml-1 font-bold">({item.selected_weight})</span>}
                         </h4>
                         
                         <div className="flex justify-between items-center">

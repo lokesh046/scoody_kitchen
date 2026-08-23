@@ -7,6 +7,7 @@ export interface PetCreate {
   gender?: string | null;
   date_of_birth?: string | null; // ISO Date YYYY-MM-DD
   weight?: number | null;
+  profile_image_url?: string | null;
 }
 
 export interface PetResponse {
@@ -18,6 +19,7 @@ export interface PetResponse {
   gender: string | null;
   date_of_birth: string | null;
   weight: number | null;
+  profile_image_url: string | null;
   created_at: string;
 }
 

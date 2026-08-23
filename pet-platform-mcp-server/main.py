@@ -1,4 +1,14 @@
+# Force IPv4 DNS resolution to prevent IPv6 hangs on this system
+import socket
+orig_getaddrinfo = socket.getaddrinfo
+def forced_ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    if family in (socket.AF_UNSPEC, 0):
+        family = socket.AF_INET
+    return orig_getaddrinfo(host, port, family, type, proto, flags)
+socket.getaddrinfo = forced_ipv4_getaddrinfo
+
 import os
+
 from dotenv import load_dotenv
 load_dotenv()  # Loads the .env file immediately before other modules load
 

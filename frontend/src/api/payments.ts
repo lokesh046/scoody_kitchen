@@ -7,6 +7,8 @@ export interface PaymentResponse {
   amount: string; // Decimal returned as string
   status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
   transaction_id: string | null;
+  razorpay_order_id?: string | null;
+  razorpay_key_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -25,5 +27,17 @@ export const simulatePaymentSuccess = async (orderId: number): Promise<PaymentRe
 
 export const simulatePaymentFailure = async (orderId: number): Promise<PaymentResponse> => {
   const response = await apiClient.post<PaymentResponse>(`/payments/${orderId}/failure`);
+  return response.data;
+};
+
+export interface RazorpayVerifyPayload {
+  order_id: number;
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
+
+export const verifyRazorpayPayment = async (payload: RazorpayVerifyPayload): Promise<PaymentResponse> => {
+  const response = await apiClient.post<PaymentResponse>('/payments/razorpay/verify', payload);
   return response.data;
 };

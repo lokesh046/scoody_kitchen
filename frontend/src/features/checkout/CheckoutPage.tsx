@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { checkoutCart } from '../../api/orders';
 import type { OrderResponse } from '../../api/orders';
-import { createPayment, simulatePaymentSuccess, simulatePaymentFailure } from '../../api/payments';
+import { createPayment, simulatePaymentSuccess, simulatePaymentFailure, verifyRazorpayPayment } from '../../api/payments';
 import { logoutUser } from '../../api/auth';
 import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
@@ -35,6 +35,7 @@ export const CheckoutPage: React.FC = () => {
 
   // Placed Order & Payment Simulation state
   const [placedOrder, setPlacedOrder] = useState<OrderResponse | null>(null);
+  const [paymentSession, setPaymentSession] = useState<PaymentResponse | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'CARD' | 'CASH'>('CARD');
   const [cardNumber, setCardNumber] = useState('');
   const [cardHolder, setCardHolder] = useState('');
@@ -58,6 +59,22 @@ export const CheckoutPage: React.FC = () => {
 
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+
+  // Dynamic Razorpay Checkout SDK Script Injection
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.id = 'razorpay-checkout-js';
+    document.body.appendChild(script);
+
+    return () => {
+      const existingScript = document.getElementById('razorpay-checkout-js');
+      if (existingScript) {
+        existingScript.remove();
+      }
+    };
+  }, []);
 
   // Dynamic Leaflet CSS Injection
   useEffect(() => {
@@ -333,8 +350,24 @@ export const CheckoutPage: React.FC = () => {
     setErrorMessage('');
 
     try {
-      const order = await checkoutCart(combinedAddress);
+      const order = await checkoutCart(combinedAddress, 'CARD');
       setPlacedOrder(order);
+      if (order.razorpay_order_id) {
+        setPaymentSession({
+          id: 0,
+          order_id: order.id,
+          payment_method: 'CARD',
+          amount: order.total_amount,
+          status: 'PENDING',
+          transaction_id: null,
+          razorpay_order_id: order.razorpay_order_id,
+          razorpay_key_id: order.razorpay_key_id,
+          created_at: order.created_at,
+          updated_at: order.updated_at
+        });
+      } else {
+        setPaymentSession(null);
+      }
     } catch (err: any) {
       console.error('Checkout failed:', err);
       setErrorMessage(
@@ -350,34 +383,110 @@ export const CheckoutPage: React.FC = () => {
     if (!placedOrder) return;
     
     if (paymentMethod === 'CARD') {
-      if (!cardNumber || !cardHolder || !cardExpiry || !cardCvv) {
-        setErrorMessage('Please enter all card details.');
+      if (!simulateSuccess) {
+        setPaymentStatus('PROCESSING');
+        setErrorMessage('');
+        try {
+          if (!paymentSession) {
+            await createPayment(placedOrder.id, paymentMethod);
+          }
+          await simulatePaymentFailure(placedOrder.id);
+          setPaymentStatus('FAILED');
+          setErrorMessage('Payment simulation declined. Please try again with a valid card.');
+        } catch (err: any) {
+          setPaymentStatus('FAILED');
+          setErrorMessage(err.response?.data?.detail || 'Failed to simulate payment decline.');
+        }
         return;
       }
-    }
 
-    setPaymentStatus('PROCESSING');
-    setErrorMessage('');
+      setPaymentStatus('PROCESSING');
+      setErrorMessage('');
 
-    try {
-      await createPayment(placedOrder.id, paymentMethod);
-
-      if (simulateSuccess) {
+      try {
+        const session = paymentSession || await createPayment(placedOrder.id, paymentMethod);
+        
+        if (session.razorpay_order_id && session.razorpay_key_id) {
+          const options = {
+            key: session.razorpay_key_id,
+            amount: Math.round(parseFloat(session.amount) * 100),
+            currency: 'INR',
+            name: "Scooby's Kitchen",
+            description: `Order Subscription #${placedOrder.id}`,
+            order_id: session.razorpay_order_id,
+            handler: async (response: any) => {
+              setPaymentStatus('PROCESSING');
+              try {
+                const verifyRes = await verifyRazorpayPayment({
+                  order_id: placedOrder.id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature,
+                });
+                if (verifyRes.status === 'success' || verifyRes.status === 'SUCCESS') {
+                  setPaymentStatus('SUCCESS');
+                  clearCart();
+                } else {
+                  setPaymentStatus('FAILED');
+                  setErrorMessage('Razorpay verification signature failed. Order cancelled.');
+                }
+              } catch (err: any) {
+                setPaymentStatus('FAILED');
+                setErrorMessage(err.response?.data?.detail || 'Razorpay signature verification rejected.');
+              }
+            },
+            prefill: {
+              name: user?.first_name || 'Pet Parent',
+              email: user?.email || '',
+            },
+            theme: {
+              color: '#D97706',
+            },
+            modal: {
+              ondismiss: () => {
+                setPaymentStatus('FAILED');
+                setErrorMessage('Payment window dismissed by user.');
+              }
+            }
+          };
+          
+          if ((window as any).Razorpay) {
+            const rzp = new (window as any).Razorpay(options);
+            rzp.open();
+          } else {
+            setPaymentStatus('FAILED');
+            setErrorMessage('Razorpay checkout SDK failed to load. Please check your internet connection.');
+          }
+        } else {
+          if (!cardNumber || !cardHolder || !cardExpiry || !cardCvv) {
+            setPaymentStatus('IDLE');
+            setErrorMessage('Please enter all mock card details (or configure Razorpay API keys in backend).');
+            return;
+          }
+          await simulatePaymentSuccess(placedOrder.id);
+          setPaymentStatus('SUCCESS');
+          clearCart();
+        }
+      } catch (err: any) {
+        console.error('Payment processing failed:', err);
+        setPaymentStatus('FAILED');
+        setErrorMessage(
+          err.response?.data?.detail || 
+          'Failed to process payment session. Please try again.'
+        );
+      }
+    } else {
+      setPaymentStatus('PROCESSING');
+      setErrorMessage('');
+      try {
+        await createPayment(placedOrder.id, paymentMethod);
         await simulatePaymentSuccess(placedOrder.id);
         setPaymentStatus('SUCCESS');
         clearCart();
-      } else {
-        await simulatePaymentFailure(placedOrder.id);
+      } catch (err: any) {
         setPaymentStatus('FAILED');
-        setErrorMessage('Payment simulation declined. Please try again with a valid card.');
+        setErrorMessage(err.response?.data?.detail || 'COD payment initialization failed.');
       }
-    } catch (err: any) {
-      console.error('Payment processing failed:', err);
-      setPaymentStatus('FAILED');
-      setErrorMessage(
-        err.response?.data?.detail || 
-        'Failed to process payment session. Please try again.'
-      );
     }
   };
 
@@ -403,7 +512,7 @@ export const CheckoutPage: React.FC = () => {
           {/* Center: Navigation Menu */}
           <nav className="hidden md:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper md:col-span-6 justify-center">
             <button onClick={() => navigate('/shop')} className="hover:text-turmeric transition-colors pb-1">Shop Recipes</button>
-            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Pets Ledger</button>
+            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Know Your Pet</button>
             <button onClick={() => navigate('/consultations')} className="hover:text-turmeric transition-colors pb-1">Vet Consults</button>
             <button onClick={() => navigate('/orders')} className="hover:text-turmeric transition-colors pb-1">My Orders</button>
             <button onClick={() => navigate('/assistant')} className="hover:text-turmeric transition-colors pb-1">AI Assistant 🐾</button>
@@ -612,7 +721,7 @@ export const CheckoutPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div className={`grid grid-cols-1 ${paymentMethod === 'CARD' && paymentSession?.razorpay_order_id ? 'sm:grid-cols-1' : 'sm:grid-cols-2'} gap-4 pt-2`}>
                 <button
                   onClick={() => handlePayment(true)}
                   disabled={paymentStatus === 'PROCESSING'}
@@ -623,17 +732,23 @@ export const CheckoutPage: React.FC = () => {
                       <Loader2 className="w-4 h-4 animate-spin" />
                       <span>Processing...</span>
                     </>
+                  ) : paymentMethod === 'CASH' ? (
+                    <span>💳 Confirm COD Order</span>
+                  ) : paymentSession?.razorpay_order_id ? (
+                    <span>💳 Pay with Razorpay</span>
                   ) : (
                     <span>💳 Complete Payment (Simulate Success)</span>
                   )}
                 </button>
-                <button
-                  onClick={() => handlePayment(false)}
-                  disabled={paymentStatus === 'PROCESSING'}
-                  className="border border-paprika text-paprika hover:bg-red-50 font-body font-bold text-xs uppercase py-3.5 rounded-sm tracking-wide transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer"
-                >
-                  <span>⚠️ Simulate Failure</span>
-                </button>
+                {paymentMethod === 'CARD' && !paymentSession?.razorpay_order_id && (
+                  <button
+                    onClick={() => handlePayment(false)}
+                    disabled={paymentStatus === 'PROCESSING'}
+                    className="border border-paprika text-paprika hover:bg-red-50 font-body font-bold text-xs uppercase py-3.5 rounded-sm tracking-wide transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer"
+                  >
+                    <span>⚠️ Simulate Failure</span>
+                  </button>
+                )}
               </div>
             </div>
           )}

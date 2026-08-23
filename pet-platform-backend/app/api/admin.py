@@ -11,6 +11,7 @@ from app.services.order_service import (
     cancel_order,
     confirm_order,
     deliver_order,
+    complete_order,
     get_all_orders,
     get_order_by_id,
     process_order,
@@ -114,8 +115,10 @@ def update_order_status_admin(
             return process_order(db, order)
         elif target_status == OrderStatus.SHIPPED:
             return ship_order(db, order)
-        elif target_status in (OrderStatus.DELIVERED, OrderStatus.COMPLETED):
+        elif target_status == OrderStatus.DELIVERED:
             return deliver_order(db, order)
+        elif target_status == OrderStatus.COMPLETED:
+            return complete_order(db, order)
         elif target_status == OrderStatus.CANCELLED:
             return cancel_order(db, order)
         else:

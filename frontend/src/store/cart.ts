@@ -13,7 +13,7 @@ interface CartState {
   isLoading: boolean;
   
   loadCart: () => Promise<void>;
-  addItem: (productId: number, quantity: number) => Promise<void>;
+  addItem: (productId: number, quantity: number, selectedWeight?: string) => Promise<void>;
   updateItem: (itemId: number, quantity: number) => Promise<void>;
   removeItem: (itemId: number) => Promise<void>;
   clear: () => void;
@@ -41,12 +41,14 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  addItem: async (productId: number, quantity: number) => {
+  addItem: async (productId: number, quantity: number, selectedWeight?: string) => {
     set({ isLoading: true });
     try {
-      await addToCart(productId, quantity);
-      // Reload cart state from database
-      await get().loadCart();
+      const cart = await addToCart(productId, quantity, selectedWeight);
+      set({ 
+        items: cart.items, 
+        totalAmount: parseFloat(cart.total_amount) 
+      });
     } catch (err) {
       console.error('Failed to add item to cart:', err);
       throw err;
@@ -78,8 +80,11 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ items: updatedItems, totalAmount: newTotal });
 
     try {
-      await updateCartItem(itemId, quantity);
-      await get().loadCart();
+      const cart = await updateCartItem(itemId, quantity);
+      set({ 
+        items: cart.items, 
+        totalAmount: parseFloat(cart.total_amount) 
+      });
     } catch (err) {
       console.error('Failed to update cart item:', err);
       // Rollback on failure
@@ -100,8 +105,11 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ items: filteredItems, totalAmount: newTotal });
 
     try {
-      await removeCartItem(itemId);
-      await get().loadCart();
+      const cart = await removeCartItem(itemId);
+      set({ 
+        items: cart.items, 
+        totalAmount: parseFloat(cart.total_amount) 
+      });
     } catch (err) {
       console.error('Failed to remove cart item:', err);
       // Rollback on failure

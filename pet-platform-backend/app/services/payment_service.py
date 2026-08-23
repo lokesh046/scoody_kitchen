@@ -34,11 +34,30 @@ def create_payment(
             "Payment already exists for this order"
         )
 
+    import razorpay
+    from app.core.config import settings
+
+    razorpay_order_id = None
+    if payment_method == "CARD" and settings.RAZORPAY_KEY_ID and settings.RAZORPAY_KEY_SECRET:
+        try:
+            client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+            amount_paise = int(order.total_amount * 100)
+            razorpay_order = client.order.create({
+                "amount": amount_paise,
+                "currency": "INR",
+                "receipt": f"receipt_order_{order.id}",
+                "payment_capture": 1
+            })
+            razorpay_order_id = razorpay_order.get("id")
+        except Exception as e:
+            raise ValueError(f"Failed to initiate Razorpay transaction: {str(e)}")
+
     payment = Payment(
         order_id=order.id,
         amount=order.total_amount,
         status=PaymentStatus.PENDING,
         payment_method=payment_method,
+        razorpay_order_id=razorpay_order_id,
     )
 
     db.add(payment)
@@ -79,9 +98,10 @@ def process_payment_success(
 
     payment.status = PaymentStatus.SUCCESS
 
-    payment.transaction_id = (
-        f"TXN-{uuid.uuid4().hex[:16].upper()}"
-    )
+    if not payment.transaction_id:
+        payment.transaction_id = (
+            f"TXN-{uuid.uuid4().hex[:16].upper()}"
+        )
 
     order.status = OrderStatus.CONFIRMED
 
@@ -127,3 +147,55 @@ def process_payment_failure(
     db.refresh(payment)
 
     return payment
+
+
+def verify_razorpay_payment(
+    db: Session,
+    payment: Payment,
+    razorpay_payment_id: str,
+    razorpay_signature: str,
+) -> Payment:
+    import razorpay
+    from app.core.config import settings
+
+    if payment.status != PaymentStatus.PENDING:
+        raise ValueError("Payment is no longer pending")
+
+    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+        # Fallback for manual local sandbox simulation
+        if razorpay_signature != "test_signature":
+            raise ValueError("Razorpay credentials are not configured on server")
+    else:
+        try:
+            client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+            client.utility.verify_payment_signature({
+                'razorpay_order_id': payment.razorpay_order_id,
+                'razorpay_payment_id': razorpay_payment_id,
+                'razorpay_signature': razorpay_signature
+            })
+        except Exception as e:
+            process_payment_failure(db, payment)
+            raise ValueError(f"Invalid payment signature verification failed: {str(e)}")
+
+    payment.transaction_id = razorpay_payment_id
+    payment.razorpay_signature = razorpay_signature
+
+    return process_payment_success(db, payment)
+
+
+def verify_razorpay_webhook_signature(
+    payload: bytes,
+    signature: str,
+    secret: str,
+) -> bool:
+    import hmac
+    import hashlib
+    try:
+        expected = hmac.new(
+            secret.encode("utf-8"),
+            payload,
+            hashlib.sha256
+        ).hexdigest()
+        return hmac.compare_digest(expected, signature)
+    except Exception:
+        return False

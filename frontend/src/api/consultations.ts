@@ -163,3 +163,8 @@ export const fetchNearbyDoctors = async (latitude: number, longitude: number, ra
   });
   return response.data;
 };
+
+export const fetchConsultationById = async (consultationId: number): Promise<ConsultationResponse> => {
+  const response = await apiClient.get<ConsultationResponse>(`/consultations/${consultationId}`);
+  return response.data;
+};

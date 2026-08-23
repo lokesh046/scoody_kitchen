@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth';
@@ -20,9 +20,11 @@ import {
   cleanupUnverifiedUsers,
   updateAdminDoctor,
   fetchAdminConsultations,
-  updateAdminConsultationStatus
+  updateAdminConsultationStatus,
+  fetchAdminOrderById,
+  fetchAdminClinicById
 } from '../../api/admin';
-import { fetchProducts, fetchCategories } from '../../api/products';
+import { fetchProducts, fetchCategories, fetchCategoryById } from '../../api/products';
 import { 
   createProduct, 
   deactivateProduct, 
@@ -31,10 +33,14 @@ import {
   deleteCategory,
   uploadProductImage,
   deleteProductImage,
+  uploadProductGallery,
+  deleteProductGalleryImage,
   updateProduct,
-  updateInventory
+  updateInventory,
+  fetchProductInventory,
+  createInventorySlot
 } from '../../api/productsAdmin';
-import type { CreateProductData, InventoryUpdate } from '../../api/productsAdmin';
+import type { CreateProductData, InventoryUpdate, InventoryCreate } from '../../api/productsAdmin';
 import { fetchRAGDocuments, uploadRAGDocument, deleteRAGDocument } from '../../api/chatbot';
 import { 
   Loader2, 
@@ -99,6 +105,7 @@ export const AdminDashboard: React.FC = () => {
   const [recipeStock, setRecipeStock] = useState('20');
   const [recipeCategoryId, setRecipeCategoryId] = useState('');
   const [recipeImgUrl, setRecipeImgUrl] = useState('');
+  const [recipeWeightsInput, setRecipeWeightsInput] = useState('');
 
   // Form States - New Category
   const [categoryName, setCategoryName] = useState('');
@@ -117,12 +124,21 @@ export const AdminDashboard: React.FC = () => {
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [editPrice, setEditPrice] = useState('');
   const [editStock, setEditStock] = useState('');
+  const [editWeightsInput, setEditWeightsInput] = useState('');
   const [carrier, setCarrier] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [selectedClinicId, setSelectedClinicId] = useState<number | null>(null);
 
   // Form States - Alert Threshold Modal
   const [editingThresholdProduct, setEditingThresholdProduct] = useState<any | null>(null);
   const [editThreshold, setEditThreshold] = useState('');
+
+  // Form States - Warehouse Inventory Details & Slot Registry
+  const [selectedInventoryProductId, setSelectedInventoryProductId] = useState<number | null>(null);
+  const [registeringInventoryProduct, setRegisteringInventoryProduct] = useState<any | null>(null);
+  const [regStock, setRegStock] = useState('10');
+  const [regThreshold, setRegThreshold] = useState('5');
 
   // Form States - Clinic
   const [clinicName, setClinicName] = useState('');
@@ -156,6 +172,18 @@ export const AdminDashboard: React.FC = () => {
   const { data: orders, isLoading: ordersLoading } = useQuery({
     queryKey: ['adminOrders'],
     queryFn: () => fetchAdminOrders(),
+  });
+
+  const { data: orderDetails, isLoading: orderDetailsLoading } = useQuery({
+    queryKey: ['adminOrderDetails', selectedOrderId],
+    queryFn: () => fetchAdminOrderById(selectedOrderId!),
+    enabled: selectedOrderId !== null,
+  });
+
+  const { data: clinicDetails, isLoading: clinicDetailsLoading } = useQuery({
+    queryKey: ['adminClinicDetails', selectedClinicId],
+    queryFn: () => fetchAdminClinicById(selectedClinicId!),
+    enabled: selectedClinicId !== null,
   });
 
   const { data: clinicsData, isLoading: clinicsLoading } = useQuery({
@@ -333,6 +361,7 @@ export const AdminDashboard: React.FC = () => {
       setRecipeSku('');
       setRecipePrice('');
       setRecipeImgUrl('');
+      setRecipeWeightsInput('');
     }
   });
 
@@ -420,6 +449,35 @@ export const AdminDashboard: React.FC = () => {
     }
   });
 
+  const { data: productInventoryDetails, isLoading: productInventoryDetailsLoading } = useQuery({
+    queryKey: ['productInventoryDetails', selectedInventoryProductId],
+    queryFn: () => fetchProductInventory(selectedInventoryProductId!),
+    enabled: selectedInventoryProductId !== null,
+  });
+
+  const createInventorySlotMutation = useMutation({
+    mutationFn: createInventorySlot,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminProducts'] });
+      setRegisteringInventoryProduct(null);
+      alert('Inventory registry tracking slot created successfully!');
+    },
+    onError: (err: any) => {
+      alert(`Slot registration failed: ${err?.response?.data?.detail || err.message}`);
+    }
+  });
+  const { data: categoryDetails, isLoading: categoryDetailsLoading } = useQuery({
+    queryKey: ['adminCategoryDetails', editingCategoryId],
+    queryFn: () => fetchCategoryById(editingCategoryId!),
+    enabled: editingCategoryId !== null,
+  });
+
+  useEffect(() => {
+    if (categoryDetails && editingCategoryId !== null) {
+      setEditingCategoryName(categoryDetails.name);
+      setEditingCategoryDesc(categoryDetails.description || '');
+    }
+  }, [categoryDetails, editingCategoryId]);
   const uploadProductImageMutation = useMutation({
     mutationFn: ({ productId, file }: { productId: number; file: File }) => 
       uploadProductImage(productId, file),
@@ -440,6 +498,30 @@ export const AdminDashboard: React.FC = () => {
     },
     onError: (err: any) => {
       alert(`Remove failed: ${err?.response?.data?.detail || err.message}`);
+    }
+  });
+
+  const uploadProductGalleryMutation = useMutation({
+    mutationFn: ({ productId, files }: { productId: number; files: File[] }) => 
+      uploadProductGallery(productId, files),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminProducts'] });
+      alert('Gallery images uploaded successfully!');
+    },
+    onError: (err: any) => {
+      alert(`Gallery upload failed: ${err?.response?.data?.detail || err.message}`);
+    }
+  });
+
+  const deleteProductGalleryImageMutation = useMutation({
+    mutationFn: ({ productId, imageId }: { productId: number; imageId: number }) => 
+      deleteProductGalleryImage(productId, imageId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminProducts'] });
+      alert('Gallery image removed successfully!');
+    },
+    onError: (err: any) => {
+      alert(`Gallery image remove failed: ${err?.response?.data?.detail || err.message}`);
     }
   });
 
@@ -626,7 +708,7 @@ export const AdminDashboard: React.FC = () => {
           {/* Center: Navigation Menu */}
           <nav className="hidden md:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper md:col-span-6 justify-center">
             <button onClick={() => navigate('/shop')} className="hover:text-turmeric transition-colors pb-1">Shop Recipes</button>
-            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Pets Ledger</button>
+            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Know Your Pet</button>
             <button onClick={() => navigate('/consultations')} className="hover:text-turmeric transition-colors pb-1">Vet Consults</button>
             <button onClick={() => navigate('/orders')} className="hover:text-turmeric transition-colors pb-1">My Orders</button>
             <button onClick={() => navigate('/assistant')} className="hover:text-turmeric transition-colors pb-1">AI Assistant 🐾</button>
@@ -1070,8 +1152,14 @@ export const AdminDashboard: React.FC = () => {
                   <div key={order.id} className="border border-cardboard bg-paperLight p-6 rounded-sm space-y-4">
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b border-cardboard border-dashed pb-4">
                       <div>
-                        <div className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold">
-                          ORDER RECORD #{order.id}
+                        <div className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold flex items-center space-x-1.5">
+                          <span>ORDER RECORD #{order.id}</span>
+                          <button
+                            onClick={() => setSelectedOrderId(order.id)}
+                            className="text-cardboard hover:text-ink hover:underline lowercase font-semibold text-[8px] transition-colors"
+                          >
+                            (view full transaction)
+                          </button>
                         </div>
                         <div className="font-body text-xs text-ink opacity-75 mt-0.5">
                           Placed: {new Date(order.created_at).toLocaleString()}
@@ -1114,7 +1202,11 @@ export const AdminDashboard: React.FC = () => {
                         <ul className="divide-y divide-cardboard divide-dashed">
                           {order.items.map((item) => (
                             <li key={item.id} className="py-2 flex justify-between">
-                              <span className="font-body font-bold text-ink">{item.product_name} <span className="opacity-60 font-normal">x{item.quantity}</span></span>
+                              <span className="font-body font-bold text-ink">
+                                {item.product_name ? `${item.product_name} (ID: #${item.product_id})` : `Product #${item.product_id}`}
+                                {item.selected_weight && <span className="text-[9px] text-herb font-mono ml-1 font-bold">({item.selected_weight})</span>}
+                                <span className="opacity-60 font-normal"> x{item.quantity}</span>
+                              </span>
                               <span className="font-mono text-ink">₹{Number(item.price).toFixed(2)}</span>
                             </li>
                           ))}
@@ -1313,7 +1405,15 @@ export const AdminDashboard: React.FC = () => {
                     {clinics.map((clinic) => (
                       <div key={clinic.id} className="py-3 flex justify-between items-center text-xs">
                         <div>
-                          <div className="font-body font-bold text-ink">{clinic.name}</div>
+                          <div className="font-body font-bold text-ink flex items-center space-x-1.5">
+                            <span>{clinic.name}</span>
+                            <button
+                              onClick={() => setSelectedClinicId(clinic.id)}
+                              className="font-mono text-[8px] text-herb hover:underline uppercase font-bold"
+                            >
+                              [View Ledger Detail]
+                            </button>
+                          </div>
                           <div className="text-ink opacity-70 font-mono text-[9px] mt-0.5">{clinic.address}, {clinic.city}</div>
                           <div className="text-ink opacity-70 font-mono text-[9px]">Phone: {clinic.phone}</div>
                         </div>
@@ -1906,56 +2006,65 @@ export const AdminDashboard: React.FC = () => {
                           return (
                             <div key={cat.id} className="py-2.5 flex flex-col text-xs">
                               {isEditing ? (
-                                <div className="space-y-2.5 w-full bg-paper p-3 border border-cardboard border-dashed my-1">
-                                  <div className="space-y-1">
-                                    <label className="font-mono text-[8px] uppercase font-bold text-herb block">Edit Category Name:</label>
-                                    <input
-                                      type="text"
-                                      value={editingCategoryName}
-                                      onChange={(e) => setEditingCategoryName(e.target.value)}
-                                      className="bg-paperLight border border-cardboard w-full p-2 text-xs text-ink outline-none font-body rounded-sm"
-                                    />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <label className="font-mono text-[8px] uppercase font-bold text-herb block">Edit Description:</label>
-                                    <textarea
-                                      value={editingCategoryDesc}
-                                      onChange={(e) => setEditingCategoryDesc(e.target.value)}
-                                      rows={2}
-                                      className="bg-paperLight border border-cardboard w-full p-2 text-xs text-ink outline-none font-body rounded-sm"
-                                    />
-                                  </div>
-                                  <div className="flex space-x-2 justify-end pt-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => setEditingCategoryId(null)}
-                                      className="px-2.5 py-1 text-[9px] font-mono uppercase bg-paper border border-cardboard text-ink font-bold hover:bg-paperLight rounded-sm"
-                                    >
-                                      Cancel
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={updateCategoryMutation.isPending}
-                                      onClick={() => {
-                                        if (editingCategoryName.trim() === '') {
-                                          alert('Category name cannot be empty.');
-                                          return;
-                                        }
-                                        updateCategoryMutation.mutate({
-                                          id: cat.id,
-                                          name: editingCategoryName,
-                                          description: editingCategoryDesc
-                                        });
-                                      }}
-                                      className="px-2.5 py-1 text-[9px] font-mono uppercase bg-turmeric text-paperLight font-bold hover:bg-opacity-95 rounded-sm flex items-center space-x-1"
-                                    >
-                                      {updateCategoryMutation.isPending ? (
-                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                      ) : (
-                                        <span>Save</span>
-                                      )}
-                                    </button>
-                                  </div>
+                                <div className="space-y-2.5 w-full bg-paper p-3 border border-cardboard border-dashed my-1 relative">
+                                  {categoryDetailsLoading ? (
+                                    <div className="py-6 text-center space-y-1.5">
+                                      <Loader2 className="w-4 h-4 text-turmeric animate-spin mx-auto" />
+                                      <span className="font-mono text-[8px] uppercase tracking-wider text-ink opacity-65 block">Retrieving latest record...</span>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="space-y-1">
+                                        <label className="font-mono text-[8px] uppercase font-bold text-herb block">Edit Category Name:</label>
+                                        <input
+                                          type="text"
+                                          value={editingCategoryName}
+                                          onChange={(e) => setEditingCategoryName(e.target.value)}
+                                          className="bg-paperLight border border-cardboard w-full p-2 text-xs text-ink outline-none font-body rounded-sm"
+                                        />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <label className="font-mono text-[8px] uppercase font-bold text-herb block">Edit Description:</label>
+                                        <textarea
+                                          value={editingCategoryDesc}
+                                          onChange={(e) => setEditingCategoryDesc(e.target.value)}
+                                          rows={2}
+                                          className="bg-paperLight border border-cardboard w-full p-2 text-xs text-ink outline-none font-body rounded-sm"
+                                        />
+                                      </div>
+                                      <div className="flex space-x-2 justify-end pt-1">
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditingCategoryId(null)}
+                                          className="px-2.5 py-1 text-[9px] font-mono uppercase bg-paper border border-cardboard text-ink font-bold hover:bg-paperLight rounded-sm"
+                                        >
+                                          Cancel
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={updateCategoryMutation.isPending}
+                                          onClick={() => {
+                                            if (editingCategoryName.trim() === '') {
+                                              alert('Category name cannot be empty.');
+                                              return;
+                                            }
+                                            updateCategoryMutation.mutate({
+                                              id: cat.id,
+                                              name: editingCategoryName,
+                                              description: editingCategoryDesc
+                                            });
+                                          }}
+                                          className="px-2.5 py-1 text-[9px] font-mono uppercase bg-turmeric text-paperLight font-bold hover:bg-opacity-95 rounded-sm flex items-center space-x-1"
+                                        >
+                                          {updateCategoryMutation.isPending ? (
+                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                          ) : (
+                                            <span>Save</span>
+                                          )}
+                                        </button>
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                               ) : (
                                 <div className="flex justify-between items-center w-full">
@@ -2005,6 +2114,14 @@ export const AdminDashboard: React.FC = () => {
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (recipeName && recipeSku && recipePrice && recipeCategoryId) {
+                      const parsedOptions = recipeWeightsInput ? recipeWeightsInput.split(',').map(part => {
+                        const [w, p] = part.split(':');
+                        return {
+                          weight: w ? w.trim() : '',
+                          price: p ? parseFloat(p.trim()) : 0
+                        };
+                      }).filter(opt => opt.weight !== '') : undefined;
+
                       createProductMutation.mutate({
                         name: recipeName,
                         description: recipeDesc,
@@ -2012,7 +2129,8 @@ export const AdminDashboard: React.FC = () => {
                         price: recipePrice,
                         available_stock: Number(recipeStock),
                         category_id: Number(recipeCategoryId),
-                        image_url: recipeImgUrl || undefined
+                        image_url: recipeImgUrl || undefined,
+                        weight_options: parsedOptions
                       });
                     }
                   }}
@@ -2077,6 +2195,13 @@ export const AdminDashboard: React.FC = () => {
                       ))}
                     </select>
                   </div>
+
+                  <input
+                    placeholder="Custom Weight Options (e.g. 1 Kg: 500, 5 Kg: 2200)"
+                    value={recipeWeightsInput}
+                    onChange={(e) => setRecipeWeightsInput(e.target.value)}
+                    className="bg-paper border border-cardboard w-full p-2.5 text-xs text-ink outline-none font-mono"
+                  />
 
                   <input
                     placeholder="Image URL link (optional)"
@@ -2158,6 +2283,57 @@ export const AdminDashboard: React.FC = () => {
                             </button>
                           )}
                         </div>
+
+                        {/* Multiple Gallery Images section */}
+                        <div className="mt-4 pt-3 border-t border-cardboard border-dashed space-y-2">
+                          <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wider block">Product Gallery</span>
+                          
+                          {/* File input for multiple gallery files */}
+                          <div className="flex items-center space-x-3">
+                            <label className="font-mono text-[8px] uppercase font-bold tracking-wider bg-paper border border-cardboard px-2.5 py-1.5 rounded-sm cursor-pointer hover:bg-paperLight">
+                              Add Gallery Images
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={(e) => {
+                                  const files = e.target.files ? Array.from(e.target.files) : [];
+                                  if (files.length > 0) {
+                                    uploadProductGalleryMutation.mutate({ productId: prod.id, files });
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
+
+                          {/* Gallery Thumbnail Grid */}
+                          {prod.images && prod.images.length > 0 && (
+                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 pt-1.5">
+                              {prod.images.map((img) => (
+                                <div key={img.id} className="relative group aspect-square border border-cardboard bg-paper rounded-sm overflow-hidden shadow-xs hover:scale-105 transition-transform duration-150">
+                                  <img 
+                                    src={img.image_url} 
+                                    alt="Gallery item" 
+                                    className="w-full h-full object-cover"
+                                  />
+                                  {/* Trash Icon Button - overlays on hover */}
+                                  <button
+                                    onClick={() => {
+                                      if (confirm('Delete this gallery image?')) {
+                                        deleteProductGalleryImageMutation.mutate({ productId: prod.id, imageId: img.id });
+                                      }
+                                    }}
+                                    className="absolute inset-0 bg-ink bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-paperLight hover:text-paprika cursor-pointer"
+                                    title="Remove Image"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex flex-col items-end space-y-3 shrink-0">
@@ -2174,6 +2350,7 @@ export const AdminDashboard: React.FC = () => {
                                 setEditingProduct(prod);
                                 setEditPrice(prod.price);
                                 setEditStock(String(prod.available_stock ?? ''));
+                                setEditWeightsInput(prod.weight_options ? prod.weight_options.map((opt: any) => `${opt.weight}: ${opt.price}`).join(', ') : '');
                               }}
                               className="font-mono text-[9px] uppercase font-bold tracking-wider text-herb hover:underline"
                             >
@@ -2261,48 +2438,81 @@ export const AdminDashboard: React.FC = () => {
                     </thead>
                     <tbody className="divide-y divide-cardboard divide-dashed">
                       {products.map((prod) => {
-                        const lowStock = prod.is_active && (prod.available_stock ?? 0) <= (prod.low_stock_threshold ?? 5);
-                        const physicalStock = (prod.available_stock ?? 0) + (prod.reserved_stock ?? 0);
+                        const isRegistered = prod.inventory_id !== null && prod.available_stock !== null;
+                        const lowStock = isRegistered && prod.is_active && (prod.available_stock ?? 0) <= (prod.low_stock_threshold ?? 5);
+                        const physicalStock = isRegistered ? (prod.available_stock ?? 0) + (prod.reserved_stock ?? 0) : 0;
                         return (
                           <tr key={prod.id} className="hover:bg-paper transition-colors">
                             <td className="p-4 font-bold">{prod.name}</td>
                             <td className="p-4 font-mono text-[10px]">{prod.sku}</td>
-                            <td className="p-4 text-right font-mono font-bold">{physicalStock}</td>
-                            <td className="p-4 text-right font-mono text-paprika">{prod.reserved_stock ?? 0}</td>
-                            <td className="p-4 text-right font-mono font-bold text-herb">{prod.available_stock ?? 0}</td>
-                            <td className="p-4 text-right font-mono">{prod.low_stock_threshold ?? 5}</td>
+                            <td className="p-4 text-right font-mono font-bold">
+                              {isRegistered ? physicalStock : <span className="opacity-45">—</span>}
+                            </td>
+                            <td className="p-4 text-right font-mono text-paprika">
+                              {isRegistered ? (prod.reserved_stock ?? 0) : <span className="opacity-45">—</span>}
+                            </td>
+                            <td className="p-4 text-right font-mono font-bold text-herb">
+                              {isRegistered ? (prod.available_stock ?? 0) : <span className="opacity-45">—</span>}
+                            </td>
+                            <td className="p-4 text-right font-mono">
+                              {isRegistered ? (prod.low_stock_threshold ?? 5) : <span className="opacity-45">—</span>}
+                            </td>
                             <td className="p-4 text-center">
                               <span className={`font-mono text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold ${
                                 !prod.is_active
                                   ? 'bg-red-100 text-red-800'
+                                  : !isRegistered
+                                  ? 'bg-red-50 text-red-700 border border-red-200 border-dashed'
                                   : lowStock
                                   ? 'bg-yellow-100 text-yellow-800 animate-pulse'
                                   : 'bg-green-100 text-green-800'
                               }`}>
-                                {!prod.is_active ? 'Inactive' : lowStock ? '⚠️ Low Stock' : '✅ Good'}
+                                {!prod.is_active ? 'Inactive' : !isRegistered ? '⚠️ Unregistered' : lowStock ? '⚠️ Low Stock' : '✅ Good'}
                               </span>
                             </td>
                             <td className="p-4 text-center">
                               <div className="flex items-center justify-center space-x-3">
-                                <button
-                                  onClick={() => {
-                                    setEditingProduct(prod);
-                                    setEditPrice(prod.price);
-                                    setEditStock(String(prod.available_stock ?? ''));
-                                  }}
-                                  className="font-mono text-[9px] uppercase font-bold tracking-wider text-herb hover:underline"
-                                >
-                                  Edit Stock
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setEditingThresholdProduct(prod);
-                                    setEditThreshold(String(prod.low_stock_threshold ?? 5));
-                                  }}
-                                  className="font-mono text-[9px] uppercase font-bold tracking-wider text-turmeric hover:underline"
-                                >
-                                  Set Alert
-                                </button>
+                                {isRegistered ? (
+                                  <>
+                                    <button
+                                      onClick={() => setSelectedInventoryProductId(prod.id)}
+                                      className="font-mono text-[9px] uppercase font-bold tracking-wider text-ink hover:underline"
+                                    >
+                                      Details
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setEditingProduct(prod);
+                                        setEditPrice(prod.price);
+                                        setEditStock(String(prod.available_stock ?? ''));
+                                        setEditWeightsInput(prod.weight_options ? prod.weight_options.map((opt: any) => `${opt.weight}: ${opt.price}`).join(', ') : '');
+                                      }}
+                                      className="font-mono text-[9px] uppercase font-bold tracking-wider text-herb hover:underline"
+                                    >
+                                      Edit Stock
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setEditingThresholdProduct(prod);
+                                        setEditThreshold(String(prod.low_stock_threshold ?? 5));
+                                      }}
+                                      className="font-mono text-[9px] uppercase font-bold tracking-wider text-turmeric hover:underline"
+                                    >
+                                      Set Alert
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setRegisteringInventoryProduct(prod);
+                                      setRegStock('10');
+                                      setRegThreshold('5');
+                                    }}
+                                    className="font-mono text-[9px] uppercase font-bold tracking-wider text-paprika hover:underline"
+                                  >
+                                    Register Slot
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -2747,11 +2957,20 @@ export const AdminDashboard: React.FC = () => {
             <form 
               onSubmit={(e) => {
                 e.preventDefault();
+                const parsedOptions = editWeightsInput ? editWeightsInput.split(',').map(part => {
+                  const [w, p] = part.split(':');
+                  return {
+                    weight: w ? w.trim() : '',
+                    price: p ? parseFloat(p.trim()) : 0
+                  };
+                }).filter(opt => opt.weight !== '') : [];
+
                 updateProductMutation.mutate({
                   productId: editingProduct.id,
                   productData: {
                     price: editPrice || undefined,
-                    available_stock: editStock ? Number(editStock) : undefined
+                    available_stock: editStock ? Number(editStock) : undefined,
+                    weight_options: parsedOptions.length > 0 ? parsedOptions : []
                   }
                 });
                 setEditingProduct(null);
@@ -2782,6 +3001,18 @@ export const AdminDashboard: React.FC = () => {
                   value={editStock}
                   onChange={(e) => setEditStock(e.target.value)}
                   className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                  Weight options (e.g. 1 Kg: 500, 5 Kg: 2200):
+                </label>
+                <input
+                  type="text"
+                  value={editWeightsInput}
+                  onChange={(e) => setEditWeightsInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors font-mono"
                 />
               </div>
 
@@ -2878,6 +3109,408 @@ export const AdminDashboard: React.FC = () => {
 
 
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+
+      {/* Clinic Details Modal */}
+      {selectedClinicId !== null && (
+        <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-paperLight border border-cardboard rounded-sm shadow-xl max-w-md w-full p-6 space-y-4 animate-fade-in-up relative text-left">
+            <button 
+              onClick={() => setSelectedClinicId(null)}
+              className="absolute top-4 right-4 text-ink opacity-60 hover:opacity-100 font-bold"
+            >
+              ✕
+            </button>
+
+            <div className="space-y-1">
+              <Eyebrow label="SCOOBY PLATFORM CLINICS DIRECTORY" />
+              <h3 className="font-display font-bold text-xl text-ink">
+                Clinic Profile Details
+              </h3>
+            </div>
+
+            {clinicDetailsLoading ? (
+              <div className="py-8 text-center space-y-2">
+                <Loader2 className="w-6 h-6 text-turmeric animate-spin mx-auto" />
+                <span className="font-mono text-xs uppercase text-ink opacity-60">Loading Clinic Details...</span>
+              </div>
+            ) : !clinicDetails ? (
+              <p className="font-body text-xs text-ink opacity-60">Failed to load clinic record.</p>
+            ) : (
+              <div className="space-y-4 text-xs font-body">
+                <div className="p-4 border border-cardboard rounded-sm bg-paper bg-opacity-50 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="font-display font-bold text-base text-ink">{clinicDetails.name}</span>
+                    <span className={`font-mono text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm font-bold ${
+                      clinicDetails.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {clinicDetails.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <hr className="border-t border-cardboard border-dashed" />
+                  <div className="space-y-2 font-mono text-[10px] text-ink opacity-95">
+                    <div><strong>Address:</strong> {clinicDetails.address}</div>
+                    <div><strong>City:</strong> {clinicDetails.city}</div>
+                    <div><strong>State:</strong> {clinicDetails.state}</div>
+                    <div><strong>Postal Code:</strong> {clinicDetails.postal_code}</div>
+                    <div><strong>Phone:</strong> {clinicDetails.phone}</div>
+                  </div>
+                </div>
+
+                <div className="flex space-x-3 pt-2">
+                  <button
+                    onClick={() => {
+                      toggleClinicActiveMutation.mutate({ clinicId: clinicDetails.id, isActive: !clinicDetails.is_active });
+                      setSelectedClinicId(null);
+                    }}
+                    disabled={toggleClinicActiveMutation.isPending}
+                    className="flex-grow bg-paprika text-paperLight font-mono text-[9px] uppercase px-4 py-2.5 font-bold rounded-sm hover-bounce disabled:opacity-50"
+                  >
+                    {clinicDetails.is_active ? 'Deactivate Clinic' : 'Activate Clinic'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedClinicId(null)}
+                    className="border border-cardboard font-mono text-[9px] uppercase px-4 py-2.5 font-bold rounded-sm text-ink hover-bounce"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Order Details Modal */}
+      {selectedOrderId !== null && (
+        <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-paperLight border border-cardboard rounded-sm shadow-xl max-w-lg w-full p-6 space-y-6 animate-fade-in-up relative text-left">
+            <button 
+              onClick={() => setSelectedOrderId(null)}
+              className="absolute top-4 right-4 text-ink opacity-60 hover:opacity-100 font-bold"
+            >
+              ✕
+            </button>
+
+            <div className="space-y-1">
+              <Eyebrow label="SCOOBY PLATFORM TRANSACTION LEDGER" />
+              <h3 className="font-display font-bold text-xl text-ink">
+                Order Sourcing Record #{selectedOrderId}
+              </h3>
+            </div>
+
+            {orderDetailsLoading ? (
+              <div className="py-12 text-center space-y-2">
+                <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
+                <span className="font-mono text-xs uppercase text-ink opacity-60">Loading Order Sourcing Record...</span>
+              </div>
+            ) : !orderDetails ? (
+              <p className="font-body text-xs text-ink opacity-60">Failed to load order transaction details.</p>
+            ) : (
+              <div className="space-y-5 text-xs font-body">
+                {/* Status Indicator banner */}
+                <div className="flex justify-between items-center p-3 border border-cardboard rounded-sm bg-paper bg-opacity-50">
+                  <div>
+                    <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">PLACED DATE</span>
+                    <span className="font-mono text-xs text-ink font-bold">{new Date(orderDetails.created_at).toLocaleString()}</span>
+                  </div>
+                  <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 rounded-sm uppercase tracking-wider ${
+                    orderDetails.status.toUpperCase() === 'COMPLETED' || orderDetails.status.toLowerCase() === 'delivered'
+                      ? 'text-herb bg-emerald-50 border-emerald-200'
+                      : orderDetails.status.toUpperCase() === 'CANCELLED'
+                      ? 'text-paprika bg-red-50 border-red-200'
+                      : 'text-turmeric bg-amber-50 border-amber-200'
+                  }`}>
+                    {orderDetails.status}
+                  </span>
+                </div>
+
+                {/* Sourced Recipe list */}
+                <div className="space-y-2">
+                  <span className="font-mono text-[8px] uppercase tracking-wider text-herb font-bold block">SOURCED RECIPE ITEMS</span>
+                  <ul className="divide-y divide-cardboard divide-dashed border-t border-b border-cardboard">
+                    {orderDetails.items?.map((item) => (
+                      <li key={item.id} className="py-2.5 flex justify-between items-center">
+                        <div>
+                          <span className="font-body font-bold text-ink">
+                            {item.product_name ? `${item.product_name} (ID: #${item.product_id})` : `Product #${item.product_id}`}
+                          </span>
+                          {item.selected_weight && (
+                            <span className="text-[9px] text-herb font-mono ml-1.5 font-bold">({item.selected_weight})</span>
+                          )}
+                          <div className="text-[10px] text-ink opacity-60 font-mono mt-0.5">Quantity: x{item.quantity} | Unit Price: ₹{Number(item.price).toFixed(2)}</div>
+                        </div>
+                        <span className="font-mono font-bold text-ink">₹{Number(item.subtotal).toFixed(2)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="flex justify-between font-bold text-ink text-sm pt-1">
+                    <span>Total Sourcing Fee:</span>
+                    <span className="font-mono text-turmeric">₹{Number(orderDetails.total_amount).toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* Recipient Details */}
+                <div className="grid grid-cols-2 gap-4 border-t border-cardboard border-dashed pt-4">
+                  <div className="space-y-1">
+                    <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">SHIPPING RECIPIENT</span>
+                    <p className="font-body font-bold text-ink">{orderDetails.shipping_address}</p>
+                    <p className="font-body text-ink opacity-70">City: {orderDetails.shipping_city}</p>
+                    <p className="font-body text-ink opacity-70">Phone: {orderDetails.shipping_phone}</p>
+                  </div>
+                  <div className="space-y-2 border-l border-cardboard border-dashed pl-4">
+                    <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">STATUS MANAGEMENT</span>
+                    
+                    <div className="space-y-1.5">
+                      <select
+                        value={orderDetails.status}
+                        disabled={updateOrderStatusMutation.isPending}
+                        onChange={(e) => {
+                          updateOrderStatusMutation.mutate({ orderId: orderDetails.id, status: e.target.value });
+                          setSelectedOrderId(null);
+                        }}
+                        className="w-full bg-paper border border-cardboard font-mono text-[9px] uppercase px-2 py-2 rounded-sm text-ink outline-none disabled:opacity-50"
+                      >
+                        <option value={orderDetails.status} disabled>{orderDetails.status} (Current)</option>
+                        <option value="PENDING" disabled={!VALID_ORDER_TRANSITIONS[orderDetails.status]?.includes('PENDING')}>Set Pending</option>
+                        <option value="CONFIRMED" disabled={!VALID_ORDER_TRANSITIONS[orderDetails.status]?.includes('CONFIRMED')}>Confirm Order</option>
+                        <option value="processing" disabled={!VALID_ORDER_TRANSITIONS[orderDetails.status]?.includes('processing')}>Process Order</option>
+                        <option value="shipped" disabled={!VALID_ORDER_TRANSITIONS[orderDetails.status]?.includes('shipped')}>Ship Order</option>
+                        <option value="delivered" disabled={!VALID_ORDER_TRANSITIONS[orderDetails.status]?.includes('delivered')}>Set Delivered</option>
+                        <option value="COMPLETED" disabled={!VALID_ORDER_TRANSITIONS[orderDetails.status]?.includes('COMPLETED')}>Complete Order</option>
+                        <option value="CANCELLED" disabled={!VALID_ORDER_TRANSITIONS[orderDetails.status]?.includes('CANCELLED')}>Cancel Order</option>
+                      </select>
+                      <p className="text-[9px] text-ink opacity-60 leading-normal">Status transitions are governed by platform ledger constraints.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedOrderId(null)}
+                  className="w-full bg-ink hover:bg-opacity-90 text-paperLight font-mono text-[9px] uppercase font-bold py-3 tracking-wider rounded-sm transition-colors"
+                >
+                  Return to Active Ledger
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Warehouse Inventory Details Modal */}
+      {selectedInventoryProductId !== null && (
+        <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-paperLight border border-cardboard rounded-sm shadow-xl max-w-md w-full p-6 space-y-5 animate-fade-in-up relative text-left">
+            <button 
+              onClick={() => setSelectedInventoryProductId(null)}
+              className="absolute top-4 right-4 text-ink opacity-60 hover:opacity-100 font-bold"
+            >
+              ✕
+            </button>
+
+            <div className="space-y-1">
+              <Eyebrow label="WAREHOUSE PHYSICAL STOCK LEDGER" />
+              <h3 className="font-display font-bold text-xl text-ink">
+                Warehouse Holdings Details
+              </h3>
+            </div>
+
+            {productInventoryDetailsLoading ? (
+              <div className="py-12 text-center space-y-2">
+                <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
+                <span className="font-mono text-xs uppercase text-ink opacity-60">Auditing Holdings...</span>
+              </div>
+            ) : !productInventoryDetails ? (
+              <p className="font-body text-xs text-ink opacity-60">Failed to load warehouse inventory details.</p>
+            ) : (
+              <div className="space-y-5 text-xs font-body">
+                {/* General Info */}
+                <div className="p-4 border border-cardboard rounded-sm bg-paper bg-opacity-50 space-y-2">
+                  <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-ink">
+                    <div>
+                      <span className="text-[8px] uppercase text-herb font-bold block">PARTNER SKU</span>
+                      <span className="font-bold">{products.find(p => p.id === selectedInventoryProductId)?.sku || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[8px] uppercase text-herb font-bold block">RECIPE NAME</span>
+                      <span className="font-bold">{products.find(p => p.id === selectedInventoryProductId)?.name || 'Product'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stock Breakdown Proportional Stacked Bar */}
+                <div className="space-y-2">
+                  <span className="font-mono text-[8px] uppercase tracking-wider text-ink opacity-60 block">Proportional Holdings Distribution:</span>
+                  
+                  {productInventoryDetails.stock_quantity > 0 ? (
+                    <div className="space-y-3">
+                      {/* Stacked bar */}
+                      <div className="h-6 w-full rounded-sm overflow-hidden flex border border-cardboard">
+                        <div 
+                          style={{ width: `${(productInventoryDetails.available_stock / productInventoryDetails.stock_quantity) * 100}%` }}
+                          className="bg-herb h-full flex items-center justify-center text-[8px] font-mono text-paperLight font-bold"
+                          title={`Available: ${productInventoryDetails.available_stock}`}
+                        >
+                          {productInventoryDetails.available_stock > 0 && `${Math.round((productInventoryDetails.available_stock / productInventoryDetails.stock_quantity) * 100)}%`}
+                        </div>
+                        <div 
+                          style={{ width: `${(productInventoryDetails.reserved_quantity / productInventoryDetails.stock_quantity) * 100}%` }}
+                          className="bg-paprika h-full flex items-center justify-center text-[8px] font-mono text-paperLight font-bold"
+                          title={`Reserved: ${productInventoryDetails.reserved_quantity}`}
+                        >
+                          {productInventoryDetails.reserved_quantity > 0 && `${Math.round((productInventoryDetails.reserved_quantity / productInventoryDetails.stock_quantity) * 100)}%`}
+                        </div>
+                      </div>
+
+                      {/* Legends */}
+                      <div className="flex justify-between font-mono text-[9px] text-ink opacity-80 pt-1">
+                        <div className="flex items-center space-x-1">
+                          <span className="w-2.5 h-2.5 bg-herb inline-block rounded-sm"></span>
+                          <span>Available to Buy ({productInventoryDetails.available_stock})</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <span className="w-2.5 h-2.5 bg-paprika inline-block rounded-sm"></span>
+                          <span>Held/Reserved ({productInventoryDetails.reserved_quantity})</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-4 text-center border border-dashed border-cardboard bg-paper rounded-sm font-mono text-[10px] text-ink opacity-60">
+                      Zero warehouse stock logged. Register or update stock to view visual distribution.
+                    </div>
+                  )}
+                </div>
+
+                <hr className="border-t border-cardboard border-dashed" />
+
+                {/* Quantitative statistics */}
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="p-3 border border-cardboard bg-paper rounded-sm">
+                    <span className="font-mono text-[8px] text-cardboard font-bold block uppercase">PHYSICAL STOCK</span>
+                    <span className="font-display font-bold text-lg text-ink block mt-0.5">{productInventoryDetails.stock_quantity}</span>
+                  </div>
+                  <div className="p-3 border border-cardboard bg-paper rounded-sm">
+                    <span className="font-mono text-[8px] text-cardboard font-bold block uppercase">RESERVED COUNT</span>
+                    <span className="font-display font-bold text-lg text-paprika block mt-0.5">{productInventoryDetails.reserved_quantity}</span>
+                  </div>
+                  <div className="p-3 border border-cardboard bg-paper rounded-sm">
+                    <span className="font-mono text-[8px] text-cardboard font-bold block uppercase">NET AVAILABLE</span>
+                    <span className="font-display font-bold text-lg text-herb block mt-0.5">{productInventoryDetails.available_stock}</span>
+                  </div>
+                </div>
+
+                {/* Stock Health */}
+                <div className="p-3 border border-cardboard rounded-sm space-y-2">
+                  <div className="flex justify-between items-center text-[10px] font-mono">
+                    <span className="text-ink font-bold">STOCK HEALTH STATE</span>
+                    <span className={`px-2 py-0.5 rounded-sm font-bold uppercase text-[8px] ${
+                      productInventoryDetails.low_stock ? 'bg-yellow-100 text-yellow-800 animate-pulse' : 'bg-green-100 text-green-800'
+                    }`}>
+                      {productInventoryDetails.low_stock ? '⚠️ Low Stock warning' : '✅ Stock Level Good'}
+                    </span>
+                  </div>
+                  {productInventoryDetails.low_stock && (
+                    <p className="font-body text-[10px] text-paprika italic">
+                      Holdings have dropped below threshold warn parameters configured on this product slot!
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedInventoryProductId(null)}
+                  className="w-full bg-ink hover:bg-opacity-90 text-paperLight font-mono text-[9px] uppercase font-bold py-3 tracking-wider rounded-sm transition-colors text-center"
+                >
+                  Return to Inventory List
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Register Inventory Slot Modal */}
+      {registeringInventoryProduct && (
+        <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-paperLight border border-cardboard rounded-sm shadow-xl max-w-sm w-full p-6 space-y-4 animate-fade-in-up relative text-left">
+            <div className="flex justify-between items-start border-b border-cardboard pb-3">
+              <div>
+                <span className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold">Registry Initialization</span>
+                <h4 className="font-display font-bold text-md text-ink mt-0.5">Register Inventory Slot</h4>
+              </div>
+              <button 
+                onClick={() => setRegisteringInventoryProduct(null)}
+                className="text-ink opacity-50 hover:opacity-100 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3 border border-cardboard bg-paper rounded-sm font-mono text-[10px] text-ink space-y-1">
+              <div><strong>Product:</strong> {registeringInventoryProduct.name}</div>
+              <div><strong>SKU:</strong> {registeringInventoryProduct.sku}</div>
+            </div>
+
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                createInventorySlotMutation.mutate({
+                  product_id: registeringInventoryProduct.id,
+                  stock_quantity: Number(regStock),
+                  low_stock_threshold: Number(regThreshold)
+                });
+              }}
+              className="space-y-4 text-xs font-body"
+            >
+              <div className="space-y-1.5">
+                <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                  Initial Physical Stock Level:
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={regStock}
+                  onChange={(e) => setRegStock(e.target.value)}
+                  className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                  Low Stock Alert Threshold:
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={regThreshold}
+                  onChange={(e) => setRegThreshold(e.target.value)}
+                  className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={createInventorySlotMutation.isPending}
+                  className="flex-grow bg-paprika text-paperLight font-mono text-[9px] uppercase px-4 py-2.5 font-bold rounded-sm hover-bounce disabled:opacity-50"
+                >
+                  {createInventorySlotMutation.isPending ? 'Registering...' : 'Register Stock Slot'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRegisteringInventoryProduct(null)}
+                  className="border border-cardboard font-mono text-[9px] uppercase px-4 py-2.5 font-bold rounded-sm text-ink hover-bounce"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

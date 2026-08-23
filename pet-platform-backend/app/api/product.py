@@ -132,6 +132,7 @@ async def create_new_product(
     description: str | None = Form(None),
     image_url: str | None = Form(None),
     available_stock: int | None = Form(None),
+    weight_options: str | None = Form(None),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.ADMIN)),
@@ -143,6 +144,19 @@ async def create_new_product(
         sku=sku,
         price=price,
     )
+
+    import json
+    parsed_weight_options = None
+    if weight_options:
+        try:
+            parsed_weight_options = json.loads(weight_options)
+            if not isinstance(parsed_weight_options, list):
+                raise ValueError("weight_options must be a list of weight configurations")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid weight_options format: {e}"
+            )
 
     final_image_url = image_url
     storage_provider = None
@@ -158,7 +172,12 @@ async def create_new_product(
         )
 
     try:
-        created = create_product(db, product_data, image_url=final_image_url)
+        created = create_product(
+            db, 
+            product_data, 
+            image_url=final_image_url,
+            weight_options=parsed_weight_options
+        )
         
         # Create corresponding inventory record if stock is specified
         if available_stock is not None:
@@ -211,6 +230,7 @@ async def update_existing_product(
     is_active: bool | None = Form(None),
     image_url: str | None = Form(None),
     available_stock: int | None = Form(None),
+    weight_options: str | None = Form(None),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(
@@ -227,6 +247,19 @@ async def update_existing_product(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found",
         )
+
+    import json
+    parsed_weight_options = None
+    if weight_options:
+        try:
+            parsed_weight_options = json.loads(weight_options)
+            if not isinstance(parsed_weight_options, list):
+                raise ValueError("weight_options must be a list of weight configurations")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid weight_options format: {e}"
+            )
 
     update_dict = {}
     if category_id is not None:
@@ -264,6 +297,7 @@ async def update_existing_product(
             product,
             product_data,
             image_url=final_image_url,
+            weight_options=parsed_weight_options,
         )
 
         # Update or create corresponding inventory record

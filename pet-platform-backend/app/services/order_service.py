@@ -49,9 +49,11 @@ def change_order_status(
     new_status: OrderStatus,
     description: str,
 ) -> Order:
-    if order.status != new_status:
-        validate_order_status_transition(order.status, new_status)
-        order.status = new_status
+    if order.status == new_status:
+        return order
+
+    validate_order_status_transition(order.status, new_status)
+    order.status = new_status
 
     history = OrderStatusHistory(
         order_id=order.id,
@@ -93,6 +95,8 @@ def create_order_from_cart(
     total_amount = Decimal("0.00")
     order_items_data = []
 
+    from app.services.cart_service import get_product_price
+
     for cart_item in cart.items:
         product = cart_item.product
         if product is None:
@@ -107,7 +111,8 @@ def create_order_from_cart(
             cart_item.quantity,
         )
 
-        subtotal = product.price * cart_item.quantity
+        unit_price = get_product_price(product, cart_item.selected_weight)
+        subtotal = unit_price * cart_item.quantity
         total_amount += subtotal
 
         order_items_data.append(
@@ -115,8 +120,9 @@ def create_order_from_cart(
                 "product": product,
                 "inventory": inventory,
                 "quantity": cart_item.quantity,
-                "unit_price": product.price,
+                "unit_price": unit_price,
                 "subtotal": subtotal,
+                "selected_weight": cart_item.selected_weight,
             }
         )
 
@@ -137,6 +143,7 @@ def create_order_from_cart(
             quantity=item_data["quantity"],
             unit_price=item_data["unit_price"],
             subtotal=item_data["subtotal"],
+            selected_weight=item_data["selected_weight"],
         )
         db.add(order_item)
 
@@ -152,6 +159,17 @@ def create_order_from_cart(
 
     db.commit()
     db.refresh(order)
+
+    # Initialize payment session if payment_method is supplied in the checkout request
+    order.razorpay_order_id = None
+    order.razorpay_key_id = None
+    if checkout_data.payment_method:
+        from app.services.payment_service import create_payment
+        from app.core.config import settings
+        payment = create_payment(db, order, checkout_data.payment_method)
+        order.razorpay_order_id = payment.razorpay_order_id
+        order.razorpay_key_id = settings.RAZORPAY_KEY_ID
+
     return order
 
 
@@ -261,6 +279,13 @@ def deliver_order(
     order: Order,
 ) -> Order:
     return change_order_status(db, order, OrderStatus.DELIVERED, "Order delivered to recipient")
+
+
+def complete_order(
+    db: Session,
+    order: Order,
+) -> Order:
+    return change_order_status(db, order, OrderStatus.COMPLETED, "Order completed successfully")
 
 
 def cancel_order(

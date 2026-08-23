@@ -6,6 +6,7 @@ export interface OrderItemResponse {
   product_name: string;
   quantity: number;
   price: string;
+  selected_weight?: string | null;
 }
 
 export interface OrderResponse {
@@ -199,5 +200,15 @@ export const fetchAdminConsultations = async (page: number = 1, limit: number = 
 
 export const updateAdminConsultationStatus = async (consultationId: number, status: string): Promise<any> => {
   const response = await apiClient.patch<any>(`/admin/consultations/${consultationId}/status`, { status });
+  return response.data;
+};
+
+export const fetchAdminOrderById = async (orderId: number): Promise<OrderResponse> => {
+  const response = await apiClient.get<OrderResponse>(`/admin/orders/${orderId}`);
+  return response.data;
+};
+
+export const fetchAdminClinicById = async (clinicId: number): Promise<ClinicResponse> => {
+  const response = await apiClient.get<ClinicResponse>(`/admin/clinics/${clinicId}`);
   return response.data;
 };

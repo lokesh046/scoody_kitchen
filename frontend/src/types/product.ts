@@ -29,6 +29,7 @@ export interface ProductResponse {
   reserved_stock?: number;
   low_stock_threshold?: number;
   images?: ProductImageResponse[];
+  weight_options?: { weight: string; price: number | string }[];
 }
 
 export interface Ingredient {

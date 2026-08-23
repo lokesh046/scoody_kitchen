@@ -21,6 +21,7 @@ def create_product(
     db: Session,
     product_data: ProductCreate,
     image_url: str | None = None,
+    weight_options: list | None = None,
 ) -> Product:
     
     category = db.get(Category, product_data.category_id)
@@ -38,6 +39,7 @@ def create_product(
         sku=product_data.sku,
         price=product_data.price,
         image_url=image_url,
+        weight_options=weight_options,
     )
 
     db.add(product)
@@ -205,6 +207,7 @@ def update_product(
     product: Product,
     product_data: ProductUpdate,
     image_url: str | None = None,
+    weight_options: list | None = None,
 ) -> Product:
 
     update_data = product_data.model_dump(
@@ -225,6 +228,9 @@ def update_product(
 
     if image_url is not None:
         product.image_url = image_url
+
+    if weight_options is not None:
+        product.weight_options = weight_options
 
     db.commit()
     db.refresh(product)

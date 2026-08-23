@@ -43,3 +43,8 @@ export const fetchCategories = async (): Promise<Category[]> => {
   const response = await apiClient.get<Category[]>('/categories');
   return response.data;
 };
+
+export const fetchCategoryById = async (categoryId: number): Promise<Category> => {
+  const response = await apiClient.get<Category>(`/categories/${categoryId}`);
+  return response.data;
+};

@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String, Text, func, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
@@ -56,6 +56,12 @@ class Product(Base):
         default=True,
         nullable=False,
         index=True,
+    )
+
+    weight_options: Mapped[list | None] = mapped_column(
+        JSON,
+        nullable=True,
+        default=None,
     )
 
     created_at: Mapped[datetime] = mapped_column(

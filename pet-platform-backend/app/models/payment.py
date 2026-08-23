@@ -25,6 +25,9 @@ class PaymentStatus(str, enum.Enum):
 class Payment(Base):
     __tablename__ = "payments"
 
+    # Transient fields for API keys (not mapped to DB columns)
+    razorpay_key_id = None
+
     id: Mapped[int] = mapped_column(
         primary_key=True,
         index=True,
@@ -60,6 +63,16 @@ class Payment(Base):
         String(255),
         nullable=True,
         unique=True,
+    )
+
+    razorpay_order_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    razorpay_signature: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(

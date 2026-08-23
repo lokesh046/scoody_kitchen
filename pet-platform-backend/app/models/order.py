@@ -34,6 +34,10 @@ class OrderStatus(str, enum.Enum):
 class Order(Base):
     __tablename__ = "orders"
 
+    # Transient fields for checkout payments (not mapped to DB columns)
+    razorpay_order_id = None
+    razorpay_key_id = None
+
     id: Mapped[int] = mapped_column(
         primary_key=True,
         index=True,

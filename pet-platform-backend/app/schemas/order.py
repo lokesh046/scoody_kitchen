@@ -11,6 +11,7 @@ class CheckoutRequest(BaseModel):
         min_length=10,
         max_length=500,
     )
+    payment_method: str | None = None
 
 
 class OrderItemResponse(BaseModel):
@@ -20,6 +21,9 @@ class OrderItemResponse(BaseModel):
     unit_price: Decimal
     subtotal: Decimal
     image_url: str | None = None
+    selected_weight: str | None = None
+    product_name: str | None = None
+    price: Decimal | None = None
 
     model_config = {
         "from_attributes": True
@@ -34,6 +38,8 @@ class OrderResponse(BaseModel):
     shipping_address: str
     created_at: datetime
     updated_at: datetime
+    razorpay_order_id: str | None = None
+    razorpay_key_id: str | None = None
 
     items: list[OrderItemResponse]
 

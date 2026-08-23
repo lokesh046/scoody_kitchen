@@ -9,7 +9,7 @@ import {
 import type { HealthRecordResponse } from '../../api/pets';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
-import { logoutUser } from '../../api/auth';
+import { logoutUser, uploadAvatarImage } from '../../api/auth';
 import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
 import { 
@@ -50,6 +50,14 @@ export const PetsPage: React.FC = () => {
   const [gender, setGender] = useState('Male');
   const [dob, setDob] = useState('');
   const [weight, setWeight] = useState('');
+
+  // Pet Profile Image states
+  const [petImageUrl, setPetImageUrl] = useState('');
+  const [isUploadingRegImage, setIsUploadingRegImage] = useState(false);
+  const [editPetImageUrl, setEditPetImageUrl] = useState('');
+  const [isUploadingEditImage, setIsUploadingEditImage] = useState(false);
+  const regFileInputRef = React.useRef<HTMLInputElement>(null);
+  const editFileInputRef = React.useRef<HTMLInputElement>(null);
   
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -151,6 +159,7 @@ export const PetsPage: React.FC = () => {
       setBreed('');
       setDob('');
       setWeight('');
+      setPetImageUrl('');
       setFormError('');
     },
     onError: (err: any) => {
@@ -195,6 +204,7 @@ export const PetsPage: React.FC = () => {
         setEditDob(petData.date_of_birth || '');
         setEditWeight(petData.weight ? petData.weight.toString() : '');
         setEditSpecies(petData.species);
+        setEditPetImageUrl(petData.profile_image_url || '');
       } catch (err) {
         console.error('Failed to load pet profile detail ledger:', err);
         alert('Failed to load pet details.');
@@ -245,7 +255,8 @@ export const PetsPage: React.FC = () => {
       gender: editGender || null,
       date_of_birth: editDob || null,
       weight: editWeight ? parseFloat(editWeight) : null,
-      species: editSpecies
+      species: editSpecies,
+      profile_image_url: editPetImageUrl || null
     };
 
     try {
@@ -290,6 +301,7 @@ export const PetsPage: React.FC = () => {
       gender: gender || null,
       date_of_birth: dob || null,
       weight: weight ? parseFloat(weight) : null,
+      profile_image_url: petImageUrl || null
     };
 
     createMutation.mutate(petPayload, {
@@ -321,7 +333,7 @@ export const PetsPage: React.FC = () => {
           {/* Center: Navigation Menu */}
           <nav className="hidden md:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper md:col-span-6 justify-center">
             <button onClick={() => navigate('/shop')} className="hover:text-turmeric transition-colors pb-1">Shop Recipes</button>
-            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1 font-bold border-b-2 border-turmeric">Pets Ledger</button>
+            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1 font-bold border-b-2 border-turmeric">Know Your Pet</button>
             <button onClick={() => navigate('/consultations')} className="hover:text-turmeric transition-colors pb-1">Vet Consults</button>
             <button onClick={() => navigate('/orders')} className="hover:text-turmeric transition-colors pb-1">My Orders</button>
             <button onClick={() => navigate('/assistant')} className="hover:text-turmeric transition-colors pb-1">AI Assistant 🐾</button>
@@ -411,6 +423,55 @@ export const PetsPage: React.FC = () => {
             <hr className="border-t border-dashed border-cardboard" />
 
             <form onSubmit={handleAddPet} className="space-y-4">
+              {/* Pet Profile Photo Upload section */}
+              <div className="flex flex-col items-center space-y-2 border border-cardboard border-dashed p-4 rounded-sm bg-paper bg-opacity-50">
+                <span className="font-mono text-[8px] uppercase tracking-wider text-herb font-bold">PET PROFILE IMAGE</span>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  ref={regFileInputRef}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setIsUploadingRegImage(true);
+                    try {
+                      const res = await uploadAvatarImage(file);
+                      setPetImageUrl(res.url);
+                    } catch (err: any) {
+                      alert(`Image upload failed: ${err?.response?.data?.detail || err.message}`);
+                    } finally {
+                      setIsUploadingRegImage(false);
+                    }
+                  }}
+                  className="hidden" 
+                />
+                
+                <div className="w-24 h-24 rounded-full border border-cardboard overflow-hidden bg-paper flex items-center justify-center relative">
+                  {petImageUrl ? (
+                    <img 
+                      src={petImageUrl} 
+                      alt="New Pet Preview" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <PawPrint className="w-10 h-10 text-cardboard opacity-55" />
+                  )}
+                  {isUploadingRegImage && (
+                    <div className="absolute inset-0 bg-ink bg-opacity-50 flex items-center justify-center">
+                      <Loader2 className="w-5 h-5 text-turmeric animate-spin" />
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isUploadingRegImage || isSubmitting}
+                  onClick={() => regFileInputRef.current?.click()}
+                  className="font-mono text-[9px] uppercase font-bold tracking-wider text-herb hover:underline bg-paper border border-cardboard px-2.5 py-1 rounded-sm cursor-pointer disabled:opacity-50"
+                >
+                  {isUploadingRegImage ? 'Uploading...' : petImageUrl ? 'Change Photo' : 'Upload Photo'}
+                </button>
+              </div>
               {/* Pet Name */}
               <div className="space-y-1.5">
                 <label htmlFor="name" className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide flex items-center space-x-1.5">
@@ -599,9 +660,22 @@ export const PetsPage: React.FC = () => {
 
                   <div className="space-y-4 pl-4">
                     <div className="flex justify-between items-start">
-                      <div>
-                        <span className="font-mono text-[10px] uppercase font-bold text-herb block">PET PROFILE #{pet.id}</span>
-                        <h4 className="font-display font-bold text-2xl text-ink">🐾 {pet.name}</h4>
+                      <div className="flex items-center space-x-3 text-left">
+                        {pet.profile_image_url ? (
+                          <img 
+                            src={pet.profile_image_url} 
+                            alt={pet.name} 
+                            className="w-12 h-12 rounded-full object-cover border border-cardboard shrink-0"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-paper border border-cardboard flex items-center justify-center shrink-0">
+                            <span className="text-xl">🐾</span>
+                          </div>
+                        )}
+                        <div>
+                          <span className="font-mono text-[10px] uppercase font-bold text-herb block">PET PROFILE #{pet.id}</span>
+                          <h4 className="font-display font-bold text-xl text-ink">{pet.name}</h4>
+                        </div>
                       </div>
                       <button
                         onClick={() => deleteMutation.mutate(pet.id)}
@@ -726,6 +800,55 @@ export const PetsPage: React.FC = () => {
 
                 {activeTab === 'profile' ? (
                   <form onSubmit={handleUpdatePet} className="space-y-4">
+                    {/* Edit Pet Profile Photo Upload section */}
+                    <div className="flex flex-col items-center space-y-2 border border-cardboard border-dashed p-4 rounded-sm bg-paper bg-opacity-50">
+                      <span className="font-mono text-[8px] uppercase tracking-wider text-herb font-bold">CHANGE PET PROFILE IMAGE</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        ref={editFileInputRef}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setIsUploadingEditImage(true);
+                          try {
+                            const res = await uploadAvatarImage(file);
+                            setEditPetImageUrl(res.url);
+                          } catch (err: any) {
+                            alert(`Image upload failed: ${err?.response?.data?.detail || err.message}`);
+                          } finally {
+                            setIsUploadingEditImage(false);
+                          }
+                        }}
+                        className="hidden" 
+                      />
+                      
+                      <div className="w-24 h-24 rounded-full border border-cardboard overflow-hidden bg-paper flex items-center justify-center relative">
+                        {editPetImageUrl ? (
+                          <img 
+                            src={editPetImageUrl} 
+                            alt="Edit Pet Preview" 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <PawPrint className="w-10 h-10 text-cardboard opacity-55" />
+                        )}
+                        {isUploadingEditImage && (
+                          <div className="absolute inset-0 bg-ink bg-opacity-50 flex items-center justify-center">
+                            <Loader2 className="w-5 h-5 text-turmeric animate-spin" />
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={isUploadingEditImage || isUpdatingPet}
+                        onClick={() => editFileInputRef.current?.click()}
+                        className="font-mono text-[9px] uppercase font-bold tracking-wider text-herb hover:underline bg-paper border border-cardboard px-2.5 py-1 rounded-sm cursor-pointer disabled:opacity-50"
+                      >
+                        {isUploadingEditImage ? 'Uploading...' : editPetImageUrl ? 'Change Photo' : 'Upload Photo'}
+                      </button>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       {/* Name */}
                       <div className="space-y-1">

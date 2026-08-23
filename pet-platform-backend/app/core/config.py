@@ -52,6 +52,11 @@ class Setting(BaseSettings):
     SHIPROCKET_ENABLED: bool = False
     SHIPROCKET_WEBHOOK_TOKEN: str | None = None
 
+    # Razorpay Configuration
+    RAZORPAY_KEY_ID: str | None = None
+    RAZORPAY_KEY_SECRET: str | None = None
+    RAZORPAY_WEBHOOK_SECRET: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",

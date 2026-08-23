@@ -431,7 +431,7 @@ export const AssistantPage: React.FC = () => {
           {/* Center: Navigation Menu */}
           <nav className="hidden md:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper md:col-span-6 justify-center">
             <button onClick={() => navigate('/shop')} className="hover:text-turmeric transition-colors pb-1">Shop Recipes</button>
-            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Pets Ledger</button>
+            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Know Your Pet</button>
             <button onClick={() => navigate('/consultations')} className="hover:text-turmeric transition-colors pb-1">Vet Consults</button>
             <button onClick={() => navigate('/orders')} className="hover:text-turmeric transition-colors pb-1">My Orders</button>
             <button onClick={() => navigate('/assistant')} className="hover:text-turmeric transition-colors pb-1 font-bold border-b-2 border-turmeric">AI Assistant 🐾</button>

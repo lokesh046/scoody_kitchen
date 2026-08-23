@@ -30,6 +30,8 @@ class PetCreate(BaseModel):
         gt=0,
     )
 
+    profile_image_url: str | None = None
+
 
 
 class PetUpdate(BaseModel):
@@ -62,6 +64,8 @@ class PetUpdate(BaseModel):
         gt = 0,
         )
 
+    profile_image_url: str | None = None
+
 class PetResponse(BaseModel):
     id: int
     user_id: int
@@ -71,6 +75,7 @@ class PetResponse(BaseModel):
     gender: str | None
     date_of_birth: date | None
     weight: float | None
+    profile_image_url: str | None
     created_at: datetime
 
 

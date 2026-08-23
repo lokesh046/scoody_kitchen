@@ -19,8 +19,12 @@ export const ProductDetailPage: React.FC = () => {
   
   const { user, clearAuth } = useAuthStore();
   const [quantity, setQuantity] = useState(1);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedWeight, setSelectedWeight] = useState<string | null>(null);
 
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isAdded, setIsAdded] = useState(false);
   const cartItems = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
   const totalCartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -34,6 +38,17 @@ export const ProductDetailPage: React.FC = () => {
     queryFn: () => fetchProductById(productId),
     enabled: !isNaN(productId),
   });
+
+  const availableWeights = product?.weight_options || [];
+  const activeWeight = selectedWeight || (availableWeights.length > 0 ? availableWeights[0].weight : null);
+
+  let currentPrice = product ? parseFloat(product.price) : 0;
+  if (product && activeWeight && availableWeights.length > 0) {
+    const match = availableWeights.find((opt: any) => opt.weight === activeWeight);
+    if (match) {
+      currentPrice = parseFloat(String(match.price));
+    }
+  }
 
   const handleLogout = async () => {
     try {
@@ -68,10 +83,24 @@ export const ProductDetailPage: React.FC = () => {
       navigate('/login');
       return;
     }
+    setIsAdding(true);
+    const startTime = Date.now();
     try {
-      await addItem(productId, quantity);
+      await addItem(productId, quantity, activeWeight || undefined);
+      
+      // Enforce minimum loading time of 600ms for visual feedback
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, 600 - elapsedTime);
+      if (remainingTime > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remainingTime));
+      }
+
+      setIsAdded(true);
+      setTimeout(() => setIsAdded(false), 1500);
     } catch (err) {
       console.error('Failed to add item to cart:', err);
+    } finally {
+      setIsAdding(false);
     }
   };
 
@@ -110,6 +139,7 @@ export const ProductDetailPage: React.FC = () => {
 
   const ingredients = getIngredientsForProduct(product.id, product.name);
   const imageUrl = product.image_url || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="300" height="200" fill="%23FAF6EC"/><path d="M 0,20 L 300,20 M 0,40 L 300,40 M 0,60 L 300,60 M 0,80 L 300,80 M 0,100 L 300,100 M 0,120 L 300,120 M 0,140 L 300,140 M 0,160 L 300,160 M 0,180 L 300,180" stroke="%23C9BB9C" stroke-width="0.5" stroke-dasharray="2,2"/><g transform="translate(110, 45)" fill="none" stroke="%234B6B3A" stroke-width="2"><path d="M10 50 L70 50 L60 25 L20 25 Z" stroke-linejoin="round"/><ellipse cx="40" cy="25" rx="20" ry="5"/><circle cx="35" cy="21" r="2" fill="%234B6B3A"/><circle cx="45" cy="22" r="2.5" fill="%234B6B3A"/><circle cx="40" cy="19" r="1.5" fill="%234B6B3A"/><path d="M 12 10 Q 5 5 0 10 Q -5 15 0 20 Q 5 25 12 20 L 68 20 Q 75 25 80 20 Q 85 15 80 10 Q 75 5 68 10 Z" transform="translate(-5, -20) rotate(-15 40 25)"/></g><text x="50%" y="80%" font-family="monospace" font-size="11" font-weight="bold" fill="%232E2418" dominant-baseline="middle" text-anchor="middle">🐾 SCOOBY’S KITCHEN 🐾</text><text x="50%" y="90%" font-family="monospace" font-size="9" fill="%234B6B3A" dominant-baseline="middle" text-anchor="middle">Canine Tested Recipe</text></svg>';
+  const currentDisplayImage = selectedImage || imageUrl;
   
   const isOutOfStock = product.available_stock === 0;
 
@@ -135,7 +165,7 @@ export const ProductDetailPage: React.FC = () => {
           {/* Center: Navigation Menu */}
           <nav className="hidden md:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper md:col-span-6 justify-center">
             <button onClick={() => navigate('/shop')} className="hover:text-turmeric transition-colors pb-1 font-bold border-b-2 border-turmeric">Shop Recipes</button>
-            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Pets Ledger</button>
+            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Know Your Pet</button>
             <button onClick={() => navigate('/consultations')} className="hover:text-turmeric transition-colors pb-1">Vet Consults</button>
             <button onClick={() => navigate('/orders')} className="hover:text-turmeric transition-colors pb-1">My Orders</button>
             <button onClick={() => navigate('/assistant')} className="hover:text-turmeric transition-colors pb-1">AI Assistant 🐾</button>
@@ -212,7 +242,7 @@ export const ProductDetailPage: React.FC = () => {
           <div className="border border-cardboard bg-paperLight p-4 rounded-sm shadow-sm">
             <div className="torn-edge relative w-full aspect-[4/3] bg-paper overflow-hidden border border-cardboard">
               <img
-                src={imageUrl}
+                src={currentDisplayImage}
                 alt={product.name}
                 className="w-full h-full object-cover grayscale-[10%] hover:grayscale-0 transition-all duration-300"
               />
@@ -228,6 +258,47 @@ export const ProductDetailPage: React.FC = () => {
                 <span>Dog Tested</span>
               </div>
             </div>
+
+            {/* Gallery Thumbnails */}
+            {product.images && product.images.length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-4">
+                {/* Hero Image Thumbnail */}
+                {product.image_url && (
+                  <button
+                    onClick={() => setSelectedImage(product.image_url)}
+                    className={`relative w-16 h-16 aspect-square border rounded-sm overflow-hidden bg-paper transition-all duration-150 cursor-pointer ${
+                      currentDisplayImage === product.image_url
+                        ? 'border-turmeric ring-1 ring-turmeric'
+                        : 'border-cardboard hover:border-ink opacity-70 hover:opacity-100'
+                    }`}
+                  >
+                    <img 
+                      src={product.image_url} 
+                      alt="Main thumbnail" 
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                )}
+                {/* Gallery Image Thumbnails */}
+                {product.images.map((img) => (
+                  <button
+                    key={img.id}
+                    onClick={() => setSelectedImage(img.image_url)}
+                    className={`relative w-16 h-16 aspect-square border rounded-sm overflow-hidden bg-paper transition-all duration-150 cursor-pointer ${
+                      currentDisplayImage === img.image_url
+                        ? 'border-turmeric ring-1 ring-turmeric'
+                        : 'border-cardboard hover:border-ink opacity-70 hover:opacity-100'
+                    }`}
+                  >
+                    <img 
+                      src={img.image_url} 
+                      alt="Gallery thumbnail" 
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Quality Seals */}
@@ -265,7 +336,7 @@ export const ProductDetailPage: React.FC = () => {
               
               <div className="flex flex-wrap items-center gap-4 pt-1">
                 <span className="font-mono font-bold text-turmeric text-2xl">
-                  ${parseFloat(product.price).toFixed(2)}
+                  ${currentPrice.toFixed(2)}
                 </span>
                 
                 {/* Stock Status Badge */}
@@ -303,6 +374,33 @@ export const ProductDetailPage: React.FC = () => {
               </p>
             </div>
 
+            {/* Pack Size Selector */}
+            {availableWeights.length > 0 && (
+              <>
+                <hr className="border-t border-dashed border-cardboard" />
+                <div className="space-y-3 text-left">
+                  <span className="font-mono text-[10px] uppercase font-bold text-herb tracking-wide block">
+                    Pack Size:
+                  </span>
+                  <div className="flex flex-wrap gap-2.5">
+                    {availableWeights.map((opt: any) => (
+                      <button
+                        key={opt.weight}
+                        onClick={() => setSelectedWeight(opt.weight)}
+                        className={`font-mono text-xs uppercase font-bold px-4 py-2 rounded-sm border transition-all duration-150 cursor-pointer ${
+                          activeWeight === opt.weight
+                            ? 'border-turmeric text-turmeric bg-paperLight ring-1 ring-turmeric shadow-xs'
+                            : 'border-cardboard text-ink opacity-80 hover:opacity-100 hover:border-ink bg-paper'
+                        }`}
+                      >
+                        {opt.weight}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Buy Box */}
             <div className="pt-4 flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
               {/* Quantity Selector */}
@@ -329,11 +427,29 @@ export const ProductDetailPage: React.FC = () => {
               {/* Add to Cart CTA */}
               <button
                 onClick={handleAddToCart}
-                disabled={isOutOfStock}
-                className="flex-grow bg-paprika hover:bg-opacity-95 text-paperLight font-body font-bold text-xs uppercase py-3.5 px-6 rounded-sm tracking-wide transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center space-x-2"
+                disabled={isOutOfStock || isAdding}
+                className={`flex-grow font-body font-bold text-xs uppercase py-3.5 px-6 rounded-sm tracking-wide transition-all duration-300 shadow-sm flex items-center justify-center space-x-2 ${
+                  isAdded
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : 'bg-paprika hover:bg-opacity-95 text-paperLight'
+                } disabled:opacity-50`}
               >
-                <ShoppingCart className="w-4 h-4" />
-                <span>{isOutOfStock ? 'Sold Out' : 'Shop the Recipe'}</span>
+                {isAdding ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Adding...</span>
+                  </>
+                ) : isAdded ? (
+                  <span>Added! 🐾</span>
+                ) : (
+                  <>
+                    <ShoppingCart className="w-4 h-4" />
+                    <span>{isOutOfStock ? 'Sold Out' : 'Shop the Recipe'}</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

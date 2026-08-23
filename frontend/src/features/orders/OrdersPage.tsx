@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchMyOrders, cancelOrder } from '../../api/orders';
+import { fetchMyOrders, cancelOrder, fetchOrderTracking } from '../../api/orders';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { logoutUser } from '../../api/auth';
@@ -9,7 +9,8 @@ import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
 import { 
   ArrowLeft, ShoppingCart, LogOut, User, PawPrint, 
-  Clock, CheckCircle, XCircle, Loader2, AlertCircle
+  Clock, CheckCircle, XCircle, Loader2, AlertCircle,
+  Truck, Calendar, Copy, MapPin, Activity, Check
 } from 'lucide-react';
 
 export const OrdersPage: React.FC = () => {
@@ -18,6 +19,13 @@ export const OrdersPage: React.FC = () => {
   const { user, clearAuth } = useAuthStore();
   const { items: cartItems, clear: clearCart } = useCartStore();
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [selectedTrackingOrderId, setSelectedTrackingOrderId] = useState<number | null>(null);
+
+  const { data: trackingData, isLoading: trackingLoading, error: trackingError } = useQuery({
+    queryKey: ['tracking', selectedTrackingOrderId],
+    queryFn: () => fetchOrderTracking(selectedTrackingOrderId!),
+    enabled: selectedTrackingOrderId !== null,
+  });
 
   const totalCartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -99,7 +107,7 @@ export const OrdersPage: React.FC = () => {
           {/* Center: Navigation Menu */}
           <nav className="hidden md:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper md:col-span-6 justify-center">
             <button onClick={() => navigate('/shop')} className="hover:text-turmeric transition-colors pb-1">Shop Recipes</button>
-            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Pets Ledger</button>
+            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Know Your Pet</button>
             <button onClick={() => navigate('/consultations')} className="hover:text-turmeric transition-colors pb-1">Vet Consults</button>
             <button onClick={() => navigate('/orders')} className="hover:text-turmeric transition-colors pb-1 font-bold border-b-2 border-turmeric">My Orders</button>
             <button onClick={() => navigate('/assistant')} className="hover:text-turmeric transition-colors pb-1">AI Assistant 🐾</button>
@@ -244,7 +252,11 @@ export const OrdersPage: React.FC = () => {
                     <div className="space-y-1">
                       {order.items?.map((item) => (
                         <div key={item.id} className="flex justify-between text-xs font-body opacity-95">
-                          <span>Product ID: #{item.product_id} (Qty: {item.quantity})</span>
+                          <span>
+                            {item.product_name ? `${item.product_name} (ID: #${item.product_id})` : `Product #${item.product_id}`}
+                            {item.selected_weight && <span className="text-[10px] text-herb font-mono ml-1 font-bold">({item.selected_weight})</span>}
+                            <span className="opacity-60"> (Qty: {item.quantity})</span>
+                          </span>
                           <span className="font-mono">${parseFloat(item.subtotal).toFixed(2)}</span>
                         </div>
                       ))}
@@ -275,19 +287,29 @@ export const OrdersPage: React.FC = () => {
                     </span>
                   </div>
 
-                  {order.status.toUpperCase() === 'PENDING' && (
+                  <div className="flex space-x-2">
                     <button
-                      onClick={() => cancelMutation.mutate(order.id)}
-                      disabled={cancelMutation.isPending}
-                      className="bg-paprika hover:bg-opacity-95 text-paperLight font-body font-bold text-[10px] uppercase py-1.5 px-3 rounded-sm tracking-wide transition-colors disabled:opacity-50"
+                      onClick={() => setSelectedTrackingOrderId(order.id)}
+                      className="border border-cardboard hover:bg-paper font-body font-bold text-[10px] uppercase py-1.5 px-3 rounded-sm tracking-wide transition-colors flex items-center space-x-1"
                     >
-                      {cancelMutation.isPending && cancelMutation.variables === order.id ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <span>Cancel Order</span>
-                      )}
+                      <Truck className="w-3.5 h-3.5 text-herb" />
+                      <span>Track Journey</span>
                     </button>
-                  )}
+
+                    {order.status.toUpperCase() === 'PENDING' && (
+                      <button
+                        onClick={() => cancelMutation.mutate(order.id)}
+                        disabled={cancelMutation.isPending}
+                        className="bg-paprika hover:bg-opacity-95 text-paperLight font-body font-bold text-[10px] uppercase py-1.5 px-3 rounded-sm tracking-wide transition-colors disabled:opacity-50"
+                      >
+                        {cancelMutation.isPending && cancelMutation.variables === order.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <span>Cancel Order</span>
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
               </div>
@@ -301,6 +323,161 @@ export const OrdersPage: React.FC = () => {
       </div>
       </main>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+
+      {/* Sourced Recipe Tracking Modal */}
+      {selectedTrackingOrderId !== null && (
+        <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-paperLight border border-cardboard rounded-sm shadow-xl max-w-lg w-full p-6 space-y-6 animate-fade-in-up relative text-left">
+            <button 
+              onClick={() => setSelectedTrackingOrderId(null)}
+              className="absolute top-4 right-4 text-ink opacity-60 hover:opacity-100 font-bold"
+            >
+              ✕
+            </button>
+
+            <div className="space-y-1">
+              <Eyebrow label="SOURCED RECIPE JOURNEY" />
+              <h3 className="font-display font-bold text-xl text-ink">
+                Tracking Ledger #{selectedTrackingOrderId}
+              </h3>
+            </div>
+
+            {trackingLoading ? (
+              <div className="py-12 text-center space-y-3">
+                <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
+                <p className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold">
+                  Sourcing live tracking ledger...
+                </p>
+              </div>
+            ) : trackingError || !trackingData ? (
+              <div className="py-6 text-center space-y-2">
+                <AlertCircle className="w-10 h-10 text-paprika mx-auto" />
+                <p className="font-body text-xs text-ink opacity-80">
+                  Failed to fetch tracking data. Please try again later.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {/* Active Shipment block */}
+                {trackingData.shipment ? (
+                  <div className="p-4 border border-cardboard rounded-sm bg-paper bg-opacity-50 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1">
+                        <span className="font-mono text-[8px] uppercase tracking-wider text-herb font-bold block">
+                          ACTIVE SHIPMENT CARRIER
+                        </span>
+                        <div className="font-body text-xs text-ink font-semibold flex items-center space-x-1">
+                          <Truck className="w-3.5 h-3.5 text-herb" />
+                          <span className="uppercase">{trackingData.shipment.carrier}</span>
+                          <span className="text-[10px] font-normal text-cardboard">({trackingData.shipment.provider})</span>
+                        </div>
+                      </div>
+                      {trackingData.shipment.estimated_delivery && (
+                        <div className="text-right space-y-1">
+                          <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">
+                            EST. DELIVERY
+                          </span>
+                          <div className="font-body text-xs text-ink font-semibold flex items-center justify-end space-x-1">
+                            <Calendar className="w-3.5 h-3.5 text-turmeric" />
+                            <span>{new Date(trackingData.shipment.estimated_delivery).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-between items-center pt-2 border-t border-cardboard border-dashed">
+                      <div>
+                        <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">
+                          TRACKING NUMBER
+                        </span>
+                        <span className="font-mono text-xs text-ink font-bold">{trackingData.shipment.tracking_number}</span>
+                      </div>
+                      <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 rounded-sm uppercase tracking-wider ${
+                        trackingData.shipment.status.toLowerCase() === 'delivered'
+                          ? 'text-herb bg-emerald-50 border-emerald-200'
+                          : 'text-turmeric bg-amber-50 border-amber-200'
+                      }`}>
+                        {trackingData.shipment.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 border border-cardboard border-dashed rounded-sm bg-paper bg-opacity-30 flex items-center space-x-3">
+                    <Clock className="w-6 h-6 text-cardboard shrink-0" />
+                    <div>
+                      <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">
+                        COURIER DISPATCH
+                      </span>
+                      <p className="font-body text-[11px] text-ink opacity-70">
+                        Fulfillment team is preparing your package. Carrier details will populate upon dispatch.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sourcing Timeline */}
+                <div className="space-y-3">
+                  <span className="font-mono text-[8px] uppercase tracking-wider text-herb font-bold block">
+                    JOURNEY STATUS TIMELINE
+                  </span>
+                  
+                  {trackingData.timeline.length === 0 ? (
+                    <p className="font-body text-xs text-ink opacity-60 italic">No tracking entries recorded yet.</p>
+                  ) : (
+                    <div className="relative pl-6 border-l border-cardboard border-dashed space-y-5 ml-2 pt-1 pb-1">
+                      {trackingData.timeline.map((item, idx) => {
+                        const isLatest = idx === trackingData.timeline.length - 1;
+                        const isFinished = idx < trackingData.timeline.length - 1;
+                        const isTimelineCompleted = trackingData.order_status.toUpperCase() === 'COMPLETED' || trackingData.order_status.toUpperCase() === 'CANCELLED';
+                        const showCheck = isFinished || (isLatest && isTimelineCompleted);
+                        return (
+                          <div key={idx} className="relative text-xs">
+                            {/* Dot indicator */}
+                            {showCheck ? (
+                              <span className="absolute -left-[32px] top-1 w-4 h-4 rounded-full bg-herb text-paperLight flex items-center justify-center border border-herb">
+                                <Check className="w-2.5 h-2.5 stroke-[3]" />
+                              </span>
+                            ) : (
+                              <span className={`absolute -left-[30px] top-1.5 w-3 h-3 rounded-full border border-cardboard ${
+                                isLatest 
+                                  ? 'bg-turmeric animate-pulse border-turmeric shadow-sm' 
+                                  : 'bg-paperLight'
+                              }`} />
+                            )}
+                            
+                            <div className="space-y-0.5">
+                              <div className="flex justify-between items-baseline">
+                                <span className={`font-mono font-bold uppercase tracking-wider text-[10px] ${
+                                  isLatest ? 'text-turmeric' : 'text-ink'
+                                }`}>
+                                  {item.status.replace('_', ' ')}
+                                </span>
+                                <span className="font-mono text-[9px] text-cardboard">
+                                  {new Date(item.timestamp).toLocaleString()}
+                                </span>
+                              </div>
+                              <p className="font-body text-ink opacity-75 leading-relaxed text-[11px]">
+                                {item.description}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setSelectedTrackingOrderId(null)}
+                  className="w-full bg-ink hover:bg-opacity-90 text-paperLight font-mono text-[9px] uppercase font-bold py-3 tracking-wider rounded-sm transition-colors mt-2"
+                >
+                  Return to Ledger
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

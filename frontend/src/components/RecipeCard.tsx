@@ -6,12 +6,39 @@ import { useNavigate } from 'react-router-dom';
 
 interface RecipeCardProps {
   product: ProductResponse;
-  onAddToCart?: (productId: number) => void;
+  onAddToCart?: (productId: number) => Promise<void> | void;
 }
 
 export const RecipeCard: React.FC<RecipeCardProps> = ({ product, onAddToCart }) => {
   const navigate = useNavigate();
   const ingredients = getIngredientsForProduct(product.id, product.name);
+
+  const [isAdding, setIsAdding] = React.useState(false);
+  const [isAdded, setIsAdded] = React.useState(false);
+
+  const handleAdd = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onAddToCart) return;
+    setIsAdding(true);
+    const startTime = Date.now();
+    try {
+      await onAddToCart(product.id);
+      
+      // Enforce minimum loading time of 600ms for visual feedback
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, 600 - elapsedTime);
+      if (remainingTime > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remainingTime));
+      }
+
+      setIsAdded(true);
+      setTimeout(() => setIsAdded(false), 1500);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAdding(false);
+    }
+  };
 
   // Canine-themed fallback SVG illustration
   const imageUrl = product.image_url || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="300" height="200" fill="%23FAF6EC"/><path d="M 0,20 L 300,20 M 0,40 L 300,40 M 0,60 L 300,60 M 0,80 L 300,80 M 0,100 L 300,100 M 0,120 L 300,120 M 0,140 L 300,140 M 0,160 L 300,160 M 0,180 L 300,180" stroke="%23C9BB9C" stroke-width="0.5" stroke-dasharray="2,2"/><g transform="translate(110, 45)" fill="none" stroke="%234B6B3A" stroke-width="2"><path d="M10 50 L70 50 L60 25 L20 25 Z" stroke-linejoin="round"/><ellipse cx="40" cy="25" rx="20" ry="5"/><circle cx="35" cy="21" r="2" fill="%234B6B3A"/><circle cx="45" cy="22" r="2.5" fill="%234B6B3A"/><circle cx="40" cy="19" r="1.5" fill="%234B6B3A"/><path d="M 12 10 Q 5 5 0 10 Q -5 15 0 20 Q 5 25 12 20 L 68 20 Q 75 25 80 20 Q 85 15 80 10 Q 75 5 68 10 Z" transform="translate(-5, -20) rotate(-15 40 25)"/></g><text x="50%" y="80%" font-family="monospace" font-size="11" font-weight="bold" fill="%232E2418" dominant-baseline="middle" text-anchor="middle">🐾 SCOOBY’S KITCHEN 🐾</text><text x="50%" y="90%" font-family="monospace" font-size="9" fill="%234B6B3A" dominant-baseline="middle" text-anchor="middle">Canine Tested Recipe</text></svg>';
@@ -68,10 +95,27 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ product, onAddToCart }) 
 
         {/* Action Button */}
         <button
-          onClick={() => onAddToCart && onAddToCart(product.id)}
-          className="w-full mt-5 bg-paprika hover:bg-opacity-95 text-paperLight font-body font-bold text-xs py-2.5 rounded-[4px] tracking-wide uppercase shadow-sm hover-bounce"
+          onClick={handleAdd}
+          disabled={isAdding}
+          className={`w-full mt-5 font-body font-bold text-xs py-2.5 rounded-[4px] tracking-wide uppercase shadow-sm flex items-center justify-center space-x-1.5 transition-all duration-300 ${
+            isAdded
+              ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              : 'bg-paprika hover:bg-opacity-95 text-paperLight hover-bounce'
+          } disabled:opacity-50`}
         >
-          Shop the Recipe
+          {isAdding ? (
+            <>
+              <svg className="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Adding...</span>
+            </>
+          ) : isAdded ? (
+            <span>Added! 🐾</span>
+          ) : (
+            <span>Shop the Recipe</span>
+          )}
         </button>
       </div>
     </div>

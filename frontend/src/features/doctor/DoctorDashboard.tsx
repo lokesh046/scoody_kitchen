@@ -12,14 +12,22 @@ import {
   deleteDoctorAvailability, 
   replaceDoctorAvailabilityBulk,
   getDoctorConsultations, 
-  updateConsultationStatus 
+  updateConsultationStatus,
+  getDoctorConsultationById,
+  updateDoctorAvailabilitySlot,
+  getPetHealthRecords,
+  getHealthRecordById
+} from '../../api/doctor';
+import type { 
+  DoctorAvailabilityResponse, 
+  DoctorAvailabilityUpdate,
+  HealthRecord,
+  PetHealthHistoryResponse
 } from '../../api/doctor';
 import {
-  fetchPetHealthRecords,
   createHealthRecord,
   updateHealthRecord
 } from '../../api/pets';
-import type { DoctorAvailabilityResponse } from '../../api/doctor';
 import type { DoctorResponse, ConsultationResponse } from '../../api/consultations';
 import { logoutUser } from '../../api/auth';
 import { 
@@ -108,6 +116,14 @@ export const DoctorDashboard: React.FC = () => {
   const [isSearchingLog, setIsSearchingLog] = useState(false);
   const [isSavingLog, setIsSavingLog] = useState(false);
 
+  // Clinic / Doctor Panel Enhancements States
+  const [selectedConsultationId, setSelectedConsultationId] = useState<number | null>(null);
+  const [inspectingPetId, setInspectingPetId] = useState<number | null>(null);
+  const [editingAvailabilityId, setEditingAvailabilityId] = useState<number | null>(null);
+  const [editStart, setEditStart] = useState('09:00');
+  const [editEnd, setEditEnd] = useState('17:00');
+  const [mutatingSlotIds, setMutatingSlotIds] = useState<number[]>([]);
+
   const handleOpenLogModal = async (consultation: ConsultationResponse) => {
     setSelectedConsultationForLog(consultation);
     setIsLogModalOpen(true);
@@ -125,7 +141,7 @@ export const DoctorDashboard: React.FC = () => {
     if (consultation.pet_id) {
       setIsSearchingLog(true);
       try {
-        const history = await fetchPetHealthRecords(consultation.pet_id);
+        const history = await getPetHealthRecords(consultation.pet_id);
         const existingRecord = history.records?.find(r => r.consultation_id === consultation.id);
         if (existingRecord) {
           setLogId(existingRecord.id);
@@ -188,6 +204,69 @@ export const DoctorDashboard: React.FC = () => {
     queryKey: ['doctorConsultations'],
     queryFn: getDoctorConsultations,
     enabled: activeTab === 'consultations'
+  });
+
+  const { data: doctorConsultationDetails, isLoading: doctorConsultationDetailsLoading } = useQuery({
+    queryKey: ['doctorConsultationDetails', selectedConsultationId],
+    queryFn: () => getDoctorConsultationById(selectedConsultationId!),
+    enabled: selectedConsultationId !== null,
+  });
+
+  const { data: petHealthHistory, isLoading: petHealthHistoryLoading } = useQuery<PetHealthHistoryResponse, Error>({
+    queryKey: ['petHealthHistory', inspectingPetId],
+    queryFn: () => getPetHealthRecords(inspectingPetId!),
+    enabled: inspectingPetId !== null,
+  });
+
+  const updateAvailabilitySlotMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: DoctorAvailabilityUpdate }) => updateDoctorAvailabilitySlot(id, data),
+    onMutate: async ({ id, data }) => {
+      // Add slot ID to mutating list
+      setMutatingSlotIds((prev) => [...prev, id]);
+
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ['doctorAvailabilities'] });
+
+      // Snapshot the previous value
+      const previousAvailabilities = queryClient.getQueryData<DoctorAvailabilityResponse[]>(['doctorAvailabilities']);
+
+      // Optimistically update to the new value
+      if (previousAvailabilities) {
+        queryClient.setQueryData<DoctorAvailabilityResponse[]>(
+          ['doctorAvailabilities'],
+          previousAvailabilities.map((avail) =>
+            avail.id === id ? { ...avail, ...data } : avail
+          )
+        );
+      }
+
+      // Return a context object with the snapshotted value
+      return { previousAvailabilities };
+    },
+    onError: (err: any, variables, context) => {
+      // Rollback to previous state on error
+      if (context?.previousAvailabilities) {
+        queryClient.setQueryData(['doctorAvailabilities'], context.previousAvailabilities);
+      }
+      alert(`Failed to update availability slot: ${err?.response?.data?.detail || err.message}`);
+    },
+    onSuccess: (data) => {
+      // Update the query cache with the actual response data from the server
+      const previousAvailabilities = queryClient.getQueryData<DoctorAvailabilityResponse[]>(['doctorAvailabilities']);
+      if (previousAvailabilities) {
+        queryClient.setQueryData<DoctorAvailabilityResponse[]>(
+          ['doctorAvailabilities'],
+          previousAvailabilities.map((avail) =>
+            avail.id === data.id ? data : avail
+          )
+        );
+      }
+      setEditingAvailabilityId(null);
+    },
+    onSettled: (data, error, variables) => {
+      // Remove slot ID from mutating list when finished
+      setMutatingSlotIds((prev) => prev.filter((id) => id !== variables.id));
+    }
   });
 
   const { data: availabilities, isLoading: availabilitiesLoading } = useQuery<DoctorAvailabilityResponse[], Error>({
@@ -345,7 +424,7 @@ export const DoctorDashboard: React.FC = () => {
           {/* Center: Navigation Menu */}
           <nav className="hidden md:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper md:col-span-6 justify-center">
             <button onClick={() => navigate('/shop')} className="hover:text-turmeric transition-colors pb-1">Shop Recipes</button>
-            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Pets Ledger</button>
+            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Know Your Pet</button>
             <button onClick={() => navigate('/consultations')} className="hover:text-turmeric transition-colors pb-1">Vet Consults</button>
             <button onClick={() => navigate('/orders')} className="hover:text-turmeric transition-colors pb-1">My Orders</button>
             <button onClick={() => navigate('/assistant')} className="hover:text-turmeric transition-colors pb-1">AI Assistant 🐾</button>
@@ -486,12 +565,28 @@ export const DoctorDashboard: React.FC = () => {
                           return (
                             <tr key={c.id} className="hover:bg-paper transition-colors">
                               <td className="p-4">
-                                <div className="font-bold text-ink">{formattedDate}</div>
+                                <div className="flex items-center space-x-1.5">
+                                  <div className="font-bold text-ink">{formattedDate}</div>
+                                  <button
+                                    onClick={() => setSelectedConsultationId(c.id)}
+                                    className="text-cardboard hover:text-ink hover:underline lowercase font-semibold text-[8px]"
+                                  >
+                                    (view)
+                                  </button>
+                                </div>
                                 <div className="text-[10px] text-ink opacity-70 font-mono mt-0.5">{formattedTime}</div>
                                 <div className="text-[9px] text-ink opacity-60 font-mono">ID: {c.id}</div>
                               </td>
                               <td className="p-4">
-                                <div className="font-bold text-ink">{c.pet?.name || 'Pet'}</div>
+                                <div className="flex items-center space-x-1.5">
+                                  <div className="font-bold text-ink">{c.pet?.name || 'Pet'}</div>
+                                  <button
+                                    onClick={() => setInspectingPetId(c.pet_id)}
+                                    className="text-herb hover:underline uppercase font-bold text-[8px] tracking-wider"
+                                  >
+                                    [History]
+                                  </button>
+                                </div>
                                 <div className="text-[10px] text-ink opacity-70 font-mono mt-0.5">
                                   {c.pet?.species} {c.pet?.breed ? `(${c.pet.breed})` : ''}
                                 </div>
@@ -763,43 +858,127 @@ export const DoctorDashboard: React.FC = () => {
               ) : (
                 <div className="border border-cardboard bg-paperLight overflow-hidden rounded-sm">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-xs font-body text-ink border-collapse">
+                     <table className="w-full text-xs font-body text-ink border-collapse">
                       <thead>
                         <tr className="bg-paper border-b border-cardboard font-mono text-[9px] uppercase tracking-wider text-herb text-left">
                           <th className="p-4 font-bold">Week Day</th>
                           <th className="p-4 font-bold">Shift Start</th>
                           <th className="p-4 font-bold">Shift End</th>
+                          <th className="p-4 font-bold text-center">Status Toggle</th>
                           <th className="p-4 font-bold text-center">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-cardboard divide-dashed">
-                        {availabilities.map((avail) => (
-                          <tr key={avail.id} className="hover:bg-paper transition-colors">
-                            <td className="p-4 font-bold uppercase tracking-wider font-mono text-[10px] text-herb">
-                              {avail.day_of_week}
-                            </td>
-                            <td className="p-4 font-mono text-[11px]">
-                              {avail.start_time.substring(0, 5)}
-                            </td>
-                            <td className="p-4 font-mono text-[11px]">
-                              {avail.end_time.substring(0, 5)}
-                            </td>
-                            <td className="p-4 text-center">
-                              <button
-                                onClick={() => {
-                                  if (confirm('Are you sure you want to delete this shift window?')) {
-                                    deleteAvailMutation.mutate(avail.id);
-                                  }
-                                }}
-                                disabled={deleteAvailMutation.isPending}
-                                className="font-mono text-[9px] uppercase font-bold tracking-wider text-paprika hover:underline flex items-center justify-center space-x-1 mx-auto disabled:opacity-50"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                                <span>Remove Shift</span>
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                        {availabilities.map((avail) => {
+                          const isEditing = editingAvailabilityId === avail.id;
+
+                          return (
+                            <tr key={avail.id} className="hover:bg-paper transition-colors">
+                              <td className="p-4 font-bold uppercase tracking-wider font-mono text-[10px] text-herb">
+                                {avail.day_of_week}
+                              </td>
+                              <td className="p-4 font-mono text-[11px]">
+                                {isEditing ? (
+                                  <input
+                                    type="time"
+                                    value={editStart}
+                                    onChange={(e) => setEditStart(e.target.value)}
+                                    className="px-2 py-1 border border-cardboard rounded-sm bg-paperLight font-mono text-xs text-ink focus:outline-none focus:border-turmeric"
+                                  />
+                                ) : (
+                                  avail.start_time.substring(0, 5)
+                                )}
+                              </td>
+                              <td className="p-4 font-mono text-[11px]">
+                                {isEditing ? (
+                                  <input
+                                    type="time"
+                                    value={editEnd}
+                                    onChange={(e) => setEditEnd(e.target.value)}
+                                    className="px-2 py-1 border border-cardboard rounded-sm bg-paperLight font-mono text-xs text-ink focus:outline-none focus:border-turmeric"
+                                  />
+                                ) : (
+                                  avail.end_time.substring(0, 5)
+                                )}
+                              </td>
+                              <td className="p-4 text-center">
+                                <div className="flex items-center justify-center">
+                                  <button
+                                    onClick={() => 
+                                      updateAvailabilitySlotMutation.mutate({ 
+                                        id: avail.id, 
+                                        data: { is_available: !avail.is_available } 
+                                      })
+                                    }
+                                    disabled={mutatingSlotIds.includes(avail.id)}
+                                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                      mutatingSlotIds.includes(avail.id) ? 'opacity-50 cursor-not-allowed' : ''
+                                    } ${
+                                      avail.is_available ? 'bg-herb' : 'bg-cardboard bg-opacity-40'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-paperLight shadow ring-0 transition duration-200 ease-in-out ${
+                                        avail.is_available ? 'translate-x-4' : 'translate-x-0'
+                                      }`}
+                                    />
+                                  </button>
+                                  <span className="ml-2 font-mono text-[9px] uppercase font-bold text-ink">
+                                    {avail.is_available ? 'On' : 'Off'}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="p-4 text-center">
+                                {isEditing ? (
+                                  <div className="flex justify-center space-x-2">
+                                    <button
+                                      onClick={() => 
+                                        updateAvailabilitySlotMutation.mutate({ 
+                                          id: avail.id, 
+                                          data: { start_time: editStart, end_time: editEnd } 
+                                        })
+                                      }
+                                      className="font-mono text-[9px] uppercase font-bold text-herb hover:underline"
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingAvailabilityId(null)}
+                                      className="font-mono text-[9px] uppercase font-bold text-cardboard hover:underline"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex justify-center space-x-3">
+                                    <button
+                                      onClick={() => {
+                                        setEditingAvailabilityId(avail.id);
+                                        setEditStart(avail.start_time.substring(0, 5));
+                                        setEditEnd(avail.end_time.substring(0, 5));
+                                      }}
+                                      className="font-mono text-[9px] uppercase font-bold text-turmeric hover:underline"
+                                    >
+                                      Edit Hours
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        if (confirm('Are you sure you want to delete this shift window?')) {
+                                          deleteAvailMutation.mutate(avail.id);
+                                        }
+                                      }}
+                                      disabled={deleteAvailMutation.isPending}
+                                      className="font-mono text-[9px] uppercase font-bold text-paprika hover:underline flex items-center space-x-0.5 disabled:opacity-50"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                      <span>Remove</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -1140,6 +1319,235 @@ export const DoctorDashboard: React.FC = () => {
                   </button>
                 </div>
               </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Doctor Consultation Details Modal */}
+      {selectedConsultationId !== null && (
+        <div className="fixed inset-0 bg-ink bg-opacity-45 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-paperLight border border-cardboard rounded-sm shadow-xl max-w-md w-full p-6 space-y-4 animate-fade-in-up relative text-left">
+            <button 
+              onClick={() => setSelectedConsultationId(null)}
+              className="absolute top-4 right-4 text-ink opacity-60 hover:opacity-100 font-bold"
+            >
+              ✕
+            </button>
+
+            <div className="space-y-1">
+              <Eyebrow label="DOCTOR PATIENT CONSULTATION JOURNAL" />
+              <h3 className="font-display font-bold text-xl text-ink">
+                Consultation Ledger Details #{selectedConsultationId}
+              </h3>
+            </div>
+
+            {doctorConsultationDetailsLoading ? (
+              <div className="py-8 text-center space-y-2">
+                <Loader2 className="w-6 h-6 text-turmeric animate-spin mx-auto" />
+                <span className="font-mono text-xs uppercase text-ink opacity-60">Loading Session Details...</span>
+              </div>
+            ) : !doctorConsultationDetails ? (
+              <p className="font-body text-xs text-ink opacity-60">Failed to load consultation record.</p>
+            ) : (
+              <div className="space-y-4 text-xs font-body">
+                {/* Session Summary card */}
+                <div className="p-4 border border-cardboard rounded-sm bg-paper bg-opacity-50 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">APPOINTMENT TIME</span>
+                      <span className="font-mono text-xs text-ink font-bold">{new Date(doctorConsultationDetails.scheduled_at).toLocaleString()}</span>
+                    </div>
+                    <span className={`font-mono text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold border ${
+                      doctorConsultationDetails.status?.toUpperCase() === 'COMPLETED' ? 'bg-green-100 text-green-800 border-green-200' :
+                      doctorConsultationDetails.status?.toUpperCase() === 'CANCELLED' ? 'bg-red-100 text-red-800 border-red-200' :
+                      doctorConsultationDetails.status?.toUpperCase() === 'CONFIRMED' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                      doctorConsultationDetails.status?.toUpperCase() === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-850 border-indigo-200' :
+                      'bg-yellow-100 text-yellow-800 border-yellow-200'
+                    }`}>
+                      {doctorConsultationDetails.status}
+                    </span>
+                  </div>
+                  
+                  <hr className="border-t border-cardboard border-dashed" />
+                  
+                  <div className="grid grid-cols-2 gap-4 font-mono text-[10px] text-ink">
+                    <div>
+                      <span className="text-[8px] uppercase text-herb font-bold block">PATIENT PET</span>
+                      <span className="font-bold flex items-center space-x-1">
+                        <span>🐾 {doctorConsultationDetails.pet?.name || 'Pet'}</span>
+                        <button
+                          onClick={() => {
+                            setInspectingPetId(doctorConsultationDetails.pet_id);
+                            setSelectedConsultationId(null);
+                          }}
+                          className="text-herb hover:underline uppercase font-bold text-[8px]"
+                        >
+                          (View Timeline)
+                        </button>
+                      </span>
+                      <div className="opacity-70 mt-0.5">{doctorConsultationDetails.pet?.species} {doctorConsultationDetails.pet?.breed ? `(${doctorConsultationDetails.pet.breed})` : ''}</div>
+                    </div>
+                    <div>
+                      <span className="text-[8px] uppercase text-herb font-bold block">FELLOW SPECIALIST</span>
+                      <div className="font-bold">Dr. ID #{doctorConsultationDetails.doctor_id}</div>
+                      <div className="opacity-70 mt-0.5">Qualifications: {doctorConsultationDetails.doctor?.qualification}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reason & Notes */}
+                <div className="space-y-2 font-body text-xs">
+                  <div>
+                    <span className="font-mono text-[8px] uppercase text-herb font-bold block">Owner's Inquiry Reason</span>
+                    <p className="text-ink opacity-90">{doctorConsultationDetails.reason}</p>
+                  </div>
+                  {doctorConsultationDetails.customer_notes && (
+                    <div>
+                      <span className="font-mono text-[8px] uppercase text-herb font-bold block">Customer Consultation Notes</span>
+                      <p className="text-ink opacity-70 italic">"{doctorConsultationDetails.customer_notes}"</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Doctor's Notes */}
+                <div className="border-t border-cardboard border-dashed pt-3">
+                  <span className="font-mono text-[8px] uppercase text-turmeric font-bold block mb-1">Your Prescribed Diagnostics & Notes</span>
+                  {doctorConsultationDetails.doctor_notes ? (
+                    <p className="p-3 border border-cardboard border-dashed bg-paper rounded-sm text-ink opacity-90 italic">
+                      "{doctorConsultationDetails.doctor_notes}"
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-ink opacity-60 italic">No notes recorded yet for this session. Use the "Medical Log" tool when the session is IN PROGRESS or COMPLETED to update.</p>
+                  )}
+                </div>
+
+                <div className="flex space-x-2 pt-2">
+                  {(doctorConsultationDetails.status?.toUpperCase() === 'IN_PROGRESS' || doctorConsultationDetails.status?.toUpperCase() === 'COMPLETED') && (
+                    <button
+                      onClick={() => {
+                        handleOpenLogModal(doctorConsultationDetails);
+                        setSelectedConsultationId(null);
+                      }}
+                      className="flex-1 bg-paprika text-paperLight font-mono text-[10px] uppercase py-2.5 font-bold rounded-sm tracking-wide text-center"
+                    >
+                      Open Medical Log Editor
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedConsultationId(null)}
+                    className="flex-grow border border-cardboard hover:bg-paper text-ink font-mono text-[10px] uppercase py-2.5 font-bold rounded-sm tracking-wide text-center"
+                  >
+                    Close Details
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Pet Health History timeline modal */}
+      {inspectingPetId !== null && (
+        <div className="fixed inset-0 bg-ink bg-opacity-45 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-paperLight border border-cardboard rounded-sm shadow-xl max-w-lg w-full p-6 space-y-6 animate-fade-in-up relative text-left max-h-[90vh] overflow-y-auto">
+            <button 
+              onClick={() => setInspectingPetId(null)}
+              className="absolute top-4 right-4 text-ink opacity-60 hover:opacity-100 font-bold"
+            >
+              ✕
+            </button>
+
+            <div className="space-y-1">
+              <Eyebrow label="VETERINARY MEDICAL HISTORY LEDGER" />
+              <h3 className="font-display font-bold text-2xl text-ink">
+                Pet Health History Timeline
+              </h3>
+              <p className="font-body text-xs text-ink opacity-70">
+                Detailed clinical history registry timeline.
+              </p>
+            </div>
+
+            <hr className="border-t border-cardboard border-dashed" />
+
+            {petHealthHistoryLoading ? (
+              <div className="py-12 text-center space-y-2">
+                <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
+                <span className="font-mono text-xs uppercase text-ink opacity-60">Retrieving Timeline Registry...</span>
+              </div>
+            ) : !petHealthHistory?.records || petHealthHistory.records.length === 0 ? (
+              <div className="text-center py-8 border border-dashed border-cardboard rounded-sm bg-paper bg-opacity-40">
+                <FileText className="w-8 h-8 text-cardboard mx-auto stroke-1 mb-2" />
+                <h4 className="font-display font-bold text-ink text-xs">No Medical History</h4>
+                <p className="font-body text-[10px] text-ink opacity-70 max-w-[280px] mx-auto mt-1">
+                  This companion pet has no recorded history entries in our platform ledger yet.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="relative pl-6 border-l border-cardboard border-dashed space-y-6 ml-2 pt-1 pb-1">
+                  {petHealthHistory.records.map((record, index) => {
+                    const dateStr = new Date(record.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const recordType = record.record_type?.toUpperCase();
+
+                    return (
+                      <div key={record.id} className="relative text-xs">
+                        {/* Timeline Bullet tag */}
+                        <span className="absolute -left-[32px] top-1 w-4 h-4 rounded-full bg-herb text-paperLight flex items-center justify-center border border-herb">
+                          <Stethoscope className="w-2.5 h-2.5" />
+                        </span>
+
+                        <div className="space-y-2 bg-paper bg-opacity-50 p-4 border border-cardboard border-dashed rounded-sm">
+                          <div className="flex justify-between items-baseline">
+                            <span className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold">
+                              {recordType}
+                            </span>
+                            <span className="font-mono text-[8px] text-cardboard">{dateStr}</span>
+                          </div>
+
+                          <h4 className="font-display font-bold text-sm text-ink">{record.title}</h4>
+                          <hr className="border-t border-cardboard border-dashed" />
+
+                          <div className="space-y-1.5 font-body text-xs text-ink opacity-90">
+                            {record.symptoms && (
+                              <div><strong>Symptoms:</strong> {record.symptoms}</div>
+                            )}
+                            {record.diagnosis && (
+                              <div><strong>Diagnosis:</strong> {record.diagnosis}</div>
+                            )}
+                            {record.treatment && (
+                              <div><strong>Treatment Plan:</strong> {record.treatment}</div>
+                            )}
+                            {record.medications && (
+                              <div className="bg-paper p-2 rounded-sm font-mono text-[9px] border border-cardboard border-opacity-70">
+                                💊 <strong>Prescription:</strong> {record.medications}
+                              </div>
+                            )}
+                            {record.notes && (
+                              <div className="italic text-ink opacity-70">Notes: "{record.notes}"</div>
+                            )}
+                            {record.follow_up_date && (
+                              <div className="flex items-center text-[10px] text-paprika font-bold font-mono pt-1">
+                                <Calendar className="w-3.5 h-3.5 mr-1" />
+                                <span>Follow-up Scheduled: {new Date(record.follow_up_date).toLocaleDateString()}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setInspectingPetId(null)}
+                  className="w-full bg-ink hover:bg-opacity-90 text-paperLight font-mono text-[9px] uppercase font-bold py-3 tracking-wider rounded-sm transition-colors text-center"
+                >
+                  Return to Assigned Queue
+                </button>
+              </div>
             )}
           </div>
         </div>

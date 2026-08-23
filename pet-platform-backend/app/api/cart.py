@@ -47,7 +47,7 @@ def get_my_cart(
 
 @router.post(
     "/items",
-    response_model=CartItemResponse,
+    response_model=CartResponse,
     status_code=status.HTTP_201_CREATED,
 )
 def add_product_to_cart(
@@ -65,10 +65,14 @@ def add_product_to_cart(
 
     try:
 
-        return add_item_to_cart(
+        add_item_to_cart(
             db,
             cart,
             item_data,
+        )
+        return get_cart_response(
+            db,
+            current_user.id,
         )
 
     except ValueError as exc:
@@ -83,7 +87,7 @@ def add_product_to_cart(
 
 @router.patch(
     "/items/{item_id}",
-    response_model=CartItemResponse,
+    response_model=CartResponse,
 )
 def update_my_cart_item(
     item_id: int,
@@ -113,11 +117,15 @@ def update_my_cart_item(
             detail="Cart item not found",
         )
 
-    return cart_item
+    return get_cart_response(
+        db,
+        current_user.id,
+    )
 
 
 @router.delete(
     "/items/{item_id}",
+    response_model=CartResponse,
 )
 def remove_item_from_cart(
     item_id: int,
@@ -145,9 +153,10 @@ def remove_item_from_cart(
             detail="Cart item not found",
         )
 
-    return {
-        "message": "Item removed from cart"
-    }
+    return get_cart_response(
+        db,
+        current_user.id,
+    )
 
 
 @router.delete(

@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.user import User
-from app.schemas.payment import PaymentCreate, PaymentResponse
+from app.schemas.payment import PaymentCreate, PaymentResponse, RazorpayVerifyRequest
 from app.services.payment_service import (
     create_payment,
     process_payment_failure,
@@ -43,11 +43,14 @@ def create_order_payment(
         )
 
     try:
-        return create_payment(
+        payment = create_payment(
             db,
             order,
             payment_data.payment_method,
         )
+        from app.core.config import settings
+        payment.razorpay_key_id = settings.RAZORPAY_KEY_ID
+        return payment
 
     except ValueError as exc:
         db.rollback()
@@ -144,3 +147,144 @@ def simulate_payment_failure(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         )
+
+
+@router.post(
+    "/razorpay/verify",
+    response_model=PaymentResponse,
+)
+def verify_razorpay(
+    verify_data: RazorpayVerifyRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    order = get_user_order(
+        db,
+        current_user.id,
+        verify_data.order_id,
+    )
+
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found",
+        )
+
+    payment = order.payment
+
+    if payment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment session not found",
+        )
+
+    if payment.razorpay_order_id != verify_data.razorpay_order_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Razorpay order ID mismatch",
+        )
+
+    try:
+        from app.services.payment_service import verify_razorpay_payment
+        verified_payment = verify_razorpay_payment(
+            db=db,
+            payment=payment,
+            razorpay_payment_id=verify_data.razorpay_payment_id,
+            razorpay_signature=verify_data.razorpay_signature,
+        )
+        from app.core.config import settings
+        verified_payment.razorpay_key_id = settings.RAZORPAY_KEY_ID
+        return verified_payment
+
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+
+
+@router.post(
+    "/razorpay/webhook",
+    status_code=status.HTTP_200_OK,
+)
+async def razorpay_webhook(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    payload = await request.body()
+    signature = request.headers.get("X-Razorpay-Signature")
+
+    from app.core.config import settings
+    # 1. Verify Webhook Signature
+    if settings.RAZORPAY_WEBHOOK_SECRET:
+        if not signature:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing X-Razorpay-Signature header",
+            )
+        from app.services.payment_service import verify_razorpay_webhook_signature
+        is_valid = verify_razorpay_webhook_signature(
+            payload=payload,
+            signature=signature,
+            secret=settings.RAZORPAY_WEBHOOK_SECRET,
+        )
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid webhook signature",
+            )
+
+    # 2. Parse JSON Payload
+    try:
+        import json
+        event_data = json.loads(payload)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid JSON payload",
+        )
+
+    event_type = event_data.get("event")
+
+    if event_type == "order.paid":
+        order_payload = event_data.get("payload", {}).get("order", {}).get("entity", {})
+        payment_payload = event_data.get("payload", {}).get("payment", {}).get("entity", {})
+
+        razorpay_order_id = order_payload.get("id")
+        razorpay_payment_id = payment_payload.get("id")
+
+        if not razorpay_order_id:
+            return {"status": "ignored", "detail": "Missing razorpay_order_id"}
+
+        from sqlalchemy import select
+        from app.models.payment import Payment, PaymentStatus
+
+        payment = db.scalar(
+            select(Payment).where(Payment.razorpay_order_id == razorpay_order_id)
+        )
+
+        if not payment:
+            return {
+                "status": "not_found",
+                "detail": f"Payment session for Razorpay Order ID {razorpay_order_id} not found",
+            }
+
+        if payment.status == PaymentStatus.SUCCESS:
+            return {"status": "already_processed"}
+
+        try:
+            payment.transaction_id = razorpay_payment_id
+            payment.razorpay_signature = signature or "webhook_verified"
+
+            from app.services.payment_service import process_payment_success
+            process_payment_success(db, payment)
+            return {"status": "success", "order_id": payment.order_id}
+        except Exception as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to process webhook order capture: {str(exc)}",
+            )
+
+    return {"status": "ignored", "event": event_type}

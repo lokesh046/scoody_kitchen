@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchMyPets } from '../../api/pets';
+import { fetchMyPets, fetchPetHealthRecords } from '../../api/pets';
 import { 
   fetchDoctors, fetchDoctorSlots, bookConsultation, 
   fetchMyConsultations, cancelConsultation,
-  fetchDoctorById, fetchDoctorAvailability, fetchNearbyDoctors
+  fetchDoctorById, fetchDoctorAvailability, fetchNearbyDoctors,
+  fetchConsultationById
 } from '../../api/consultations';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
@@ -15,7 +16,7 @@ import { CartDrawer } from '../../components/CartDrawer';
 import { 
   ArrowLeft, ShoppingCart, LogOut, User, PawPrint, 
   Clock, Stethoscope, Loader2, AlertCircle, XCircle,
-  MapPin, Compass, Calendar as CalendarIcon, Info
+  MapPin, Compass, Calendar as CalendarIcon, Info, Check
 } from 'lucide-react';
 
 export const ConsultationsPage: React.FC = () => {
@@ -69,6 +70,24 @@ export const ConsultationsPage: React.FC = () => {
 
   const doctors = doctorsData?.items || [];
   const consultations = consultationsData?.items || [];
+
+  const [selectedConsultationId, setSelectedConsultationId] = useState<number | null>(null);
+
+  const { data: consultationDetails, isLoading: isConsultationDetailsLoading } = useQuery({
+    queryKey: ['consultationDetails', selectedConsultationId],
+    queryFn: () => fetchConsultationById(selectedConsultationId!),
+    enabled: selectedConsultationId !== null,
+  });
+
+  const { data: petHealthHistory } = useQuery({
+    queryKey: ['petHealthHistory', consultationDetails?.pet_id],
+    queryFn: () => fetchPetHealthRecords(consultationDetails!.pet_id),
+    enabled: !!consultationDetails?.pet_id,
+  });
+
+  const matchingHealthRecord = petHealthHistory?.records?.find(
+    r => r.consultation_id === selectedConsultationId
+  );
 
   // Fetch slots query (triggered when doctor AND date are chosen)
   const { data: slotsData, isLoading: isSlotsLoading } = useQuery({
@@ -338,7 +357,7 @@ export const ConsultationsPage: React.FC = () => {
           {/* Center: Navigation Menu */}
           <nav className="hidden md:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper md:col-span-6 justify-center">
             <button onClick={() => navigate('/shop')} className="hover:text-turmeric transition-colors pb-1">Shop Recipes</button>
-            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Pets Ledger</button>
+            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Know Your Pet</button>
             <button onClick={() => navigate('/consultations')} className="hover:text-turmeric transition-colors pb-1 font-bold border-b-2 border-turmeric">Vet Consults</button>
             <button onClick={() => navigate('/orders')} className="hover:text-turmeric transition-colors pb-1">My Orders</button>
             <button onClick={() => navigate('/assistant')} className="hover:text-turmeric transition-colors pb-1">AI Assistant 🐾</button>
@@ -449,9 +468,17 @@ export const ConsultationsPage: React.FC = () => {
                   <div className="space-y-4 pl-4">
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="font-mono text-[8px] uppercase font-bold text-herb block">
-                          CONSLT ID: #{consult.id}
-                        </span>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-mono text-[8px] uppercase font-bold text-herb block">
+                            CONSLT ID: #{consult.id}
+                          </span>
+                          <button
+                            onClick={() => setSelectedConsultationId(consult.id)}
+                            className="text-cardboard hover:text-ink hover:underline lowercase font-semibold text-[8px] transition-colors"
+                          >
+                            (view details)
+                          </button>
+                        </div>
                         <span className="font-mono text-[9px] text-cardboard block">
                           Scheduled: {new Date(consult.scheduled_at).toLocaleString()}
                         </span>
@@ -996,6 +1023,114 @@ export const ConsultationsPage: React.FC = () => {
               </div>
             ) : (
               <p className="text-xs text-paprika">Failed to load doctor profile details.</p>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Consultation Details Modal */}
+      {selectedConsultationId !== null && (
+        <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-paperLight border border-cardboard rounded-sm shadow-xl max-w-md w-full p-6 space-y-4 animate-fade-in-up relative text-left">
+            <button 
+              onClick={() => setSelectedConsultationId(null)}
+              className="absolute top-4 right-4 text-ink opacity-60 hover:opacity-100 font-bold"
+            >
+              ✕
+            </button>
+
+            <div className="space-y-1">
+              <Eyebrow label="VETERINARY APPOINTMENT JOURNAL" />
+              <h3 className="font-display font-bold text-xl text-ink">
+                Consultation Details #{selectedConsultationId}
+              </h3>
+            </div>
+
+            {isConsultationDetailsLoading ? (
+              <div className="py-8 text-center space-y-2">
+                <Loader2 className="w-6 h-6 text-turmeric animate-spin mx-auto" />
+                <span className="font-mono text-xs uppercase text-ink opacity-60">Retrieving Record...</span>
+              </div>
+            ) : !consultationDetails ? (
+              <p className="font-body text-xs text-ink opacity-60">Failed to load consultation details.</p>
+            ) : (
+              <div className="space-y-4 text-xs font-body">
+                {/* General Info */}
+                <div className="p-4 border border-cardboard rounded-sm bg-paper bg-opacity-50 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">SCHEDULED TIME</span>
+                      <span className="font-mono text-xs text-ink font-bold">{new Date(consultationDetails.scheduled_at).toLocaleString()}</span>
+                    </div>
+                    <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 rounded-sm uppercase tracking-wider ${getStatusColor(consultationDetails.status)}`}>
+                      {consultationDetails.status}
+                    </span>
+                  </div>
+                  
+                  <hr className="border-t border-cardboard border-dashed" />
+                  
+                  <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-ink">
+                    <div>
+                      <span className="text-[8px] uppercase text-herb font-bold block">Patient Companion</span>
+                      <span className="font-bold">🐾 {consultationDetails.pet?.name || 'Pet'} ({consultationDetails.pet?.species})</span>
+                    </div>
+                    <div>
+                      <span className="text-[8px] uppercase text-herb font-bold block">Specialist Vet</span>
+                      <span className="font-bold">Dr. ID #{consultationDetails.doctor_id} ({consultationDetails.doctor?.specialization || 'Vet'})</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reason & Notes */}
+                <div className="space-y-2">
+                  <div>
+                    <span className="font-mono text-[8px] uppercase text-herb font-bold block">Reason for Inquiry</span>
+                    <p className="font-body text-xs text-ink opacity-90">{consultationDetails.reason}</p>
+                  </div>
+                  {consultationDetails.customer_notes && (
+                    <div>
+                      <span className="font-mono text-[8px] uppercase text-herb font-bold block">Your Session Notes</span>
+                      <p className="font-body text-xs text-ink opacity-75 italic">"{consultationDetails.customer_notes}"</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Clinical Notes & Health Record */}
+                <div className="border-t border-cardboard border-dashed pt-3 space-y-3">
+                  {consultationDetails.doctor_notes ? (
+                    <div className="bg-paper p-3 border border-cardboard border-dashed rounded-sm space-y-2">
+                      <span className="font-mono text-[8px] uppercase text-turmeric font-bold block">Veterinary Diagnosis & Notes</span>
+                      <p className="font-body text-xs text-ink opacity-90 italic">"{consultationDetails.doctor_notes}"</p>
+                    </div>
+                  ) : (
+                    <p className="font-body text-[10px] text-ink opacity-60 italic">Doctor has not added consultation notes yet.</p>
+                  )}
+
+                  {matchingHealthRecord && (
+                    <div className="bg-emerald-50 bg-opacity-50 p-3 border border-emerald-200 rounded-sm space-y-2 font-mono text-[10px]">
+                      <span className="text-[8px] uppercase text-herb font-bold block">Prescription & Follow-up Plan</span>
+                      {matchingHealthRecord.medications && (
+                        <div><strong>Medications:</strong> {matchingHealthRecord.medications}</div>
+                      )}
+                      {matchingHealthRecord.treatment && (
+                        <div><strong>Treatment:</strong> {matchingHealthRecord.treatment}</div>
+                      )}
+                      {matchingHealthRecord.follow_up_date && (
+                        <div className="text-paprika font-bold">
+                          📅 Follow-up Date: {new Date(matchingHealthRecord.follow_up_date).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedConsultationId(null)}
+                  className="w-full bg-ink hover:bg-opacity-90 text-paperLight font-mono text-[9px] uppercase font-bold py-3 tracking-wider rounded-sm transition-colors text-center"
+                >
+                  Return to Consults List
+                </button>
+              </div>
             )}
           </div>
         </div>

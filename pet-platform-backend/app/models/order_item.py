@@ -6,6 +6,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     Numeric,
+    String,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -38,6 +39,12 @@ class OrderItem(Base):
         nullable=False,
     )
 
+    selected_weight: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        default=None,
+    )
+
     unit_price: Mapped[Decimal] = mapped_column(
         Numeric(10, 2),
         nullable=False,
@@ -66,3 +73,11 @@ class OrderItem(Base):
     @property
     def image_url(self) -> str | None:
         return self.product.image_url if self.product else None
+
+    @property
+    def product_name(self) -> str | None:
+        return self.product.name if self.product else None
+
+    @property
+    def price(self) -> Decimal:
+        return self.unit_price
