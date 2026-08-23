@@ -82,19 +82,39 @@ app.add_middleware(
 )
 
 
+import logging
+import json
+logger = logging.getLogger(__name__)
+
+def redact_sensitive_keys(data):
+    if isinstance(data, dict):
+        return {
+            k: "[REDACTED]" if any(word in k.lower() for word in ["password", "token", "secret", "otp", "key", "card", "cvv"])
+            else redact_sensitive_keys(v)
+            for k, v in data.items()
+        }
+    elif isinstance(data, list):
+        return [redact_sensitive_keys(item) for item in data]
+    return data
+
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
-    print("\n--- 422 Request Validation Error Details ---")
-    print("Errors:", exc.errors())
+    logger.warning("422 Request Validation Error - Errors: %s", exc.errors())
     try:
         body = await request.body()
-        print("Body:", body.decode("utf-8"))
+        if body:
+            body_str = body.decode("utf-8")
+            try:
+                body_json = json.loads(body_str)
+                redacted_json = redact_sensitive_keys(body_json)
+                logger.warning("422 Request Validation Error - Body: %s", redacted_json)
+            except Exception:
+                logger.warning("422 Request Validation Error - Raw Body: [REDACTED FOR SECURITY]")
     except Exception:
         pass
-    print("---------------------------------------------\n")
     return JSONResponse(
         status_code=422,
         content={"detail": exc.errors()},

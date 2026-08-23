@@ -22,6 +22,13 @@ def test_webhook_missing_signature():
     assert "Missing X-Razorpay-Signature" in response.json()["detail"]
 
 
+def test_webhook_secret_missing_on_server():
+    settings.RAZORPAY_WEBHOOK_SECRET = None
+    response = client.post("/payments/razorpay/webhook", content="{}")
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert "Webhook verification is misconfigured" in response.json()["detail"]
+
+
 def test_webhook_invalid_signature():
     settings.RAZORPAY_WEBHOOK_SECRET = "test_secret"
     headers = {"X-Razorpay-Signature": "invalid_sig"}

@@ -162,17 +162,23 @@ def verify_razorpay_payment(
         raise ValueError("Payment is no longer pending")
 
     if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
-        # Fallback for manual local sandbox simulation
-        if razorpay_signature != "test_signature":
+        # Fallback for manual local sandbox simulation (only allowed when DEBUG is True)
+        if settings.DEBUG and razorpay_signature == "test_signature":
+            pass
+        else:
             raise ValueError("Razorpay credentials are not configured on server")
     else:
         try:
-            client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-            client.utility.verify_payment_signature({
-                'razorpay_order_id': payment.razorpay_order_id,
-                'razorpay_payment_id': razorpay_payment_id,
-                'razorpay_signature': razorpay_signature
-            })
+            import hmac
+            import hashlib
+            msg = f"{payment.razorpay_order_id}|{razorpay_payment_id}"
+            expected = hmac.new(
+                key=settings.RAZORPAY_KEY_SECRET.encode("utf-8"),
+                msg=msg.encode("utf-8"),
+                digestmod=hashlib.sha256,
+            ).hexdigest()
+            if not hmac.compare_digest(expected, razorpay_signature):
+                raise ValueError("HMAC signature mismatch")
         except Exception as e:
             process_payment_failure(db, payment)
             raise ValueError(f"Invalid payment signature verification failed: {str(e)}")

@@ -70,3 +70,17 @@ app.include_router(chat_router)
 app.include_router(rag_admin_router)
 app.include_router(voice_router)
 app.include_router(image_router)
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    # WEB_CONCURRENCY controls worker process count (default 4).
+    # Session/chat state lives in Redis, not in-process, so it's safe to
+    # scale this horizontally across workers.
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", "8002")),
+        workers=int(os.getenv("WEB_CONCURRENCY", "4")),
+    )

@@ -127,4 +127,41 @@ class RedisSessionMemory:
         self._in_memory.pop(key, None)
 
 
+    # --- Async wrappers -------------------------------------------------
+    # The methods above use the synchronous `redis` client, which blocks
+    # the event loop for the duration of the network round-trip. These
+    # wrappers push the (fast, I/O-bound) call onto a worker thread via
+    # asyncio.to_thread so an `async def` caller can `await` them without
+    # stalling other concurrent requests on the same process. Prefer these
+    # from any async route handler or LangGraph node.
+
+    async def aget_history(self, session_id: str) -> list[dict[str, Any]]:
+        import asyncio
+        return await asyncio.to_thread(self.get_history, session_id)
+
+    async def asave_message(self, session_id: str, role: str, content: str) -> None:
+        import asyncio
+        await asyncio.to_thread(self.save_message, session_id, role, content)
+
+    async def aclear_session(self, session_id: str) -> None:
+        import asyncio
+        await asyncio.to_thread(self.clear_session, session_id)
+
+    async def ais_token_blacklisted(self, token_hash: str) -> bool:
+        import asyncio
+        return await asyncio.to_thread(self.is_token_blacklisted, token_hash)
+
+    async def aset_pending_action(self, session_id: str, action: str, args: dict) -> None:
+        import asyncio
+        await asyncio.to_thread(self.set_pending_action, session_id, action, args)
+
+    async def aget_pending_action(self, session_id: str) -> dict | None:
+        import asyncio
+        return await asyncio.to_thread(self.get_pending_action, session_id)
+
+    async def aclear_pending_action(self, session_id: str) -> None:
+        import asyncio
+        await asyncio.to_thread(self.clear_pending_action, session_id)
+
+
 session_memory = RedisSessionMemory()

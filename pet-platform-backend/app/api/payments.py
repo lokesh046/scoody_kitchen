@@ -70,6 +70,13 @@ def simulate_payment_success(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    from app.core.config import settings
+    if settings.RAZORPAY_KEY_ID or settings.RAZORPAY_KEY_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Manual payment simulation is disabled when Razorpay is active."
+        )
+
     order = get_user_order(
         db,
         current_user.id,
@@ -114,6 +121,13 @@ def simulate_payment_failure(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    from app.core.config import settings
+    if settings.RAZORPAY_KEY_ID or settings.RAZORPAY_KEY_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Manual payment simulation is disabled when Razorpay is active."
+        )
+
     order = get_user_order(
         db,
         current_user.id,
@@ -217,23 +231,29 @@ async def razorpay_webhook(
 
     from app.core.config import settings
     # 1. Verify Webhook Signature
-    if settings.RAZORPAY_WEBHOOK_SECRET:
-        if not signature:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Missing X-Razorpay-Signature header",
-            )
-        from app.services.payment_service import verify_razorpay_webhook_signature
-        is_valid = verify_razorpay_webhook_signature(
-            payload=payload,
-            signature=signature,
-            secret=settings.RAZORPAY_WEBHOOK_SECRET,
+    if not settings.RAZORPAY_WEBHOOK_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Webhook verification is misconfigured on the server.",
         )
-        if not is_valid:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid webhook signature",
-            )
+
+    if not signature:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing X-Razorpay-Signature header",
+        )
+
+    from app.services.payment_service import verify_razorpay_webhook_signature
+    is_valid = verify_razorpay_webhook_signature(
+        payload=payload,
+        signature=signature,
+        secret=settings.RAZORPAY_WEBHOOK_SECRET,
+    )
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid webhook signature",
+        )
 
     # 2. Parse JSON Payload
     try:

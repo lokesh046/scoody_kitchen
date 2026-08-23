@@ -7,6 +7,13 @@ class Setting(BaseSettings):
     DATABASE_URL: str = ""
     REDIS_URL: str = "redis://localhost:6379/0"
 
+     # Per-worker-process pool size. Total connections opened against Postgres
+    # is roughly WEB_CONCURRENCY x (DB_POOL_SIZE + DB_MAX_OVERFLOW), so keep
+    # this low when running multiple Gunicorn/Uvicorn workers. Check your
+    # Postgres max_connections before raising these.
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 5
+
     JWT_SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256" # default algorithm
 

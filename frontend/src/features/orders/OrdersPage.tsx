@@ -10,7 +10,7 @@ import { CartDrawer } from '../../components/CartDrawer';
 import { 
   ArrowLeft, ShoppingCart, LogOut, User, PawPrint, 
   Clock, CheckCircle, XCircle, Loader2, AlertCircle,
-  Truck, Calendar, Copy, MapPin, Activity, Check
+  Truck, Calendar, Check
 } from 'lucide-react';
 
 export const OrdersPage: React.FC = () => {

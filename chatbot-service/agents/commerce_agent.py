@@ -9,6 +9,23 @@ from utils.llm_gateway import get_llm_with_fallback
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
+# Whole-word affirmation/negation vocabulary for HITL confirmation replies.
+# Word-boundary matched (not substring) so "ok" doesn't fire inside "book",
+# "cookie", "look", etc. Negation always wins over affirmation, so "no",
+# "don't confirm", "wait", "actually no" etc. never trigger the action.
+_AFFIRM_WORDS = {"yes", "yeah", "yep", "yup", "confirm", "confirmed", "proceed", "sure", "ok", "okay"}
+_NEGATION_PATTERNS = [
+    r"\bno\b", r"\bnot\b", r"\bdon'?t\b", r"\bdo not\b", r"\bwait\b",
+    r"\bstop\b", r"\bcancel that\b", r"\bnever ?mind\b", r"\bactually\b",
+]
+
+
+def _is_affirmative_reply(text: str) -> bool:
+    """True only if the message is a clean whole-word affirmation with no negation present."""
+    if any(re.search(pattern, text) for pattern in _NEGATION_PATTERNS):
+        return False
+    return any(re.search(rf"\b{re.escape(word)}\b", text) for word in _AFFIRM_WORDS)
+
 
 async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     """LangGraph Commerce ReAct Agent node using ChatLiteLLM native tool binding."""
@@ -42,30 +59,32 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     from memory.redis_memory import session_memory
 
     if session_id:
-        redis_pending = session_memory.get_pending_action(session_id)
+        redis_pending = await session_memory.aget_pending_action(session_id)
         if redis_pending:
             pending_action = redis_pending.get("action")
             pending_args = redis_pending.get("args") or {}
 
-    if not pending_action:
-        for msg in reversed(messages[:-1]):
-            if msg.get("role") != "assistant":
-                continue
-            content = msg.get("content", "")
+    # Fallback reconstruction: only look at the immediately preceding
+    # assistant turn, never the whole history, so a stale confirmation
+    # prompt from several turns ago can't be replayed by an unrelated
+    # later message (mirrors the 5-minute TTL on the Redis-stored version).
+    if not pending_action and len(messages) >= 2:
+        prev_msg = messages[-2]
+        if prev_msg.get("role") == "assistant":
+            content = prev_msg.get("content", "")
             if "⚠️ CONFIRMATION REQUIRED" in content:
                 match = re.search(r"action\s+'([^']+)'\s+for\s+order\s+#(\d+)", content)
                 if match:
                     pending_action = match.group(1)
                     pending_args = {"order_id": int(match.group(2))}
-                    break
-                match_c = re.search(r"action\s+'([^']+)'\s+for\s+doctor\s+#(\d+)", content)
-                if match_c:
-                    pending_action = match_c.group(1)
-                    pending_args = {"doctor_id": int(match_c.group(2)), "pet_id": 1}
-                    break
+                else:
+                    match_c = re.search(r"action\s+'([^']+)'\s+for\s+doctor\s+#(\d+)", content)
+                    if match_c:
+                        pending_action = match_c.group(1)
+                        pending_args = {"doctor_id": int(match_c.group(2)), "pet_id": 1}
 
     # 3. Handle HITL Action Approval on Customer Confirmation
-    if any(confirm_word in query_lower for confirm_word in ["yes", "confirm", "proceed", "sure", "ok"]):
+    if pending_action and _is_affirmative_reply(query_lower):
         if pending_action == "cancel_order" and "cancel_order" in tools_by_name:
             target_order_id = pending_args.get("order_id", 101)
             idempotency_key = f"idem_cancel_{session_user_id}_{target_order_id}"
@@ -78,7 +97,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             })
             reply = f"Order Cancellation Response:\n{tool_res}"
             if session_id:
-                session_memory.clear_pending_action(session_id)
+                await session_memory.aclear_pending_action(session_id)
             return {
                 "messages": messages + [{"role": "assistant", "content": reply}],
                 "sources": ["Scooby Order Service"],
@@ -104,7 +123,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             })
             reply = f"Vet Booking Response:\n{tool_res}"
             if session_id:
-                session_memory.clear_pending_action(session_id)
+                await session_memory.aclear_pending_action(session_id)
             return {
                 "messages": messages + [{"role": "assistant", "content": reply}],
                 "sources": ["Scooby Vet Booking Service"],
@@ -122,7 +141,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             f"This will release reserved stock back to inventory. Please reply 'Yes, confirm' to proceed."
         )
         if session_id:
-            session_memory.set_pending_action(session_id, "cancel_order", {"order_id": target_order_id})
+            await session_memory.aset_pending_action(session_id, "cancel_order", {"order_id": target_order_id})
         return {
             "messages": messages + [{"role": "assistant", "content": reply}],
             "requires_confirmation": True,
@@ -143,7 +162,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             "reason": "Vet Consultation",
         }
         if session_id:
-            session_memory.set_pending_action(session_id, "book_consultation", args)
+            await session_memory.aset_pending_action(session_id, "book_consultation", args)
         reply = (
             f"⚠️ CONFIRMATION REQUIRED: Are you sure you want to execute action 'book_consultation' for doctor #{doctor_id} and pet #{pet_id}? "
             f"Please reply 'Yes, confirm' to proceed."

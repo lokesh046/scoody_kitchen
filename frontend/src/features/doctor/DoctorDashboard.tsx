@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { CartDrawer } from '../../components/CartDrawer';
+import { Eyebrow } from '../../components/Eyebrow';
 import { 
   getDoctorProfile, 
   updateDoctorProfile, 
@@ -15,13 +16,11 @@ import {
   updateConsultationStatus,
   getDoctorConsultationById,
   updateDoctorAvailabilitySlot,
-  getPetHealthRecords,
-  getHealthRecordById
+  getPetHealthRecords
 } from '../../api/doctor';
 import type { 
   DoctorAvailabilityResponse, 
   DoctorAvailabilityUpdate,
-  HealthRecord,
   PetHealthHistoryResponse
 } from '../../api/doctor';
 import {
@@ -243,7 +242,7 @@ export const DoctorDashboard: React.FC = () => {
       // Return a context object with the snapshotted value
       return { previousAvailabilities };
     },
-    onError: (err: any, variables, context) => {
+    onError: (err: any, _variables, context) => {
       // Rollback to previous state on error
       if (context?.previousAvailabilities) {
         queryClient.setQueryData(['doctorAvailabilities'], context.previousAvailabilities);
@@ -263,7 +262,7 @@ export const DoctorDashboard: React.FC = () => {
       }
       setEditingAvailabilityId(null);
     },
-    onSettled: (data, error, variables) => {
+    onSettled: (_data, _error, variables) => {
       // Remove slot ID from mutating list when finished
       setMutatingSlotIds((prev) => prev.filter((id) => id !== variables.id));
     }
@@ -1487,7 +1486,7 @@ export const DoctorDashboard: React.FC = () => {
             ) : (
               <div className="space-y-6">
                 <div className="relative pl-6 border-l border-cardboard border-dashed space-y-6 ml-2 pt-1 pb-1">
-                  {petHealthHistory.records.map((record, index) => {
+                  {petHealthHistory.records.map((record) => {
                     const dateStr = new Date(record.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                     const recordType = record.record_type?.toUpperCase();
 

@@ -92,9 +92,16 @@ export const updateDoctorAvailabilitySlot = async (id: number, data: DoctorAvail
 export interface HealthRecord {
   id: number;
   pet_id: number;
-  doctor_id: number;
-  record_type: 'vaccination' | 'checkup' | 'surgery' | 'lab_result' | 'prescription' | 'other';
-  description: string;
+  doctor_id: number | null;
+  consultation_id?: number | null;
+  record_type: 'vaccination' | 'checkup' | 'surgery' | 'lab_result' | 'prescription' | 'other' | 'general' | 'symptom' | 'diagnosis';
+  title?: string;
+  symptoms?: string | null;
+  clinical_findings?: string | null;
+  diagnosis?: string | null;
+  treatment?: string | null;
+  medications?: string | null;
+  description?: string;
   notes?: string | null;
   follow_up_date?: string | null;
   created_at: string;
