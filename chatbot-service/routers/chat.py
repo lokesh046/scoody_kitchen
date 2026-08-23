@@ -30,7 +30,18 @@ async def chat_endpoint(
     enforce_rate_limit(req, user_id=current_user_id)
 
     # 2. LangChain Prompt Safety & PII Redaction Pipeline
-    sanitized_message = validate_prompt_safety(request_data.message)
+    try:
+        sanitized_message = validate_prompt_safety(request_data.message)
+    except HTTPException as exc:
+        if exc.status_code == 400 and "Security Violation" in exc.detail:
+            warning_text = "🛡️ [Safety Notice] I'm sorry, but your message was flagged by our safety system as a potential instruction override or security concern. I cannot fulfill this request."
+            return ChatResponse(
+                reply=warning_text,
+                status="success",
+                session_id=request_data.session_id,
+                sources=["Scooby Guardrails Engine"],
+            )
+        raise exc
 
     # Validate session ownership context (IDOR defense)
     validate_session_ownership(request_data.session_id, current_user_id)
@@ -52,6 +63,16 @@ async def chat_endpoint(
         final_state = await chatbot_graph.ainvoke(initial_state)
         messages = final_state.get("messages", [])
         raw_reply = messages[-1]["content"] if messages else "No response generated."
+        if isinstance(raw_reply, list):
+            text_parts = []
+            for block in raw_reply:
+                if isinstance(block, str):
+                    text_parts.append(block)
+                elif isinstance(block, dict):
+                    text_parts.append(block.get("text", block.get("content", "")))
+                elif hasattr(block, "text"):
+                    text_parts.append(getattr(block, "text", ""))
+            raw_reply = "".join(text_parts).strip()
         bot_reply = redact_pii_text(raw_reply)
         sources = final_state.get("sources", [])
 
@@ -110,7 +131,17 @@ async def chat_stream_endpoint(
 
     # 1. Enforce Rate Limiting & Safety Guardrails
     enforce_rate_limit(req, user_id=current_user_id)
-    sanitized_message = validate_prompt_safety(request_data.message)
+    try:
+        sanitized_message = validate_prompt_safety(request_data.message)
+    except HTTPException as exc:
+        if exc.status_code == 400 and "Security Violation" in exc.detail:
+            async def graceful_safety_stream_generator():
+                warning_text = "🛡️ [Safety Notice] I'm sorry, but your message was flagged by our safety system as a potential instruction override or security concern. I cannot fulfill this request."
+                yield f"data: {json.dumps({'type': 'sources', 'sources': ['Scooby Guardrails Engine']})}\n\n"
+                yield f"data: {json.dumps({'type': 'token', 'content': warning_text})}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'session_id': request_data.session_id, 'status': 'success'})}\n\n"
+            return StreamingResponse(graceful_safety_stream_generator(), media_type="text/event-stream")
+        raise exc
 
     # Validate session ownership context (IDOR defense)
     validate_session_ownership(request_data.session_id, current_user_id)
@@ -168,6 +199,16 @@ async def chat_stream_endpoint(
                 final_state = await chatbot_graph.ainvoke(initial_state)
                 messages = final_state.get("messages", [])
                 accumulated_text = messages[-1]["content"] if messages else "No response generated."
+                if isinstance(accumulated_text, list):
+                    text_parts = []
+                    for block in accumulated_text:
+                        if isinstance(block, str):
+                            text_parts.append(block)
+                        elif isinstance(block, dict):
+                            text_parts.append(block.get("text", block.get("content", "")))
+                        elif hasattr(block, "text"):
+                            text_parts.append(getattr(block, "text", ""))
+                    accumulated_text = "".join(text_parts).strip()
                 collected_sources = final_state.get("sources", [])
                 
                 yield f"data: {json.dumps({'type': 'sources', 'sources': collected_sources})}\n\n"

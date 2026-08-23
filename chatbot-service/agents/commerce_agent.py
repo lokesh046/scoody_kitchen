@@ -9,6 +9,48 @@ from utils.llm_gateway import get_llm_with_fallback
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
+# Tool-layer allowlist of state-changing (side-effecting) actions.
+# ANY tool in this set must go through the HITL confirmation flow, no matter
+# which code path wants to call it — keyword-triggered regex matching,
+# native LLM tool-calling, or anything added in the future. This is checked
+# again right before invocation (see _requires_confirmation gate below) so a
+# missed keyword pattern, a differently-phrased request, or a prompt
+# injection that gets the model to emit a tool_call for one of these can
+# never bypass confirmation just because it didn't match the regex triggers.
+STATE_CHANGING_TOOLS = {"cancel_order", "book_consultation", "cancel_consultation"}
+
+
+def _default_pending_args(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+    """Normalize/label args for a state-changing tool so the confirmation
+    prompt and the eventual re-invocation carry exactly what's needed."""
+    return dict(args)
+
+
+def _confirmation_prompt(tool_name: str, args: dict[str, Any]) -> str:
+    if tool_name == "cancel_order":
+        return (
+            f"⚠️ CONFIRMATION REQUIRED: Are you sure you want to execute action 'cancel_order' "
+            f"for order #{args.get('order_id')}? This will release reserved stock back to inventory. "
+            f"Please reply 'Yes, confirm' to proceed."
+        )
+    if tool_name == "book_consultation":
+        return (
+            f"⚠️ CONFIRMATION REQUIRED: Are you sure you want to execute action 'book_consultation' "
+            f"for doctor #{args.get('doctor_id')} and pet #{args.get('pet_id')}? "
+            f"Please reply 'Yes, confirm' to proceed."
+        )
+    if tool_name == "cancel_consultation":
+        return (
+            f"⚠️ CONFIRMATION REQUIRED: Are you sure you want to execute action 'cancel_consultation' "
+            f"for consultation #{args.get('consultation_id')}? "
+            f"Please reply 'Yes, confirm' to proceed."
+        )
+    return (
+        f"⚠️ CONFIRMATION REQUIRED: Are you sure you want to execute action '{tool_name}'? "
+        f"Please reply 'Yes, confirm' to proceed."
+    )
+
+
 # Whole-word affirmation/negation vocabulary for HITL confirmation replies.
 # Word-boundary matched (not substring) so "ok" doesn't fire inside "book",
 # "cookie", "look", etc. Negation always wins over affirmation, so "no",
@@ -131,6 +173,48 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                 "pending_action_args": None,
             }
 
+        elif pending_action == "cancel_consultation" and "cancel_consultation" in tools_by_name:
+            consultation_id = pending_args.get("consultation_id", 1)
+            idempotency_key = f"idem_cancel_consult_{session_user_id}_{consultation_id}"
+
+            tool_fn = tools_by_name["cancel_consultation"]
+            tool_res = tool_fn.invoke({
+                "session_user_id": session_user_id,
+                "consultation_id": consultation_id,
+                "idempotency_key": idempotency_key,
+            })
+            reply = f"Consultation Cancellation Response:\n{tool_res}"
+            if session_id:
+                await session_memory.aclear_pending_action(session_id)
+            return {
+                "messages": messages + [{"role": "assistant", "content": reply}],
+                "sources": ["Scooby Vet Booking Service"],
+                "pending_action": None,
+                "pending_action_args": None,
+            }
+
+        elif pending_action in STATE_CHANGING_TOOLS and pending_action in tools_by_name:
+            # Generic fallback for any other state-changing tool that reaches
+            # this point (e.g. added later) — still requires this same
+            # confirm-then-invoke path, never a direct call.
+            call_args: dict[str, Any] = dict(pending_args)
+            call_args["session_user_id"] = session_user_id
+            call_args.setdefault(
+                "idempotency_key",
+                f"idem_{pending_action}_{session_user_id}_{'_'.join(str(v) for v in pending_args.values())}",
+            )
+            tool_fn = tools_by_name[pending_action]
+            tool_res = tool_fn.invoke(call_args)
+            reply = f"Response from {pending_action}:\n{tool_res}"
+            if session_id:
+                await session_memory.aclear_pending_action(session_id)
+            return {
+                "messages": messages + [{"role": "assistant", "content": reply}],
+                "sources": ["Scooby FastMCP Tool Engine"],
+                "pending_action": None,
+                "pending_action_args": None,
+            }
+
     # 4. State-changing Action HITL Confirmation Triggering
     if "cancel" in query_lower and ("order" in query_lower or "cancellation" in query_lower):
         order_match = re.search(r"#?(\d+)", user_query)
@@ -197,6 +281,30 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                         t_name = call.get("name")
                         t_args = call.get("args") or {}
                         if t_name in tools_by_name:
+                            # SAFETY GATE: any state-changing tool must go
+                            # through explicit HITL confirmation, even when
+                            # the model chose to call it on its own via
+                            # native tool-calling rather than through one of
+                            # the keyword-triggered flows above. This is the
+                            # single point every execution path funnels
+                            # through, so there is no route left by which a
+                            # differently-phrased request or an injected
+                            # instruction can cancel an order or book an
+                            # appointment without the user explicitly saying
+                            # "yes" to a confirmation prompt first.
+                            if t_name in STATE_CHANGING_TOOLS:
+                                confirm_args = _default_pending_args(t_name, t_args)
+                                confirm_args.pop("session_user_id", None)
+                                reply = _confirmation_prompt(t_name, confirm_args)
+                                if session_id:
+                                    await session_memory.aset_pending_action(session_id, t_name, confirm_args)
+                                return {
+                                    "messages": messages + [{"role": "assistant", "content": reply}],
+                                    "requires_confirmation": True,
+                                    "pending_action": t_name,
+                                    "pending_action_args": confirm_args,
+                                }
+
                             # Inject session_user_id authoritatively
                             t_args["session_user_id"] = session_user_id
                             tool_res = tools_by_name[t_name].invoke(t_args)

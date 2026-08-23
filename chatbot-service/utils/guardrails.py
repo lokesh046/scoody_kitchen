@@ -1,8 +1,12 @@
 """LangChain Native PII Redaction & Prompt Safety Guardrails Pipeline."""
 
+import logging
+import os
 import re
 from fastapi import HTTPException
 from langchain_core.runnables import RunnableLambda
+
+logger = logging.getLogger(__name__)
 
 # Regex patterns for sensitive PII and API keys / Secrets
 CREDIT_CARD_REGEX = re.compile(r"\b(?:\d[ -]*?){13,16}\b")
@@ -20,12 +24,37 @@ JWT_TOKEN_REGEX = re.compile(r"\bBearer\s+eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.
 RAW_JWT_REGEX = re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b")
 PRIVATE_KEY_REGEX = re.compile(r"-----BEGIN (?:RSA )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA )?PRIVATE KEY-----")
 
-# Prompt injection / jailbreak patterns
+# Prompt injection / jailbreak patterns.
+#
+# NOTE: this is a keyword/regex net, not a real defense against a determined
+# attacker — it catches the common, lazy phrasings but a rewrite, a typo,
+# non-English phrasing, base64/leetspeak encoding, or splitting the payload
+# across turns all sail straight through. Treat this as one cheap layer, not
+# the reason state-changing tools are safe (that guarantee lives in the
+# tool-execution HITL gate in commerce_agent.py, which is enforced
+# regardless of what the model was told to believe). For anything handling
+# real money or account actions, pair this with an LLM-based classifier
+# pass on suspicious turns, and never let RAG/tool output be interpreted as
+# system-level instructions.
 PROMPT_INJECTION_PATTERNS = [
-    r"ignore\s+(all\s+|previous\s+|prior\s+)*instructions",
-    r"bypass\s+(all\s+)*system\s+prompts",
-    r"reveal\s+(the\s+)*system\s+prompt",
-    r"you\s+are\n+now\s+in\s+dan\s+mode",
+    r"ignore\s+(all\s+|any\s+|every\s+)?(the\s+)?(above\s+|previous\s+|prior\s+|earlier\s+)*instructions",
+    r"disregard\s+(all\s+|any\s+|every\s+)?(the\s+)?(above\s+|previous\s+|prior\s+|earlier\s+)*instructions",
+    r"forget\s+(all\s+|any\s+|every\s+)?(the\s+)?(above\s+|previous\s+|prior\s+)*(instructions|rules|context)",
+    r"bypass\s+(all\s+)?(the\s+)?(system\s+)?(prompts?|rules|guardrails|filters)",
+    r"(reveal|show|print|repeat|output)\s+(me\s+)?(the\s+|your\s+)?(system|hidden|initial)\s+prompt",
+    r"you\s+are\s+now\s+(in\s+)?(dan|developer|jailbreak|unrestricted|god)\s*mode",
+    r"act\s+as\s+(if\s+you\s+(are|were)\s+)?(an?\s+)?(unfiltered|uncensored|unrestricted|jailbroken)",
+    r"pretend\s+(you\s+are|to\s+be)\s+(an?\s+)?(ai|assistant)\s+(with\s+no|without)\s+(restrictions|rules|filters)",
+    r"new\s+instructions?\s*:\s*",
+    r"system\s*:\s*you\s+(must|will|shall)",
+    r"do\s+anything\s+now",
+    r"\bdan\b.{0,20}\bjailbreak\b",
+    r"override\s+(your|the)\s+(safety|previous|system)\s+(instructions|settings|rules)",
+    # Attempts to smuggle a fake "confirmation" or role directive to get a
+    # state-changing action executed without a real human reply — relevant
+    # here specifically because this bot can cancel orders / book vets.
+    r"as\s+the\s+(system|admin|developer)\s*,?\s*(i\s+)?(confirm|approve|authorize)",
+    r"treat\s+this\s+as\s+(a\s+)?(confirmed|approved|authorized)\s+(action|request)",
 ]
 
 
@@ -150,7 +179,21 @@ def redact_pii_text(text: str) -> str:
 
 
 def validate_prompt_safety(text: str) -> str:
-    """LangChain Safety Filter: Intercept and reject prompt injection attacks."""
+    """LangChain Safety Filter: Intercept and reject prompt injection attacks.
+
+    Two layers, in order:
+    1. Regex net (cheap, instant, catches lazy/common phrasings).
+    2. Llama Prompt Guard 2 model classifier (utils/prompt_guard.py) — catches
+       rewordings, paraphrases, and non-English attempts the regex can't.
+       Runs only if the model is actually loaded (transformers/torch present
+       and HF access configured); if not, this layer is a silent no-op and
+       the regex layer is still the active defense — the request never
+       fails just because the optional model layer isn't set up.
+
+    Neither layer is the reason state-changing tools are safe — that's the
+    tool-execution HITL gate in commerce_agent.py, enforced regardless of
+    what either of these classifiers concludes.
+    """
     if not text:
         return text
 
@@ -161,6 +204,19 @@ def validate_prompt_safety(text: str) -> str:
                 status_code=400,
                 detail="Security Violation: Malicious prompt injection or jailbreak attempt detected.",
             )
+
+    from utils.prompt_guard import check_prompt_injection
+
+    guard_result = check_prompt_injection(text)
+    if guard_result.available and guard_result.is_malicious:
+        logger.warning(
+            "Prompt Guard model flagged input as malicious (score=%.3f, threshold=%.2f).",
+            guard_result.score, float(os.getenv("PROMPT_GUARD_THRESHOLD", "0.5")),
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="Security Violation: Malicious prompt injection or jailbreak attempt detected.",
+        )
 
     return redact_pii_text(text)
 

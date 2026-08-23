@@ -8,6 +8,11 @@ def forced_ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
 socket.getaddrinfo = forced_ipv4_getaddrinfo
 
 import os
+import logging
+
+# Suppress noisy Google GenAI warnings from clattering logs
+logging.getLogger("google_genai").setLevel(logging.ERROR)
+
 
 
 # Load env variables from .env file manually to avoid dependency issues

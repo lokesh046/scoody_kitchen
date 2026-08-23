@@ -23,6 +23,8 @@ dependencies = [
     "python-multipart>=0.0.9",
     "redis>=5.0.0",
     "uvicorn>=0.30.0",
+    "torch",
+    "transformers",
 ]
 
 [tool.pyright]
