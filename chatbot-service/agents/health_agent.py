@@ -57,7 +57,7 @@ async def health_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     # 3. Non-Emergency Health Guidance Synthesis via ChatLiteLLM
     if GEMINI_API_KEY:
         try:
-            llm = get_llm_with_fallback(model_name="gemini/gemini-2.5-flash", temperature=0.2)
+            llm = get_llm_with_fallback(model_name="gemini/gemini-flash-latest", temperature=0.2)
             
             context_str = ""
             if docs:
@@ -70,10 +70,12 @@ async def health_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                 f"{context_str}\n\n"
                 f"User Question: {user_query}"
             )
-            base_reply = ""
-            async for chunk in llm.with_config({"tags": ["agent_response"]}).astream(prompt):
-                base_reply += chunk.content if hasattr(chunk, "content") else str(chunk)
-        except Exception:
+            res = await llm.with_config({"tags": ["agent_response"]}).ainvoke(prompt)
+            base_reply = res.content if hasattr(res, "content") else str(res)
+        except Exception as e:
+            print(f"❌ [Agent Exception] health_agent failed: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
             base_reply = (
                 "For mild symptoms like minor skin dryness or occasional sneezing, ensure your pet remains "
                 "hydrated and rested. If symptoms persist for more than 24 hours, consider booking a vet consultation."

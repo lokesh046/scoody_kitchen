@@ -14,7 +14,7 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 class LangChainTokenCostCallbackHandler(BaseCallbackHandler):
     """Custom LangChain CallbackHandler to track token usage and LiteLLM cost metrics per request."""
 
-    def __init__(self, session_id: str = "default", model_name: str = "gemini/gemini-2.5-flash"):
+    def __init__(self, session_id: str = "default", model_name: str = "gemini/gemini-flash-latest"):
         super().__init__()
         self.session_id = session_id
         self.model_name = model_name

@@ -47,11 +47,15 @@ class PineconeVectorStoreManager:
         """Search Pinecone Vector DB enforcing similarity thresholding (Edge Case Fix #12)."""
         if self.pinecone_active:
             try:
+                import time
+                start = time.perf_counter()
                 response = self.index.query(
                     vector=query_vector,
                     top_k=top_k,
                     include_metadata=True,
                 )
+                duration = (time.perf_counter() - start) * 1000.0
+                print(f"📊 [RAG Timer] Pinecone index query took {duration:.2f}ms", flush=True)
                 results = []
                 for match in response.get("matches", []):
                     score = match.get("score", 0.0)
@@ -63,7 +67,8 @@ class PineconeVectorStoreManager:
                             "score": score,
                         })
                 return results
-            except Exception:
+            except Exception as e:
+                print(f"❌ [RAG Timer] Pinecone query failed: {e}", flush=True)
                 pass
 
         # Fallback keyword ranking for local/test envs
@@ -94,13 +99,14 @@ class PineconeVectorStoreManager:
     def list_documents(self) -> list[dict[str, Any]]:
         unique_docs: dict[str, dict[str, Any]] = {}
         for doc in self.in_memory_docs:
-            doc_id = doc.get("doc_id", doc.get("id"))
-            if doc_id not in unique_docs:
-                unique_docs[doc_id] = {
-                    "doc_id": doc_id,
-                    "title": doc.get("title"),
-                    "category": doc.get("category", "general"),
-                }
+            doc_id = doc.get("doc_id") or doc.get("id")
+            if isinstance(doc_id, str):
+                if doc_id not in unique_docs:
+                    unique_docs[doc_id] = {
+                        "doc_id": doc_id,
+                        "title": doc.get("title"),
+                        "category": doc.get("category", "general"),
+                    }
         return list(unique_docs.values())
 
     def delete_document(self, doc_id: str) -> dict[str, Any]:

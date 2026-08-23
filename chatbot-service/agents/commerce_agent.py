@@ -261,9 +261,19 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     # 5. Native ChatLiteLLM Tool Binding Execution Loop
     if GEMINI_API_KEY and mcp_tools:
         try:
-            llm = get_llm_with_fallback(model_name="gemini/gemini-2.5-flash", temperature=0.1)
-            if hasattr(llm, "bind_tools"):
-                llm_with_tools = llm.bind_tools(mcp_tools)
+            llm = get_llm_with_fallback(model_name="gemini/gemini-flash-latest", temperature=0.1)
+            
+            def bind_tools_to_runnable(runnable, tools):
+                if hasattr(runnable, "runnable") and hasattr(runnable, "fallbacks"):
+                    bound_primary = runnable.runnable.bind_tools(tools)
+                    bound_fallbacks = [fb.bind_tools(tools) for fb in runnable.fallbacks]
+                    return bound_primary.with_fallbacks(bound_fallbacks)
+                elif hasattr(runnable, "bind_tools"):
+                    return runnable.bind_tools(tools)
+                return runnable
+
+            llm_with_tools = bind_tools_to_runnable(llm, mcp_tools)
+            if llm_with_tools:
                 from langchain_core.messages import SystemMessage, HumanMessage
                 messages_input = [
                     SystemMessage(content=(
@@ -305,8 +315,12 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                                     "pending_action_args": confirm_args,
                                 }
 
-                            # Inject session_user_id authoritatively
-                            t_args["session_user_id"] = session_user_id
+                            # Inject session_user_id authoritatively only if the tool accepts it
+                            if "session_user_id" in tools_by_name[t_name].args:
+                                t_args["session_user_id"] = session_user_id
+                            elif "session_user_id" in t_args:
+                                t_args.pop("session_user_id")
+
                             tool_res = tools_by_name[t_name].invoke(t_args)
                             sanitized_res = redact_pii_text(str(tool_res))
                             reply = f"Response from {t_name}:\n{sanitized_res}"
@@ -317,8 +331,10 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
 
                 if hasattr(ai_msg, "content") and ai_msg.content:
                     return {"messages": messages + [{"role": "assistant", "content": ai_msg.content}]}
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"❌ [Commerce Agent Exception] Tool calling loop failed: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
 
     # Direct tool invocation fallback
     if "order" in query_lower or "status" in query_lower:

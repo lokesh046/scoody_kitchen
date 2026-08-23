@@ -42,7 +42,7 @@ async def voice_chat_endpoint(
             b64_audio = base64.b64encode(contents).decode("utf-8")
             mime_type = file.content_type or "audio/mp3"
 
-            llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GEMINI_API_KEY)
+            llm = ChatGoogleGenerativeAI(model="gemini-flash-latest", google_api_key=GEMINI_API_KEY)
             msg = HumanMessage(content=[
                 {"type": "text", "text": "Transcribe the spoken audio in this recording accurately. Return ONLY the spoken text."},
                 {"type": "media", "mime_type": mime_type, "data": b64_audio},

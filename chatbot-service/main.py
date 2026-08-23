@@ -10,6 +10,16 @@ socket.getaddrinfo = forced_ipv4_getaddrinfo
 import os
 import logging
 
+# Enforce standard HTTP/REST transport globally to avoid gRPC IPv6 DNS hangs
+os.environ["GOOGLE_GENAI_USE_REST"] = "1"
+os.environ["GRPC_DNS_RESOLVER"] = "native"
+
+try:
+    import google.generativeai as genai  # type: ignore
+    genai.configure(transport="rest")
+except ImportError:
+    pass
+
 # Suppress noisy Google GenAI warnings from clattering logs
 logging.getLogger("google_genai").setLevel(logging.ERROR)
 

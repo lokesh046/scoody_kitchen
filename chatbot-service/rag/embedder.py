@@ -36,8 +36,14 @@ class EmbeddingGenerator:
         """Embed a single text string into a float vector."""
         if self.embeddings_engine:
             try:
-                return self.embeddings_engine.embed_query(text)
-            except Exception:
+                import time
+                start = time.perf_counter()
+                res = self.embeddings_engine.embed_query(text)
+                duration = (time.perf_counter() - start) * 1000.0
+                print(f"📊 [RAG Timer] Gemini Text Embedding took {duration:.2f}ms", flush=True)
+                return res
+            except Exception as e:
+                print(f"❌ [RAG Timer] Gemini Embedding failed: {e}", flush=True)
                 pass
         # Fallback dummy 768-dim vector for testing
         return [0.0] * 1024

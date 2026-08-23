@@ -197,6 +197,8 @@ def validate_prompt_safety(text: str) -> str:
     if not text:
         return text
 
+    import time
+    start_regex = time.perf_counter()
     lower = text.lower()
     for pattern in PROMPT_INJECTION_PATTERNS:
         if re.search(pattern, lower):
@@ -204,10 +206,26 @@ def validate_prompt_safety(text: str) -> str:
                 status_code=400,
                 detail="Security Violation: Malicious prompt injection or jailbreak attempt detected.",
             )
+    regex_duration = (time.perf_counter() - start_regex) * 1000.0
 
+    start_model = time.perf_counter()
     from utils.prompt_guard import check_prompt_injection
 
     guard_result = check_prompt_injection(text)
+    model_duration = (time.perf_counter() - start_model) * 1000.0
+
+    if guard_result.available:
+        print(
+            f"🛡️ [Safety Timer] Regex took {regex_duration:.2f}ms | AI Model took {model_duration:.2f}ms "
+            f"(Is malicious: {guard_result.is_malicious}, Score: {guard_result.score:.3f})",
+            flush=True
+        )
+    else:
+        print(
+            f"🛡️ [Safety Timer] Regex took {regex_duration:.2f}ms | AI Model was unavailable/disabled (took {model_duration:.2f}ms)",
+            flush=True
+        )
+
     if guard_result.available and guard_result.is_malicious:
         logger.warning(
             "Prompt Guard model flagged input as malicious (score=%.3f, threshold=%.2f).",

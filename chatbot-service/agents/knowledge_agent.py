@@ -35,7 +35,7 @@ async def knowledge_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     if GEMINI_API_KEY:
         try:
             from utils.llm_gateway import get_llm_with_fallback
-            llm = get_llm_with_fallback(model_name="gemini/gemini-2.5-flash", temperature=0.2)
+            llm = get_llm_with_fallback(model_name="gemini/gemini-flash-latest", temperature=0.2)
             
             prompt = (
                 f"You are Scooby Kitchen's AI Pet Assistant. Answer the customer's question strictly "
@@ -44,10 +44,12 @@ async def knowledge_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                 f"Reference Context:\n{context_str}\n\n"
                 f"Customer Question: {user_query}"
             )
-            reply = ""
-            async for chunk in llm.with_config({"tags": ["agent_response"]}).astream(prompt):
-                reply += chunk.content if hasattr(chunk, "content") else str(chunk)
-        except Exception:
+            res = await llm.with_config({"tags": ["agent_response"]}).ainvoke(prompt)
+            reply = res.content if hasattr(res, "content") else str(res)
+        except Exception as e:
+            print(f"❌ [Agent Exception] knowledge_agent failed: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
             reply = f"Based on our official reference ({sources[0]}):\n{docs[0]['content']}"
     else:
         reply = f"Based on our official reference ({sources[0]}):\n{docs[0]['content']}"

@@ -1,13 +1,16 @@
 """LiteLLM Gateway Engine using LangChain ChatLiteLLM integration."""
 
 import os
+import logging
 from typing import Any
 
+logger = logging.getLogger(__name__)
+
 try:
-    from langchain_community.chat_models import ChatLiteLLM
+    from langchain_community.chat_models import ChatLiteLLM  # type: ignore
 except ImportError:
     try:
-        from langchain_community.chat_models.litellm import ChatLiteLLM
+        from langchain_community.chat_models.litellm import ChatLiteLLM  # type: ignore
     except ImportError:
         ChatLiteLLM = None
 
@@ -22,16 +25,43 @@ class LiteLLMGateway:
 
     def __init__(
         self,
-        model_name: str = "gemini/gemini-2.5-flash",
+        model_name: str = "gemini/gemini-flash-latest",
         fallback_models: list[str] | None = None,
         temperature: float = 0.2,
     ):
         self.model_name = model_name
-        self.fallback_models = fallback_models or ["gemini/gemini-1.5-flash"]
+        self.fallback_models = fallback_models or ["gemini/gemini-flash-latest"]
         self.temperature = temperature
 
     def get_langchain_llm(self) -> Any:
         """Return a LangChain ChatModel instance with native with_fallbacks() failover."""
+        # 1. Direct High-Performance Google GenAI integration (Recommended for Gemini)
+        if "gemini" in self.model_name.lower():
+            try:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+                model_id = self.model_name.replace("gemini/", "")
+                primary = ChatGoogleGenerativeAI(
+                    model=model_id,
+                    temperature=self.temperature,
+                    google_api_key=GEMINI_API_KEY or "dummy_key_123",
+                )
+                
+                fallback_models = []
+                for fb in self.fallback_models:
+                    fb_id = fb.replace("gemini/", "")
+                    fallback_models.append(
+                        ChatGoogleGenerativeAI(
+                            model=fb_id,
+                            temperature=self.temperature,
+                            google_api_key=GEMINI_API_KEY or "dummy_key_123",
+                        )
+                    )
+                
+                return primary.with_fallbacks(fallback_models)
+            except Exception as e:
+                logger.warning("Failed to initialize direct Google GenAI: %s", e)
+
+        # 2. Fallback to LiteLLM for non-Gemini models
         if ChatLiteLLM is not None:
             try:
                 primary_llm = ChatLiteLLM(
@@ -58,7 +88,7 @@ class LiteLLMGateway:
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI
             primary = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GEMINI_API_KEY or "dummy_key_123")
-            fallback = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=GEMINI_API_KEY or "dummy_key_123")
+            fallback = ChatGoogleGenerativeAI(model="gemini-flash-latest", google_api_key=GEMINI_API_KEY or "dummy_key_123")
             return primary.with_fallbacks([fallback])
         except Exception:
             from langchain_core.runnables import RunnableLambda
@@ -82,7 +112,7 @@ class LiteLLMGateway:
                 },
             }
             cost = litellm.completion_cost(completion_response=mock_response)
-            return round(float(cost), 6)
+            return round(cost, 6)
         except Exception:
             cost_in = (prompt_tokens / 1_000_000) * 0.075
             cost_out = (completion_tokens / 1_000_000) * 0.30
@@ -93,8 +123,8 @@ litellm_gateway = LiteLLMGateway()
 
 
 def get_llm_with_fallback(
-    model_name: str = "gemini/gemini-2.5-flash",
-    fallback_model_name: str = "gemini/gemini-1.5-flash",
+    model_name: str = "gemini/gemini-flash-latest",
+    fallback_model_name: str = "gemini/gemini-pro-latest",
     temperature: float = 0.2,
 ) -> Any:
     """Return LangChain ChatLiteLLM model instance configured with native with_fallbacks() strategy."""
