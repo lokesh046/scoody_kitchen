@@ -29,6 +29,8 @@ def tool_get_my_orders(
     SECURITY RULE: session_user_id must match the owner to prevent IDOR access.
     """
     res = backend_get("/internal/orders", params={"acting_user_id": session_user_id, "limit": limit})
-    if isinstance(res, list):
-        return {"orders": res}
+    if res.get("ok") is True:
+        data = res.get("data")
+        if isinstance(data, list):
+            res["data"] = {"orders": data}
     return res

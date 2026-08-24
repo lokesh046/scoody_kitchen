@@ -1,6 +1,7 @@
 """LangChain Native PII Redaction & Prompt Safety Guardrails Pipeline."""
 
 import logging
+from typing import Any
 import os
 import re
 from fastapi import HTTPException
@@ -153,12 +154,25 @@ class PIIMiddleware:
         return new_text
 
 
-def redact_pii_text(text: str) -> str:
+def redact_pii_text(text: Any) -> str:
     """LangChain Runnable transformation: Redact sensitive customer PII, API Keys, and Secrets from input text."""
     if not text:
-        return text
+        return ""
 
-    clean = text
+    if isinstance(text, list):
+        parts = []
+        for block in text:
+            if isinstance(block, dict) and block.get("type") == "text":
+                parts.append(block.get("text", ""))
+            elif isinstance(block, str):
+                parts.append(block)
+            else:
+                parts.append(str(block))
+        clean = "".join(parts)
+    elif not isinstance(text, str):
+        clean = str(text)
+    else:
+        clean = text
     # 1. Redact PII
     clean = CREDIT_CARD_REGEX.sub("[REDACTED_CREDIT_CARD]", clean)
     clean = EMAIL_REGEX.sub("[REDACTED_EMAIL]", clean)

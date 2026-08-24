@@ -21,6 +21,8 @@ class Setting(BaseSettings):
   # Internal service-to-service auth (used by pet-platform-mcp-server only —
     # never exposed to customer-facing clients).
     INTERNAL_SERVICE_API_KEY: str | None = None
+    MCP_INTERNAL_SECRET: str | None = None
+    CHATBOT_INTERNAL_SECRET: str | None = None
 
     
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30 # 30 minutes

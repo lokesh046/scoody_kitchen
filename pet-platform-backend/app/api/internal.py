@@ -13,12 +13,15 @@ purely for container-to-container traffic on the internal Docker network.
 """
 
 from datetime import datetime, timezone
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+import json
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from app.core.database import get_db
 from app.dependencies.auth import verify_internal_service
+from app.models.idempotency_key import IdempotencyKey
 from app.models.consultation import Consultation
 from app.models.doctor_availability import DoctorAvailability
 from app.models.enums import ConsultationStatus
@@ -116,8 +119,18 @@ def internal_get_order_tracking(
 def internal_cancel_order(
     order_id: int,
     acting_user_id: int = Query(...),
+    idempotency_key: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
+    if idempotency_key:
+        stmt = select(IdempotencyKey).where(
+            IdempotencyKey.user_id == acting_user_id,
+            IdempotencyKey.key == idempotency_key
+        )
+        existing = db.scalar(stmt)
+        if existing:
+            return json.loads(existing.response)
+
     order = get_order_by_id(db, order_id)
     if order is None:
         raise HTTPException(status_code=404, detail=f"Order #{order_id} not found.")
@@ -130,7 +143,28 @@ def internal_cancel_order(
         raise HTTPException(status_code=400, detail=str(exc))
 
     status_val = cancelled.status.value if hasattr(cancelled.status, "value") else str(cancelled.status)
-    return {"order_id": cancelled.id, "status": status_val}
+    response_data = {"order_id": cancelled.id, "status": status_val}
+
+    if idempotency_key:
+        try:
+            with db.begin_nested():
+                db.add(IdempotencyKey(
+                    key=idempotency_key,
+                    user_id=acting_user_id,
+                    response=json.dumps(response_data)
+                ))
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            stmt = select(IdempotencyKey).where(
+                IdempotencyKey.user_id == acting_user_id,
+                IdempotencyKey.key == idempotency_key
+            )
+            existing = db.scalar(stmt)
+            if existing:
+                return json.loads(existing.response)
+
+    return response_data
 
 
 # ---- Products (read) -------------------------------------------------------
@@ -230,8 +264,18 @@ def internal_book_consultation(
     scheduled_at_iso: str = Query(...),
     reason: str = Query(...),
     customer_notes: str | None = Query(None),
+    idempotency_key: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
+    if idempotency_key:
+        stmt = select(IdempotencyKey).where(
+            IdempotencyKey.user_id == acting_user_id,
+            IdempotencyKey.key == idempotency_key
+        )
+        existing = db.scalar(stmt)
+        if existing:
+            return json.loads(existing.response)
+
     dt = datetime.fromisoformat(scheduled_at_iso)
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
@@ -245,15 +289,46 @@ def internal_book_consultation(
         raise HTTPException(status_code=400, detail=str(exc))
 
     status_val = consultation.status.value if hasattr(consultation.status, "value") else str(consultation.status)
-    return {"consultation_id": consultation.id, "status": status_val}
+    response_data = {"consultation_id": consultation.id, "status": status_val}
+
+    if idempotency_key:
+        try:
+            with db.begin_nested():
+                db.add(IdempotencyKey(
+                    key=idempotency_key,
+                    user_id=acting_user_id,
+                    response=json.dumps(response_data)
+                ))
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            stmt = select(IdempotencyKey).where(
+                IdempotencyKey.user_id == acting_user_id,
+                IdempotencyKey.key == idempotency_key
+            )
+            existing = db.scalar(stmt)
+            if existing:
+                return json.loads(existing.response)
+
+    return response_data
 
 
 @router.post("/bookings/consultations/{consultation_id}/cancel")
 def internal_cancel_consultation(
     consultation_id: int,
     acting_user_id: int = Query(...),
+    idempotency_key: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
+    if idempotency_key:
+        stmt = select(IdempotencyKey).where(
+            IdempotencyKey.user_id == acting_user_id,
+            IdempotencyKey.key == idempotency_key
+        )
+        existing = db.scalar(stmt)
+        if existing:
+            return json.loads(existing.response)
+
     consultation = get_consultation_by_id(db, consultation_id)
     if consultation is None:
         raise HTTPException(status_code=404, detail=f"Consultation #{consultation_id} not found.")
@@ -262,7 +337,28 @@ def internal_cancel_consultation(
 
     updated = update_consultation_status(db, consultation, ConsultationStatus.CANCELLED)
     status_val = updated.status.value if hasattr(updated.status, "value") else str(updated.status)
-    return {"consultation_id": updated.id, "status": status_val}
+    response_data = {"consultation_id": updated.id, "status": status_val}
+
+    if idempotency_key:
+        try:
+            with db.begin_nested():
+                db.add(IdempotencyKey(
+                    key=idempotency_key,
+                    user_id=acting_user_id,
+                    response=json.dumps(response_data)
+                ))
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            stmt = select(IdempotencyKey).where(
+                IdempotencyKey.user_id == acting_user_id,
+                IdempotencyKey.key == idempotency_key
+            )
+            existing = db.scalar(stmt)
+            if existing:
+                return json.loads(existing.response)
+
+    return response_data
 
 
 @router.get("/pets")

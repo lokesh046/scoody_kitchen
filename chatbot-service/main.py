@@ -33,7 +33,9 @@ if os.path.exists(env_path):
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 key, val = line.split("=", 1)
-                os.environ[key.strip()] = val.strip()
+                key = key.strip()
+                if key not in os.environ:
+                    os.environ[key] = val.strip()
 
 # Load DATABASE_URL and other shared secrets from backend env if not present
 backend_env = os.path.join(os.path.dirname(__file__), "../pet-platform-backend/.env")
@@ -58,11 +60,22 @@ from routers.chat import router as chat_router
 from routers.rag_admin import router as rag_admin_router
 from routers.voice import router as voice_router
 from routers.image import router as image_router
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from mcp_client import mcp_client
+    try:
+        await mcp_client.initialize()
+    except Exception as e:
+        print(f"⚠️ [Startup Warning] Failed to warm up MCP client: {e}", flush=True)
+    yield
 
 app = FastAPI(
     title="Pet Platform Chatbot Service",
     description="Multimodal AI Assistant orchestrator service powered by LangGraph, Pinecone, and FastMCP",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Configure CORS Middleware

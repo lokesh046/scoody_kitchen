@@ -61,7 +61,7 @@ async def image_chat_endpoint(
     
     validate_session_ownership(session_id, current_user_id)
 
-    history = session_memory.get_history(session_id)
+    history = await session_memory.aget_history(session_id)
     input_messages = history + [{"role": "user", "content": combined_query}]
 
     initial_state = {
@@ -79,8 +79,8 @@ async def image_chat_endpoint(
         bot_reply = redact_pii_text(raw_reply)
         sources = final_state.get("sources", [])
 
-        session_memory.save_message(session_id, "user", f"[Image Upload]: {message}")
-        session_memory.save_message(session_id, "assistant", bot_reply)
+        await session_memory.asave_message(session_id, "user", f"[Image Upload]: {message}")
+        await session_memory.asave_message(session_id, "assistant", bot_reply)
 
         return ChatResponse(
             reply=bot_reply,

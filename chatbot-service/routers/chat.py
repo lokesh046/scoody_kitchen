@@ -54,7 +54,7 @@ async def chat_endpoint(
 
     # 3. Load multi-turn history from Redis session memory
     start_redis_load = time.perf_counter()
-    history = session_memory.get_history(request_data.session_id)
+    history = await session_memory.aget_history(request_data.session_id)
     redis_load_duration = (time.perf_counter() - start_redis_load) * 1000.0
 
     input_messages = history + [{"role": "user", "content": sanitized_message}]
@@ -127,8 +127,8 @@ async def chat_endpoint(
 
         # 5. Save turns into Redis session memory (30-min TTL)
         start_redis_save = time.perf_counter()
-        session_memory.save_message(request_data.session_id, "user", sanitized_message)
-        session_memory.save_message(request_data.session_id, "assistant", bot_reply)
+        await session_memory.asave_message(request_data.session_id, "user", sanitized_message)
+        await session_memory.asave_message(request_data.session_id, "assistant", bot_reply)
         redis_save_duration = (time.perf_counter() - start_redis_save) * 1000.0
 
         total_duration = (time.perf_counter() - start_total) * 1000.0
@@ -199,7 +199,7 @@ async def chat_stream_endpoint(
 
     # 2. Load multi-turn history from Redis session memory
     start_redis_load = time.perf_counter()
-    history = session_memory.get_history(request_data.session_id)
+    history = await session_memory.aget_history(request_data.session_id)
     redis_load_duration = (time.perf_counter() - start_redis_load) * 1000.0
 
     input_messages = history + [{"role": "user", "content": sanitized_message}]
@@ -245,7 +245,8 @@ async def chat_stream_endpoint(
                     if tool_name not in tools_used:
                         tools_used.append(tool_name)
                     # Print to terminal console
-                    print(f"\n[TOOL CALL] Executing tool: {tool_name} | Input: {tool_input}", flush=True)
+                    safe_input = {k: v for k, v in tool_input.items() if k in ["order_id", "limit", "search", "category_id", "doctor_id", "pet_id", "consultation_id"]}
+                    print(f"\n[TOOL CALL] Executing tool: {tool_name} | Safe Input: {safe_input}", flush=True)
                     yield f"data: {json.dumps({'type': 'status', 'content': f'Executing tool {tool_name}...'})}\n\n"
 
                 elif kind == "on_tool_end":
@@ -341,8 +342,8 @@ async def chat_stream_endpoint(
 
             # 5. Save turns into Redis session memory (30-min TTL)
             start_redis_save = time.perf_counter()
-            session_memory.save_message(request_data.session_id, "user", sanitized_message)
-            session_memory.save_message(request_data.session_id, "assistant", accumulated_text)
+            await session_memory.asave_message(request_data.session_id, "user", sanitized_message)
+            await session_memory.asave_message(request_data.session_id, "assistant", accumulated_text)
             redis_save_duration = (time.perf_counter() - start_redis_save) * 1000.0
 
             total_duration = (time.perf_counter() - start_total) * 1000.0
@@ -374,22 +375,22 @@ async def chat_stream_endpoint(
 
 
 @router.get("/session/{session_id}")
-def get_session_history_endpoint(
+async def get_session_history_endpoint(
     session_id: str,
     current_user_id: int = Depends(get_current_chat_user),
 ) -> dict:
     """Fetch session conversation history."""
     validate_session_ownership(session_id, current_user_id)
-    history = session_memory.get_history(session_id)
+    history = await session_memory.aget_history(session_id)
     return {"status": "success", "history": history}
 
 
 @router.delete("/session/{session_id}")
-def clear_session_endpoint(
+async def clear_session_endpoint(
     session_id: str,
     current_user_id: int = Depends(get_current_chat_user),
 ) -> dict[str, str]:
     """Purge session conversation history (e.g. on logout)."""
     validate_session_ownership(session_id, current_user_id)
-    session_memory.clear_session(session_id)
+    await session_memory.aclear_session(session_id)
     return {"status": "success", "message": f"Session {session_id} purged."}

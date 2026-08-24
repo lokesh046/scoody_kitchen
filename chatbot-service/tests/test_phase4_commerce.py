@@ -49,7 +49,9 @@ def test_commerce_agent_read_tool_order_status_server_side_auth():
     # Customer #42 sends JWT token in Authorization header
     headers = _make_auth_header(user_id=42)
 
-    with patch("agents.commerce_agent.mcp_client.get_mcp_tools", return_value=[mock_tool]):
+    from unittest.mock import AsyncMock
+    mock_get = AsyncMock(return_value=[mock_tool])
+    with patch("agents.commerce_agent.mcp_client.get_mcp_tools", mock_get):
         response = client.post(
             "/chat",
             headers=headers,
@@ -129,13 +131,15 @@ def test_commerce_agent_book_consultation_tool_route():
 
     headers = _make_auth_header(user_id=42)
 
-    with patch("agents.commerce_agent.mcp_client.get_mcp_tools", return_value=[mock_book_tool]):
+    from unittest.mock import AsyncMock
+    mock_get = AsyncMock(return_value=[mock_book_tool])
+    with patch("agents.commerce_agent.mcp_client.get_mcp_tools", mock_get):
         # Turn 1: Customer asks to book consultation
         res1 = client.post(
             "/chat",
             headers=headers,
             json={
-                "message": "Book consultation for doctor #5 and pet #2",
+                "message": "Book consultation for doctor #5 and pet #2 scheduled at 2026-08-31T10:00:00Z because he has an itch",
                 "session_id": sess_id,
             },
         )

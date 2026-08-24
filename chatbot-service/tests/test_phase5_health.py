@@ -52,19 +52,26 @@ def test_health_agent_emergency_red_alert():
 def test_health_agent_non_emergency_guidance_with_disclaimer():
     # Mild symptom: skin dryness
     headers = _make_auth_header()
-    response = client.post(
-        "/chat",
-        headers=headers,
-        json={
-            "message": "My cat has mild dry skin symptoms and occasional sneezing.",
-            "session_id": "test_health_sess_mild",
-        },
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "success"
-    assert "Medical Disclaimer" in data["reply"]
-    assert "Scooby Veterinary Guidance" in data["sources"]
+    mock_doc = {
+        "doc_id": "health-01",
+        "title": "Scooby Veterinary Guidance",
+        "content": "For dry skin, make sure your cat stays hydrated.",
+        "category": "health"
+    }
+    with patch("agents.health_agent.vector_store.search_knowledge", return_value=[mock_doc]):
+        response = client.post(
+            "/chat",
+            headers=headers,
+            json={
+                "message": "My cat has mild dry skin symptoms and occasional sneezing.",
+                "session_id": "test_health_sess_mild",
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert "Medical Disclaimer" in data["reply"]
+        assert "Scooby Veterinary Guidance" in data["sources"]
 
 
 def test_health_agent_least_privilege_isolation():

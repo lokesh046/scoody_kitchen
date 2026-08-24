@@ -123,7 +123,28 @@ require_doctor = require_roles(UserRole.DOCTOR, UserRole.ADMIN)
 
 def verify_internal_service(x_internal_api_key: str = Header(...)) -> None:
     """Authenticates a trusted internal caller (e.g. pet-platform-mcp-server) using short-lived JWTs."""
-    secret_key = settings.INTERNAL_SERVICE_API_KEY
+    try:
+        unverified_payload = jwt.decode(
+            x_internal_api_key,
+            options={"verify_signature": False},
+        )
+        issuer = unverified_payload.get("iss")
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid internal service credential payload.",
+        )
+
+    if issuer == "pet-platform-mcp-server":
+        secret_key = settings.MCP_INTERNAL_SECRET or settings.INTERNAL_SERVICE_API_KEY
+    elif issuer == "chatbot-service":
+        secret_key = settings.CHATBOT_INTERNAL_SECRET or settings.INTERNAL_SERVICE_API_KEY
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid internal service issuer.",
+        )
+
     if not secret_key:
         # Fail closed: an unconfigured key must never silently grant access.
         raise HTTPException(
@@ -132,16 +153,11 @@ def verify_internal_service(x_internal_api_key: str = Header(...)) -> None:
         )
 
     try:
-        payload = jwt.decode(
+        jwt.decode(
             x_internal_api_key,
             secret_key,
             algorithms=["HS256"],
         )
-        if payload.get("iss") not in ("pet-platform-mcp-server", "chatbot-service"):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid internal service issuer.",
-            )
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

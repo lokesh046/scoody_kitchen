@@ -26,10 +26,11 @@ def _default_pending_args(tool_name: str, args: dict[str, Any]) -> dict[str, Any
     return dict(args)
 
 
-def _confirmation_prompt(tool_name: str, args: dict[str, Any]) -> str:
+def _confirmation_prompt(tool_name: str, args: dict[str, Any], confirmation_id: str | None = None) -> str:
+    id_part = f" (ID: {confirmation_id})" if confirmation_id else ""
     if tool_name == "cancel_order":
         return (
-            f"⚠️ CONFIRMATION REQUIRED: Are you sure you want to execute action 'cancel_order' "
+            f"⚠️ CONFIRMATION REQUIRED{id_part}: Are you sure you want to execute action 'cancel_order' "
             f"for order #{args.get('order_id')}? This will release reserved stock back to inventory. "
             f"Please reply 'Yes, confirm' to proceed."
         )
@@ -37,18 +38,18 @@ def _confirmation_prompt(tool_name: str, args: dict[str, Any]) -> str:
         doc_part = args.get("doctor_name") or (f"#{args.get('doctor_id')}" if args.get("doctor_id") else "None")
         pet_part = args.get("pet_name") or (f"#{args.get('pet_id')}" if args.get("pet_id") else "None")
         return (
-            f"⚠️ CONFIRMATION REQUIRED: Are you sure you want to execute action 'book_consultation' "
+            f"⚠️ CONFIRMATION REQUIRED{id_part}: Are you sure you want to execute action 'book_consultation' "
             f"for doctor {doc_part} and pet {pet_part}? "
             f"Please reply 'Yes, confirm' to proceed."
         )
     if tool_name == "cancel_consultation":
         return (
-            f"⚠️ CONFIRMATION REQUIRED: Are you sure you want to execute action 'cancel_consultation' "
+            f"⚠️ CONFIRMATION REQUIRED{id_part}: Are you sure you want to execute action 'cancel_consultation' "
             f"for consultation #{args.get('consultation_id')}? "
             f"Please reply 'Yes, confirm' to proceed."
         )
     return (
-        f"⚠️ CONFIRMATION REQUIRED: Are you sure you want to execute action '{tool_name}'? "
+        f"⚠️ CONFIRMATION REQUIRED{id_part}: Are you sure you want to execute action '{tool_name}'? "
         f"Please reply 'Yes, confirm' to proceed."
     )
 
@@ -115,6 +116,9 @@ def format_action_response(action: str, tool_res: Any) -> str:
     return f"Action completed successfully: {tool_res}"
 
 
+from utils.tool_executor import execute_tool
+
+
 async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     """LangGraph Commerce ReAct Agent node using ChatLiteLLM native tool binding."""
     messages = state.get("messages", [])
@@ -129,7 +133,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     # rather than silently degrading to in-process calls, so we handle that
     # explicitly here with a clear message to the user instead of a 500.
     try:
-        mcp_tools = mcp_client.get_mcp_tools()
+        mcp_tools = await mcp_client.get_mcp_tools()
     except RuntimeError:
         reply = (
             "I'm having trouble reaching our order/booking system right now. "
@@ -145,37 +149,38 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     pending_args = state.get("pending_action_args") or {}
 
     from memory.redis_memory import session_memory
+    active_conf_id = None
+    ticket = None
 
     if session_id:
-        redis_pending = await session_memory.aget_pending_action(session_id)
-        if redis_pending:
-            pending_action = redis_pending.get("action")
-            pending_args = redis_pending.get("args") or {}
+        active_conf_id = await session_memory.aget_active_session_ticket_id(session_id)
+        if active_conf_id:
+            ticket = await session_memory.aget_pending_action_by_id(active_conf_id)
 
-    # Fallback reconstruction: only look at the immediately preceding
-    # assistant turn, never the whole history, so a stale confirmation
-    # prompt from several turns ago can't be replayed by an unrelated
-    # later message (mirrors the 5-minute TTL on the Redis-stored version).
-    if not pending_action and len(messages) >= 2:
-        prev_msg = messages[-2]
-        if prev_msg.get("role") == "assistant":
-            content = prev_msg.get("content", "")
-            if "⚠️ CONFIRMATION REQUIRED" in content:
-                match = re.search(r"action\s+'([^']+)'\s+for\s+order\s+#(\d+)", content)
-                if match:
-                    pending_action = match.group(1)
-                    pending_args = {"order_id": int(match.group(2))}
-                else:
-                    match_c = re.search(r"action\s+'([^']+)'\s+for\s+doctor\s+#?(\d+)\s+and\s+pet\s+#?(\d+)", content)
-                    if match_c:
-                        pending_action = match_c.group(1)
-                        pending_args = {
-                            "doctor_id": int(match_c.group(2)),
-                            "pet_id": int(match_c.group(3))
-                        }
+    if ticket:
+        if ticket.get("user_id") == session_user_id:
+            pending_action = ticket.get("action")
+            pending_args = ticket.get("arguments") or {}
+        else:
+            active_conf_id = None
+            ticket = None
+
+    # Handle explicit rejection
+    if active_conf_id and session_id and any(re.search(pattern, query_lower) for pattern in _NEGATION_PATTERNS):
+        await session_memory.aconsume_pending_action(active_conf_id, session_id)
+        reply = "Okay, I've canceled the pending request."
+        return {
+            "messages": messages + [{"role": "assistant", "content": reply}],
+            "pending_action": None,
+            "pending_action_args": None,
+        }
 
     # 3. Handle HITL Action Approval on Customer Confirmation
     if pending_action and _is_affirmative_reply(query_lower):
+        # Consume the ticket immediately to prevent double execution (replay protection)
+        if active_conf_id and session_id:
+            await session_memory.aconsume_pending_action(active_conf_id, session_id)
+
         # Support both bare and tool_ prefixed action names
         normalized_action = pending_action.replace("tool_", "")
         prefixed_action = f"tool_{normalized_action}"
@@ -188,14 +193,23 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
 
         if tool_fn:
             if normalized_action == "cancel_order":
-                target_order_id = pending_args.get("order_id", 101)
+                target_order_id = pending_args.get("order_id")
+                if target_order_id is None:
+                    reply = "Error: Order ID is required to cancel an order. Please specify the order number."
+                    if session_id:
+                        await session_memory.aclear_pending_action(session_id)
+                    return {
+                        "messages": messages + [{"role": "assistant", "content": reply}],
+                        "pending_action": None,
+                        "pending_action_args": None,
+                    }
                 idempotency_key = f"idem_cancel_{session_user_id}_{target_order_id}"
 
-                tool_res = await tool_fn.ainvoke({
+                tool_res = await execute_tool(tool_fn, {
                     "session_user_id": session_user_id,
                     "order_id": target_order_id,
                     "idempotency_key": idempotency_key,
-                })
+                }, context={"is_hitl_approved": True})
                 reply = format_action_response("cancel_order", tool_res)
                 if session_id:
                     await session_memory.aclear_pending_action(session_id)
@@ -233,28 +247,43 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
 
                 # Validate scheduled date is in the future
                 sched_str = call_args.get("scheduled_at_iso")
-                if sched_str:
-                    try:
-                        from datetime import datetime, timezone
-                        dt = datetime.fromisoformat(sched_str.replace("Z", "+00:00"))
-                        if dt.tzinfo is None:
-                            dt = dt.replace(tzinfo=timezone.utc)
-                        else:
-                            dt = dt.astimezone(timezone.utc)
-                        
-                        if dt <= datetime.now(timezone.utc):
-                            reply = "To book a consultation, the appointment date and time must be in the future, not in the past."
-                            if session_id:
-                                await session_memory.aclear_pending_action(session_id)
-                            return {
-                                "messages": messages + [{"role": "assistant", "content": reply}],
-                                "pending_action": None,
-                                "pending_action_args": None,
-                            }
-                    except Exception:
-                        pass
+                if not sched_str:
+                    reply = "The appointment date and time are required before booking."
+                    if session_id:
+                        await session_memory.aclear_pending_action(session_id)
+                    return {
+                        "messages": messages + [{"role": "assistant", "content": reply}],
+                        "pending_action": None,
+                        "pending_action_args": None,
+                    }
+                try:
+                    from datetime import datetime, timezone
+                    dt = datetime.fromisoformat(sched_str.replace("Z", "+00:00"))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    else:
+                        dt = dt.astimezone(timezone.utc)
+                    
+                    if dt <= datetime.now(timezone.utc):
+                        reply = "To book a consultation, the appointment date and time must be in the future, not in the past."
+                        if session_id:
+                            await session_memory.aclear_pending_action(session_id)
+                        return {
+                            "messages": messages + [{"role": "assistant", "content": reply}],
+                            "pending_action": None,
+                            "pending_action_args": None,
+                        }
+                except (ValueError, TypeError):
+                    reply = "I couldn't understand the appointment date and time. Please provide a valid appointment date and time."
+                    if session_id:
+                        await session_memory.aclear_pending_action(session_id)
+                    return {
+                        "messages": messages + [{"role": "assistant", "content": reply}],
+                        "pending_action": None,
+                        "pending_action_args": None,
+                    }
                 
-                tool_res = await tool_fn.ainvoke(call_args)
+                tool_res = await execute_tool(tool_fn, call_args, context={"is_hitl_approved": True})
                 reply = format_action_response("book_consultation", tool_res)
                 if session_id:
                     await session_memory.aclear_pending_action(session_id)
@@ -266,14 +295,23 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                 }
 
             elif normalized_action == "cancel_consultation":
-                consultation_id = pending_args.get("consultation_id", 1)
+                consultation_id = pending_args.get("consultation_id")
+                if consultation_id is None:
+                    reply = "Error: Consultation ID is required to cancel a booking. Please specify the consultation number."
+                    if session_id:
+                        await session_memory.aclear_pending_action(session_id)
+                    return {
+                        "messages": messages + [{"role": "assistant", "content": reply}],
+                        "pending_action": None,
+                        "pending_action_args": None,
+                    }
                 idempotency_key = f"idem_cancel_consult_{session_user_id}_{consultation_id}"
 
-                tool_res = await tool_fn.ainvoke({
+                tool_res = await execute_tool(tool_fn, {
                     "session_user_id": session_user_id,
                     "consultation_id": consultation_id,
                     "idempotency_key": idempotency_key,
-                })
+                }, context={"is_hitl_approved": True})
                 reply = format_action_response("cancel_consultation", tool_res)
                 if session_id:
                     await session_memory.aclear_pending_action(session_id)
@@ -294,7 +332,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                     "idempotency_key",
                     f"idem_{pending_action}_{session_user_id}_{'_'.join(str(v) for v in pending_args.values())}",
                 )
-                tool_res = await tool_fn.ainvoke(call_args)
+                tool_res = await execute_tool(tool_fn, call_args, context={"is_hitl_approved": True})
                 reply = format_action_response(normalized_action, tool_res)
                 if session_id:
                     await session_memory.aclear_pending_action(session_id)
@@ -355,28 +393,45 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                                 # Validate scheduled date is in the future
                                 if normalized_t_name == "book_consultation":
                                     sched_str = confirm_args.get("scheduled_at_iso")
-                                    if sched_str:
-                                        try:
-                                            from datetime import datetime, timezone
-                                            dt = datetime.fromisoformat(sched_str.replace("Z", "+00:00"))
-                                            if dt.tzinfo is None:
-                                                dt = dt.replace(tzinfo=timezone.utc)
-                                            else:
-                                                dt = dt.astimezone(timezone.utc)
-                                            
-                                            if dt <= datetime.now(timezone.utc):
-                                                reply = "To book a consultation, the appointment date and time must be in the future, not in the past."
-                                                return {
-                                                    "messages": messages + [{"role": "assistant", "content": reply}],
-                                                    "pending_action": None,
-                                                    "pending_action_args": None,
-                                                }
-                                        except Exception:
-                                            pass
+                                    if not sched_str:
+                                        reply = "The appointment date and time are required before booking."
+                                        return {
+                                            "messages": messages + [{"role": "assistant", "content": reply}],
+                                            "pending_action": None,
+                                            "pending_action_args": None,
+                                        }
+                                    try:
+                                        from datetime import datetime, timezone
+                                        dt = datetime.fromisoformat(sched_str.replace("Z", "+00:00"))
+                                        if dt.tzinfo is None:
+                                            dt = dt.replace(tzinfo=timezone.utc)
+                                        else:
+                                            dt = dt.astimezone(timezone.utc)
+                                        
+                                        if dt <= datetime.now(timezone.utc):
+                                            reply = "To book a consultation, the appointment date and time must be in the future, not in the past."
+                                            return {
+                                                "messages": messages + [{"role": "assistant", "content": reply}],
+                                                "pending_action": None,
+                                                "pending_action_args": None,
+                                            }
+                                    except (ValueError, TypeError):
+                                        reply = "I couldn't understand the appointment date and time. Please provide a valid appointment date and time."
+                                        return {
+                                            "messages": messages + [{"role": "assistant", "content": reply}],
+                                            "pending_action": None,
+                                            "pending_action_args": None,
+                                        }
 
-                                reply = _confirmation_prompt(normalized_t_name, confirm_args)
+                                confirmation_id = None
                                 if session_id:
-                                    await session_memory.aset_pending_action(session_id, t_name, confirm_args)
+                                    confirmation_id = await session_memory.acreate_pending_action(
+                                        user_id=session_user_id,
+                                        session_id=session_id,
+                                        action=t_name,
+                                        args=confirm_args
+                                    )
+                                reply = _confirmation_prompt(normalized_t_name, confirm_args, confirmation_id)
                                 return {
                                     "messages": messages + [{"role": "assistant", "content": reply}],
                                     "requires_confirmation": True,
@@ -390,7 +445,13 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                             elif "session_user_id" in t_args:
                                 t_args.pop("session_user_id")
 
-                            tool_res = await tools_by_name[t_name].ainvoke(t_args)
+                            try:
+                                tool_res = await execute_tool(tools_by_name[t_name], t_args)
+                            except PermissionError as pe:
+                                reply = "This action requires confirmation. Please reply 'yes' to proceed."
+                                return {
+                                    "messages": messages + [{"role": "assistant", "content": reply}],
+                                }
                             sanitized_res = redact_pii_text(str(tool_res))
                             
                             # Second pass: ask the LLM to summarize the tool output for the user
@@ -421,19 +482,50 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     # Fallback State-changing Action HITL Confirmation Triggering
     if "cancel" in query_lower and ("order" in query_lower or "cancellation" in query_lower):
         order_match = re.search(r"#?(\d+)", user_query)
-        target_order_id = int(order_match.group(1)) if order_match else 101
+        if not order_match:
+            reply = "To cancel an order, please specify the order number (e.g. 'cancel order #105')."
+            return {"messages": messages + [{"role": "assistant", "content": reply}]}
+        target_order_id = int(order_match.group(1))
         
-        reply = (
-            f"⚠️ CONFIRMATION REQUIRED: Are you sure you want to execute action 'cancel_order' for order #{target_order_id}? "
-            f"This will release reserved stock back to inventory. Please reply 'Yes, confirm' to proceed."
-        )
+        args = {"order_id": target_order_id}
+        confirmation_id = None
         if session_id:
-            await session_memory.aset_pending_action(session_id, "cancel_order", {"order_id": target_order_id})
+            confirmation_id = await session_memory.acreate_pending_action(
+                user_id=session_user_id,
+                session_id=session_id,
+                action="cancel_order",
+                args=args
+            )
+        reply = _confirmation_prompt("cancel_order", args, confirmation_id)
         return {
             "messages": messages + [{"role": "assistant", "content": reply}],
             "requires_confirmation": True,
             "pending_action": "cancel_order",
-            "pending_action_args": {"order_id": target_order_id},
+            "pending_action_args": args,
+        }
+
+    if "cancel" in query_lower and ("consultation" in query_lower or "booking" in query_lower or "appointment" in query_lower):
+        consult_match = re.search(r"#?(\d+)", user_query)
+        if not consult_match:
+            reply = "To cancel a consultation, please specify the consultation ID (e.g. 'cancel consultation #5')."
+            return {"messages": messages + [{"role": "assistant", "content": reply}]}
+        consultation_id = int(consult_match.group(1))
+        
+        args = {"consultation_id": consultation_id}
+        confirmation_id = None
+        if session_id:
+            confirmation_id = await session_memory.acreate_pending_action(
+                user_id=session_user_id,
+                session_id=session_id,
+                action="cancel_consultation",
+                args=args
+            )
+        reply = _confirmation_prompt("cancel_consultation", args, confirmation_id)
+        return {
+            "messages": messages + [{"role": "assistant", "content": reply}],
+            "requires_confirmation": True,
+            "pending_action": "cancel_consultation",
+            "pending_action_args": args,
         }
 
     if "book" in query_lower and ("vet" in query_lower or "doctor" in query_lower or "consultation" in query_lower):
@@ -441,12 +533,24 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
         doctor_id = int(doc_match.group(1)) if doc_match else None
         pet_match = re.search(r"pet\s+#?(\d+)", query_lower)
         pet_id = int(pet_match.group(1)) if pet_match else None
+        
+        # Try to parse ISO date/time (e.g. 2026-08-31T10:00:00Z or similar)
+        date_match = re.search(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})?)", user_query)
+        scheduled_at_iso = date_match.group(1) if date_match else None
+
+        # Try to parse reason after "because" or "reason"
+        reason_match = re.search(r"(?:because|reason is|for)\s+([^.]+)", query_lower)
+        reason = reason_match.group(1).strip() if reason_match else None
 
         missing_fields = []
         if not doctor_id:
-            missing_fields.append("doctor ID")
+            missing_fields.append("doctor ID (e.g. 'doctor #2')")
         if not pet_id:
-            missing_fields.append("pet ID")
+            missing_fields.append("pet ID (e.g. 'pet #10')")
+        if not scheduled_at_iso:
+            missing_fields.append("appointment date and time in ISO format (e.g. '2026-08-31T10:00:00Z')")
+        if not reason:
+            missing_fields.append("reason for visit (e.g. 'because he has an itch')")
             
         if missing_fields:
             reply = f"To book a consultation using the fallback router, please provide: {', '.join(missing_fields)}."
@@ -455,15 +559,18 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
         args = {
             "doctor_id": doctor_id,
             "pet_id": pet_id,
-            "scheduled_at_iso": "2026-08-31T10:00:00Z",
-            "reason": "Vet Consultation",
+            "scheduled_at_iso": scheduled_at_iso,
+            "reason": reason,
         }
+        confirmation_id = None
         if session_id:
-            await session_memory.aset_pending_action(session_id, "book_consultation", args)
-        reply = (
-            f"⚠️ CONFIRMATION REQUIRED: Are you sure you want to execute action 'book_consultation' for doctor #{doctor_id} and pet #{pet_id}? "
-            f"Please reply 'Yes, confirm' to proceed."
-        )
+            confirmation_id = await session_memory.acreate_pending_action(
+                user_id=session_user_id,
+                session_id=session_id,
+                action="book_consultation",
+                args=args
+            )
+        reply = _confirmation_prompt("book_consultation", args, confirmation_id)
         return {
             "messages": messages + [{"role": "assistant", "content": reply}],
             "requires_confirmation": True,
@@ -478,34 +585,34 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             t_key = "tool_get_order_status" if "tool_get_order_status" in tools_by_name else "get_order_status"
             if t_key in tools_by_name:
                 order_id = int(order_match.group(1))
-                tool_res = await tools_by_name[t_key].ainvoke({"session_user_id": session_user_id, "order_id": order_id})
+                tool_res = await execute_tool(tools_by_name[t_key], {"session_user_id": session_user_id, "order_id": order_id})
                 reply = f"Here is your order status for Order #{order_id}:\n{tool_res}"
                 return {"messages": messages + [{"role": "assistant", "content": reply}], "sources": ["Scooby Order Service"]}
         else:
             t_key = "tool_get_my_orders" if "tool_get_my_orders" in tools_by_name else "get_my_orders"
             if t_key in tools_by_name:
-                tool_res = await tools_by_name[t_key].ainvoke({"session_user_id": session_user_id, "limit": 10})
+                tool_res = await execute_tool(tools_by_name[t_key], {"session_user_id": session_user_id, "limit": 10})
                 reply = f"Here are your past and current orders:\n{tool_res}"
                 return {"messages": messages + [{"role": "assistant", "content": reply}], "sources": ["Scooby Order Service"]}
 
     elif "product" in query_lower or "search" in query_lower:
         t_key = "tool_search_products" if "tool_search_products" in tools_by_name else "search_products"
         if t_key in tools_by_name:
-            tool_res = await tools_by_name[t_key].ainvoke({"search": user_query, "limit": 5})
+            tool_res = await execute_tool(tools_by_name[t_key], {"search": user_query, "limit": 5})
             reply = f"Here are matching products:\n{tool_res}"
             return {"messages": messages + [{"role": "assistant", "content": reply}], "sources": ["Scooby Product Catalog"]}
 
     elif "slot" in query_lower or "vet" in query_lower or "doctor" in query_lower or "availability" in query_lower:
         t_key = "tool_get_available_slots" if "tool_get_available_slots" in tools_by_name else "get_available_slots"
         if t_key in tools_by_name:
-            tool_res = await tools_by_name[t_key].ainvoke({})
+            tool_res = await execute_tool(tools_by_name[t_key], {})
             reply = f"Here are available vet consultation slots:\n{tool_res}"
             return {"messages": messages + [{"role": "assistant", "content": reply}], "sources": ["Scooby Vet Service"]}
 
     elif "pet" in query_lower or "pets" in query_lower:
         t_key = "tool_get_my_pets" if "tool_get_my_pets" in tools_by_name else "get_my_pets"
         if t_key in tools_by_name:
-            tool_res = await tools_by_name[t_key].ainvoke({"session_user_id": session_user_id})
+            tool_res = await execute_tool(tools_by_name[t_key], {"session_user_id": session_user_id})
             reply = f"Here are your registered pets:\n{tool_res}"
             return {"messages": messages + [{"role": "assistant", "content": reply}], "sources": ["Scooby Pet Service"]}
 

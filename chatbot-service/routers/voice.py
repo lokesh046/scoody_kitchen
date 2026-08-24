@@ -59,7 +59,7 @@ async def voice_chat_endpoint(
 
     validate_session_ownership(session_id, current_user_id)
 
-    history = session_memory.get_history(session_id)
+    history = await session_memory.aget_history(session_id)
     input_messages = history + [{"role": "user", "content": f"[Voice Message]: {transcribed_text}"}]
 
     initial_state = {
@@ -77,8 +77,8 @@ async def voice_chat_endpoint(
         bot_reply = redact_pii_text(raw_reply)
         sources = final_state.get("sources", [])
 
-        session_memory.save_message(session_id, "user", f"[Voice Message]: {transcribed_text}")
-        session_memory.save_message(session_id, "assistant", bot_reply)
+        await session_memory.asave_message(session_id, "user", f"[Voice Message]: {transcribed_text}")
+        await session_memory.asave_message(session_id, "assistant", bot_reply)
 
         return ChatResponse(
             reply=f"🎤 Transcribed Speech: '{transcribed_text}'\n\n{bot_reply}",

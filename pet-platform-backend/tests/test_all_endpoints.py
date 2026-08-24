@@ -98,7 +98,8 @@ def test_internal_service_jwt_authentication():
         "iss": "pet-platform-mcp-server",
         "exp": datetime.now(timezone.utc) + timedelta(seconds=60)
     }
-    token = jwt.encode(payload, settings.INTERNAL_SERVICE_API_KEY, algorithm="HS256")
+    secret = settings.MCP_INTERNAL_SECRET or settings.INTERNAL_SERVICE_API_KEY
+    token = jwt.encode(payload, secret, algorithm="HS256")
     
     res = client.get(
         "/internal/products/search?search=Food",

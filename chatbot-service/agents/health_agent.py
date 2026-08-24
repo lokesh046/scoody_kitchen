@@ -86,6 +86,19 @@ async def health_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             "hydrated and rested. If symptoms persist for more than 24 hours, consider booking a vet consultation."
         )
 
+    if isinstance(base_reply, list):
+        parts = []
+        for block in base_reply:
+            if isinstance(block, dict) and block.get("type") == "text":
+                parts.append(block.get("text", ""))
+            elif isinstance(block, str):
+                parts.append(block)
+            else:
+                parts.append(str(block))
+        base_reply = "".join(parts)
+    else:
+        base_reply = str(base_reply)
+
     full_reply = base_reply + MEDICAL_DISCLAIMER
     sources = [d["title"] for d in docs] if docs else ["Scooby Veterinary Guidance"]
     

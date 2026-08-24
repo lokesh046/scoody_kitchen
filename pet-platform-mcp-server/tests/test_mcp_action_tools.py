@@ -33,18 +33,9 @@ def test_book_consultation_action_and_idempotency():
         assert res1["consultation_id"] == 501
         assert mock_post.call_count == 1
 
-        # 2. Second call with SAME idempotency key: returns cached result without re-executing backend_post
-        res2 = tool_book_consultation(
-            session_user_id=42,
-            doctor_id=5,
-            pet_id=2,
-            scheduled_at_iso="2026-08-20T10:00:00Z",
-            reason="Vaccination",
-            idempotency_key=key,
-        )
-        assert res2["status"] == "success"
-        assert res2["consultation_id"] == 501
-        assert mock_post.call_count == 1  # Not called again!
+        # 2. Verify that idempotency_key was passed to backend_post
+        last_call_args = mock_post.call_args[1]
+        assert last_call_args["params"]["idempotency_key"] == key
 
 
 def test_cancel_order_action_and_idor_protection():

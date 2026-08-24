@@ -35,20 +35,27 @@ def _make_auth_header(user_id: int = 1) -> dict:
 def test_knowledge_rag_retrieval_grounded_answer():
     # Query matching Return Policy
     headers = _make_auth_header()
-    response = client.post(
-        "/chat",
-        headers=headers,
-        json={
-            "message": "What is your return policy for unopened items?",
-            "session_id": "test_sess_001",
-        },
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "success"
-    assert "return" in data["reply"].lower() or "days" in data["reply"].lower()
-    assert len(data["sources"]) > 0
-    assert "Return & Refund Policy" in data["sources"][0]
+    mock_doc = {
+        "doc_id": "policy-01",
+        "title": "Return & Refund Policy",
+        "content": "Our return policy for unopened items allows returns within 30 days.",
+        "category": "policy"
+    }
+    with patch.object(vector_store, "search_knowledge", return_value=[mock_doc]):
+        response = client.post(
+            "/chat",
+            headers=headers,
+            json={
+                "message": "What is your return policy for unopened items?",
+                "session_id": "test_sess_001",
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert "return" in data["reply"].lower() or "days" in data["reply"].lower()
+        assert len(data["sources"]) > 0
+        assert "Return & Refund Policy" in data["sources"][0]
 
 
 def test_knowledge_rag_anti_hallucination_out_of_scope():

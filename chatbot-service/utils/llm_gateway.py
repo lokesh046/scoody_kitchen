@@ -30,7 +30,9 @@ class LiteLLMGateway:
         temperature: float = 0.2,
     ):
         self.model_name = model_name
-        self.fallback_models = fallback_models or ["gemini/gemini-3.1-flash-lite"]
+        self.fallback_models = fallback_models or [
+            "gemini/gemini-3.1-pro-preview",
+        ]
         self.temperature = temperature
 
     def get_langchain_llm(self) -> Any:
@@ -130,7 +132,9 @@ def get_llm_with_fallback(
     """Return LangChain ChatLiteLLM model instance configured with native with_fallbacks() strategy."""
     gateway = LiteLLMGateway(
         model_name=model_name,
-        fallback_models=[fallback_model_name],
+        fallback_models=[
+            fallback_model_name,
+        ],
         temperature=temperature,
     )
     return gateway.get_langchain_llm()

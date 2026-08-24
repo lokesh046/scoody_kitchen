@@ -13,7 +13,7 @@ def validate_session_ownership(session_id: str, user_id: int | None) -> None:
             detail="Access Denied: You do not own this session.",
         )
 
-def get_current_chat_user(request: Request) -> int:
+async def get_current_chat_user(request: Request) -> int:
     """FastAPI Dependency: Authoritatively decodes & verifies JWT signature from HttpOnly cookies."""
     token = request.cookies.get("access_token")
     if not token:
@@ -26,7 +26,7 @@ def get_current_chat_user(request: Request) -> int:
     import hashlib
     from memory.redis_memory import session_memory
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
-    if session_memory.is_token_blacklisted(token_hash):
+    if await session_memory.ais_token_blacklisted(token_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has been revoked. Please log in again.",
@@ -58,7 +58,7 @@ def get_current_chat_user(request: Request) -> int:
         )
 
 
-def require_admin_role(request: Request) -> dict:
+async def require_admin_role(request: Request) -> dict:
     """FastAPI Dependency: Enforces strict Admin Role Authentication & Cryptographic Signature Verification via HttpOnly cookies."""
     token = request.cookies.get("access_token")
     if not token:
@@ -71,7 +71,7 @@ def require_admin_role(request: Request) -> dict:
     import hashlib
     from memory.redis_memory import session_memory
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
-    if session_memory.is_token_blacklisted(token_hash):
+    if await session_memory.ais_token_blacklisted(token_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has been revoked. Please log in again.",

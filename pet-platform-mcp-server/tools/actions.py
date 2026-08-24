@@ -69,39 +69,55 @@ def tool_book_consultation(
     # 1. Resolve Doctor Name to ID if needed
     if not doctor_id and doctor_name:
         slots_res = backend_get("/internal/bookings/available-slots")
-        if isinstance(slots_res, list):
-            search_name = doctor_name.lower().replace("dr.", "").replace("dr", "").strip()
-            matched = [s for s in slots_res if search_name in s.get("doctor_name", "").lower()]
-            if matched:
-                doctor_id = matched[0]["doctor_id"]
+        if isinstance(slots_res, dict) and slots_res.get("ok") is True:
+            data = slots_res.get("data")
+            if isinstance(data, list):
+                search_name = doctor_name.lower().replace("dr.", "").replace("dr", "").strip()
+                matched = [s for s in data if search_name in s.get("doctor_name", "").lower()]
+                if matched:
+                    doctor_id = matched[0]["doctor_id"]
 
     if not doctor_id:
-        return {"error": "Could not resolve doctor name to a valid available doctor. Please verify the doctor's name."}
+        return {
+            "ok": False,
+            "data": None,
+            "error": {
+                "code": "DOCTOR_NOT_FOUND",
+                "message": "Could not resolve doctor name to a valid available doctor. Please verify the doctor's name."
+            },
+            "request_id": "req_internal_validation"
+        }
 
     # 2. Resolve Pet Name to ID if needed
     if not pet_id and pet_name:
         pets_res = backend_get("/internal/pets", params={"acting_user_id": session_user_id})
-        if isinstance(pets_res, list):
-            search_pet = pet_name.lower().strip()
-            matched = [p for p in pets_res if search_pet == p.get("name", "").lower().strip()]
-            if matched:
-                pet_id = matched[0]["pet_id"]
-            else:
-                # Fallback to partial match
-                matched_partial = [p for p in pets_res if search_pet in p.get("name", "").lower()]
-                if matched_partial:
-                    pet_id = matched_partial[0]["pet_id"]
+        if isinstance(pets_res, dict) and pets_res.get("ok") is True:
+            data = pets_res.get("data")
+            if isinstance(data, list):
+                search_pet = pet_name.lower().strip()
+                matched = [p for p in data if search_pet == p.get("name", "").lower().strip()]
+                if matched:
+                    pet_id = matched[0]["pet_id"]
+                else:
+                    # Fallback to partial match
+                    matched_partial = [p for p in data if search_pet in p.get("name", "").lower()]
+                    if matched_partial:
+                        pet_id = matched_partial[0]["pet_id"]
 
     if not pet_id:
-        return {"error": "Could not resolve pet name to a valid registered pet. Please verify the pet's name."}
+        return {
+            "ok": False,
+            "data": None,
+            "error": {
+                "code": "PET_NOT_FOUND",
+                "message": "Could not resolve pet name to a valid registered pet. Please verify the pet's name."
+            },
+            "request_id": "req_internal_validation"
+        }
 
     # 3. Handle Idempotency Key Generation
     if not idempotency_key:
         idempotency_key = f"idem_book_{session_user_id}_{doctor_id}_{pet_id}_{scheduled_at_iso.replace(':', '_').replace('-', '_')}"
-
-    cached = _get_idempotent(idempotency_key)
-    if cached:
-        return cached
 
     result = backend_post(
         "/internal/bookings/consultations",
@@ -112,10 +128,11 @@ def tool_book_consultation(
             "scheduled_at_iso": scheduled_at_iso,
             "reason": reason,
             "customer_notes": customer_notes,
+            "idempotency_key": idempotency_key,
         },
     )
-    result["idempotency_key"] = idempotency_key
-    _set_idempotent(idempotency_key, result)
+    if result.get("ok") is True and isinstance(result.get("data"), dict):
+        result["data"]["idempotency_key"] = idempotency_key
     return result
 
 
@@ -131,13 +148,15 @@ def tool_cancel_order(
       by the backend itself, not just trusted here).
     - idempotency_key: unique key per user action (prevents duplicate cancellations).
     """
-    cached = _get_idempotent(idempotency_key)
-    if cached:
-        return cached
-
-    result = backend_post(f"/internal/orders/{order_id}/cancel", params={"acting_user_id": session_user_id})
-    result["idempotency_key"] = idempotency_key
-    _set_idempotent(idempotency_key, result)
+    result = backend_post(
+        f"/internal/orders/{order_id}/cancel",
+        params={
+            "acting_user_id": session_user_id,
+            "idempotency_key": idempotency_key,
+        }
+    )
+    if result.get("ok") is True and isinstance(result.get("data"), dict):
+        result["data"]["idempotency_key"] = idempotency_key
     return result
 
 
@@ -153,14 +172,13 @@ def tool_cancel_consultation(
       by the backend itself, not just trusted here).
     - idempotency_key: unique key per user action (prevents duplicate cancellations).
     """
-    cached = _get_idempotent(idempotency_key)
-    if cached:
-        return cached
-
     result = backend_post(
         f"/internal/bookings/consultations/{consultation_id}/cancel",
-        params={"acting_user_id": session_user_id},
+        params={
+            "acting_user_id": session_user_id,
+            "idempotency_key": idempotency_key,
+        },
     )
-    result["idempotency_key"] = idempotency_key
-    _set_idempotent(idempotency_key, result)
+    if result.get("ok") is True and isinstance(result.get("data"), dict):
+        result["data"]["idempotency_key"] = idempotency_key
     return result

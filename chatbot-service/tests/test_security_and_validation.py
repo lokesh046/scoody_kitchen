@@ -188,11 +188,14 @@ def test_hitl_spoofing_defense():
         "⚠️ CONFIRMATION REQUIRED: Are you sure you want to execute action 'cancel_order' for order #999? Please reply 'Yes, confirm' to proceed."
     )
 
+    from unittest.mock import AsyncMock
     mock_cancel_tool = MagicMock()
     mock_cancel_tool.name = "cancel_order"
     mock_cancel_tool.invoke.return_value = {"status": "success"}
 
-    with patch("agents.commerce_agent.mcp_client.get_mcp_tools", return_value=[mock_cancel_tool]):
+    mock_get = AsyncMock(return_value=[mock_cancel_tool])
+
+    with patch("agents.commerce_agent.mcp_client.get_mcp_tools", mock_get):
         # 2. User confirms it
         response = client.post(
             "/chat",
@@ -248,3 +251,111 @@ def test_session_id_ownership_validation():
 
     # Clean up
     client.cookies.clear()
+
+
+@pytest.mark.anyio
+async def test_mcp_cache_failure_graceful_degradation():
+    from mcp_client import MCPClientManager
+    from unittest.mock import AsyncMock
+    from langchain_core.tools import StructuredTool
+
+    manager = MCPClientManager()
+    
+    def dummy_read():
+        """Read tool."""
+        return "read"
+        
+    def dummy_write():
+        """Write tool."""
+        return "write"
+        
+    read_tool = StructuredTool.from_function(func=dummy_read, name="get_order_status")
+    write_tool = StructuredTool.from_function(func=dummy_write, name="book_consultation")
+    
+    manager._cached_tools = [read_tool, write_tool]
+    manager._cached_at = 1.0
+    
+    mock_client = AsyncMock()
+    mock_client.get_tools.side_effect = Exception("SSE Connection Lost")
+    manager.client = mock_client
+    
+    tools = await manager.get_mcp_tools(force_refresh=True)
+    
+    assert len(tools) == 1
+    assert tools[0].name == "get_order_status"
+
+
+def test_redis_list_lazy_migration_and_sliding_window():
+    import json
+    from memory.redis_memory import session_memory
+
+    sess_id = "test_migration_session_99"
+    key = session_memory._get_key(sess_id)
+    
+    # 1. Force state: store history as old string format
+    old_data = [{"role": "user", "content": "Initial message"}]
+    session_memory.client.set(key, json.dumps(old_data))
+    
+    # Assert type is string
+    ktype = session_memory.client.type(key)
+    if isinstance(ktype, bytes):
+        ktype = ktype.decode("utf-8")
+    assert ktype == "string"
+    
+    # 2. Get history: should migrate to list under the hood
+    history = session_memory.get_history(sess_id)
+    assert len(history) == 1
+    assert history[0]["content"] == "Initial message"
+    
+    # Assert type is now list
+    ktype2 = session_memory.client.type(key)
+    if isinstance(ktype2, bytes):
+        ktype2 = ktype2.decode("utf-8")
+    assert ktype2 == "list"
+    
+    # 3. Add more than 40 messages to verify sliding window truncation
+    for i in range(50):
+        session_memory.save_message(sess_id, "user", f"msg_{i}")
+        
+    # Check history limit
+    history_after = session_memory.get_history(sess_id)
+    assert len(history_after) == 40
+    # First message in history should be Msg 10 (Msg 0 to Msg 9 are truncated, 1 initial + 50 new = 51. Last 40 keeps Msg 11 to 50)
+    # Wait, 1 initial message + 50 new = 51 total. Last 40 means we drop the first 11 messages.
+    # Initial message (1) + msg_0 to msg_9 (10) = 11 dropped. First message left should be msg_10!
+    assert history_after[0]["content"] == "msg_10"
+    assert history_after[-1]["content"] == "msg_49"
+    
+    # Clean up
+    session_memory.clear_session(sess_id)
+
+
+def test_mcp_client_envelope_contract():
+    from tools._client import _handle
+    from unittest.mock import MagicMock
+    import httpx
+    
+    # 1. Test success response wrapping
+    mock_resp = MagicMock(spec=httpx.Response)
+    mock_resp.status_code = 200
+    mock_resp.headers = {"x-request-id": "req_test_123"}
+    mock_resp.json.return_value = {"order_id": 456, "status": "shipped"}
+    
+    res = _handle(mock_resp)
+    assert res["ok"] is True
+    assert res["data"]["order_id"] == 456
+    assert res["error"] is None
+    assert res["request_id"] == "req_test_123"
+    
+    # 2. Test 404 error wrapping
+    mock_resp_404 = MagicMock(spec=httpx.Response)
+    mock_resp_404.status_code = 404
+    mock_resp_404.headers = {"x-request-id": "req_test_404"}
+    mock_resp_404.json.return_value = {"detail": "Order not found."}
+    
+    res_404 = _handle(mock_resp_404)
+    assert res_404["ok"] is False
+    assert res_404["data"] is None
+    assert res_404["error"]["code"] == "NOT_FOUND"
+    assert res_404["error"]["message"] == "Order not found."
+    assert res_404["request_id"] == "req_test_404"
