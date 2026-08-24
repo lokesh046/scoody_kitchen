@@ -359,3 +359,44 @@ def test_mcp_client_envelope_contract():
     assert res_404["error"]["code"] == "NOT_FOUND"
     assert res_404["error"]["message"] == "Order not found."
     assert res_404["request_id"] == "req_test_404"
+
+
+def test_mcp_call_token_security_and_replay_prevention():
+    mcp_server_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../pet-platform-mcp-server"))
+    if mcp_server_dir not in sys.path:
+        sys.path.insert(0, mcp_server_dir)
+
+    from utils.mcp_auth import mint_mcp_call_token
+    from tools._auth import verify_mcp_call_token
+    import jwt
+    import time
+
+    # 1. Verify successful token minting and verification
+    user_id = 99
+    token = mint_mcp_call_token(user_id)
+    assert token is not None
+
+    resolved_user_id = verify_mcp_call_token(token)
+    assert resolved_user_id == user_id
+
+    # 2. Verify Replay Prevention (same token used twice raises PermissionError)
+    with pytest.raises(PermissionError) as exc_replay:
+        verify_mcp_call_token(token)
+    assert "replay detected" in str(exc_replay.value).lower()
+
+    # 3. Verify Expired Token rejection
+    expired_token = mint_mcp_call_token(user_id, expires_in_seconds=-10)
+    with pytest.raises(PermissionError) as exc_expired:
+        verify_mcp_call_token(expired_token)
+    assert "expired" in str(exc_expired.value).lower()
+
+    # 4. Verify Invalid Signature rejection (signed with wrong secret)
+    wrong_token = jwt.encode(
+        {"sub": str(user_id), "jti": "some_jti", "exp": int(time.time() + 60), "iss": "chatbot-service"},
+        "wrong_secret_key_123",
+        algorithm="HS256"
+    )
+    with pytest.raises(PermissionError) as exc_sig:
+        verify_mcp_call_token(wrong_token)
+    assert "invalid" in str(exc_sig.value).lower()
+

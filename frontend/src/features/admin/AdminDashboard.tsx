@@ -40,7 +40,7 @@ import {
   fetchProductInventory,
   createInventorySlot
 } from '../../api/productsAdmin';
-import type { CreateProductData, InventoryUpdate, InventoryCreate } from '../../api/productsAdmin';
+import type { CreateProductData, InventoryUpdate } from '../../api/productsAdmin';
 import { fetchRAGDocuments, uploadRAGDocument, deleteRAGDocument } from '../../api/chatbot';
 import { 
   Loader2, 
@@ -356,6 +356,7 @@ export const AdminDashboard: React.FC = () => {
     mutationFn: createProduct,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminProducts'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       setRecipeName('');
       setRecipeDesc('');
       setRecipeSku('');
@@ -369,6 +370,15 @@ export const AdminDashboard: React.FC = () => {
     mutationFn: deactivateProduct,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminProducts'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    }
+  });
+
+  const activateProductMutation = useMutation({
+    mutationFn: (productId: number) => updateProduct(productId, { is_active: true }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminProducts'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
     }
   });
 
@@ -430,6 +440,7 @@ export const AdminDashboard: React.FC = () => {
       updateProduct(productId, productData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminProducts'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       alert('Product updated successfully!');
     },
     onError: (err: any) => {
@@ -2343,31 +2354,44 @@ export const AdminDashboard: React.FC = () => {
                           {prod.is_active ? 'Active' : 'Inactive'}
                         </span>
                         
-                        {prod.is_active && (
-                          <div className="flex flex-row sm:flex-col items-end gap-2">
+                        <div className="flex flex-row sm:flex-col items-end gap-2">
+                          {prod.is_active ? (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setEditingProduct(prod);
+                                  setEditPrice(prod.price);
+                                  setEditStock(String(prod.available_stock ?? ''));
+                                  setEditWeightsInput(prod.weight_options ? prod.weight_options.map((opt: any) => `${opt.weight}: ${opt.price}`).join(', ') : '');
+                                }}
+                                className="font-mono text-[9px] uppercase font-bold tracking-wider text-herb hover:underline"
+                              >
+                                Quick Edit
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Deactivate recipe "${prod.name}"?`)) {
+                                    deactivateProductMutation.mutate(prod.id);
+                                  }
+                                }}
+                                className="font-mono text-[9px] uppercase font-bold tracking-wider text-paprika hover:underline"
+                              >
+                                Deactivate
+                              </button>
+                            </>
+                          ) : (
                             <button
                               onClick={() => {
-                                setEditingProduct(prod);
-                                setEditPrice(prod.price);
-                                setEditStock(String(prod.available_stock ?? ''));
-                                setEditWeightsInput(prod.weight_options ? prod.weight_options.map((opt: any) => `${opt.weight}: ${opt.price}`).join(', ') : '');
+                                if (confirm(`Activate recipe "${prod.name}"?`)) {
+                                  activateProductMutation.mutate(prod.id);
+                                }
                               }}
                               className="font-mono text-[9px] uppercase font-bold tracking-wider text-herb hover:underline"
                             >
-                              Quick Edit
+                              Activate
                             </button>
-                            <button
-                              onClick={() => {
-                                if (confirm(`Deactivate recipe "${prod.name}"?`)) {
-                                  deactivateProductMutation.mutate(prod.id);
-                                }
-                              }}
-                              className="font-mono text-[9px] uppercase font-bold tracking-wider text-paprika hover:underline"
-                            >
-                              Deactivate
-                            </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -3240,7 +3264,7 @@ export const AdminDashboard: React.FC = () => {
                           )}
                           <div className="text-[10px] text-ink opacity-60 font-mono mt-0.5">Quantity: x{item.quantity} | Unit Price: ₹{Number(item.price).toFixed(2)}</div>
                         </div>
-                        <span className="font-mono font-bold text-ink">₹{Number(item.subtotal).toFixed(2)}</span>
+                        <span className="font-mono font-bold text-ink">₹{(Number(item.price) * item.quantity).toFixed(2)}</span>
                       </li>
                     ))}
                   </ul>

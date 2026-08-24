@@ -6,6 +6,7 @@ import { useCartStore } from '../../store/cart';
 import { checkoutCart } from '../../api/orders';
 import type { OrderResponse } from '../../api/orders';
 import { createPayment, simulatePaymentSuccess, simulatePaymentFailure, verifyRazorpayPayment } from '../../api/payments';
+import type { PaymentResponse } from '../../api/payments';
 import { logoutUser } from '../../api/auth';
 import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
@@ -423,7 +424,7 @@ export const CheckoutPage: React.FC = () => {
                   razorpay_order_id: response.razorpay_order_id,
                   razorpay_signature: response.razorpay_signature,
                 });
-                if (verifyRes.status === 'success' || verifyRes.status === 'SUCCESS') {
+                if (verifyRes.status === 'COMPLETED') {
                   setPaymentStatus('SUCCESS');
                   clearCart();
                 } else {

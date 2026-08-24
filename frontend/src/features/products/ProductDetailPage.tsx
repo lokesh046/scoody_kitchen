@@ -244,12 +244,20 @@ export const ProductDetailPage: React.FC = () => {
               <img
                 src={currentDisplayImage}
                 alt={product.name}
-                className="w-full h-full object-cover grayscale-[10%] hover:grayscale-0 transition-all duration-300"
+                className={`w-full h-full object-cover transition-all duration-300 ${
+                  !product.is_active ? 'grayscale opacity-50' : 'grayscale-[10%] hover:grayscale-0'
+                }`}
               />
               {/* Category Tag */}
               {product.category?.name && (
                 <div className="absolute top-4 left-4 bg-herb text-paperLight font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-sm">
                   {product.category.name}
+                </div>
+              )}
+              {/* Deactivated Tag */}
+              {!product.is_active && (
+                <div className="absolute top-4 left-4 mt-7 bg-paprika text-paperLight font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold shadow-sm animate-pulse">
+                  Deactivated
                 </div>
               )}
               {/* Canine Approved Stamp */}
@@ -328,6 +336,16 @@ export const ProductDetailPage: React.FC = () => {
               RECIPE NO. 0{product.id}
             </div>
 
+            {!product.is_active && (
+              <div className="bg-red-50 border border-paprika border-opacity-35 p-4 rounded-sm flex items-start space-x-2.5 text-paprika text-xs font-body mb-4">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="block font-bold">This product has been deactivated.</strong>
+                  Only administrators can view this page. Customers will not see this recipe in the shop catalog.
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Eyebrow label="NUTRITIONAL COMPOSITION LEDGER" />
               <h2 className="font-display font-bold text-3xl text-ink leading-tight">
@@ -340,7 +358,11 @@ export const ProductDetailPage: React.FC = () => {
                 </span>
                 
                 {/* Stock Status Badge */}
-                {isOutOfStock ? (
+                {!product.is_active ? (
+                  <span className="font-mono text-[9px] font-bold text-paprika bg-red-50 border border-paprika border-opacity-35 px-2 py-0.5 rounded-sm uppercase tracking-wider">
+                    Deactivated
+                  </span>
+                ) : isOutOfStock ? (
                   <span className="font-mono text-[9px] font-bold text-paprika bg-red-50 border border-paprika border-opacity-35 px-2 py-0.5 rounded-sm uppercase tracking-wider">
                     Out of Stock
                   </span>
@@ -407,7 +429,7 @@ export const ProductDetailPage: React.FC = () => {
               <div className="flex items-center justify-between border border-cardboard bg-paperLight rounded-sm p-1 sm:w-32 shrink-0">
                 <button
                   onClick={handleDecrement}
-                  disabled={quantity <= 1 || isOutOfStock}
+                  disabled={quantity <= 1 || isOutOfStock || !product.is_active}
                   className="p-1.5 hover:bg-paper rounded-sm text-ink disabled:opacity-30"
                 >
                   <Minus className="w-3.5 h-3.5" />
@@ -417,7 +439,7 @@ export const ProductDetailPage: React.FC = () => {
                 </span>
                 <button
                   onClick={handleIncrement}
-                  disabled={isOutOfStock}
+                  disabled={isOutOfStock || !product.is_active}
                   className="p-1.5 hover:bg-paper rounded-sm text-ink disabled:opacity-30"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -427,9 +449,11 @@ export const ProductDetailPage: React.FC = () => {
               {/* Add to Cart CTA */}
               <button
                 onClick={handleAddToCart}
-                disabled={isOutOfStock || isAdding}
+                disabled={isOutOfStock || isAdding || !product.is_active}
                 className={`flex-grow font-body font-bold text-xs uppercase py-3.5 px-6 rounded-sm tracking-wide transition-all duration-300 shadow-sm flex items-center justify-center space-x-2 ${
-                  isAdded
+                  !product.is_active
+                    ? 'bg-cardboard bg-opacity-35 text-ink text-opacity-50 cursor-not-allowed border border-cardboard border-opacity-30'
+                    : isAdded
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                     : 'bg-paprika hover:bg-opacity-95 text-paperLight'
                 } disabled:opacity-50`}
@@ -447,7 +471,7 @@ export const ProductDetailPage: React.FC = () => {
                 ) : (
                   <>
                     <ShoppingCart className="w-4 h-4" />
-                    <span>{isOutOfStock ? 'Sold Out' : 'Shop the Recipe'}</span>
+                    <span>{!product.is_active ? 'Unavailable' : isOutOfStock ? 'Sold Out' : 'Shop the Recipe'}</span>
                   </>
                 )}
               </button>

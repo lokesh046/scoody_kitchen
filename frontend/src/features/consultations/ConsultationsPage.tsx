@@ -16,7 +16,7 @@ import { CartDrawer } from '../../components/CartDrawer';
 import { 
   ArrowLeft, ShoppingCart, LogOut, User, PawPrint, 
   Clock, Stethoscope, Loader2, AlertCircle, XCircle,
-  MapPin, Compass, Calendar as CalendarIcon, Info, Check
+  MapPin, Compass, Calendar as CalendarIcon, Info
 } from 'lucide-react';
 
 export const ConsultationsPage: React.FC = () => {

@@ -46,7 +46,7 @@ export const createProduct = async (productData: CreateProductData): Promise<Pro
 
 export const updateProduct = async (
   productId: number,
-  productData: Partial<CreateProductData>
+  productData: Partial<CreateProductData> & { is_active?: boolean }
 ): Promise<ProductResponse> => {
   const formData = new FormData();
   if (productData.category_id !== undefined) {
@@ -72,6 +72,9 @@ export const updateProduct = async (
   }
   if (productData.weight_options !== undefined) {
     formData.append('weight_options', JSON.stringify(productData.weight_options));
+  }
+  if (productData.is_active !== undefined) {
+    formData.append('is_active', String(productData.is_active));
   }
   const response = await apiClient.patch<ProductResponse>(`/product/${productId}`, formData, {
     headers: {

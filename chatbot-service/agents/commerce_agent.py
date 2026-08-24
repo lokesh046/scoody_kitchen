@@ -6,6 +6,7 @@ from typing import Any
 from mcp_client import mcp_client
 from utils.guardrails import redact_pii_text
 from utils.llm_gateway import get_llm_with_fallback
+from utils.mcp_auth import mint_mcp_call_token
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
@@ -170,7 +171,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
         await session_memory.aconsume_pending_action(active_conf_id, session_id)
         reply = "Okay, I've canceled the pending request."
         return {
-            "messages": messages + [{"role": "assistant", "content": reply}],
+            "messages": [{"role": "assistant", "content": reply}],
             "pending_action": None,
             "pending_action_args": None,
         }
@@ -205,16 +206,21 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                     }
                 idempotency_key = f"idem_cancel_{session_user_id}_{target_order_id}"
 
-                tool_res = await execute_tool(tool_fn, {
-                    "session_user_id": session_user_id,
+                call_args = {
                     "order_id": target_order_id,
                     "idempotency_key": idempotency_key,
-                }, context={"is_hitl_approved": True})
+                }
+                if "mcp_call_token" in tool_fn.args:
+                    call_args["mcp_call_token"] = mint_mcp_call_token(session_user_id)
+                else:
+                    call_args["session_user_id"] = session_user_id
+
+                tool_res = await execute_tool(tool_fn, call_args, context={"is_hitl_approved": True})
                 reply = format_action_response("cancel_order", tool_res)
                 if session_id:
                     await session_memory.aclear_pending_action(session_id)
                 return {
-                    "messages": messages + [{"role": "assistant", "content": reply}],
+                    "messages": [{"role": "assistant", "content": reply}],
                     "sources": ["Scooby Order Service"],
                     "pending_action": None,
                     "pending_action_args": None,
@@ -222,7 +228,11 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
 
             elif normalized_action == "book_consultation":
                 call_args = dict(pending_args)
-                call_args["session_user_id"] = session_user_id
+                if "mcp_call_token" in tool_fn.args:
+                    call_args["mcp_call_token"] = mint_mcp_call_token(session_user_id)
+                    call_args.pop("session_user_id", None)
+                else:
+                    call_args["session_user_id"] = session_user_id
                 
                 # Check for missing required inputs
                 missing_fields = []
@@ -240,7 +250,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                     if session_id:
                         await session_memory.aclear_pending_action(session_id)
                     return {
-                        "messages": messages + [{"role": "assistant", "content": reply}],
+                        "messages": [{"role": "assistant", "content": reply}],
                         "pending_action": None,
                         "pending_action_args": None,
                     }
@@ -269,7 +279,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                         if session_id:
                             await session_memory.aclear_pending_action(session_id)
                         return {
-                            "messages": messages + [{"role": "assistant", "content": reply}],
+                            "messages": [{"role": "assistant", "content": reply}],
                             "pending_action": None,
                             "pending_action_args": None,
                         }
@@ -278,7 +288,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                     if session_id:
                         await session_memory.aclear_pending_action(session_id)
                     return {
-                        "messages": messages + [{"role": "assistant", "content": reply}],
+                        "messages": [{"role": "assistant", "content": reply}],
                         "pending_action": None,
                         "pending_action_args": None,
                     }
@@ -288,7 +298,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                 if session_id:
                     await session_memory.aclear_pending_action(session_id)
                 return {
-                    "messages": messages + [{"role": "assistant", "content": reply}],
+                    "messages": [{"role": "assistant", "content": reply}],
                     "sources": ["Scooby Vet Booking Service"],
                     "pending_action": None,
                     "pending_action_args": None,
@@ -307,16 +317,21 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                     }
                 idempotency_key = f"idem_cancel_consult_{session_user_id}_{consultation_id}"
 
-                tool_res = await execute_tool(tool_fn, {
-                    "session_user_id": session_user_id,
+                call_args = {
                     "consultation_id": consultation_id,
                     "idempotency_key": idempotency_key,
-                }, context={"is_hitl_approved": True})
+                }
+                if "mcp_call_token" in tool_fn.args:
+                    call_args["mcp_call_token"] = mint_mcp_call_token(session_user_id)
+                else:
+                    call_args["session_user_id"] = session_user_id
+
+                tool_res = await execute_tool(tool_fn, call_args, context={"is_hitl_approved": True})
                 reply = format_action_response("cancel_consultation", tool_res)
                 if session_id:
                     await session_memory.aclear_pending_action(session_id)
                 return {
-                    "messages": messages + [{"role": "assistant", "content": reply}],
+                    "messages": [{"role": "assistant", "content": reply}],
                     "sources": ["Scooby Vet Booking Service"],
                     "pending_action": None,
                     "pending_action_args": None,
@@ -327,7 +342,11 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                 # this point (e.g. added later) — still requires this same
                 # confirm-then-invoke path, never a direct call.
                 call_args: dict[str, Any] = dict(pending_args)
-                call_args["session_user_id"] = session_user_id
+                if "mcp_call_token" in tool_fn.args:
+                    call_args["mcp_call_token"] = mint_mcp_call_token(session_user_id)
+                    call_args.pop("session_user_id", None)
+                else:
+                    call_args["session_user_id"] = session_user_id
                 call_args.setdefault(
                     "idempotency_key",
                     f"idem_{pending_action}_{session_user_id}_{'_'.join(str(v) for v in pending_args.values())}",
@@ -337,7 +356,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                 if session_id:
                     await session_memory.aclear_pending_action(session_id)
                 return {
-                    "messages": messages + [{"role": "assistant", "content": reply}],
+                    "messages": [{"role": "assistant", "content": reply}],
                     "sources": ["Scooby FastMCP Tool Engine"],
                     "pending_action": None,
                     "pending_action_args": None,
@@ -359,7 +378,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
 
             llm_with_tools = bind_tools_to_runnable(llm, mcp_tools)
             if llm_with_tools:
-                from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage
+                from langchain_core.messages import SystemMessage, HumanMessage, BaseMessage, ToolMessage
                 from datetime import datetime, timezone
                 current_time_str = datetime.now(timezone.utc).isoformat()
                 messages_input: list[BaseMessage] = [
@@ -372,53 +391,71 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                     )),
                     HumanMessage(content=user_query)
                 ]
-                ai_msg = await llm_with_tools.with_config({"tags": ["agent_response"]}).ainvoke(messages_input)
 
-                # Check if LLM generated tool calls natively
-                if hasattr(ai_msg, "tool_calls") and ai_msg.tool_calls:
+                # ReAct Execution Loop (max 5 steps to resolve multi-step tool calls)
+                for _ in range(5):
+                    ai_msg = await llm_with_tools.with_config({"tags": ["agent_response"]}).ainvoke(messages_input)
+
+                    if not hasattr(ai_msg, "tool_calls") or not ai_msg.tool_calls:
+                        reply = ai_msg.content if hasattr(ai_msg, "content") else str(ai_msg)
+                        if isinstance(reply, list):
+                            text_parts = []
+                            for block in reply:
+                                if isinstance(block, str):
+                                    text_parts.append(block)
+                                elif isinstance(block, dict):
+                                    text_parts.append(block.get("text", block.get("content", "")))
+                                elif hasattr(block, "text"):
+                                    text_parts.append(getattr(block, "text", ""))
+                            reply = "".join(text_parts).strip()
+                        return {
+                            "messages": [{"role": "assistant", "content": reply}],
+                            "pending_action": None,
+                            "pending_action_args": None,
+                        }
+
+                    # Track the tool calls we made
+                    messages_input.append(ai_msg)
+
+                    # Execute all tools requested in this step
                     for call in ai_msg.tool_calls:
                         t_name = call.get("name")
                         t_args = call.get("args") or {}
                         if t_name in tools_by_name:
-                            # SAFETY GATE: any state-changing tool must go
-                            # through explicit HITL confirmation, even when
-                            # the model chose to call it on its own via
-                            # native tool-calling rather than through one of
-                            # the keyword-triggered flows.
+                            # SAFETY GATE: state-changing tools must go through HITL confirmation
                             normalized_t_name = t_name.replace("tool_", "")
                             if normalized_t_name in STATE_CHANGING_TOOLS or t_name in STATE_CHANGING_TOOLS:
                                 confirm_args = _default_pending_args(normalized_t_name, t_args)
                                 confirm_args.pop("session_user_id", None)
-                                
-                                # Validate scheduled date is in the future
+                                confirm_args.pop("mcp_call_token", None)
+
                                 if normalized_t_name == "book_consultation":
                                     sched_str = confirm_args.get("scheduled_at_iso")
                                     if not sched_str:
                                         reply = "The appointment date and time are required before booking."
                                         return {
-                                            "messages": messages + [{"role": "assistant", "content": reply}],
+                                            "messages": [{"role": "assistant", "content": reply}],
                                             "pending_action": None,
                                             "pending_action_args": None,
                                         }
                                     try:
-                                        from datetime import datetime, timezone
                                         dt = datetime.fromisoformat(sched_str.replace("Z", "+00:00"))
                                         if dt.tzinfo is None:
                                             dt = dt.replace(tzinfo=timezone.utc)
                                         else:
                                             dt = dt.astimezone(timezone.utc)
-                                        
+
                                         if dt <= datetime.now(timezone.utc):
                                             reply = "To book a consultation, the appointment date and time must be in the future, not in the past."
                                             return {
-                                                "messages": messages + [{"role": "assistant", "content": reply}],
+                                                "messages": [{"role": "assistant", "content": reply}],
                                                 "pending_action": None,
                                                 "pending_action_args": None,
                                             }
                                     except (ValueError, TypeError):
                                         reply = "I couldn't understand the appointment date and time. Please provide a valid appointment date and time."
                                         return {
-                                            "messages": messages + [{"role": "assistant", "content": reply}],
+                                            "messages": [{"role": "assistant", "content": reply}],
                                             "pending_action": None,
                                             "pending_action_args": None,
                                         }
@@ -433,47 +470,34 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                                     )
                                 reply = _confirmation_prompt(normalized_t_name, confirm_args, confirmation_id)
                                 return {
-                                    "messages": messages + [{"role": "assistant", "content": reply}],
+                                    "messages": [{"role": "assistant", "content": reply}],
                                     "requires_confirmation": True,
                                     "pending_action": t_name,
                                     "pending_action_args": confirm_args,
                                 }
 
-                            # Inject session_user_id authoritatively only if the tool accepts it
-                            if "session_user_id" in tools_by_name[t_name].args:
+                            # For read or approved write tools: inject mcp_call_token on-demand
+                            if "mcp_call_token" in tools_by_name[t_name].args:
+                                t_args["mcp_call_token"] = mint_mcp_call_token(session_user_id)
+                                t_args.pop("session_user_id", None)
+                            elif "session_user_id" in tools_by_name[t_name].args:
                                 t_args["session_user_id"] = session_user_id
-                            elif "session_user_id" in t_args:
-                                t_args.pop("session_user_id")
 
                             try:
                                 tool_res = await execute_tool(tools_by_name[t_name], t_args)
                             except PermissionError as pe:
-                                reply = "This action requires confirmation. Please reply 'yes' to proceed."
+                                reply = f"This action requires confirmation. Please reply 'yes' to proceed. Details: {pe}"
                                 return {
-                                    "messages": messages + [{"role": "assistant", "content": reply}],
+                                    "messages": [{"role": "assistant", "content": reply}],
                                 }
-                            sanitized_res = redact_pii_text(str(tool_res))
-                            
-                            # Second pass: ask the LLM to summarize the tool output for the user
-                            from langchain_core.messages import ToolMessage, SystemMessage
-                            
-                            messages_input.append(ai_msg)
-                            messages_input.append(ToolMessage(content=sanitized_res, tool_call_id=call.get("id", "")))
-                            messages_input.append(SystemMessage(content=(
-                                "Now, present the tool output data clearly to the user. "
-                                "Make it friendly, conversational, and format the product lists or slots cleanly."
-                            )))
-                            
-                            summary_msg = await llm.with_config({"tags": ["agent_response"]}).ainvoke(messages_input)
-                            reply = summary_msg.content if hasattr(summary_msg, "content") else str(summary_msg)
-                            
-                            return {
-                                "messages": messages + [{"role": "assistant", "content": reply}],
-                                "sources": ["Scooby FastMCP Tool Engine"],
-                            }
 
-                if hasattr(ai_msg, "content") and ai_msg.content:
-                    return {"messages": messages + [{"role": "assistant", "content": ai_msg.content}]}
+                            sanitized_res = redact_pii_text(str(tool_res))
+                            messages_input.append(ToolMessage(content=sanitized_res, tool_call_id=call.get("id", "")))
+
+                reply = "I completed the background tasks but couldn't formulate a final summary. How else can I help?"
+                return {
+                    "messages": [{"role": "assistant", "content": reply}],
+                }
         except Exception as e:
             print(f"❌ [Commerce Agent Exception] Tool calling loop failed: {e}", flush=True)
             import traceback
@@ -484,7 +508,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
         order_match = re.search(r"#?(\d+)", user_query)
         if not order_match:
             reply = "To cancel an order, please specify the order number (e.g. 'cancel order #105')."
-            return {"messages": messages + [{"role": "assistant", "content": reply}]}
+            return {"messages": [{"role": "assistant", "content": reply}]}
         target_order_id = int(order_match.group(1))
         
         args = {"order_id": target_order_id}
@@ -498,7 +522,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             )
         reply = _confirmation_prompt("cancel_order", args, confirmation_id)
         return {
-            "messages": messages + [{"role": "assistant", "content": reply}],
+            "messages": [{"role": "assistant", "content": reply}],
             "requires_confirmation": True,
             "pending_action": "cancel_order",
             "pending_action_args": args,
@@ -508,7 +532,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
         consult_match = re.search(r"#?(\d+)", user_query)
         if not consult_match:
             reply = "To cancel a consultation, please specify the consultation ID (e.g. 'cancel consultation #5')."
-            return {"messages": messages + [{"role": "assistant", "content": reply}]}
+            return {"messages": [{"role": "assistant", "content": reply}]}
         consultation_id = int(consult_match.group(1))
         
         args = {"consultation_id": consultation_id}
@@ -522,7 +546,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             )
         reply = _confirmation_prompt("cancel_consultation", args, confirmation_id)
         return {
-            "messages": messages + [{"role": "assistant", "content": reply}],
+            "messages": [{"role": "assistant", "content": reply}],
             "requires_confirmation": True,
             "pending_action": "cancel_consultation",
             "pending_action_args": args,
@@ -554,7 +578,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             
         if missing_fields:
             reply = f"To book a consultation using the fallback router, please provide: {', '.join(missing_fields)}."
-            return {"messages": messages + [{"role": "assistant", "content": reply}]}
+            return {"messages": [{"role": "assistant", "content": reply}]}
 
         args = {
             "doctor_id": doctor_id,
@@ -572,7 +596,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             )
         reply = _confirmation_prompt("book_consultation", args, confirmation_id)
         return {
-            "messages": messages + [{"role": "assistant", "content": reply}],
+            "messages": [{"role": "assistant", "content": reply}],
             "requires_confirmation": True,
             "pending_action": "book_consultation",
             "pending_action_args": args,
@@ -585,36 +609,51 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
             t_key = "tool_get_order_status" if "tool_get_order_status" in tools_by_name else "get_order_status"
             if t_key in tools_by_name:
                 order_id = int(order_match.group(1))
-                tool_res = await execute_tool(tools_by_name[t_key], {"session_user_id": session_user_id, "order_id": order_id})
+                t_args: dict[str, Any] = {"order_id": order_id}
+                if "mcp_call_token" in tools_by_name[t_key].args:
+                    t_args["mcp_call_token"] = mint_mcp_call_token(session_user_id)
+                else:
+                    t_args["session_user_id"] = session_user_id
+                tool_res = await execute_tool(tools_by_name[t_key], t_args)
                 reply = f"Here is your order status for Order #{order_id}:\n{tool_res}"
-                return {"messages": messages + [{"role": "assistant", "content": reply}], "sources": ["Scooby Order Service"]}
+                return {"messages": [{"role": "assistant", "content": reply}], "sources": ["Scooby Order Service"]}
         else:
             t_key = "tool_get_my_orders" if "tool_get_my_orders" in tools_by_name else "get_my_orders"
             if t_key in tools_by_name:
-                tool_res = await execute_tool(tools_by_name[t_key], {"session_user_id": session_user_id, "limit": 10})
+                t_args: dict[str, Any] = {"limit": 10}
+                if "mcp_call_token" in tools_by_name[t_key].args:
+                    t_args["mcp_call_token"] = mint_mcp_call_token(session_user_id)
+                else:
+                    t_args["session_user_id"] = session_user_id
+                tool_res = await execute_tool(tools_by_name[t_key], t_args)
                 reply = f"Here are your past and current orders:\n{tool_res}"
-                return {"messages": messages + [{"role": "assistant", "content": reply}], "sources": ["Scooby Order Service"]}
+                return {"messages": [{"role": "assistant", "content": reply}], "sources": ["Scooby Order Service"]}
 
     elif "product" in query_lower or "search" in query_lower:
         t_key = "tool_search_products" if "tool_search_products" in tools_by_name else "search_products"
         if t_key in tools_by_name:
             tool_res = await execute_tool(tools_by_name[t_key], {"search": user_query, "limit": 5})
             reply = f"Here are matching products:\n{tool_res}"
-            return {"messages": messages + [{"role": "assistant", "content": reply}], "sources": ["Scooby Product Catalog"]}
+            return {"messages": [{"role": "assistant", "content": reply}], "sources": ["Scooby Product Catalog"]}
 
     elif "slot" in query_lower or "vet" in query_lower or "doctor" in query_lower or "availability" in query_lower:
         t_key = "tool_get_available_slots" if "tool_get_available_slots" in tools_by_name else "get_available_slots"
         if t_key in tools_by_name:
             tool_res = await execute_tool(tools_by_name[t_key], {})
             reply = f"Here are available vet consultation slots:\n{tool_res}"
-            return {"messages": messages + [{"role": "assistant", "content": reply}], "sources": ["Scooby Vet Service"]}
+            return {"messages": [{"role": "assistant", "content": reply}], "sources": ["Scooby Vet Service"]}
 
     elif "pet" in query_lower or "pets" in query_lower:
         t_key = "tool_get_my_pets" if "tool_get_my_pets" in tools_by_name else "get_my_pets"
         if t_key in tools_by_name:
-            tool_res = await execute_tool(tools_by_name[t_key], {"session_user_id": session_user_id})
+            t_args: dict[str, Any] = {}
+            if "mcp_call_token" in tools_by_name[t_key].args:
+                t_args["mcp_call_token"] = mint_mcp_call_token(session_user_id)
+            else:
+                t_args["session_user_id"] = session_user_id
+            tool_res = await execute_tool(tools_by_name[t_key], t_args)
             reply = f"Here are your registered pets:\n{tool_res}"
-            return {"messages": messages + [{"role": "assistant", "content": reply}], "sources": ["Scooby Pet Service"]}
+            return {"messages": [{"role": "assistant", "content": reply}], "sources": ["Scooby Pet Service"]}
 
     reply = "I can assist with your orders, product catalog search, and vet consultation bookings. How can I help you today?"
-    return {"messages": messages + [{"role": "assistant", "content": reply}]}
+    return {"messages": [{"role": "assistant", "content": reply}]}

@@ -3,6 +3,7 @@ import json
 import redis
 from typing import Any
 from tools._client import backend_post
+from tools._auth import verify_mcp_call_token
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
@@ -45,7 +46,7 @@ def _set_idempotent(key: str, result: dict[str, Any], ttl_seconds: int = 86400) 
 
 
 def tool_book_consultation(
-    session_user_id: int,
+    mcp_call_token: str,
     scheduled_at_iso: str,
     reason: str,
     idempotency_key: str | None = None,
@@ -58,12 +59,12 @@ def tool_book_consultation(
     """Book a new vet consultation appointment.
 
     REQUIREMENTS:
-    - session_user_id: authenticated user context (IDOR protection, re-checked
-      by the backend itself, not just trusted here).
+    - mcp_call_token: secure token containing user context.
     - idempotency_key: unique key per user action (prevents duplicate bookings, generated automatically if omitted).
     - doctor_id or doctor_name: to identify the doctor.
     - pet_id or pet_name: to identify the pet.
     """
+    session_user_id = verify_mcp_call_token(mcp_call_token)
     from tools.bookings import backend_get
 
     # 1. Resolve Doctor Name to ID if needed
@@ -137,17 +138,17 @@ def tool_book_consultation(
 
 
 def tool_cancel_order(
-    session_user_id: int,
+    mcp_call_token: str,
     order_id: int,
     idempotency_key: str,
 ) -> dict[str, Any]:
     """Cancel an existing order and release reserved stock back to inventory.
 
     REQUIREMENTS:
-    - session_user_id: authenticated user context (IDOR protection, re-checked
-      by the backend itself, not just trusted here).
+    - mcp_call_token: secure token containing user context.
     - idempotency_key: unique key per user action (prevents duplicate cancellations).
     """
+    session_user_id = verify_mcp_call_token(mcp_call_token)
     result = backend_post(
         f"/internal/orders/{order_id}/cancel",
         params={
@@ -161,17 +162,17 @@ def tool_cancel_order(
 
 
 def tool_cancel_consultation(
-    session_user_id: int,
+    mcp_call_token: str,
     consultation_id: int,
     idempotency_key: str,
 ) -> dict[str, Any]:
     """Cancel a scheduled vet consultation appointment.
 
     REQUIREMENTS:
-    - session_user_id: authenticated user context (IDOR protection, re-checked
-      by the backend itself, not just trusted here).
+    - mcp_call_token: secure token containing user context.
     - idempotency_key: unique key per user action (prevents duplicate cancellations).
     """
+    session_user_id = verify_mcp_call_token(mcp_call_token)
     result = backend_post(
         f"/internal/bookings/consultations/{consultation_id}/cancel",
         params={

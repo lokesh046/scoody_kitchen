@@ -145,7 +145,7 @@ export const DoctorDashboard: React.FC = () => {
         if (existingRecord) {
           setLogId(existingRecord.id);
           setLogRecordType(mapRecordType(existingRecord.record_type));
-          setLogTitle(existingRecord.title);
+          setLogTitle(existingRecord.title || '');
           setLogSymptoms(existingRecord.symptoms || '');
           setLogClinicalFindings(existingRecord.clinical_findings || '');
           setLogDiagnosis(existingRecord.diagnosis || '');

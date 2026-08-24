@@ -53,13 +53,21 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ product, onAddToCart }) 
         <img
           src={imageUrl}
           alt={product.name}
-          className="w-full h-full object-cover grayscale-[20%] hover:grayscale-0 transition-all duration-300"
+          className={`w-full h-full object-cover transition-all duration-300 ${
+            !product.is_active ? 'grayscale opacity-50' : 'grayscale-[20%] hover:grayscale-0'
+          }`}
           loading="lazy"
         />
         {/* Category Tag */}
         {product.category?.name && (
           <div className="absolute top-4 left-4 bg-herb text-paperLight font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-[3px]">
             {product.category.name}
+          </div>
+        )}
+        {/* Deactivated Tag */}
+        {!product.is_active && (
+          <div className="absolute top-4 left-4 mt-7 bg-paprika text-paperLight font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-[3px] font-bold shadow-sm animate-pulse">
+            Deactivated
           </div>
         )}
         {/* Canine Approved Stamp */}
@@ -96,9 +104,11 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ product, onAddToCart }) 
         {/* Action Button */}
         <button
           onClick={handleAdd}
-          disabled={isAdding}
+          disabled={isAdding || !product.is_active}
           className={`w-full mt-5 font-body font-bold text-xs py-2.5 rounded-[4px] tracking-wide uppercase shadow-sm flex items-center justify-center space-x-1.5 transition-all duration-300 ${
-            isAdded
+            !product.is_active
+              ? 'bg-cardboard bg-opacity-35 text-ink text-opacity-50 cursor-not-allowed border border-cardboard border-opacity-30'
+              : isAdded
               ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
               : 'bg-paprika hover:bg-opacity-95 text-paperLight hover-bounce'
           } disabled:opacity-50`}
@@ -113,6 +123,8 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ product, onAddToCart }) 
             </>
           ) : isAdded ? (
             <span>Added! 🐾</span>
+          ) : !product.is_active ? (
+            <span>Deactivated</span>
           ) : (
             <span>Shop the Recipe</span>
           )}
