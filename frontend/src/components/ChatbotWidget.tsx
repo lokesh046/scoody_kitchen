@@ -3,7 +3,7 @@ import { useAuthStore } from '../store/auth';
 import { cancelOrder } from '../api/orders';
 import { cancelConsultation } from '../api/consultations';
 import { 
-  streamChat, postImageChat, postVoiceChat, clearChatSession, fetchChatbotHealth
+  streamChat, postImageChat, postVoiceChat, clearChatSession, fetchChatbotHealth, fetchChatSessionHistory
 } from '../api/chatbot';
 import { 
   Sparkles, X, MessageSquare, Send, Mic, MicOff, 
@@ -110,11 +110,36 @@ export const ChatbotWidget: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Initialize Session ID
+  // Initialize Session ID and Load History
   useEffect(() => {
-    const userId = user?.id || 0;
-    const randomId = Math.random().toString(36).substring(2, 9);
-    setSessionId(`u${userId}_widget_${randomId}`);
+    if (!user) return;
+    const storageKey = `chat_session_widget_u${user.id}`;
+    let savedSessionId = localStorage.getItem(storageKey);
+    if (!savedSessionId) {
+      const randomId = Math.random().toString(36).substring(2, 9);
+      savedSessionId = `u${user.id}_widget_${randomId}`;
+      localStorage.setItem(storageKey, savedSessionId);
+    }
+    setSessionId(savedSessionId);
+
+    const loadHistory = async () => {
+      try {
+        const history = await fetchChatSessionHistory(savedSessionId!);
+        if (history && history.length > 0) {
+          const mapped = history
+            .filter(m => m.role === 'user' || m.role === 'assistant')
+            .map((m, idx) => ({
+              id: `hist_${idx}_${Date.now()}`,
+              role: m.role as 'user' | 'assistant',
+              content: m.content,
+            }));
+          setMessages(mapped);
+        }
+      } catch (err) {
+        console.error('Failed to load chat history:', err);
+      }
+    };
+    loadHistory();
   }, [user]);
 
   const [engineHealth, setEngineHealth] = useState<'online' | 'offline' | 'checking'>('checking');
@@ -379,6 +404,13 @@ export const ChatbotWidget: React.FC = () => {
         console.error('Purge session memory failed:', e);
       }
     }
+    const userId = user?.id || 0;
+    const randomId = Math.random().toString(36).substring(2, 9);
+    const newSessionId = `u${userId}_widget_${randomId}`;
+    if (user) {
+      localStorage.setItem(`chat_session_widget_u${user.id}`, newSessionId);
+    }
+    setSessionId(newSessionId);
     setMessages([]);
   };
 

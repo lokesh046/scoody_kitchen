@@ -25,12 +25,12 @@ class LiteLLMGateway:
 
     def __init__(
         self,
-        model_name: str = "gemini/gemini-flash-latest",
+        model_name: str = "gemini/gemini-3.1-flash-lite",
         fallback_models: list[str] | None = None,
         temperature: float = 0.2,
     ):
         self.model_name = model_name
-        self.fallback_models = fallback_models or ["gemini/gemini-flash-latest"]
+        self.fallback_models = fallback_models or ["gemini/gemini-3.1-flash-lite"]
         self.temperature = temperature
 
     def get_langchain_llm(self) -> Any:
@@ -88,7 +88,7 @@ class LiteLLMGateway:
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI
             primary = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GEMINI_API_KEY or "dummy_key_123")
-            fallback = ChatGoogleGenerativeAI(model="gemini-flash-latest", google_api_key=GEMINI_API_KEY or "dummy_key_123")
+            fallback = ChatGoogleGenerativeAI(model="gemini-3.1-flash-lite", google_api_key=GEMINI_API_KEY or "dummy_key_123")
             return primary.with_fallbacks([fallback])
         except Exception:
             from langchain_core.runnables import RunnableLambda
@@ -123,8 +123,8 @@ litellm_gateway = LiteLLMGateway()
 
 
 def get_llm_with_fallback(
-    model_name: str = "gemini/gemini-flash-latest",
-    fallback_model_name: str = "gemini/gemini-pro-latest",
+    model_name: str = "gemini/gemini-3.1-flash-lite",
+    fallback_model_name: str = "gemini/gemini-3.1-pro-preview",
     temperature: float = 0.2,
 ) -> Any:
     """Return LangChain ChatLiteLLM model instance configured with native with_fallbacks() strategy."""

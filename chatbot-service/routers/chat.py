@@ -373,6 +373,17 @@ async def chat_stream_endpoint(
     return StreamingResponse(sse_event_generator(), media_type="text/event-stream")
 
 
+@router.get("/session/{session_id}")
+def get_session_history_endpoint(
+    session_id: str,
+    current_user_id: int = Depends(get_current_chat_user),
+) -> dict:
+    """Fetch session conversation history."""
+    validate_session_ownership(session_id, current_user_id)
+    history = session_memory.get_history(session_id)
+    return {"status": "success", "history": history}
+
+
 @router.delete("/session/{session_id}")
 def clear_session_endpoint(
     session_id: str,

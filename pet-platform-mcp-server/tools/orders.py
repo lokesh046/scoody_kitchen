@@ -18,3 +18,17 @@ def tool_get_order_tracking(session_user_id: int, order_id: int) -> dict[str, An
     prevent IDOR access — enforced by the backend itself, not just here.
     """
     return backend_get(f"/internal/orders/{order_id}/tracking", params={"acting_user_id": session_user_id})
+
+
+def tool_get_my_orders(
+    session_user_id: int,
+    limit: int = 10,
+) -> dict[str, Any]:
+    """Get all past and current orders for the logged-in customer.
+
+    SECURITY RULE: session_user_id must match the owner to prevent IDOR access.
+    """
+    res = backend_get("/internal/orders", params={"acting_user_id": session_user_id, "limit": limit})
+    if isinstance(res, list):
+        return {"orders": res}
+    return res

@@ -31,11 +31,15 @@ def _get_headers() -> dict:
 
 
 def backend_get(path: str, params: dict | None = None) -> dict:
+    if params:
+        params = {k: v for k, v in params.items() if v is not None}
     resp = httpx.get(f"{BACKEND_URL}{path}", params=params, headers=_get_headers(), timeout=5.0)
     return _handle(resp)
 
 
 def backend_post(path: str, params: dict | None = None) -> dict:
+    if params:
+        params = {k: v for k, v in params.items() if v is not None}
     resp = httpx.post(f"{BACKEND_URL}{path}", params=params, headers=_get_headers(), timeout=5.0)
     return _handle(resp)
 

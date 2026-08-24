@@ -46,11 +46,13 @@ def _set_idempotent(key: str, result: dict[str, Any], ttl_seconds: int = 86400) 
 
 def tool_book_consultation(
     session_user_id: int,
-    doctor_id: int,
-    pet_id: int,
     scheduled_at_iso: str,
     reason: str,
-    idempotency_key: str,
+    idempotency_key: str | None = None,
+    doctor_id: int | None = None,
+    doctor_name: str | None = None,
+    pet_id: int | None = None,
+    pet_name: str | None = None,
     customer_notes: str | None = None,
 ) -> dict[str, Any]:
     """Book a new vet consultation appointment.
@@ -58,8 +60,45 @@ def tool_book_consultation(
     REQUIREMENTS:
     - session_user_id: authenticated user context (IDOR protection, re-checked
       by the backend itself, not just trusted here).
-    - idempotency_key: unique key per user action (prevents duplicate bookings).
+    - idempotency_key: unique key per user action (prevents duplicate bookings, generated automatically if omitted).
+    - doctor_id or doctor_name: to identify the doctor.
+    - pet_id or pet_name: to identify the pet.
     """
+    from tools.bookings import backend_get
+
+    # 1. Resolve Doctor Name to ID if needed
+    if not doctor_id and doctor_name:
+        slots_res = backend_get("/internal/bookings/available-slots")
+        if isinstance(slots_res, list):
+            search_name = doctor_name.lower().replace("dr.", "").replace("dr", "").strip()
+            matched = [s for s in slots_res if search_name in s.get("doctor_name", "").lower()]
+            if matched:
+                doctor_id = matched[0]["doctor_id"]
+
+    if not doctor_id:
+        return {"error": "Could not resolve doctor name to a valid available doctor. Please verify the doctor's name."}
+
+    # 2. Resolve Pet Name to ID if needed
+    if not pet_id and pet_name:
+        pets_res = backend_get("/internal/pets", params={"acting_user_id": session_user_id})
+        if isinstance(pets_res, list):
+            search_pet = pet_name.lower().strip()
+            matched = [p for p in pets_res if search_pet == p.get("name", "").lower().strip()]
+            if matched:
+                pet_id = matched[0]["pet_id"]
+            else:
+                # Fallback to partial match
+                matched_partial = [p for p in pets_res if search_pet in p.get("name", "").lower()]
+                if matched_partial:
+                    pet_id = matched_partial[0]["pet_id"]
+
+    if not pet_id:
+        return {"error": "Could not resolve pet name to a valid registered pet. Please verify the pet's name."}
+
+    # 3. Handle Idempotency Key Generation
+    if not idempotency_key:
+        idempotency_key = f"idem_book_{session_user_id}_{doctor_id}_{pet_id}_{scheduled_at_iso.replace(':', '_').replace('-', '_')}"
+
     cached = _get_idempotent(idempotency_key)
     if cached:
         return cached

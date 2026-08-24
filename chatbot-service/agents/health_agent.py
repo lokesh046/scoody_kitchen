@@ -57,7 +57,7 @@ async def health_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     # 3. Non-Emergency Health Guidance Synthesis via ChatLiteLLM
     if GEMINI_API_KEY:
         try:
-            llm = get_llm_with_fallback(model_name="gemini/gemini-flash-latest", temperature=0.2)
+            llm = get_llm_with_fallback(model_name="gemini/gemini-3.1-flash-lite", temperature=0.2)
             
             context_str = ""
             if docs:

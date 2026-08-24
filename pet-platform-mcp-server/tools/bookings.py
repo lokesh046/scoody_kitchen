@@ -16,3 +16,14 @@ def tool_get_my_consultations(session_user_id: int) -> list[dict[str, Any]]:
     """
     result = backend_get("/internal/bookings/my-consultations", params={"acting_user_id": session_user_id})
     return result if isinstance(result, list) else result.get("error", [])
+
+
+def tool_get_my_pets(session_user_id: int) -> dict[str, Any]:
+    """Get all registered pets for the authenticated user.
+
+    Use this to look up pet names and find their corresponding Pet IDs.
+    """
+    res = backend_get("/internal/pets", params={"acting_user_id": session_user_id})
+    if isinstance(res, list):
+        return {"pets": res}
+    return res

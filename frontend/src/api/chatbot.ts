@@ -34,6 +34,17 @@ chatbotClient.interceptors.request.use(
   (err) => Promise.reject(err)
 );
 
+export interface HistoricalMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export const fetchChatSessionHistory = async (sessionId: string): Promise<HistoricalMessage[]> => {
+  const response = await chatbotClient.get<{ history: HistoricalMessage[] }>(`/chat/session/${sessionId}`);
+  return response.data.history;
+};
+
+
 export const clearChatSession = async (sessionId: string): Promise<{ status: string; message: string }> => {
   const response = await chatbotClient.delete(`/chat/session/${sessionId}`);
   return response.data;

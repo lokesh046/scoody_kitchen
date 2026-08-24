@@ -14,11 +14,11 @@ def route_intent(query: str) -> str:
 
     if GEMINI_API_KEY:
         try:
-            llm = get_llm_with_fallback(model_name="gemini/gemini-flash-latest", temperature=0.0)
+            llm = get_llm_with_fallback(model_name="gemini/gemini-3.1-flash-lite", temperature=0.0)
             prompt = (
                 "Classify the following customer query into exactly ONE of three category names:\n"
                 "1. 'health_agent' (for pet medical symptoms, illness, fever, bleeding, or health concerns)\n"
-                "2. 'commerce_agent' (for order status, shipment tracking, product inventory, vet booking, or cancellations)\n"
+                "2. 'commerce_agent' (for order status, shipment tracking, product inventory, vet booking, doctor schedules, doctor availability, pet profiles, cancellations, active consultations, or booked appointments)\n"
                 "3. 'knowledge_agent' (for store policies, FAQs, return rules, and pet care articles)\n\n"
                 f"Customer Query: {query}\n"
                 "Return ONLY the category name string ('health_agent', 'commerce_agent', or 'knowledge_agent')."
@@ -35,6 +35,6 @@ def route_intent(query: str) -> str:
     clean_q = query.lower()
     if any(k in clean_q for k in ["sick", "vomit", "bleeding", "health", "symptom", "rash"]):
         return "health_agent"
-    if any(k in clean_q for k in ["order", "track", "status", "cancel", "product", "vet", "book", "slot", "yes", "confirm", "proceed"]):
+    if any(k in clean_q for k in ["order", "track", "status", "cancel", "product", "vet", "book", "slot", "yes", "confirm", "proceed", "pet", "pets", "doctor", "doctors", "availability", "appointment", "appointments", "consultation", "consultations"]):
         return "commerce_agent"
     return "knowledge_agent"

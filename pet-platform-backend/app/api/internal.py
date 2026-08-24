@@ -49,6 +49,26 @@ router = APIRouter(
 
 # ---- Orders (read) -------------------------------------------------------
 
+@router.get("/orders")
+def internal_get_my_orders(
+    acting_user_id: int = Query(..., description="The customer this call is being made on behalf of"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    from app.services.order_service import get_user_orders
+    orders = get_user_orders(db, acting_user_id, skip=skip, limit=limit)
+    return [
+        {
+            "order_id": order.id,
+            "status": order.status.value if hasattr(order.status, "value") else str(order.status),
+            "total_amount": float(order.total_amount) if order.total_amount is not None else 0.0,
+            "created_at": str(order.created_at) if order.created_at else None,
+        }
+        for order in orders
+    ]
+
+
 @router.get("/orders/{order_id}")
 def internal_get_order(
     order_id: int,
@@ -175,7 +195,7 @@ def internal_get_available_slots(doctor_id: int | None = None, db: Session = Dep
         {
             "slot_id": s.id,
             "doctor_id": s.doctor_id,
-            "doctor_name": s.doctor.name if getattr(s, "doctor", None) else None,
+            "doctor_name": f"{s.doctor.user.first_name} {s.doctor.user.last_name}".strip() if s.doctor and s.doctor.user else None,
             "day_of_week": s.day_of_week.value if hasattr(s.day_of_week, "value") else str(s.day_of_week),
             "start_time": str(s.start_time),
             "end_time": str(s.end_time),
@@ -221,7 +241,7 @@ def internal_book_consultation(
     )
     try:
         consultation = create_consultation(db, customer_id=acting_user_id, create_data=create_data)
-    except ValueError as exc:
+    except (ValueError, KeyError, MemoryError) as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
     status_val = consultation.status.value if hasattr(consultation.status, "value") else str(consultation.status)
@@ -243,3 +263,22 @@ def internal_cancel_consultation(
     updated = update_consultation_status(db, consultation, ConsultationStatus.CANCELLED)
     status_val = updated.status.value if hasattr(updated.status, "value") else str(updated.status)
     return {"consultation_id": updated.id, "status": status_val}
+
+
+@router.get("/pets")
+def internal_get_my_pets(
+    acting_user_id: int = Query(...),
+    db: Session = Depends(get_db),
+):
+    from app.services.pet_service import get_pet_by_user_id
+    pets = get_pet_by_user_id(db, acting_user_id)
+    return [
+        {
+            "pet_id": p.id,
+            "name": p.name,
+            "species": p.species,
+            "breed": p.breed,
+            "date_of_birth": str(p.date_of_birth) if p.date_of_birth else None,
+        }
+        for p in pets
+    ]

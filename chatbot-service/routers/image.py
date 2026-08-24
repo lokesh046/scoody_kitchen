@@ -44,7 +44,7 @@ async def image_chat_endpoint(
             
             b64_image = base64.b64encode(contents).decode("utf-8")
 
-            llm = ChatGoogleGenerativeAI(model="gemini-flash-latest", google_api_key=GEMINI_API_KEY)
+            llm = ChatGoogleGenerativeAI(model="gemini-3.1-flash-lite", google_api_key=GEMINI_API_KEY)
             msg = HumanMessage(content=[
                 {"type": "text", "text": f"Analyze this pet image in detail. User Question: {message}"},
                 {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64_image}"}},

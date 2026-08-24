@@ -7,7 +7,7 @@ import { cancelOrder } from '../../api/orders';
 import { cancelConsultation } from '../../api/consultations';
 import { CartDrawer } from '../../components/CartDrawer';
 import {
-  streamChat, postImageChat, postVoiceChat, clearChatSession, fetchChatbotHealth
+  streamChat, postImageChat, postVoiceChat, clearChatSession, fetchChatbotHealth, fetchChatSessionHistory
 } from '../../api/chatbot';
 import {
   ShoppingCart, LogOut, User, PawPrint,
@@ -137,11 +137,36 @@ export const AssistantPage: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Initialize Session ID
+  // Initialize Session ID and Load History
   useEffect(() => {
-    const userId = user?.id || 0;
-    const randomId = Math.random().toString(36).substring(2, 9);
-    setSessionId(`u${userId}_session_${randomId}`);
+    if (!user) return;
+    const storageKey = `chat_session_page_u${user.id}`;
+    let savedSessionId = localStorage.getItem(storageKey);
+    if (!savedSessionId) {
+      const randomId = Math.random().toString(36).substring(2, 9);
+      savedSessionId = `u${user.id}_session_${randomId}`;
+      localStorage.setItem(storageKey, savedSessionId);
+    }
+    setSessionId(savedSessionId);
+
+    const loadHistory = async () => {
+      try {
+        const history = await fetchChatSessionHistory(savedSessionId!);
+        if (history && history.length > 0) {
+          const mapped = history
+            .filter(m => m.role === 'user' || m.role === 'assistant')
+            .map((m, idx) => ({
+              id: `hist_${idx}_${Date.now()}`,
+              role: m.role as 'user' | 'assistant',
+              content: m.content,
+            }));
+          setMessages(mapped);
+        }
+      } catch (err) {
+        console.error('Failed to load chat history:', err);
+      }
+    };
+    loadHistory();
   }, [user]);
 
   // Scroll to bottom
@@ -406,6 +431,13 @@ export const AssistantPage: React.FC = () => {
         console.error('Purge session memory failed:', e);
       }
     }
+    const userId = user?.id || 0;
+    const randomId = Math.random().toString(36).substring(2, 9);
+    const newSessionId = `u${userId}_session_${randomId}`;
+    if (user) {
+      localStorage.setItem(`chat_session_page_u${user.id}`, newSessionId);
+    }
+    setSessionId(newSessionId);
     setMessages([]);
   };
 

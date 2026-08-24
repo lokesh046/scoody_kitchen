@@ -151,18 +151,20 @@ class MCPClientManager:
         from langchain_core.tools import StructuredTool
 
         try:
-            from tools.orders import tool_get_order_status, tool_get_order_tracking
+            from tools.orders import tool_get_order_status, tool_get_order_tracking, tool_get_my_orders
             from tools.products import tool_search_products, tool_get_product_stock 
-            from tools.bookings import tool_get_available_slots, tool_get_my_consultations 
+            from tools.bookings import tool_get_available_slots, tool_get_my_consultations, tool_get_my_pets
             from tools.actions import tool_book_consultation, tool_cancel_order, tool_cancel_consultation
 
             return [
                 StructuredTool.from_function(func=tool_get_order_status, name="get_order_status"),
                 StructuredTool.from_function(func=tool_get_order_tracking, name="get_order_tracking"),
+                StructuredTool.from_function(func=tool_get_my_orders, name="get_my_orders"),
                 StructuredTool.from_function(func=tool_search_products, name="search_products"),
                 StructuredTool.from_function(func=tool_get_product_stock, name="get_product_stock"),
                 StructuredTool.from_function(func=tool_get_available_slots, name="get_available_slots"),
                 StructuredTool.from_function(func=tool_get_my_consultations, name="get_my_consultations"),
+                StructuredTool.from_function(func=tool_get_my_pets, name="get_my_pets"),
                 StructuredTool.from_function(func=tool_book_consultation, name="book_consultation"),
                 StructuredTool.from_function(func=tool_cancel_order, name="cancel_order"),
                 StructuredTool.from_function(func=tool_cancel_consultation, name="cancel_consultation"),

@@ -88,7 +88,12 @@ def test_double_booking_conflict_rejection():
 
     db.get.return_value = pet
 
-    future_dt = datetime(2026, 8, 20, 10, 0, tzinfo=timezone.utc)  # Thursday 10:00
+    # Calculate next Thursday dynamic date in the future
+    now = datetime.now(timezone.utc)
+    days_ahead = 3 - now.weekday()
+    if days_ahead <= 0:
+        days_ahead += 7
+    future_dt = (now + timedelta(days=days_ahead)).replace(hour=10, minute=0, second=0, microsecond=0)
 
     # Availability for Thursday 09:00 - 13:00
     avail = DoctorAvailability(

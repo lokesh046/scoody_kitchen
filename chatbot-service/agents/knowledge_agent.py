@@ -35,7 +35,7 @@ async def knowledge_agent_node(state: dict[str, Any]) -> dict[str, Any]:
     if GEMINI_API_KEY:
         try:
             from utils.llm_gateway import get_llm_with_fallback
-            llm = get_llm_with_fallback(model_name="gemini/gemini-flash-latest", temperature=0.2)
+            llm = get_llm_with_fallback(model_name="gemini/gemini-3.1-flash-lite", temperature=0.2)
             
             prompt = (
                 f"You are Scooby Kitchen's AI Pet Assistant. Answer the customer's question strictly "

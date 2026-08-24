@@ -14,9 +14,9 @@ load_dotenv()  # Loads the .env file immediately before other modules load
 
 from mcp.server.fastmcp import FastMCP
 
-from tools.orders import tool_get_order_status, tool_get_order_tracking
+from tools.orders import tool_get_order_status, tool_get_order_tracking, tool_get_my_orders
 from tools.products import tool_search_products, tool_get_product_stock
-from tools.bookings import tool_get_available_slots, tool_get_my_consultations
+from tools.bookings import tool_get_available_slots, tool_get_my_consultations, tool_get_my_pets
 from tools.actions import (
     tool_book_consultation,
     tool_cancel_order,
@@ -37,6 +37,7 @@ def ping(message: str = "ping") -> str:
 # Register Order Read Tools
 mcp.tool()(tool_get_order_status)
 mcp.tool()(tool_get_order_tracking)
+mcp.tool()(tool_get_my_orders)
 
 # Register Product Read Tools
 mcp.tool()(tool_search_products)
@@ -45,6 +46,7 @@ mcp.tool()(tool_get_product_stock)
 # Register Booking Read Tools
 mcp.tool()(tool_get_available_slots)
 mcp.tool()(tool_get_my_consultations)
+mcp.tool()(tool_get_my_pets)
 
 # Register Action Tools (State-Changing Write Operations)
 mcp.tool()(tool_book_consultation)
