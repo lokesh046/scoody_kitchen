@@ -7,17 +7,146 @@ import { checkoutCart } from '../../api/orders';
 import type { OrderResponse } from '../../api/orders';
 import { createPayment, simulatePaymentSuccess, simulatePaymentFailure, verifyRazorpayPayment } from '../../api/payments';
 import type { PaymentResponse } from '../../api/payments';
-import { logoutUser } from '../../api/auth';
 import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
+import { Header } from '../../components/Header';
 import { 
-  ArrowLeft, ShoppingCart, LogOut, User, PawPrint, 
-  MapPin, ShieldCheck, Truck, Loader2, AlertCircle, Compass 
+  ArrowLeft, 
+  MapPin, ShieldCheck, Truck, Loader2, AlertCircle, ShoppingCart, Compass
 } from 'lucide-react';
+
+const triggerCheckoutConfetti = () => {
+  const canvas = document.createElement('canvas');
+  canvas.style.position = 'fixed';
+  canvas.style.left = '0';
+  canvas.style.top = '0';
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  canvas.style.pointerEvents = 'none';
+  canvas.style.zIndex = '9999';
+  document.body.appendChild(canvas);
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const resizeCanvas = () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  };
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  const colors = ['#D09E6B', '#362820', '#8FA89B', '#F9F6F0', '#3F5E4D'];
+  interface Particle {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    size: number;
+    color: string;
+    rotation: number;
+    rotationSpeed: number;
+    opacity: number;
+    shape: 'circle' | 'square';
+  }
+  const particles: Particle[] = [];
+
+  const createBlast = (originX: number, angleRange: [number, number]) => {
+    for (let i = 0; i < 65; i++) {
+      const angle = angleRange[0] + Math.random() * (angleRange[1] - angleRange[0]);
+      const speed = 10 + Math.random() * 20;
+      particles.push({
+        x: originX,
+        y: 0,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: 5 + Math.random() * 8,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: -0.1 + Math.random() * 0.2,
+        opacity: 1,
+        shape: Math.random() > 0.5 ? 'circle' : 'square'
+      });
+    }
+  };
+
+  const createTopShower = () => {
+    for (let i = 0; i < 110; i++) {
+      const angle = Math.PI / 3 + Math.random() * (Math.PI / 3);
+      const speed = 3 + Math.random() * 12;
+      particles.push({
+        x: Math.random() * window.innerWidth,
+        y: -15,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: 4 + Math.random() * 8,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: -0.05 + Math.random() * 0.1,
+        opacity: 1,
+        shape: Math.random() > 0.5 ? 'circle' : 'square'
+      });
+    }
+  };
+
+  createBlast(0, [Math.PI / 8, Math.PI * 3 / 8]);
+  createBlast(window.innerWidth, [Math.PI * 5 / 8, Math.PI * 7 / 8]);
+  createTopShower();
+
+  let active = true;
+  const startTime = Date.now();
+
+  const update = () => {
+    if (!active) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const elapsed = Date.now() - startTime;
+    if (elapsed > 2500) {
+      active = false;
+      window.removeEventListener('resize', resizeCanvas);
+      try {
+        document.body.removeChild(canvas);
+      } catch (e) {}
+      return;
+    }
+
+    particles.forEach((p) => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.20;
+      p.vx *= 0.985;
+      p.vy *= 0.985;
+      p.rotation += p.rotationSpeed;
+      
+      if (elapsed > 1500) {
+        p.opacity = Math.max(0, 1 - (elapsed - 1500) / 1000);
+      }
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rotation);
+      ctx.globalAlpha = p.opacity;
+      ctx.fillStyle = p.color;
+
+      if (p.shape === 'square') {
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    });
+
+    requestAnimationFrame(update);
+  };
+
+  requestAnimationFrame(update);
+};
 
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, clearAuth } = useAuthStore();
+  const { user } = useAuthStore();
   const { items: cartItems, totalAmount, clear: clearCart } = useCartStore();
   
   const [doorNo, setDoorNo] = useState('');
@@ -44,19 +173,14 @@ export const CheckoutPage: React.FC = () => {
   const [cardCvv, setCardCvv] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<'IDLE' | 'PROCESSING' | 'SUCCESS' | 'FAILED'>('IDLE');
 
-  const totalCartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
-  const handleLogout = async () => {
-    try {
-      await logoutUser();
-    } catch (err) {
-      console.error('Logout failed:', err);
-    } finally {
-      clearAuth();
-      clearCart();
-      navigate('/login');
+
+  // Trigger confetti explosion on successful checkout
+  useEffect(() => {
+    if (paymentStatus === 'SUCCESS') {
+      triggerCheckoutConfetti();
     }
-  };
+  }, [paymentStatus]);
 
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
@@ -424,7 +548,7 @@ export const CheckoutPage: React.FC = () => {
                   razorpay_order_id: response.razorpay_order_id,
                   razorpay_signature: response.razorpay_signature,
                 });
-                if (verifyRes.status === 'COMPLETED') {
+                if (verifyRes.status === 'COMPLETED' || (verifyRes.status as string) === 'success') {
                   setPaymentStatus('SUCCESS');
                   clearCart();
                 } else {
@@ -494,78 +618,7 @@ export const CheckoutPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
       {/* Full-width Top Navigation Header bar */}
-      <header className="w-full border-b border-cardboard border-opacity-25 bg-ink bg-opacity-95 backdrop-blur-md sticky top-0 z-30 shadow-sm text-paper">
-        <div className="w-full px-4 md:px-8 py-4 flex justify-between items-center md:grid md:grid-cols-12">
-          
-          {/* Left Corner: Brand Logo & Title */}
-          <div className="flex items-center space-x-3 cursor-pointer md:col-span-3 justify-start select-none" onClick={() => navigate('/')}>
-            <PawPrint className="text-turmeric w-6 h-6 animate-pulse" />
-            <div>
-              <h1 className="font-display font-bold text-2xl tracking-tight text-paper">
-                Scooby's Kitchen
-              </h1>
-              <p className="font-mono text-[9px] uppercase tracking-wider text-turmeric opacity-85">
-                Notebook Ledger v1.0
-              </p>
-            </div>
-          </div>
-
-          {/* Center: Navigation Menu */}
-          <nav className="hidden md:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper md:col-span-6 justify-center">
-            <button onClick={() => navigate('/shop')} className="hover:text-turmeric transition-colors pb-1">Shop Recipes</button>
-            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Know Your Pet</button>
-            <button onClick={() => navigate('/consultations')} className="hover:text-turmeric transition-colors pb-1">Vet Consults</button>
-            <button onClick={() => navigate('/orders')} className="hover:text-turmeric transition-colors pb-1">My Orders</button>
-            <button onClick={() => navigate('/assistant')} className="hover:text-turmeric transition-colors pb-1">AI Assistant 🐾</button>
-            <button onClick={() => navigate('/profile')} className="hover:text-turmeric transition-colors pb-1">My Profile</button>
-            {user?.role === 'admin' && (
-              <button onClick={() => navigate('/admin')} className="hover:text-turmeric text-turmeric transition-colors pb-1">Admin Panel 🛠️</button>
-            )}
-            {(user?.role === 'doctor' || user?.role === 'admin') && (
-              <button onClick={() => navigate('/doctor')} className="hover:text-turmeric text-turmeric transition-colors pb-1">Doctor Panel 🩺</button>
-            )}
-          </nav>
-
-          {/* Right Corner: Actions */}
-          <div className="flex items-center space-x-4 md:col-span-3 justify-end">
-            {user && (
-              <span className="font-mono text-[10px] uppercase font-bold text-turmeric">
-                {user.first_name || 'User'}
-              </span>
-            )}
-
-            <button 
-              onClick={() => setIsCartOpen(true)}
-              className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 relative text-paper"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              {totalCartQuantity > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-paprika text-paperLight font-mono text-[9px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center animate-bounce">
-                  {totalCartQuantity}
-                </span>
-              )}
-            </button>
-
-            {user ? (
-              <button
-                onClick={handleLogout}
-                className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper flex items-center space-x-1.5 font-body text-[10px] font-bold uppercase"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Log Out</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => navigate('/login')}
-                className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper flex items-center space-x-1.5 font-body text-[10px] font-bold uppercase"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Log In</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+      <Header activeTab="shop" onCartToggle={() => setIsCartOpen(true)} />
 
       {/* Centered Main Content Wrapper */}
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 md:px-8 py-8">
@@ -583,14 +636,14 @@ export const CheckoutPage: React.FC = () => {
 
       {placedOrder ? (
         /* Payment Simulation Screen */
-        <div className="max-w-2xl mx-auto border border-cardboard bg-paperLight p-8 rounded-sm shadow-md my-12 text-left space-y-6 relative">
-          <div className="absolute top-0 right-8 bg-cardboard bg-opacity-35 text-ink font-mono text-[8px] uppercase tracking-widest px-3 py-1 rounded-b-sm border-x border-b border-cardboard font-bold">
+        <div className="max-w-2xl mx-auto border-double border-4 border-cardboard bg-paperLight p-8 rounded-none shadow-md my-12 text-left space-y-6 relative animate-fade-in-up">
+          <div className="absolute top-0 right-8 bg-cardboard bg-opacity-35 text-ink font-mono text-[8px] uppercase tracking-widest px-3 py-1 rounded-b-none border-x border-b border-cardboard font-bold">
             SECURE CHECKOUT TERMINAL
           </div>
 
           <div className="space-y-1">
             <Eyebrow label="STEP 2 OF 2 — PAYMENT PROCESSOR" />
-            <h2 className="font-display font-bold text-2xl text-ink">
+            <h2 className="font-display font-black text-3xl uppercase tracking-tight text-ink">
               Secure Sourced Payment
             </h2>
             <p className="font-body text-xs text-ink opacity-70">
@@ -602,19 +655,19 @@ export const CheckoutPage: React.FC = () => {
 
           {paymentStatus === 'SUCCESS' ? (
             /* Success confirmation display */
-            <div className="text-center py-8 space-y-6">
-              <div className="w-16 h-16 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center mx-auto text-herb animate-bounce">
-                <ShieldCheck className="w-10 h-10" />
+            <div className="text-center py-8 space-y-6 animate-fade-in-up">
+              <div className="w-20 h-20 bg-paper border-4 border-double border-cardboard text-herb flex items-center justify-center mx-auto animate-pulse">
+                <ShieldCheck className="w-12 h-12" />
               </div>
               <div className="space-y-2">
-                <h3 className="font-display font-bold text-xl text-ink">Payment Successful!</h3>
-                <p className="font-body text-xs text-ink opacity-80 max-w-sm mx-auto">
-                  Your payment of <span className="font-mono font-bold text-turmeric">${parseFloat(placedOrder.total_amount).toFixed(2)}</span> has been confirmed. Recipes are being prepared fresh!
+                <h3 className="font-display font-black text-2xl uppercase tracking-tight text-ink">Payment Successful!</h3>
+                <p className="font-body text-xs text-ink opacity-80 max-w-sm mx-auto leading-relaxed">
+                  Your payment of <span className="font-mono font-bold text-turmeric">${parseFloat(placedOrder.total_amount).toFixed(2)}</span> has been confirmed. Recipes are being prepared fresh in the kitchen!
                 </p>
               </div>
               <button
                 onClick={() => navigate('/orders')}
-                className="bg-paprika text-paperLight font-body font-bold text-xs uppercase px-6 py-3 rounded-sm tracking-wide transition-colors"
+                className="bg-turmeric text-ink font-mono text-[10px] uppercase font-bold px-8 py-4 rounded-none tracking-wider hover-bounce cursor-pointer shadow-sm"
               >
                 Go to Order History 🐾
               </button>
@@ -622,7 +675,7 @@ export const CheckoutPage: React.FC = () => {
           ) : (
             /* Form inputs */
             <div className="space-y-6">
-              <div className="flex justify-between items-center bg-paper p-4 rounded-sm border border-cardboard border-dashed">
+              <div className="flex justify-between items-center bg-paper p-4 rounded-none border border-cardboard border-dashed">
                 <div>
                   <span className="font-mono text-[9px] uppercase text-cardboard font-bold block">Grand Total Due</span>
                   <span className="font-mono font-bold text-turmeric text-lg">${parseFloat(placedOrder.total_amount).toFixed(2)}</span>
@@ -631,18 +684,18 @@ export const CheckoutPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('CARD')}
-                    className={`font-mono text-[9px] uppercase font-bold py-1.5 px-3 rounded-sm border ${
+                    className={`font-mono text-[9px] uppercase font-bold py-2 px-4 rounded-none border ${
                       paymentMethod === 'CARD' ? 'bg-herb text-paper border-herb' : 'border-cardboard text-ink hover:bg-paper'
-                    }`}
+                    } cursor-pointer transition-colors`}
                   >
                     Credit Card 💳
                   </button>
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('CASH')}
-                    className={`font-mono text-[9px] uppercase font-bold py-1.5 px-3 rounded-sm border ${
+                    className={`font-mono text-[9px] uppercase font-bold py-2 px-4 rounded-none border ${
                       paymentMethod === 'CASH' ? 'bg-herb text-paper border-herb' : 'border-cardboard text-ink hover:bg-paper'
-                    }`}
+                    } cursor-pointer transition-colors`}
                   >
                     Cash / COD 💵
                   </button>
@@ -661,7 +714,7 @@ export const CheckoutPage: React.FC = () => {
                       value={cardHolder}
                       onChange={(e) => setCardHolder(e.target.value)}
                       placeholder="e.g. John Doe"
-                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric"
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric"
                       disabled={paymentStatus === 'PROCESSING'}
                     />
                   </div>
@@ -676,7 +729,7 @@ export const CheckoutPage: React.FC = () => {
                       value={cardNumber}
                       onChange={(e) => setCardNumber(e.target.value)}
                       placeholder="e.g. 4111 1111 1111 1111"
-                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric"
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric"
                       disabled={paymentStatus === 'PROCESSING'}
                     />
                   </div>
@@ -692,7 +745,7 @@ export const CheckoutPage: React.FC = () => {
                         value={cardExpiry}
                         onChange={(e) => setCardExpiry(e.target.value)}
                         placeholder="MM/YY"
-                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric"
+                        className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric"
                         disabled={paymentStatus === 'PROCESSING'}
                       />
                     </div>
@@ -707,7 +760,7 @@ export const CheckoutPage: React.FC = () => {
                         onChange={(e) => setCardCvv(e.target.value)}
                         placeholder="123"
                         maxLength={4}
-                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric"
+                        className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric"
                         disabled={paymentStatus === 'PROCESSING'}
                       />
                     </div>
@@ -716,7 +769,7 @@ export const CheckoutPage: React.FC = () => {
               )}
 
               {errorMessage && (
-                <div className="border border-paprika border-opacity-35 bg-red-50 p-3 rounded-sm flex items-start space-x-2 text-paprika font-body text-xs">
+                <div className="border border-turmeric border-opacity-35 bg-red-50 p-3 rounded-none flex items-start space-x-2 text-paprika font-body text-xs">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>{errorMessage}</span>
                 </div>
@@ -726,7 +779,7 @@ export const CheckoutPage: React.FC = () => {
                 <button
                   onClick={() => handlePayment(true)}
                   disabled={paymentStatus === 'PROCESSING'}
-                  className="bg-herb hover:bg-opacity-95 text-paperLight font-body font-bold text-xs uppercase py-3.5 rounded-sm tracking-wide transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer"
+                  className="bg-herb hover:bg-opacity-95 text-paperLight font-body font-bold text-xs uppercase py-3.5 rounded-none tracking-wide transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer hover-bounce"
                 >
                   {paymentStatus === 'PROCESSING' ? (
                     <>
@@ -745,7 +798,7 @@ export const CheckoutPage: React.FC = () => {
                   <button
                     onClick={() => handlePayment(false)}
                     disabled={paymentStatus === 'PROCESSING'}
-                    className="border border-paprika text-paprika hover:bg-red-50 font-body font-bold text-xs uppercase py-3.5 rounded-sm tracking-wide transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer"
+                    className="border border-cardboard text-ink hover:bg-red-50 font-body font-bold text-xs uppercase py-3.5 rounded-none tracking-wide transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer hover-bounce"
                   >
                     <span>⚠️ Simulate Failure</span>
                   </button>
@@ -764,7 +817,7 @@ export const CheckoutPage: React.FC = () => {
           </p>
           <button
             onClick={() => navigate('/shop')}
-            className="bg-paprika text-paperLight font-body font-bold text-xs uppercase px-4 py-2.5 rounded-sm tracking-wide"
+            className="bg-turmeric text-ink font-body font-bold text-xs uppercase px-4 py-2.5 rounded-sm tracking-wide"
           >
             Sourced Products Catalog
           </button>
@@ -773,15 +826,15 @@ export const CheckoutPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start text-left">
           {/* Left Column - Shipping Form */}
           <div className="lg:col-span-7 space-y-6">
-            <div className="bg-paperLight border border-cardboard p-8 rounded-sm shadow-md space-y-6">
+            <div className="border-double border-4 border-cardboard bg-paperLight p-8 rounded-none shadow-md space-y-6 relative animate-fade-in-up">
               <div className="space-y-1">
                 <Eyebrow label="STEP 1 OF 2 — DELIVERY DETAILS" />
-                <h2 className="font-display font-bold text-2xl text-ink">
+                <h2 className="font-display font-black text-3xl uppercase tracking-tight text-ink">
                   Sourcing Shipping Address
                 </h2>
               </div>
-              <div className="flex justify-between items-center pb-2">
-                <p className="font-body text-xs text-ink opacity-70 leading-relaxed pr-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-dashed border-cardboard border-opacity-40">
+                <p className="font-body text-xs text-ink opacity-70 leading-relaxed max-w-md">
                   Every order is prepared fresh in our veterinary kitchen. Provide a clear address for safe delivery.
                 </p>
                 <div className="flex space-x-2 shrink-0">
@@ -789,7 +842,7 @@ export const CheckoutPage: React.FC = () => {
                     type="button"
                     onClick={handleDetectLocation}
                     disabled={isLocating || isSubmitting}
-                    className="font-mono text-[9px] uppercase tracking-wider text-herb border border-herb border-dashed hover:bg-paper rounded-sm px-2.5 py-1.5 flex items-center space-x-1 hover:text-ink transition-colors disabled:opacity-50"
+                    className="font-mono text-[9px] uppercase tracking-wider text-herb border border-herb border-dashed hover:bg-paper rounded-none px-3 py-2 flex items-center space-x-1 hover:text-ink transition-colors disabled:opacity-50 hover-bounce cursor-pointer"
                   >
                     {isLocating ? (
                       <>
@@ -807,7 +860,7 @@ export const CheckoutPage: React.FC = () => {
                     type="button"
                     onClick={handleIpLocate}
                     disabled={isLocating || isSubmitting}
-                    className="font-mono text-[9px] uppercase tracking-wider text-turmeric border border-turmeric border-dashed hover:bg-paper rounded-sm px-2.5 py-1.5 flex items-center space-x-1 hover:text-ink transition-colors disabled:opacity-50"
+                    className="font-mono text-[9px] uppercase tracking-wider text-turmeric border border-turmeric border-dashed hover:bg-paper rounded-none px-3 py-2 flex items-center space-x-1 hover:text-ink transition-colors disabled:opacity-50 hover-bounce cursor-pointer"
                   >
                     {isLocating ? (
                       <>
@@ -824,8 +877,6 @@ export const CheckoutPage: React.FC = () => {
                 </div>
               </div>
 
-              <hr className="border-t border-dashed border-cardboard" />
-
               <form onSubmit={handlePlaceOrder} className="space-y-4">
                 {/* Pincode / Zip Code Quick Search Lookup */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
@@ -839,7 +890,7 @@ export const CheckoutPage: React.FC = () => {
                       value={pincode}
                       onChange={(e) => setPincode(e.target.value)}
                       placeholder="e.g. 600016 or 90210"
-                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                       disabled={isSubmitting || isLookupLoading}
                     />
                   </div>
@@ -848,7 +899,7 @@ export const CheckoutPage: React.FC = () => {
                       type="button"
                       onClick={handleZipLookup}
                       disabled={isSubmitting || isLookupLoading || !pincode.trim()}
-                      className="w-full bg-herb hover:bg-opacity-95 text-paperLight font-mono text-[9px] uppercase py-2.5 font-bold rounded-sm disabled:opacity-50 transition-all flex items-center justify-center space-x-1.5 hover-bounce"
+                      className="w-full bg-turmeric text-ink hover:bg-opacity-95 font-mono text-[9px] uppercase py-2.5 font-bold rounded-none disabled:opacity-50 transition-all flex items-center justify-center space-x-1.5 hover-bounce cursor-pointer"
                     >
                       {isLookupLoading ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -873,7 +924,7 @@ export const CheckoutPage: React.FC = () => {
                       value={doorNo}
                       onChange={(e) => setDoorNo(e.target.value)}
                       placeholder="e.g. Flat 4B"
-                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                       disabled={isSubmitting}
                       required
                     />
@@ -888,7 +939,7 @@ export const CheckoutPage: React.FC = () => {
                       value={street}
                       onChange={(e) => setStreet(e.target.value)}
                       placeholder="e.g. Baker Street"
-                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                       disabled={isSubmitting}
                       required
                     />
@@ -907,7 +958,7 @@ export const CheckoutPage: React.FC = () => {
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
                       placeholder="e.g. London"
-                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                       disabled={isSubmitting}
                       required
                     />
@@ -922,7 +973,7 @@ export const CheckoutPage: React.FC = () => {
                       value={state}
                       onChange={(e) => setState(e.target.value)}
                       placeholder="e.g. England"
-                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                       disabled={isSubmitting}
                       required
                     />
@@ -940,7 +991,7 @@ export const CheckoutPage: React.FC = () => {
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
                     placeholder="e.g. United Kingdom"
-                    className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                    className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                     disabled={isSubmitting}
                     required
                   />
@@ -954,13 +1005,13 @@ export const CheckoutPage: React.FC = () => {
                   <div 
                     id="checkout-map" 
                     ref={mapContainerRef}
-                    className="h-56 w-full border border-cardboard rounded-md shadow-sm relative overflow-hidden bg-paperLight bg-opacity-35"
+                    className="h-56 w-full border-double border-4 border-cardboard rounded-none shadow-sm relative overflow-hidden bg-paper"
                     style={{ zIndex: 1 }}
                   ></div>
                 </div>
 
                 {errorMessage && (
-                  <div className="border border-paprika border-opacity-35 bg-red-50 p-3 rounded-sm flex items-start space-x-2 text-paprika font-body text-xs">
+                  <div className="border border-turmeric border-opacity-35 bg-red-50 p-3 rounded-none flex items-start space-x-2 text-paprika font-body text-xs">
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>{errorMessage}</span>
                   </div>
@@ -968,14 +1019,14 @@ export const CheckoutPage: React.FC = () => {
 
                 {/* Shipping info cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                  <div className="border border-cardboard border-dashed p-3 rounded-sm flex items-center space-x-2.5 bg-paperLight bg-opacity-40">
+                  <div className="border border-cardboard border-dashed p-3 rounded-none flex items-center space-x-2.5 bg-paperLight bg-opacity-40">
                     <Truck className="w-5 h-5 text-herb shrink-0" />
                     <div>
                       <span className="font-mono text-[9px] uppercase font-bold text-herb block leading-tight">Fresh Transit</span>
                       <span className="font-body text-[10px] text-ink opacity-80 leading-none">Delivered in 2-3 Days</span>
                     </div>
                   </div>
-                  <div className="border border-cardboard border-dashed p-3 rounded-sm flex items-center space-x-2.5 bg-paperLight bg-opacity-40">
+                  <div className="border border-cardboard border-dashed p-3 rounded-none flex items-center space-x-2.5 bg-paperLight bg-opacity-40">
                     <ShieldCheck className="w-5 h-5 text-turmeric shrink-0" />
                     <div>
                       <span className="font-mono text-[9px] uppercase font-bold text-turmeric block leading-tight">100% Guaranteed</span>
@@ -989,15 +1040,15 @@ export const CheckoutPage: React.FC = () => {
 
           {/* Right Column - Receipt Summary */}
           <div className="lg:col-span-5">
-            <div className="bg-paperLight border border-cardboard p-8 rounded-sm shadow-md space-y-6 relative overflow-hidden">
+            <div className="border-double border-4 border-cardboard bg-paperLight p-8 rounded-none shadow-md space-y-6 relative overflow-hidden animate-fade-in-up">
               {/* Page Tab */}
-              <div className="absolute top-0 right-8 bg-cardboard bg-opacity-35 text-ink font-mono text-[8px] uppercase tracking-widest px-3 py-1 rounded-b-sm border-x border-b border-cardboard font-bold">
+              <div className="absolute top-0 right-8 bg-cardboard bg-opacity-35 text-ink font-mono text-[8px] uppercase tracking-widest px-3 py-1 rounded-b-none border-x border-b border-cardboard font-bold">
                 NOTEBOOK RECEIPT
               </div>
 
               <div className="space-y-1">
                 <Eyebrow label="STEP 2 OF 2 — ORDER SUMMARY" />
-                <h3 className="font-display font-bold text-xl text-ink">
+                <h3 className="font-display font-black text-3xl uppercase tracking-tight text-ink">
                   Recipe Receipt
                 </h3>
               </div>
@@ -1049,7 +1100,7 @@ export const CheckoutPage: React.FC = () => {
                 type="submit"
                 onClick={handlePlaceOrder}
                 disabled={isSubmitting}
-                className="w-full bg-paprika hover:bg-opacity-95 text-paperLight font-body font-bold text-xs uppercase py-3.5 rounded-sm tracking-wide transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center space-x-2"
+                className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs uppercase py-4 rounded-none tracking-wide transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center space-x-2 hover-bounce cursor-pointer"
               >
                 {isSubmitting ? (
                   <>

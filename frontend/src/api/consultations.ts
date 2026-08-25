@@ -97,12 +97,20 @@ export interface PaginatedConsultationResponse {
   pages: number;
 }
 
-export const fetchDoctors = async (params: { page?: number; limit?: number; search?: string } = {}): Promise<PaginatedDoctorResponse> => {
+export const fetchDoctors = async (params: { 
+  page?: number; 
+  limit?: number; 
+  search?: string;
+  city?: string;
+  specialization?: string;
+} = {}): Promise<PaginatedDoctorResponse> => {
   const response = await apiClient.get<PaginatedDoctorResponse>('/doctors', {
     params: {
       page: params.page || 1,
       limit: params.limit || 20,
       search: params.search || undefined,
+      city: params.city || undefined,
+      specialization: params.specialization || undefined,
     },
   });
   return response.data;

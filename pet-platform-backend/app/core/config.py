@@ -66,6 +66,9 @@ class Setting(BaseSettings):
     RAZORPAY_KEY_SECRET: str | None = None
     RAZORPAY_WEBHOOK_SECRET: str | None = None
 
+    # Firebase Admin SDK Configuration
+    FIREBASE_CREDENTIALS_PATH: str = "firebase-service-account.json"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",

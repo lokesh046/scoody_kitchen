@@ -1,14 +1,11 @@
 from datetime import datetime
 from decimal import Decimal
-
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.core.database import Base
 
-
-class Doctor(Base):
-    __tablename__ = "doctors"
+class DoctorApplication(Base):
+    __tablename__ = "doctor_applications"
 
     id: Mapped[int] = mapped_column(
         primary_key=True,
@@ -17,15 +14,30 @@ class Doctor(Base):
 
     user_id: Mapped[int] = mapped_column(
         ForeignKey("user.id", ondelete="CASCADE"),
-        unique=True,
+        unique=False,
         nullable=False,
         index=True,
     )
 
-    clinic_id: Mapped[int | None] = mapped_column(
-        ForeignKey("clinics.id", ondelete="SET NULL"),
-        nullable=True,
+    first_name: Mapped[str] = mapped_column(
+        String(150),
+        nullable=False,
+    )
+
+    last_name: Mapped[str] = mapped_column(
+        String(150),
+        nullable=False,
+    )
+
+    email: Mapped[str] = mapped_column(
+        String(150),
+        nullable=False,
         index=True,
+    )
+
+    phone: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
     )
 
     specialization: Mapped[str] = mapped_column(
@@ -53,7 +65,6 @@ class Doctor(Base):
 
     license_number: Mapped[str] = mapped_column(
         String(100),
-        unique=True,
         nullable=False,
         index=True,
     )
@@ -63,43 +74,65 @@ class Doctor(Base):
         nullable=True,
     )
 
+    degree_start_year: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+    )
+
+    degree_end_year: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+    )
+
+    nationality: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+
     education_history: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
     )
 
-    profile_image_url: Mapped[str | None] = mapped_column(
+    clinic_name: Mapped[str] = mapped_column(
+        String(150),
+        nullable=False,
+    )
+
+    clinic_address: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    clinic_city: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        index=True,
+    )
+
+    clinic_state: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+    )
+
+    aadhaar_card_url: Mapped[str | None] = mapped_column(
         String(500),
         nullable=True,
     )
 
-    latitude: Mapped[Decimal | None] = mapped_column(
-        Numeric(10, 7),
+    pan_card_url: Mapped[str | None] = mapped_column(
+        String(500),
         nullable=True,
     )
 
-    longitude: Mapped[Decimal | None] = mapped_column(
-        Numeric(11, 7),
+    medical_certificate_url: Mapped[str | None] = mapped_column(
+        String(500),
         nullable=True,
     )
 
-    is_available: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
-        nullable=False,
-        index=True,
-    )
-
-    is_verified: Mapped[bool] = mapped_column(
-        Boolean,
-        default=False,
-        nullable=False,
-        index=True,
-    )
-
-    is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
+    status: Mapped[str] = mapped_column(
+        String(50),
+        default="PENDING",
         nullable=False,
         index=True,
     )
@@ -119,16 +152,5 @@ class Doctor(Base):
 
     user = relationship(
         "User",
-        back_populates="doctor_profile",
-    )
-
-    clinic = relationship(
-        "Clinic",
-        back_populates="doctors",
-    )
-
-    availabilities = relationship(
-        "DoctorAvailability",
-        back_populates="doctor",
-        cascade="all, delete-orphan",
+        back_populates="doctor_applications",
     )

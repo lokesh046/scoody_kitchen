@@ -31,11 +31,28 @@ from app.api.order import router as orders_router
 from app.api.payments import router as payment_router
 from app.api.consultations import router as consultations_router
 from app.api.internal import router as internal_router
+from app.api.doctor_applications import router as doctor_applications_router
+from app.api.colleges import router as colleges_router
 
 from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize Firebase Admin SDK
+    try:
+        import firebase_admin
+        from firebase_admin import credentials
+        
+        creds_path = settings.FIREBASE_CREDENTIALS_PATH
+        if os.path.exists(creds_path):
+            cred = credentials.Certificate(creds_path)
+            firebase_admin.initialize_app(cred)
+            print("Successfully initialized Firebase Admin SDK.")
+        else:
+            print(f"Warning: Firebase credentials file not found at {creds_path}. Firebase Auth will not be available.")
+    except Exception as e:
+        print(f"Failed to initialize Firebase Admin SDK: {e}")
+
     # Startup cleanup of unverified typo accounts older than 24 hours
     try:
         from app.core.database import SessionLocal
@@ -115,9 +132,10 @@ async def validation_exception_handler(request, exc):
                 logger.warning("422 Request Validation Error - Raw Body: [REDACTED FOR SECURITY]")
     except Exception:
         pass
+    from fastapi.encoders import jsonable_encoder
     return JSONResponse(
         status_code=422,
-        content={"detail": exc.errors()},
+        content={"detail": jsonable_encoder(exc.errors())},
     )
 
 
@@ -137,6 +155,8 @@ app.include_router(payment_router)
 app.include_router(consultations_router)
 app.include_router(webhooks_router)
 app.include_router(internal_router)
+app.include_router(doctor_applications_router)
+app.include_router(colleges_router)
 
 if settings.IMAGE_STORAGE_PROVIDER.lower() == "local":
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)

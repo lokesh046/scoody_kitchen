@@ -38,6 +38,8 @@ export const DogViewer3D: React.FC = () => {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.35;
     
     // Clear previous elements
     container.innerHTML = '';
@@ -53,14 +55,14 @@ export const DogViewer3D: React.FC = () => {
     controls.target.set(0, 0.3, 0);
 
     // 5. Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.15);
     scene.add(ambientLight);
 
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x555555, 0.3);
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x555555, 0.45);
     hemiLight.position.set(0, 20, 0);
     scene.add(hemiLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.95);
     dirLight.position.set(4, 7, 3);
     dirLight.castShadow = true;
     dirLight.shadow.camera.top = 2;

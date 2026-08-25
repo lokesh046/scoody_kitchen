@@ -468,7 +468,7 @@ export const ChatbotWidget: React.FC = () => {
 
           {/* Emergency Alert */}
           {showEmergencyAlert && (
-            <div className="bg-red-50 border-y border-paprika px-4 py-2 flex items-start space-x-2 text-paprika text-[10px] pl-6 animate-pulse">
+            <div className="bg-red-50 border-y border-turmeric px-4 py-2 flex items-start space-x-2 text-paprika text-[10px] pl-6 animate-pulse">
               <ShieldAlert className="w-4 h-4 shrink-0 text-paprika mt-0.5" />
               <div>
                 <span className="font-bold block">🚨 EMERGENCY MEDICAL ALERT</span>
@@ -531,7 +531,7 @@ export const ChatbotWidget: React.FC = () => {
                     )}
 
                     {msg.hasActionConfirmation && msg.hasActionConfirmation.confirmed === undefined && (
-                      <div className="mt-2.5 p-2 bg-red-50 border border-paprika border-opacity-40 rounded-xl space-y-2 text-[11px]">
+                      <div className="mt-2.5 p-2 bg-red-50 border border-turmeric border-opacity-40 rounded-xl space-y-2 text-[11px]">
                         <span className="font-mono font-bold text-paprika block">⚠️ AUTHORIZE CANCELLATION</span>
                         <div className="flex space-x-1.5">
                           <button
@@ -596,7 +596,7 @@ export const ChatbotWidget: React.FC = () => {
                 <button
                   type="button"
                   onClick={stopRecording}
-                  className="p-1.5 bg-paprika text-paperLight rounded-full animate-pulse"
+                  className="p-1.5 bg-turmeric text-ink rounded-full animate-pulse"
                 >
                   <MicOff className="w-3.5 h-3.5" />
                 </button>
@@ -622,7 +622,7 @@ export const ChatbotWidget: React.FC = () => {
 
               <button
                 type="submit"
-                className="p-1.5 bg-paprika hover:bg-opacity-95 text-paperLight rounded-full disabled:opacity-50"
+                className="p-1.5 bg-turmeric hover:bg-opacity-95 text-ink rounded-full disabled:opacity-50"
                 disabled={isStreaming || (!inputMessage.trim() && !selectedImage)}
               >
                 <Send className="w-3.5 h-3.5" />
@@ -651,7 +651,7 @@ export const ChatbotWidget: React.FC = () => {
           <button
             type="button"
             onClick={() => { setIsOpen(true); setShowPopMessage(false); }}
-            className="bg-paprika hover:bg-opacity-95 text-paperLight rounded-l-2xl border border-paprika border-r-0 shadow-2xl cursor-pointer flex flex-col items-center justify-center py-4 px-2.5 hover:-translate-x-0.5 transition-all duration-200 select-none"
+            className="bg-turmeric hover:bg-opacity-95 text-ink rounded-l-2xl border border-turmeric border-r-0 shadow-2xl cursor-pointer flex flex-col items-center justify-center py-4 px-2.5 hover:-translate-x-0.5 transition-all duration-200 select-none"
           >
             <Sparkles className="w-3.5 h-3.5 mb-2 text-paperLight animate-pulse" />
             <span className="font-display font-bold text-[9px] uppercase tracking-widest [writing-mode:vertical-rl] leading-none text-paperLight">

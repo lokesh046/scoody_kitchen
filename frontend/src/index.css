@@ -10,7 +10,20 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display font-bold;
+    @apply font-display font-bold text-turmeric;
+  }
+
+  h1.text-ink, h2.text-ink, h3.text-ink, h4.text-ink, h5.text-ink, h6.text-ink {
+    color: #362820 !important;
+  }
+
+  header h1 {
+    color: #FFFFFF !important;
+  }
+
+  header svg.animate-pulse {
+    stroke: #FFDD43 !important;
+    filter: drop-shadow(0 0 8px rgba(255, 221, 67, 0.9));
   }
 
   input, select, textarea {
@@ -29,7 +42,7 @@
 
 /* Playful Rounded Card Lifting Animation */
 .hover-paper-lift {
-  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .hover-paper-lift:hover {
   transform: translateY(-8px) scale(1.015);
@@ -38,7 +51,7 @@
 
 /* Playful Spring Bounce for Interactive Elements */
 .hover-bounce {
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease;
 }
 .hover-bounce:hover {
   transform: scale(1.05);
@@ -182,3 +195,80 @@
 .animate-float-fast {
   animation: float-fast 3s ease-in-out infinite;
 }
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .animate-wiggle-left,
+  .animate-wiggle-right,
+  .animate-pant,
+  .animate-float-slow,
+  .animate-float-medium,
+  .animate-float-fast,
+  .animate-backdrop-in,
+  .animate-modal-in,
+  .hover-paper-lift,
+  .hover-bounce {
+    animation: none !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .animate-fade-in-up,
+  .animate-modal-in {
+    opacity: 1 !important;
+  }
+}
+
+/* Modal & Backdrop transitions */
+@keyframes backdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-backdrop-in {
+  animation: backdropFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modalZoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.animate-modal-in {
+  animation: modalZoomIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes driftDown {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(400px) rotate(360deg);
+    opacity: 0;
+  }
+}
+.animate-drift-down {
+  animation: driftDown 3.5s linear infinite;
+}
+
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+

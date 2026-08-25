@@ -92,6 +92,26 @@ def create_order_from_cart(
     if not cart.items:
         raise ValueError("Cart is empty")
 
+    # Cancel any existing pending orders for this user to release reserved stock
+    existing_pending_orders = list(
+        db.scalars(
+            select(Order).where(
+                Order.user_id == user_id,
+                Order.status == OrderStatus.PENDING
+            )
+        ).all()
+    )
+    for pending_order in existing_pending_orders:
+        pending_order.status = OrderStatus.CANCELLED
+        for item in pending_order.items:
+            release_stock(db, item.product_id, item.quantity)
+        history_cancel = OrderStatusHistory(
+            order_id=pending_order.id,
+            status=OrderStatus.CANCELLED,
+            description="System cancelled: checkout abandoned or restarted",
+        )
+        db.add(history_cancel)
+
     total_amount = Decimal("0.00")
     order_items_data = []
 
@@ -147,9 +167,6 @@ def create_order_from_cart(
         )
         db.add(order_item)
 
-    for cart_item in cart.items:
-        db.delete(cart_item)
-
     history = OrderStatusHistory(
         order_id=order.id,
         status=OrderStatus.PENDING,
@@ -180,6 +197,9 @@ def get_user_orders(
     limit: int = 20,
     status: OrderStatus | None = None,
 ) -> list[Order]:
+    from app.models.order_status_history import OrderStatusHistory
+    from sqlalchemy import not_
+
     statement = (
         select(Order)
         .options(
@@ -187,7 +207,14 @@ def get_user_orders(
             joinedload(Order.status_history),
             joinedload(Order.shipment),
         )
-        .where(Order.user_id == user_id)
+        .where(
+            Order.user_id == user_id,
+            not_(
+                Order.status_history.any(
+                    OrderStatusHistory.description == "System cancelled: checkout abandoned or restarted"
+                )
+            )
+        )
     )
     if status is not None:
         statement = statement.where(Order.status == status)

@@ -28,9 +28,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
         className="absolute inset-0 bg-ink bg-opacity-40 backdrop-blur-xs transition-opacity duration-300"
       ></div>
 
-      <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+      <div className="absolute inset-y-0 right-0 max-w-full flex sm:pl-10 pl-0 w-full sm:w-auto">
         {/* Sliding Panel */}
-        <div className="w-screen max-w-md bg-paperLight border-l border-cardboard shadow-2xl flex flex-col justify-between relative transform transition-transform duration-300">
+        <div className="w-full sm:w-screen sm:max-w-md bg-paperLight border-l border-cardboard shadow-2xl flex flex-col justify-between relative transform transition-transform duration-300">
           
           {/* Decorative notebook binding left border */}
           <div className="absolute left-1.5 top-0 bottom-0 border-l border-dashed border-cardboard opacity-40"></div>
@@ -84,7 +84,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                         <img 
                           src={imageSrc} 
                           alt={item.name} 
-                          className="w-full h-full object-cover grayscale-[10%]"
+                          className="w-full h-full object-cover"
                         />
                       </div>
 
@@ -165,10 +165,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              {/* Checkout Trigger button */}
               <button
                 onClick={handleCheckoutRedirect}
-                className="w-full bg-paprika hover:bg-opacity-95 text-paperLight font-body font-bold text-xs uppercase py-3.5 rounded-sm tracking-wide transition-colors shadow-sm flex items-center justify-center space-x-2"
+                className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs uppercase py-3.5 rounded-sm tracking-wide transition-colors shadow-sm flex items-center justify-center space-x-2 cursor-pointer"
               >
                 <span>Proceed to Checkout</span>
                 <ArrowRight className="w-4 h-4" />

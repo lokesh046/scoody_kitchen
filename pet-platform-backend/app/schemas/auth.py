@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.models.enums import UserRole
 
@@ -45,10 +45,27 @@ class UserResponse(BaseModel):
     profile_image_url: str | None = None
     auth_provider: str
     is_email_verified: bool
+    is_phone_verified: bool
     role: UserRole
     is_active: bool
 
     model_config = {"from_attributes": True}
+
+
+class FirebaseVerifyPhonePayload(BaseModel):
+    id_token: str
+
+
+class OTPRequest(BaseModel):
+    phone_number: str
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        import re
+        if not re.match(r"^\+[1-9]\d{1,14}$", v):
+            raise ValueError("Phone number must be in E.164 format (e.g. +919876543210)")
+        return v
 
 
 class TokenResponse(BaseModel):

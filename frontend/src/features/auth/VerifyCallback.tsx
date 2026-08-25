@@ -52,16 +52,6 @@ export const VerifyCallback: React.FC = () => {
       <div className="absolute left-6 md:left-10 top-0 bottom-0 border-l border-dashed border-cardboard opacity-50 hidden md:block"></div>
 
       <div className="w-full max-w-sm bg-paperLight border border-cardboard p-8 rounded-sm shadow-md text-center space-y-6 relative overflow-hidden">
-        {/* Torn top edge card styling */}
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-paper flex overflow-hidden">
-          {Array.from({ length: 40 }).map((_, i) => (
-            <div
-              key={i}
-              className="w-4 h-4 bg-paperLight rounded-full -translate-y-2 border border-cardboard shrink-0"
-            ></div>
-          ))}
-        </div>
-
         <BookOpen className="text-herb w-8 h-8 mx-auto" />
         <h2 className="font-display font-bold text-xl text-ink">Ledger Verification</h2>
 
@@ -80,7 +70,7 @@ export const VerifyCallback: React.FC = () => {
             </p>
             <button
               onClick={() => navigate('/login', { replace: true })}
-              className="bg-paprika text-paperLight font-body font-bold text-xs uppercase px-4 py-2 rounded-sm tracking-wide"
+              className="bg-turmeric text-ink font-body font-bold text-xs uppercase px-4 py-2 rounded-sm tracking-wide"
             >
               Back to Sign In
             </button>

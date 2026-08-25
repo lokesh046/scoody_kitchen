@@ -54,7 +54,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ product, onAddToCart }) 
           src={imageUrl}
           alt={product.name}
           className={`w-full h-full object-cover transition-all duration-300 ${
-            !product.is_active ? 'grayscale opacity-50' : 'grayscale-[20%] hover:grayscale-0'
+            !product.is_active ? 'grayscale opacity-50' : 'hover:scale-[1.03]'
           }`}
           loading="lazy"
         />
@@ -66,7 +66,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ product, onAddToCart }) 
         )}
         {/* Deactivated Tag */}
         {!product.is_active && (
-          <div className="absolute top-4 left-4 mt-7 bg-paprika text-paperLight font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-[3px] font-bold shadow-sm animate-pulse">
+          <div className="absolute top-4 left-4 mt-7 bg-turmeric text-ink font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-[3px] font-bold shadow-sm animate-pulse">
             Deactivated
           </div>
         )}
@@ -110,7 +110,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ product, onAddToCart }) 
               ? 'bg-cardboard bg-opacity-35 text-ink text-opacity-50 cursor-not-allowed border border-cardboard border-opacity-30'
               : isAdded
               ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-              : 'bg-paprika hover:bg-opacity-95 text-paperLight hover-bounce'
+              : 'bg-turmeric hover:bg-opacity-95 text-ink hover-bounce'
           } disabled:opacity-50`}
         >
           {isAdding ? (

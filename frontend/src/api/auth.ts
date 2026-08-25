@@ -9,6 +9,7 @@ export interface UserResponse {
   profile_image_url: string | null;
   auth_provider: string;
   is_email_verified: boolean;
+  is_phone_verified: boolean;
   role: string;
   is_active: boolean;
 }
@@ -91,6 +92,20 @@ export const uploadAvatarImage = async (file: File): Promise<{ url: string }> =>
     headers: {
       'Content-Type': 'multipart/form-data',
     },
+  });
+  return response.data;
+};
+
+export const verifyFirebasePhoneToken = async (idToken: string): Promise<UserResponse> => {
+  const response = await apiClient.post('/auth/firebase/verify-phone', {
+    id_token: idToken,
+  });
+  return response.data;
+};
+
+export const requestOtpPreCheck = async (phoneNumber: string): Promise<{ allowed: boolean; attempts_remaining?: number }> => {
+  const response = await apiClient.post('/auth/request-otp', {
+    phone_number: phoneNumber,
   });
   return response.data;
 };

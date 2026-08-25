@@ -73,3 +73,58 @@ def send_magic_link_email(
     except Exception as exc:
         logger.error(f"Failed to send email to {to_email} via SMTP: {exc}")
         return False
+
+
+def send_doctor_verification_email(
+    to_email: str,
+    first_name: str,
+) -> bool:
+    subject = "Your Vet Account is Verified and Active!"
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color: #f4f6f8; padding: 20px; color: #333;">
+        <div style="max-width: 500px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+            <h2 style="color: #10B981; margin-top: 0;">Congratulations, Dr. {first_name}!</h2>
+            <p>We are pleased to inform you that your professional credentials have been successfully verified by our administrative team.</p>
+            <p>Your user profile has been upgraded to a verified <strong>Doctor Account</strong>. You can now access your Doctor Dashboard to configure your weekly slots and consulting hours.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{settings.FRONTEND_URL}/doctor/dashboard" style="background-color: #10B981; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Go to Doctor Dashboard</a>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+            <p style="font-size: 12px; color: #888;">If you have any questions, please contact our support team.</p>
+        </div>
+    </body>
+    </html>
+    """
+
+    logger.info("==================================================")
+    logger.info(f"DOCTOR VERIFICATION EMAIL TO: {to_email}")
+    logger.info(f"VERIFIED DOCTOR NAME: Dr. {first_name}")
+    logger.info("==================================================")
+
+    if not settings.SMTP_HOST or not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        logger.warning("SMTP settings not configured. Verification email logged to console above.")
+        return True
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = settings.EMAILS_FROM or settings.SMTP_USER
+        msg["To"] = to_email
+
+        msg.attach(MIMEText(f"Congratulations Dr. {first_name}! Your account has been verified and upgraded to a Doctor profile.", "plain"))
+        msg.attach(MIMEText(html_content, "html"))
+
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.send_message(msg)
+
+        logger.info(f"Doctor verification email sent to {to_email}")
+        return True
+    except Exception as exc:
+        logger.error(f"Failed to send email to {to_email} via SMTP: {exc}")
+        return False

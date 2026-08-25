@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Search, ShoppingCart, User, LogOut, PawPrint } from 'lucide-react';
+import { Search, PawPrint } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
-import { logoutUser } from '../../api/auth';
 import { fetchProducts, fetchCategories, fetchCategoryById } from '../../api/products';
 import { Eyebrow } from '../../components/Eyebrow';
 import { JournalCard } from '../../components/JournalCard';
 import { RecipeCard } from '../../components/RecipeCard';
 import { CartDrawer } from '../../components/CartDrawer';
+import { Header } from '../../components/Header';
 
 export default function ShopPage() {
   const navigate = useNavigate();
@@ -17,9 +17,7 @@ export default function ShopPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const cartItems = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
-  const totalCartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleAddToCart = async (productId: number) => {
     if (!user) {
@@ -33,7 +31,7 @@ export default function ShopPage() {
     }
   };
 
-  const { user, clearAuth } = useAuthStore();
+  const { user } = useAuthStore();
 
   // Queries
   const { data: productsData, isLoading: productsLoading, error: productsError } = useQuery({
@@ -54,16 +52,7 @@ export default function ShopPage() {
 
 
 
-  const handleLogout = async () => {
-    try {
-      await logoutUser();
-    } catch (err) {
-      console.error('Logout failed:', err);
-    } finally {
-      clearAuth();
-      navigate('/login');
-    }
-  };
+
 
   const products = productsData?.items || [];
 
@@ -72,78 +61,7 @@ export default function ShopPage() {
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
       {/* Full-width Top Navigation Header bar */}
-      <header className="w-full border-b border-cardboard border-opacity-25 bg-ink bg-opacity-95 backdrop-blur-md sticky top-0 z-30 shadow-sm text-paper">
-        <div className="w-full px-4 md:px-8 py-4 flex justify-between items-center md:grid md:grid-cols-12">
-          
-          {/* Left Corner: Brand Logo & Title */}
-          <div className="flex items-center space-x-3 cursor-pointer md:col-span-3 justify-start select-none" onClick={() => navigate('/')}>
-            <PawPrint className="text-turmeric w-6 h-6 animate-pulse" />
-            <div>
-              <h1 className="font-display font-bold text-2xl tracking-tight text-paper">
-                Scooby's Kitchen
-              </h1>
-              <p className="font-mono text-[9px] uppercase tracking-wider text-turmeric opacity-85">
-                Notebook Ledger v1.0
-              </p>
-            </div>
-          </div>
-
-          {/* Center: Navigation Menu */}
-          <nav className="hidden md:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper md:col-span-6 justify-center">
-            <button onClick={() => navigate('/shop')} className="hover:text-turmeric transition-colors border-b-2 border-turmeric pb-1">Shop Recipes</button>
-            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Know Your Pet</button>
-            <button onClick={() => navigate('/consultations')} className="hover:text-turmeric transition-colors pb-1">Vet Consults</button>
-            <button onClick={() => navigate('/orders')} className="hover:text-turmeric transition-colors pb-1">My Orders</button>
-            <button onClick={() => navigate('/assistant')} className="hover:text-turmeric transition-colors pb-1">AI Assistant 🐾</button>
-            <button onClick={() => navigate('/profile')} className="hover:text-turmeric transition-colors pb-1">My Profile</button>
-            {user?.role === 'admin' && (
-              <button onClick={() => navigate('/admin')} className="hover:text-turmeric text-turmeric transition-colors pb-1">Admin Panel 🛠️</button>
-            )}
-            {(user?.role === 'doctor' || user?.role === 'admin') && (
-              <button onClick={() => navigate('/doctor')} className="hover:text-turmeric text-turmeric transition-colors pb-1">Doctor Panel 🩺</button>
-            )}
-          </nav>
-
-          {/* Right Corner: Actions */}
-          <div className="flex items-center space-x-4 md:col-span-3 justify-end">
-            {user && (
-              <span className="font-mono text-[10px] uppercase font-bold text-turmeric">
-                {user.first_name || 'User'}
-              </span>
-            )}
-
-            <button 
-              onClick={() => setIsCartOpen(true)}
-              className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 relative text-paper"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              {totalCartQuantity > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-paprika text-paperLight font-mono text-[9px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center animate-bounce">
-                  {totalCartQuantity}
-                </span>
-              )}
-            </button>
-
-            {user ? (
-              <button
-                onClick={handleLogout}
-                className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper flex items-center space-x-1.5 font-body text-[10px] font-bold uppercase"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Log Out</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => navigate('/login')}
-                className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper flex items-center space-x-1.5 font-body text-[10px] font-bold uppercase"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Log In</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+      <Header activeTab="shop" onCartToggle={() => setIsCartOpen(true)} />
 
       {/* Centered Main Content Wrapper */}
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 md:px-8 py-8">
@@ -169,7 +87,7 @@ export default function ShopPage() {
             <button onClick={() => {
               const el = document.getElementById('product-ledger-heading');
               if (el) el.scrollIntoView({ behavior: 'smooth' });
-            }} className="bg-paprika text-paperLight font-body font-bold text-xs uppercase px-6 py-3 rounded-sm tracking-wide hover:bg-opacity-95 transition-all shadow-sm active:translate-y-[1px] active:shadow-none">
+            }} className="bg-turmeric text-ink font-body font-bold text-xs uppercase px-6 py-3 rounded-sm tracking-wide hover:bg-opacity-95 transition-all shadow-sm active:translate-y-[1px] active:shadow-none cursor-pointer">
               Shop the Recipes
             </button>
           </div>
@@ -219,7 +137,7 @@ export default function ShopPage() {
 
         {/* Category Filters */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold mr-2 flex items-center">
+          <span className="font-mono text-[11px] uppercase tracking-wider text-paprika font-bold mr-2 flex items-center">
             <PawPrint className="w-3 h-3 mr-1" /> Filters:
           </span>
           <button
@@ -251,7 +169,7 @@ export default function ShopPage() {
         {/* Category Description Banner */}
         {selectedCategoryId !== null && categoryDetails && (
           <div className="p-6 border border-cardboard bg-paperLight rounded-sm shadow-sm space-y-2 text-left animate-fade-in-up">
-            <span className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold block">CATEGORY HIGHLIGHT</span>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold block">CATEGORY HIGHLIGHT</span>
             <h3 className="font-display font-bold text-2xl text-ink uppercase tracking-tight">{categoryDetails.name}</h3>
             {categoryDetails.description ? (
               <p className="font-body text-sm text-ink opacity-90 leading-relaxed italic">
@@ -283,7 +201,7 @@ export default function ShopPage() {
           </div>
         ) : productsError ? (
           /* Notebook Error Card */
-          <div className="max-w-md mx-auto border border-paprika bg-paperLight p-8 rounded-sm text-center shadow-sm">
+          <div className="max-w-md mx-auto border border-turmeric bg-paperLight p-8 rounded-sm text-center shadow-sm">
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="font-mono text-lg font-bold text-paprika">!</span>
             </div>
@@ -293,7 +211,7 @@ export default function ShopPage() {
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="bg-paprika text-paperLight font-body font-bold text-xs uppercase px-4 py-2 rounded-sm tracking-wide"
+              className="bg-turmeric text-ink font-body font-bold text-xs uppercase px-4 py-2 rounded-sm tracking-wide cursor-pointer"
             >
               Retry Connection
             </button>
@@ -331,10 +249,10 @@ export default function ShopPage() {
 
       {/* Footer */}
       <footer className="mt-20 border-t border-cardboard pt-8 text-center text-ink opacity-60">
-        <p className="font-mono text-[9px] uppercase tracking-wider">
+        <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">
           © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
         </p>
-        <p className="font-body text-[10px] mt-1 max-w-md mx-auto leading-relaxed">
+        <p className="font-body text-xs mt-1 max-w-md mx-auto leading-relaxed">
           Tested and crafted with love for pet parents who care about what goes in the bowl.
         </p>
       </footer>

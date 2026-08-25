@@ -8,25 +8,22 @@ import {
   fetchDoctorById, fetchDoctorAvailability, fetchNearbyDoctors,
   fetchConsultationById
 } from '../../api/consultations';
-import { useAuthStore } from '../../store/auth';
-import { useCartStore } from '../../store/cart';
-import { logoutUser } from '../../api/auth';
+
 import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
+import { Header } from '../../components/Header';
 import { 
-  ArrowLeft, ShoppingCart, LogOut, User, PawPrint, 
+  ArrowLeft, PawPrint, 
   Clock, Stethoscope, Loader2, AlertCircle, XCircle,
-  MapPin, Compass, Calendar as CalendarIcon, Info
+  Compass, Calendar as CalendarIcon, Info
 } from 'lucide-react';
 
 export const ConsultationsPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user, clearAuth } = useAuthStore();
-  const { items: cartItems, clear: clearCart } = useCartStore();
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  const totalCartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
 
   // Form State
   const [selectedPetId, setSelectedPetId] = useState<string>('');
@@ -38,10 +35,25 @@ export const ConsultationsPage: React.FC = () => {
   const [formError, setFormError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
+  // Delight overlay states
+  const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
+  const [lastBookedSession, setLastBookedSession] = useState<{ doctorName: string; scheduledAt: string } | null>(null);
+
+  // Tab & Booking Stepper States
+  const [activeSection, setActiveSection] = useState<'sessions' | 'book' | 'directory'>('directory');
+  const [bookingStep, setBookingStep] = useState<number>(1);
+  const [isDirectBooking, setIsDirectBooking] = useState(false);
+
+  // Search & Filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCityFilter, setSelectedCityFilter] = useState('');
+  const [selectedSpecializationFilter, setSelectedSpecializationFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'COMPLETED' | 'CANCELLED'>('ALL');
+
   // Nearby Vets Finder States
   const [searchLat, setSearchLat] = useState<string>('');
   const [searchLng, setSearchLng] = useState<string>('');
-  const [searchRadius, setSearchRadius] = useState<number>(10);
+  const searchRadius = 10;
   const [nearbyDocs, setNearbyDocs] = useState<any[]>([]);
   const [isSearchingNearby, setIsSearchingNearby] = useState(false);
   const [searchError, setSearchError] = useState('');
@@ -58,9 +70,22 @@ export const ConsultationsPage: React.FC = () => {
     queryFn: fetchMyPets,
   });
 
-  const { data: doctorsData } = useQuery({
-    queryKey: ['doctors'],
-    queryFn: () => fetchDoctors(),
+  const { data: allDoctorsData } = useQuery({
+    queryKey: ['allDoctors'],
+    queryFn: () => fetchDoctors({ limit: 100 }),
+  });
+
+  const allDoctors = allDoctorsData?.items || [];
+  const uniqueCities = Array.from(new Set(allDoctors.map(d => d.clinic?.city).filter(Boolean))) as string[];
+  const uniqueSpecializations = Array.from(new Set(allDoctors.map(d => d.specialization).filter(Boolean))) as string[];
+
+  const { data: doctorsData, isLoading: isDoctorsLoading } = useQuery({
+    queryKey: ['doctors', searchQuery, selectedCityFilter, selectedSpecializationFilter],
+    queryFn: () => fetchDoctors({
+      search: searchQuery || undefined,
+      city: selectedCityFilter || undefined,
+      specialization: selectedSpecializationFilter || undefined,
+    }),
   });
 
   const { data: consultationsData, isLoading: isConsultationsLoading } = useQuery({
@@ -96,7 +121,31 @@ export const ConsultationsPage: React.FC = () => {
     enabled: !!selectedDoctorId && !!targetDate,
   });
 
-  const availableSlots = slotsData?.slots || [];
+  const getTodayLocalDateString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getFilteredAvailableSlots = () => {
+    const rawSlots = slotsData?.slots || [];
+    const todayStr = getTodayLocalDateString();
+    
+    if (targetDate !== todayStr) {
+      return rawSlots;
+    }
+    
+    const now = new Date();
+    const currentHours = String(now.getHours()).padStart(2, '0');
+    const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+    const currentTimeStr = `${currentHours}:${currentMinutes}`;
+    
+    return rawSlots.filter((slot) => slot > currentTimeStr);
+  };
+
+  const availableSlots = getFilteredAvailableSlots();
 
   // Reset slot selection if doctor or date changes
   useEffect(() => {
@@ -119,13 +168,33 @@ export const ConsultationsPage: React.FC = () => {
   // Book Mutation
   const bookMutation = useMutation({
     mutationFn: (bookingData: any) => bookConsultation(bookingData),
-    onSuccess: () => {
+    onSuccess: (_, variables: any) => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
-      // Clear inputs
+      
+      // Trigger success delight overlay
+      const doc = doctors.find((d: any) => d.id === variables.doctor_id);
+      const docName = doc && doc.user ? `${doc.user.first_name || ''} ${doc.user.last_name || ''}`.trim() : `Specialist ID #${variables.doctor_id}`;
+      
+      setLastBookedSession({
+        doctorName: docName,
+        scheduledAt: variables.scheduled_at,
+      });
+      setShowSuccessOverlay(true);
+      setTimeout(() => {
+        setShowSuccessOverlay(false);
+        // Switch back to Ledger view
+        setActiveSection('sessions');
+      }, 3500);
+
+      // Clear inputs and reset booking stepper
       setReason('');
       setNotes('');
       setSelectedSlot('');
       setFormError('');
+      setSelectedDoctorId('');
+      setSelectedPetId('');
+      setIsDirectBooking(false);
+      setBookingStep(1);
     },
     onError: (err: any) => {
       console.error('Booking failed:', err);
@@ -266,16 +335,12 @@ export const ConsultationsPage: React.FC = () => {
     loadDoctorDetails();
   }, [inspectingDoctorId]);
 
-  const handleLogout = async () => {
-    try {
-      await logoutUser();
-    } catch (err) {
-      console.error('Logout failed:', err);
-    } finally {
-      clearAuth();
-      clearCart();
-      navigate('/login');
-    }
+  const handleStartBooking = (doctorId: number) => {
+    setSelectedDoctorId(doctorId.toString());
+    setIsDirectBooking(true);
+    setBookingStep(1); // Start directly at companion selection
+    setActiveSection('book');
+    setInspectingDoctorId(null);
   };
 
   const handleBookSession = async (e: React.FormEvent) => {
@@ -335,81 +400,20 @@ export const ConsultationsPage: React.FC = () => {
     }
   };
 
+  const filteredConsultations = consultations.filter((c: any) => {
+    if (statusFilter === 'ALL') return true;
+    return c.status.toUpperCase() === statusFilter;
+  });
+
+  const getCountForStatus = (status: 'ALL' | 'PENDING' | 'APPROVED' | 'COMPLETED' | 'CANCELLED') => {
+    if (status === 'ALL') return consultations.length;
+    return consultations.filter((c: any) => c.status.toUpperCase() === status).length;
+  };
+
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
       {/* Full-width Top Navigation Header bar */}
-      <header className="w-full border-b border-cardboard border-opacity-25 bg-ink bg-opacity-95 backdrop-blur-md sticky top-0 z-30 shadow-sm text-paper">
-        <div className="w-full px-4 md:px-8 py-4 flex justify-between items-center md:grid md:grid-cols-12">
-          
-          {/* Left Corner: Brand Logo & Title */}
-          <div className="flex items-center space-x-3 cursor-pointer md:col-span-3 justify-start select-none" onClick={() => navigate('/')}>
-            <PawPrint className="text-turmeric w-6 h-6 animate-pulse" />
-            <div>
-              <h1 className="font-display font-bold text-2xl tracking-tight text-paper">
-                Scooby's Kitchen
-              </h1>
-              <p className="font-mono text-[9px] uppercase tracking-wider text-turmeric opacity-85">
-                Notebook Ledger v1.0
-              </p>
-            </div>
-          </div>
-
-          {/* Center: Navigation Menu */}
-          <nav className="hidden md:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper md:col-span-6 justify-center">
-            <button onClick={() => navigate('/shop')} className="hover:text-turmeric transition-colors pb-1">Shop Recipes</button>
-            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Know Your Pet</button>
-            <button onClick={() => navigate('/consultations')} className="hover:text-turmeric transition-colors pb-1 font-bold border-b-2 border-turmeric">Vet Consults</button>
-            <button onClick={() => navigate('/orders')} className="hover:text-turmeric transition-colors pb-1">My Orders</button>
-            <button onClick={() => navigate('/assistant')} className="hover:text-turmeric transition-colors pb-1">AI Assistant 🐾</button>
-            <button onClick={() => navigate('/profile')} className="hover:text-turmeric transition-colors pb-1">My Profile</button>
-            {user?.role === 'admin' && (
-              <button onClick={() => navigate('/admin')} className="hover:text-turmeric text-turmeric transition-colors pb-1">Admin Panel 🛠️</button>
-            )}
-            {(user?.role === 'doctor' || user?.role === 'admin') && (
-              <button onClick={() => navigate('/doctor')} className="hover:text-turmeric text-turmeric transition-colors pb-1">Doctor Panel 🩺</button>
-            )}
-          </nav>
-
-          {/* Right Corner: Actions */}
-          <div className="flex items-center space-x-4 md:col-span-3 justify-end">
-            {user && (
-              <span className="font-mono text-[10px] uppercase font-bold text-turmeric">
-                {user.first_name || 'User'}
-              </span>
-            )}
-
-            <button 
-              onClick={() => setIsCartOpen(true)}
-              className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 relative text-paper"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              {totalCartQuantity > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-paprika text-paperLight font-mono text-[9px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center animate-bounce">
-                  {totalCartQuantity}
-                </span>
-              )}
-            </button>
-
-            {user ? (
-              <button
-                onClick={handleLogout}
-                className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper flex items-center space-x-1.5 font-body text-[10px] font-bold uppercase"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Log Out</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => navigate('/login')}
-                className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper flex items-center space-x-1.5 font-body text-[10px] font-bold uppercase"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Log In</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+      <Header activeTab="consultations" onCartToggle={() => setIsCartOpen(true)} />
 
       {/* Centered Main Content Wrapper */}
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 md:px-8 py-8">
@@ -424,12 +428,246 @@ export const ConsultationsPage: React.FC = () => {
           <span>Back to Product Ledger</span>
         </button>
       </div>
+      {/* Binder Tab Navigation Bar */}
+      <div className="flex border-b border-cardboard border-opacity-40 mb-8 font-mono text-xs uppercase tracking-wider font-bold">
+        <button
+          type="button"
+          onClick={() => {
+            setActiveSection('directory');
+            setIsDirectBooking(false);
+          }}
+          className={`px-6 py-3 border-t-2 border-x transition-colors cursor-pointer ${
+            activeSection === 'directory'
+              ? 'bg-paperLight border-t-turmeric border-x-cardboard text-ink'
+              : 'bg-transparent border-t-transparent border-x-transparent text-ink opacity-60 hover:opacity-100'
+          }`}
+        >
+          🔍 Specialist Directory
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection('sessions')}
+          className={`px-6 py-3 border-t-2 border-x transition-colors cursor-pointer ${
+            activeSection === 'sessions'
+              ? 'bg-paperLight border-t-turmeric border-x-cardboard text-ink'
+              : 'bg-transparent border-t-transparent border-x-transparent text-ink opacity-60 hover:opacity-100'
+          }`}
+        >
+          📓 Session Ledger ({consultations.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveSection('book');
+            setIsDirectBooking(false);
+            setSelectedDoctorId(''); // reset pre-selected doctor if booking normally
+            setBookingStep(1);
+          }}
+          className={`px-6 py-3 border-t-2 border-x transition-colors cursor-pointer ${
+            activeSection === 'book'
+              ? 'bg-paperLight border-t-turmeric border-x-cardboard text-ink'
+              : 'bg-transparent border-t-transparent border-x-transparent text-ink opacity-60 hover:opacity-100'
+          }`}
+        >
+          🩺 Schedule Specialist
+        </button>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 text-left">
-        {/* Left Column - Active Consultations */}
-        <div className="lg:col-span-7 space-y-6">
+      {/* DIRECTORY SECTION */}
+      {activeSection === 'directory' && (
+        <div className="max-w-7xl mx-auto space-y-6 text-left animate-fade-in">
+          {/* Header Title */}
           <div className="space-y-1">
-            <Eyebrow label="VETERINARY MEDICAL CONSULTATION LEDG" />
+            <h2 className="font-display font-black text-3xl uppercase tracking-tight text-ink">
+              Specialist Directory
+            </h2>
+            <p className="font-body text-xs text-ink opacity-70">
+              Browse, search, and filter verified veterinarians and pet nutritionists in your city.
+            </p>
+          </div>
+
+          <hr className="border-t border-dashed border-cardboard" />
+
+          {/* Search & Filter Bar */}
+          <div className="bg-paperLight border border-cardboard p-6 rounded-sm shadow-xs grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+            {/* Search Input */}
+            <div className="md:col-span-6 flex flex-col space-y-1.5 text-left">
+              <label htmlFor="search-directory" className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wide block">
+                🔍 Search Specialist:
+              </label>
+              <input
+                type="text"
+                id="search-directory"
+                placeholder="Search by name, qualification, or bio..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-cardboard rounded-sm bg-paper font-body text-sm text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+              />
+            </div>
+
+            {/* City Dropdown */}
+            <div className="md:col-span-3 flex flex-col space-y-1.5 text-left">
+              <label htmlFor="city-filter" className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wide block">
+                📍 Filter by City:
+              </label>
+              <select
+                id="city-filter"
+                value={selectedCityFilter}
+                onChange={(e) => setSelectedCityFilter(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-cardboard rounded-sm bg-paper font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors cursor-pointer"
+              >
+                <option value="">All Cities</option>
+                {uniqueCities.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Specialization Filter Dropdown */}
+            <div className="md:col-span-3 flex flex-col space-y-1.5 text-left">
+              <label htmlFor="specialization-filter" className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wide block">
+                🩺 Filter by Specialization:
+              </label>
+              <select
+                id="specialization-filter"
+                value={selectedSpecializationFilter}
+                onChange={(e) => setSelectedSpecializationFilter(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-cardboard rounded-sm bg-paper font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors cursor-pointer"
+              >
+                <option value="">All Specializations</option>
+                {uniqueSpecializations.map((spec) => (
+                  <option key={spec} value={spec}>
+                    {spec}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Directory Loading / Results */}
+          {isDoctorsLoading ? (
+            <div className="py-20 text-center space-y-4">
+              <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
+              <p className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold animate-pulse">
+                Fetching specialists register...
+              </p>
+            </div>
+          ) : doctors.length === 0 ? (
+            <div className="border border-cardboard bg-paperLight border-dashed p-12 rounded-sm text-center">
+              <Stethoscope className="w-12 h-12 text-cardboard mx-auto mb-4 stroke-1" />
+              <h4 className="font-display font-bold text-lg text-ink mb-1">No Specialists Found</h4>
+              <p className="font-body text-xs text-ink opacity-70 max-w-xs mx-auto mb-6">
+                Try expanding your filters or adjusting your search query.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedCityFilter('');
+                  setSelectedSpecializationFilter('');
+                }}
+                className="bg-turmeric text-ink font-body font-bold text-xs uppercase px-5 py-2.5 rounded-sm tracking-wide hover-bounce cursor-pointer"
+              >
+                Reset Filter Ledger
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {doctors.map((d: any) => {
+                const doctorName = `Dr. ${d.user?.first_name || 'Specialist'} ${d.user?.last_name || ''}`.trim();
+                return (
+                  <div 
+                    key={d.id} 
+                    className="border border-cardboard bg-paperLight rounded-sm shadow-xs flex flex-col justify-between overflow-hidden relative group hover:border-turmeric transition-colors"
+                  >
+                    {/* Notebook spine visual accent */}
+                    <div className="absolute left-1 top-0 bottom-0 border-l border-dashed border-cardboard opacity-25"></div>
+
+                    {/* Polaroid Image Area */}
+                    <div className="p-6 pb-4 pl-8 flex justify-center bg-paper bg-opacity-25 border-b border-cardboard border-dashed">
+                      <div className="w-32 h-32 bg-white p-2.5 border border-cardboard shadow-xs rotate-[-1.5deg] group-hover:rotate-0 transition-transform duration-300 relative flex items-center justify-center shrink-0">
+                        {d.profile_image_url ? (
+                          <img 
+                            src={d.profile_image_url} 
+                            alt={doctorName} 
+                            className="w-full h-full object-cover polaroid-img"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-paperLight font-display font-black text-3xl text-cardboard">
+                            {d.user?.first_name?.[0]?.toUpperCase() || 'D'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Info text */}
+                    <div className="p-6 pt-4 pl-8 flex-grow space-y-3">
+                      <div className="space-y-1">
+                        <span className="font-mono text-[10px] uppercase tracking-widest text-paprika font-bold block">
+                          {d.specialization}
+                        </span>
+                        <h4 className="font-display font-black text-xl text-ink">
+                          {doctorName}
+                        </h4>
+                        <span className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80 block">
+                          Qualification: {d.qualification}
+                        </span>
+                      </div>
+
+                      <p className="font-body text-xs text-ink opacity-75 line-clamp-3">
+                        {d.bio || 'A dedicated companion animal specialist committed to custom small-batch dietary wellness and diagnosis.'}
+                      </p>
+
+                      <hr className="border-t border-cardboard border-dashed opacity-40" />
+
+                      {/* Location & Experience tags */}
+                      <div className="flex justify-between items-center text-xs font-mono text-ink">
+                        <div>
+                          <span className="text-[10px] uppercase text-ink opacity-70 block font-bold">EXP LEVEL</span>
+                          <span className="font-bold text-paprika">{d.experience_years} Years</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase text-ink opacity-70 block font-bold">CLINIC CITY</span>
+                          <span className="font-bold text-paprika">{d.clinic?.city || 'Chennai'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase text-ink opacity-70 block font-bold">FEE</span>
+                          <span className="font-bold text-turmeric">${parseFloat(d.consultation_fee).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Buttons */}
+                    <div className="border-t border-cardboard p-4 pl-8 bg-paper bg-opacity-20 flex space-x-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setInspectingDoctorId(d.id)}
+                        className="flex-1 border border-cardboard hover:bg-paper text-ink font-body font-bold text-xs uppercase py-2.5 rounded-sm tracking-wide text-center cursor-pointer transition-colors shadow-xs"
+                      >
+                        View Details
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleStartBooking(d.id)}
+                        className="flex-1 bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs uppercase py-2.5 rounded-sm tracking-wide text-center cursor-pointer transition-colors shadow-xs hover-bounce"
+                      >
+                        Book Now
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SESSIONS SECTION */}
+      {activeSection === 'sessions' && (
+        <div className="max-w-7xl mx-auto space-y-6 text-left animate-fade-in">
+          <div className="space-y-1">
             <h2 className="font-display font-bold text-3xl text-ink">
               Clinical Sessions
             </h2>
@@ -440,590 +678,749 @@ export const ConsultationsPage: React.FC = () => {
 
           <hr className="border-t border-dashed border-cardboard" />
 
-          {isConsultationsLoading ? (
-            <div className="py-20 text-center space-y-4">
-              <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
-              <p className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold">
-                Reading consultation schedules...
-              </p>
-            </div>
-          ) : consultations.length === 0 ? (
-            <div className="border border-cardboard bg-paperLight border-dashed p-10 rounded-sm text-center">
-              <Stethoscope className="w-12 h-12 text-cardboard mx-auto mb-4 stroke-1" />
-              <h4 className="font-display font-bold text-lg text-ink mb-1">No Consultations</h4>
-              <p className="font-body text-xs text-ink opacity-70 max-w-xs mx-auto">
-                You haven't scheduled any professional veterinary review sessions yet.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {consultations.map((consult) => (
-                <div 
-                  key={consult.id}
-                  className="bg-paperLight border border-cardboard p-6 rounded-sm shadow-sm flex flex-col justify-between relative overflow-hidden"
-                >
-                  {/* Decorative dashed spine tab */}
-                  <div className="absolute top-0 bottom-0 left-1 border-l border-dashed border-cardboard opacity-35"></div>
+          {/* Grid Layout for Sessions & Filter sidebar */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Left Pane (9 columns) - Sessions Logs */}
+            <div className="lg:col-span-9 space-y-6 order-2 lg:order-1">
+              {isConsultationsLoading ? (
+                <div className="py-20 text-center space-y-4">
+                  <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold">
+                    Reading consultation schedules...
+                  </p>
+                </div>
+              ) : filteredConsultations.length === 0 ? (
+                <div className="border border-cardboard bg-paperLight border-dashed p-10 rounded-sm text-center">
+                  <Stethoscope className="w-12 h-12 text-cardboard mx-auto mb-4 stroke-1" />
+                  <h4 className="font-display font-bold text-lg text-ink mb-1">No Consultations Found</h4>
+                  <p className="font-body text-xs text-ink opacity-70 max-w-xs mx-auto mb-6">
+                    {statusFilter === 'ALL'
+                      ? "You haven't scheduled any professional veterinary review sessions yet."
+                      : `No clinical sessions logged with status '${statusFilter}' at this time.`}
+                  </p>
+                  {statusFilter === 'ALL' && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection('book')}
+                      className="bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[10px] uppercase font-bold py-2.5 px-6 rounded-sm tracking-wide transition-colors cursor-pointer"
+                    >
+                      Schedule First Appointment 🩺
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {filteredConsultations.map((consult: any) => (
+                    <div 
+                      key={consult.id}
+                      className="bg-paperLight border border-cardboard p-6 rounded-sm shadow-sm flex flex-col justify-between relative overflow-hidden"
+                    >
+                      {/* Decorative dashed spine tab */}
+                      <div className="absolute top-0 bottom-0 left-3 border-l border-dashed border-cardboard opacity-35"></div>
 
-                  <div className="space-y-4 pl-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-mono text-[8px] uppercase font-bold text-herb block">
-                            CONSLT ID: #{consult.id}
+                      <div className="space-y-4 pl-8 md:pl-10">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-mono text-[10px] uppercase font-bold text-paprika bg-herb bg-opacity-10 border border-herb px-2.5 py-0.5 rounded-sm">
+                                LEDGER FILE #{consult.id}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedConsultationId(consult.id)}
+                                className="text-ink hover:text-opacity-80 hover:underline lowercase font-mono text-[10px] tracking-wide"
+                              >
+                                [inspect record]
+                              </button>
+                            </div>
+                          </div>
+                          <span className={`font-mono text-[10px] font-bold border border-dashed px-2.5 py-1 rounded-sm uppercase tracking-wider ${getStatusColor(consult.status)}`}>
+                            {consult.status}
                           </span>
-                          <button
-                            onClick={() => setSelectedConsultationId(consult.id)}
-                            className="text-cardboard hover:text-ink hover:underline lowercase font-semibold text-[8px] transition-colors"
-                          >
-                            (view details)
-                          </button>
                         </div>
-                        <span className="font-mono text-[9px] text-cardboard block">
-                          Scheduled: {new Date(consult.scheduled_at).toLocaleString()}
-                        </span>
-                      </div>
-                      <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 rounded-sm uppercase tracking-wider ${getStatusColor(consult.status)}`}>
-                        {consult.status}
-                      </span>
-                    </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
-                      <div>
-                        <span className="font-mono text-[8px] uppercase text-herb font-bold block">PATIENT Companion</span>
-                        <span className="font-display font-bold text-ink">🐾 {consult.pet?.name || 'My Pet'} ({consult.pet?.species})</span>
+                        <div className="space-y-1.5 font-mono text-xs uppercase text-ink pr-4">
+                          <div className="flex justify-between items-center dotted-divider py-1.5">
+                            <span className="bg-paperLight pr-1 text-paprika font-bold flex items-center">
+                              <Clock className="w-3.5 h-3.5 text-turmeric mr-2" />
+                              <span>SCHEDULED AT</span>
+                            </span>
+                            <span className="bg-paperLight pl-1 font-bold text-ink">{new Date(consult.scheduled_at).toLocaleString()}</span>
+                          </div>
+                          
+                          <div className="flex justify-between items-center dotted-divider py-1.5">
+                            <span className="bg-paperLight pr-1 text-paprika font-bold flex items-center">
+                              <PawPrint className="w-3.5 h-3.5 text-turmeric mr-2" />
+                              <span>COMPANION PATIENT</span>
+                            </span>
+                            <span className="bg-paperLight pl-1 font-bold text-ink">🐾 {consult.pet?.name || 'My Pet'} ({consult.pet?.species})</span>
+                          </div>
+                          
+                          <div className="flex justify-between items-center py-1.5">
+                            <span className="bg-paperLight pr-1 text-paprika font-bold flex items-center">
+                              <Stethoscope className="w-3.5 h-3.5 text-paprika mr-2" />
+                              <span>VET SPECIALIST</span>
+                            </span>
+                            <span className="bg-paperLight pl-1 font-bold text-ink flex items-center space-x-1">
+                              <span>🩺 Dr. ID #{consult.doctor_id} ({consult.doctor?.specialization || 'Nutritionist'})</span>
+                              <button
+                                type="button"
+                                onClick={() => setInspectingDoctorId(consult.doctor_id)}
+                                className="text-turmeric hover:text-opacity-80 flex items-center border-none bg-transparent cursor-pointer p-0.5"
+                                title="Inspect credentials"
+                              >
+                                <Info className="w-3.5 h-3.5" />
+                              </button>
+                            </span>
+                          </div>
+                        </div>
+
+                        <hr className="border-t border-dashed border-cardboard" />
+
+                        <div>
+                          <span className="font-mono text-[10px] uppercase text-paprika font-bold block">Reason for consultation</span>
+                          <p className="font-body text-xs text-ink opacity-85">{consult.reason}</p>
+                        </div>
+
+                        {consult.doctor_notes && (
+                          <div className="bg-paper p-3 rounded-sm border border-cardboard border-dashed">
+                            <span className="font-mono text-[10px] uppercase text-turmeric font-bold block">Veterinary Clinical Notes</span>
+                            <p className="font-body text-xs text-ink opacity-90 italic">{consult.doctor_notes}</p>
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <span className="font-mono text-[8px] uppercase text-herb font-bold block">SPECIALIST VET</span>
-                        <div className="flex items-center space-x-1">
-                          <span className="font-display font-bold text-ink">🩺 Dr. ID #{consult.doctor_id} ({consult.doctor?.specialization || 'General Vet'})</span>
+
+                      {/* Cancel Button */}
+                      {(consult.status.toUpperCase() === 'PENDING' || consult.status.toUpperCase() === 'APPROVED') && (
+                        <div className="mt-4 pt-4 border-t border-cardboard flex justify-end pl-4">
                           <button
                             type="button"
-                            onClick={() => setInspectingDoctorId(consult.doctor_id)}
-                            className="text-turmeric hover:text-opacity-80 flex items-center border-none bg-transparent cursor-pointer"
-                            title="Inspect credentials"
+                            onClick={() => cancelMutation.mutate(consult.id)}
+                            disabled={cancelMutation.isPending}
+                            className="bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-[11px] uppercase py-2 px-4 rounded-sm tracking-wide transition-colors disabled:opacity-50 flex items-center space-x-1.5"
                           >
-                            <Info className="w-3 h-3" />
+                            {cancelMutation.isPending && cancelMutation.variables === consult.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <>
+                                <XCircle className="w-3.5 h-3.5" />
+                                <span>Cancel Appointment</span>
+                              </>
+                            )}
                           </button>
                         </div>
-                      </div>
-                    </div>
-
-                    <hr className="border-t border-dashed border-cardboard" />
-
-                    <div>
-                      <span className="font-mono text-[8px] uppercase text-herb font-bold block">Reason for consultation</span>
-                      <p className="font-body text-xs text-ink opacity-85">{consult.reason}</p>
-                    </div>
-
-                    {consult.doctor_notes && (
-                      <div className="bg-paper p-3 rounded-sm border border-cardboard border-dashed">
-                        <span className="font-mono text-[8px] uppercase text-turmeric font-bold block">Veterinary Clinical Notes</span>
-                        <p className="font-body text-xs text-ink opacity-90 italic">{consult.doctor_notes}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Cancel Button */}
-                  {(consult.status.toUpperCase() === 'PENDING' || consult.status.toUpperCase() === 'APPROVED') && (
-                    <div className="mt-4 pt-4 border-t border-cardboard flex justify-end pl-4">
-                      <button
-                        onClick={() => cancelMutation.mutate(consult.id)}
-                        disabled={cancelMutation.isPending}
-                        className="bg-paprika hover:bg-opacity-95 text-paperLight font-body font-bold text-[10px] uppercase py-1.5 px-3 rounded-sm tracking-wide transition-colors disabled:opacity-50 flex items-center space-x-1.5"
-                      >
-                        {cancelMutation.isPending && cancelMutation.variables === consult.id ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>Cancel Appointment</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
-
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Right Column - Booking Form */}
-        <div className="lg:col-span-5">
-          {/* Nearby Vet Locator Widget */}
-          <div className="bg-paperLight border border-cardboard p-6 rounded-sm shadow-sm space-y-4 relative overflow-hidden mb-6">
-            <div className="absolute top-0 right-6 bg-cardboard bg-opacity-25 text-ink font-mono text-[8px] uppercase tracking-widest px-3 py-1 rounded-b-sm border-x border-b border-cardboard font-bold">
-              GEOSPATIAL FINDER
-            </div>
-            <div className="space-y-1">
-              <span className="font-mono text-[8px] uppercase font-bold text-herb tracking-widest block">Geographic Lookup</span>
-              <h3 className="font-display font-bold text-lg text-ink">Find Vets Near You</h3>
-              <p className="font-body text-[10px] text-ink opacity-70">
-                Search nearby registered clinics by latitude, longitude coordinates.
-              </p>
-            </div>
-
-            <hr className="border-t border-dashed border-cardboard" />
-
-            <form onSubmit={handleSearchNearby} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-mono text-[8px] uppercase font-bold text-herb block">Latitude</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 13.0827"
-                    value={searchLat}
-                    onChange={(e) => setSearchLat(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
-                    required
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-mono text-[8px] uppercase font-bold text-herb block">Longitude</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 80.2707"
-                    value={searchLng}
-                    onChange={(e) => setSearchLng(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-mono text-[8px] uppercase font-bold text-herb block flex justify-between">
-                  <span>Search Radius: {searchRadius} km</span>
-                </label>
-                <input
-                  type="range"
-                  min="1"
-                  max="150"
-                  value={searchRadius}
-                  onChange={(e) => setSearchRadius(parseInt(e.target.value))}
-                  className="w-full accent-paprika cursor-pointer"
-                />
-              </div>
-
-              <div className="space-y-2 pt-1">
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={handleAutoLocate}
-                    className="border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2.5 font-bold rounded-sm flex items-center justify-center space-x-1"
-                  >
-                    <Compass className="w-3.5 h-3.5 text-herb" />
-                    <span>GPS Locate 🐾</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleIpLocate}
-                    className="border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2.5 font-bold rounded-sm flex items-center justify-center space-x-1"
-                  >
-                    <MapPin className="w-3.5 h-3.5 text-turmeric" />
-                    <span>IP Locate 🌐</span>
-                  </button>
-                </div>
-                <button
-                  type="submit"
-                  disabled={isSearchingNearby}
-                  className="w-full bg-paprika hover:bg-opacity-95 text-paperLight font-mono text-[9px] uppercase py-2.5 font-bold rounded-sm flex items-center justify-center space-x-1 disabled:opacity-50"
-                >
-                  {isSearchingNearby ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <>
-                      <MapPin className="w-3.5 h-3.5" />
-                      <span>Search Vets 🩺</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-
-            {searchError && (
-              <div className="text-[10px] text-paprika bg-red-50 border border-paprika border-opacity-20 p-2 rounded-sm font-body">
-                {searchError}
-              </div>
-            )}
-
-            {nearbyDocs.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-dashed border-cardboard">
-                <span className="font-mono text-[8px] uppercase font-bold text-herb block">Search Results:</span>
-                <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                  {nearbyDocs.map((doc) => (
-                    <div key={doc.id} className="border border-cardboard p-3 bg-paperLight bg-opacity-40 rounded-sm space-y-2">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="font-bold text-ink text-xs flex items-center space-x-1.5">
-                            <span>Dr. {doc.name || 'Specialist'}</span>
-                            <button 
-                              type="button"
-                              onClick={() => setInspectingDoctorId(doc.id)} 
-                              className="text-turmeric hover:text-opacity-80 flex items-center"
-                              title="View Credentials & Availability"
-                            >
-                              <Info className="w-3 h-3" />
-                            </button>
-                          </div>
-                          <div className="text-[9px] opacity-75 font-mono">{doc.specialization}</div>
-                          <div className="text-[9px] opacity-60 font-mono italic">
-                            Distance: {doc.distance_km.toFixed(2)} km
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedDoctorId(doc.id.toString());
-                            alert(`Selected Dr. ${doc.name} for booking!`);
-                          }}
-                          className="bg-herb hover:bg-opacity-95 text-paperLight font-mono text-[8px] uppercase py-1 px-2 font-bold rounded-sm border-0 cursor-pointer"
-                        >
-                          Select
-                        </button>
-                      </div>
+                      )}
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+
+            {/* Right Pane (3 columns) - Clickable Status Filter Card */}
+            <div className="lg:col-span-3 order-1 lg:order-2">
+              <div className="bg-paperLight border border-cardboard p-5 rounded-sm shadow-xs space-y-4 relative overflow-hidden">
+                {/* Decorative spine tab */}
+                <div className="absolute top-0 bottom-0 left-1 border-l border-dashed border-cardboard opacity-35"></div>
+
+                <div className="pl-3 space-y-3">
+                  <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                    Filter Ledger
+                  </span>
+                  <h3 className="font-display font-bold text-lg text-ink">
+                    Status Logs
+                  </h3>
+                  
+                  <hr className="border-t border-dashed border-cardboard" />
+                  
+                  <div className="space-y-1.5 font-mono text-xs uppercase font-bold">
+                    {[
+                      { id: 'ALL', label: 'All Sessions' },
+                      { id: 'PENDING', label: 'Pending' },
+                      { id: 'APPROVED', label: 'Confirmed' },
+                      { id: 'COMPLETED', label: 'Completed' },
+                      { id: 'CANCELLED', label: 'Cancelled' },
+                    ].map((filter) => {
+                      const isActive = statusFilter === filter.id;
+                      const count = getCountForStatus(filter.id as any);
+                      return (
+                        <button
+                          key={filter.id}
+                          type="button"
+                          onClick={() => setStatusFilter(filter.id as any)}
+                          className={`w-full flex justify-between items-center py-2 px-3 border rounded-xs transition-colors text-left cursor-pointer ${
+                            isActive
+                              ? 'bg-paper border-turmeric text-ink shadow-xs'
+                              : 'bg-transparent border-transparent text-ink opacity-65 hover:opacity-100 hover:bg-paperLight hover:bg-opacity-50'
+                          }`}
+                        >
+                          <span className="flex items-center space-x-1.5">
+                            {isActive ? <span>🐾</span> : <span className="w-3.5" />}
+                            <span>{filter.label}</span>
+                          </span>
+                          <span className="bg-cardboard bg-opacity-25 text-ink font-mono text-[9px] px-1.5 py-0.5 rounded-sm">
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
-            )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BOOKING SECTION */}
+      {activeSection === 'book' && (
+        <div className="max-w-xl mx-auto space-y-6 text-left animate-fade-in">
+          {/* Stepper Progress Bar */}
+          <div className="flex justify-between items-center bg-paperLight border border-cardboard p-4 rounded-sm font-mono text-[9px] text-ink shadow-xs">
+            <span className={bookingStep >= 1 ? "font-bold text-herb" : "opacity-50"}>
+              1. COMPANION
+            </span>
+            <span className="text-cardboard opacity-60">➔</span>
+            <span className={bookingStep >= 2 ? "font-bold text-herb" : "opacity-50"}>
+              2. SPECIALIST
+            </span>
+            <span className="text-cardboard opacity-60">➔</span>
+            <span className={bookingStep >= 3 ? "font-bold text-herb" : "opacity-50"}>
+              3. SCHEDULE
+            </span>
+            <span className="text-cardboard opacity-60">➔</span>
+            <span className={bookingStep >= 4 ? "font-bold text-herb" : "opacity-50"}>
+              4. CONTEXT
+            </span>
           </div>
 
           <div className="bg-paperLight border border-cardboard p-8 rounded-sm shadow-md space-y-6 relative overflow-hidden">
-            {/* Page Tab */}
+            {/* Stamp Step Indicator Tag */}
             <div className="absolute top-0 right-8 bg-cardboard bg-opacity-35 text-ink font-mono text-[8px] uppercase tracking-widest px-3 py-1 rounded-b-sm border-x border-b border-cardboard font-bold">
-              APPOINTMENT BOOKING
+              STEP {bookingStep} OF 4
             </div>
 
-            <div className="space-y-1">
-              <Eyebrow label="STEP 1 OF 1 — SCHEDULE APPT" />
-              <h3 className="font-display font-bold text-xl text-ink">
-                Secure Vet Consult
-              </h3>
-              <p className="font-body text-xs text-ink opacity-75 leading-relaxed">
-                Choose a registered pet and schedule a session with our verified nutritionist specialists.
-              </p>
-            </div>
-
-            <hr className="border-t border-dashed border-cardboard" />
+            {/* Error messaging inside wizard card */}
+            {formError && (
+              <div className="text-[10px] text-paprika bg-red-50 border border-turmeric border-opacity-20 p-2.5 rounded-sm font-body">
+                {formError}
+              </div>
+            )}
 
             {!pets || pets.length === 0 ? (
-              <div className="text-center py-6 space-y-4">
+              <div className="text-center py-6 space-y-4 animate-fade-in">
                 <AlertCircle className="w-8 h-8 text-turmeric mx-auto stroke-1" />
                 <p className="font-body text-xs text-ink opacity-80">
                   Please register a companion pet profile in your ledger first before scheduling a veterinary review.
                 </p>
                 <button
+                  type="button"
                   onClick={() => navigate('/pets')}
-                  className="bg-paprika text-paperLight font-body font-bold text-xs uppercase px-4 py-2 rounded-sm tracking-wider"
+                  className="bg-turmeric text-ink font-body font-bold text-xs uppercase px-4 py-2 rounded-sm tracking-wider cursor-pointer"
                 >
                   Create Pet Profile 🐾
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleBookSession} className="space-y-4">
-                {/* Select Pet */}
-                <div className="space-y-1.5">
-                  <label htmlFor="pet" className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
-                    🐾 Select Companion:
-                  </label>
-                  <select
-                    id="pet"
-                    value={selectedPetId}
-                    onChange={(e) => setSelectedPetId(e.target.value)}
-                    className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
-                  >
-                    {pets.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.species} - {p.breed || 'Mixed'})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Select Doctor */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center">
-                    <label htmlFor="doctor" className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
-                      🩺 Select Veterinarian:
-                    </label>
-                    {selectedDoctorId && (
-                      <button
-                        type="button"
-                        onClick={() => setInspectingDoctorId(parseInt(selectedDoctorId))}
-                        className="text-turmeric hover:underline font-mono text-[8px] uppercase font-bold flex items-center space-x-0.5 border-none bg-transparent cursor-pointer"
-                      >
-                        <Info className="w-2.5 h-2.5" />
-                        <span>Inspect Credentials</span>
-                      </button>
-                    )}
-                  </div>
-                  <select
-                    id="doctor"
-                    value={selectedDoctorId}
-                    onChange={(e) => setSelectedDoctorId(e.target.value)}
-                    className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
-                  >
-                    {doctors.length === 0 ? (
-                      <option value="">No doctors available</option>
-                    ) : (
-                      doctors.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          Dr. {d.user?.first_name || 'Specialist'} ({d.specialization}) - ${parseFloat(d.consultation_fee).toFixed(2)}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-
-                {/* Target Date */}
-                <div className="space-y-1.5">
-                  <label htmlFor="date" className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
-                    📅 Consultation Date:
-                  </label>
-                  <input
-                    type="date"
-                    id="date"
-                    value={targetDate}
-                    onChange={(e) => setTargetDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
-                    min={new Date().toISOString().split('T')[0]}
-                    required
-                  />
-                </div>
-
-                {/* Slots Grid */}
-                <div className="space-y-1.5">
-                  <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block flex items-center">
-                    <Clock className="w-3 h-3 mr-1" />
-                    <span>Select Available Time Slot:</span>
-                  </label>
-
-                  {isSlotsLoading ? (
-                    <div className="flex items-center space-x-2 py-2 text-herb font-mono text-[9px] uppercase">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Reading active calendar...</span>
+              <div>
+                {/* STEP 1: Select Companion */}
+                {bookingStep === 1 && (
+                  <div className="space-y-4 animate-fade-in">
+                    <div className="space-y-1">
+                      <h3 className="font-display font-bold text-xl text-ink">Choose Companion Patient</h3>
+                      <p className="font-body text-xs text-ink opacity-70">
+                        Select which companion profile this medical session is booked for:
+                      </p>
                     </div>
-                  ) : !selectedDoctorId || !targetDate ? (
-                    <p className="font-body text-[10px] text-cardboard italic">
-                      Please choose a doctor and a date first.
-                    </p>
-                  ) : availableSlots.length === 0 ? (
-                    <p className="font-body text-[10px] text-paprika font-bold">
-                      No timings available for this date. Please try another day.
-                    </p>
-                  ) : (
-                    <div className="grid grid-cols-4 gap-2 pt-1.5">
-                      {availableSlots.map((slot) => (
-                        <button
-                          key={slot}
-                          type="button"
-                          onClick={() => setSelectedSlot(slot)}
-                          className={`font-mono text-[10px] py-1 border rounded-sm transition-colors text-center ${
-                            selectedSlot === slot 
-                              ? 'bg-turmeric text-paper border-turmeric font-bold' 
-                              : 'border-cardboard hover:bg-paper text-ink'
-                          }`}
-                        >
-                          {slot}
-                        </button>
-                      ))}
+                    
+                    <hr className="border-t border-dashed border-cardboard" />
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      {pets.map((p) => {
+                        const isSelected = selectedPetId === p.id.toString();
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedPetId(p.id.toString());
+                              if (isDirectBooking) {
+                                setBookingStep(3); // skip Step 2 select specialist
+                              } else {
+                                setBookingStep(2);
+                              }
+                            }}
+                            className={`p-4 border text-left rounded-sm transition-all hover:border-turmeric cursor-pointer relative overflow-hidden flex flex-col items-center justify-center space-y-3 ${
+                              isSelected ? 'bg-paper border-turmeric ring-1 ring-turmeric shadow-sm' : 'bg-paperLight border-cardboard opacity-80 hover:opacity-100'
+                            }`}
+                          >
+                            {/* Polaroid frame preview */}
+                            <div className="w-16 h-16 bg-white p-1 border border-cardboard shadow-xs rotate-[-2deg] flex items-center justify-center shrink-0">
+                              {p.profile_image_url ? (
+                                <img src={p.profile_image_url} alt={p.name} className="w-full h-full object-cover polaroid-img" />
+                              ) : (
+                                <span className="text-xl">🐾</span>
+                              )}
+                            </div>
+                            <div className="text-center">
+                              <span className="font-display font-bold text-ink block">{p.name}</span>
+                              <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard block">
+                                {p.species} - {p.breed || 'Mixed'}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
-
-                {/* Reason for session */}
-                <div className="space-y-1.5">
-                  <label htmlFor="reason" className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
-                    💬 Reason for consultation:
-                  </label>
-                  <textarea
-                    id="reason"
-                    rows={3}
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="Enter diagnostic details or recipe health checks..."
-                    className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
-                    disabled={isSubmitting}
-                    required
-                  />
-                </div>
-
-                {/* Notes */}
-                <div className="space-y-1.5">
-                  <label htmlFor="notes" className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
-                    📝 Additional Notes (Optional):
-                  </label>
-                  <textarea
-                    id="notes"
-                    rows={2}
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="E.g. Scooby prefers chicken flavor recipes..."
-                    className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                {formError && (
-                  <div className="border border-paprika border-opacity-35 bg-red-50 p-3 rounded-sm flex items-start space-x-2 text-paprika font-body text-xs">
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                    <span>{formError}</span>
                   </div>
                 )}
 
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full bg-paprika hover:bg-opacity-95 text-paperLight font-body font-bold text-xs uppercase py-3.5 rounded-sm tracking-wide transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center space-x-2"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Booking...</span>
-                    </>
+                {/* STEP 2: Select Veterinarian */}
+                {bookingStep === 2 && (
+                  <div className="space-y-4 animate-fade-in">
+                    <div className="space-y-1">
+                      <h3 className="font-display font-bold text-xl text-ink">Select Veterinarian</h3>
+                      <p className="font-body text-xs text-ink opacity-70">
+                        Pick a professional nutritionist or schedule a diagnostic session:
+                      </p>
+                    </div>
+                    
+                    <hr className="border-t border-dashed border-cardboard" />
+
+                    {/* Integrated Geospatial Locator Tool */}
+                    <div className="border border-cardboard border-dashed p-4 rounded-sm bg-paper bg-opacity-40 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide flex items-center">
+                          <Compass className="w-3.5 h-3.5 mr-1.5 text-turmeric" />
+                          <span>GPS Clinic Locator</span>
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <input
+                          type="text"
+                          placeholder="Latitude e.g. 13.0827"
+                          value={searchLat}
+                          onChange={(e) => setSearchLat(e.target.value)}
+                          className="px-2.5 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink placeholder-cardboard focus:outline-none focus:border-turmeric text-xs"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Longitude e.g. 80.2707"
+                          value={searchLng}
+                          onChange={(e) => setSearchLng(e.target.value)}
+                          className="px-2.5 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink placeholder-cardboard focus:outline-none focus:border-turmeric text-xs"
+                        />
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          type="button"
+                          onClick={handleAutoLocate}
+                          className="w-1/3 border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center space-x-1 cursor-pointer"
+                        >
+                          <span>GPS Locate</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleIpLocate}
+                          className="w-1/3 border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center space-x-1 cursor-pointer"
+                        >
+                          <span>IP Locate</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSearchNearby}
+                          disabled={isSearchingNearby}
+                          className="w-1/3 bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center space-x-1 disabled:opacity-50 cursor-pointer"
+                        >
+                          {isSearchingNearby ? <Loader2 className="w-3 h-3 animate-spin" /> : <span>Search</span>}
+                        </button>
+                      </div>
+
+                      {searchError && (
+                        <div className="text-[10px] text-paprika bg-red-50 border border-turmeric border-opacity-20 p-2 rounded-sm font-body">
+                          {searchError}
+                        </div>
+                      )}
+
+                      {nearbyDocs.length > 0 && (
+                        <div className="max-h-[140px] overflow-y-auto space-y-1.5 border-t border-cardboard border-dashed pt-2 pr-1 custom-scrollbar">
+                          {nearbyDocs.map((doc) => (
+                            <div key={doc.id} className="flex justify-between items-center border border-cardboard p-2 bg-paperLight rounded-xs text-xs font-mono">
+                              <div>
+                                <span className="font-bold text-ink block">Dr. {doc.name}</span>
+                                <span className="text-[9px] opacity-60 italic">{doc.distance_km.toFixed(1)} km away</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDoctorId(doc.id.toString());
+                                  setBookingStep(3);
+                                }}
+                                className="bg-herb text-paperLight px-2.5 py-1 text-[8px] uppercase font-bold rounded-sm cursor-pointer border-0"
+                              >
+                                Select
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Standard Doctors List */}
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
+                      {doctors.map((d: any) => {
+                        const isSelected = selectedDoctorId === d.id.toString();
+                        return (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedDoctorId(d.id.toString());
+                              setBookingStep(3);
+                            }}
+                            className={`w-full p-3 border text-left rounded-sm transition-all hover:border-turmeric cursor-pointer relative overflow-hidden flex justify-between items-center ${
+                              isSelected ? 'bg-paper border-turmeric ring-1 ring-turmeric' : 'bg-paperLight border-cardboard'
+                            }`}
+                          >
+                            <div>
+                              <span className="font-display font-bold text-ink block">
+                                Dr. {d.user?.first_name || 'Specialist'} {d.user?.last_name || ''}
+                              </span>
+                              <span className="font-mono text-[9px] uppercase tracking-wider text-cardboard block">
+                                {d.specialization} • Exp: {d.experience_years} years
+                              </span>
+                            </div>
+                            <span className="font-mono text-[10px] font-bold text-herb bg-herb bg-opacity-10 border border-herb px-2 py-0.5 rounded-sm">
+                              ${parseFloat(d.consultation_fee).toFixed(2)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 3: Date & Slot Booking */}
+                {bookingStep === 3 && (
+                  <div className="space-y-4 animate-fade-in">
+                    <div className="space-y-1">
+                      <h3 className="font-display font-bold text-xl text-ink">Pick Date & Time</h3>
+                      <p className="font-body text-xs text-ink opacity-70">
+                        Choose an available slot for your veterinary session:
+                      </p>
+                    </div>
+
+                    <hr className="border-t border-dashed border-cardboard" />
+
+                    <div className="space-y-2 text-left">
+                      <label htmlFor="date" className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                        📅 Select Date:
+                      </label>
+                      <input
+                        type="date"
+                        id="date"
+                        value={targetDate}
+                        min={getTodayLocalDateString()}
+                        onChange={(e) => setTargetDate(e.target.value)}
+                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors cursor-pointer"
+                      />
+                    </div>
+
+                    {targetDate && (
+                      <div className="space-y-2 text-left pt-2">
+                        <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block mb-1">
+                          ⏰ Select Time Slot:
+                        </span>
+                        
+                        {isSlotsLoading ? (
+                          <div className="text-center py-4">
+                            <Loader2 className="w-5 h-5 text-turmeric animate-spin mx-auto" />
+                          </div>
+                        ) : availableSlots.length === 0 ? (
+                          <div className="text-xs text-paprika bg-red-50 border border-turmeric border-opacity-15 p-3 rounded-sm text-center">
+                            No available slots for this date.
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-4 gap-2">
+                            {availableSlots.map((slot: string) => {
+                              const isSelected = selectedSlot === slot;
+                              return (
+                                <button
+                                  key={slot}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedSlot(slot);
+                                    setBookingStep(4);
+                                  }}
+                                  className={`py-1.5 border text-center font-mono text-xs rounded-sm transition-all hover:border-turmeric cursor-pointer ${
+                                    isSelected ? 'bg-turmeric text-paper border-turmeric' : 'bg-paperLight border-cardboard text-ink'
+                                  }`}
+                                >
+                                  {slot}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* STEP 4: Symptoms & Notes context */}
+                {bookingStep === 4 && (
+                  <form onSubmit={handleBookSession} className="space-y-4 animate-fade-in">
+                    <div className="space-y-1">
+                      <h3 className="font-display font-bold text-xl text-ink">Clinical Context</h3>
+                      <p className="font-body text-xs text-ink opacity-70">
+                        Provide notes for the veterinarian regarding symptoms or nutritional needs:
+                      </p>
+                    </div>
+
+                    <hr className="border-t border-dashed border-cardboard" />
+
+                    <div className="space-y-1.5 text-left">
+                      <label htmlFor="reason" className="font-mono text-[9px] uppercase font-bold text-herb block">
+                        Reason for Visit (required):
+                      </label>
+                      <input
+                        type="text"
+                        id="reason"
+                        placeholder="e.g. Skin allergy, digestion reviews"
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric transition-colors"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 text-left">
+                      <label htmlFor="notes" className="font-mono text-[9px] uppercase font-bold text-herb block">
+                        Additional Notes (optional):
+                      </label>
+                      <textarea
+                        id="notes"
+                        rows={3}
+                        placeholder="Detail recent diets, weight changes, or symptoms..."
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric transition-colors resize-none"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[10px] uppercase py-3 font-bold rounded-sm tracking-wide transition-colors flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <span>Ledger Consultation Appointment 🩺</span>
+                      )}
+                    </button>
+                  </form>
+                )}
+
+                {/* Stepper Navigation buttons */}
+                <div className="flex justify-between items-center pt-6 border-t border-cardboard mt-6">
+                  {bookingStep > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (bookingStep === 3 && isDirectBooking) {
+                          setBookingStep(1); // skip going back to Step 2
+                        } else {
+                          setBookingStep(bookingStep - 1);
+                        }
+                      }}
+                      className="border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 px-4 font-bold rounded-sm cursor-pointer"
+                    >
+                      Back
+                    </button>
                   ) : (
-                    <span>Secure Slot & Book Session 🐾</span>
+                    <div />
                   )}
-                </button>
-              </form>
+                  {bookingStep < 4 && (
+                    <button
+                      type="button"
+                      disabled={
+                        (bookingStep === 1 && !selectedPetId) ||
+                        (bookingStep === 2 && !selectedDoctorId) ||
+                        (bookingStep === 3 && (!targetDate || !selectedSlot))
+                      }
+                      onClick={() => setBookingStep(bookingStep + 1)}
+                      className="bg-ink hover:bg-opacity-90 text-paperLight font-mono text-[9px] uppercase py-2 px-4 font-bold rounded-sm cursor-pointer disabled:opacity-50"
+                    >
+                      Next Step
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>
+      )}
+
       {/* Footer */}
       <footer className="mt-20 border-t border-cardboard pt-8 text-center text-ink opacity-60 font-mono text-[9px] uppercase tracking-wider">
         © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
       </footer>
-      </div>
       </main>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
 
-      {/* Doctor Detail & Availability Modal */}
+      {/* Doctor Detail & Availability Side Drawer */}
       {inspectingDoctorId && (
-        <div className="fixed inset-0 bg-ink bg-opacity-45 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-paperLight border border-cardboard p-8 rounded-sm shadow-xl space-y-6 relative max-h-[90vh] overflow-y-auto text-left">
-            {/* Torn top edge card styling */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-paper flex overflow-hidden">
-              {Array.from({ length: 40 }).map((_, i) => (
-                <div key={i} className="w-4 h-4 bg-paperLight rounded-full -translate-y-2 border border-cardboard shrink-0"></div>
-              ))}
-            </div>
+        <div className="fixed inset-0 z-50 overflow-hidden font-body animate-fade-in animate-duration-300">
+          {/* Backdrop */}
+          <div 
+            onClick={() => setInspectingDoctorId(null)}
+            className="absolute inset-0 bg-ink bg-opacity-40 backdrop-blur-xs transition-opacity duration-300"
+          ></div>
 
-            <button
-              onClick={() => setInspectingDoctorId(null)}
-              className="absolute top-4 right-4 text-ink opacity-70 hover:opacity-100 border-0 bg-transparent cursor-pointer"
-            >
-              <XCircle className="w-5 h-5" />
-            </button>
+          <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+            {/* Sliding Panel */}
+            <div className="w-screen max-w-md bg-paperLight border-l border-cardboard shadow-2xl flex flex-col justify-between relative transform transition-transform duration-300 animate-slide-in-right">
+              
+              {/* Decorative notebook binding left border */}
+              <div className="absolute left-1.5 top-0 bottom-0 border-l border-dashed border-cardboard opacity-40"></div>
 
-            {isLoadingInspecting ? (
-              <div className="py-12 flex flex-col items-center justify-center space-y-2">
-                <Loader2 className="w-8 h-8 text-turmeric animate-spin" />
-                <span className="font-mono text-[10px] uppercase text-herb font-bold">Retrieving Credentials...</span>
-              </div>
-            ) : inspectingDoctor ? (
-              <div className="space-y-6">
-                <div className="space-y-1">
-                  <span className="font-mono text-[8px] uppercase font-bold text-herb tracking-widest block">
-                    Specialist Profile ID #{inspectingDoctor.id}
-                  </span>
-                  <h3 className="font-display font-bold text-2xl text-ink">
-                    Dr. {inspectingDoctor.user?.first_name || ''} {inspectingDoctor.user?.last_name || ''}
+              {/* Panel Header */}
+              <div className="p-6 border-b border-cardboard flex justify-between items-center bg-paperLight pl-8">
+                <div className="text-left space-y-1">
+                  <Eyebrow label={`SPECIALIST PROFILE ID #${inspectingDoctorId}`} />
+                  <h3 className="font-display font-bold text-xl text-ink">
+                    {isLoadingInspecting ? 'Loading Credentials...' : inspectingDoctor ? `Dr. ${inspectingDoctor.user?.first_name || ''} ${inspectingDoctor.user?.last_name || ''}` : 'Specialist Detail'}
                   </h3>
-                  <span className="font-mono text-[10px] text-turmeric uppercase font-bold tracking-wider block">
-                    {inspectingDoctor.specialization}
-                  </span>
                 </div>
+                <button 
+                  onClick={() => setInspectingDoctorId(null)}
+                  className="p-1 hover:bg-paper rounded-full text-ink opacity-70 hover:opacity-100 transition-colors cursor-pointer border-none bg-transparent"
+                >
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
 
-                <hr className="border-t border-dashed border-cardboard" />
-
-                {/* Professional Info */}
-                <div className="space-y-4 text-xs font-body">
-                  <div className="grid grid-cols-2 gap-4 bg-paper p-3 border border-cardboard rounded-sm font-mono text-[10px]">
-                    <div>
-                      <span className="text-[8px] uppercase text-herb font-bold block">Qualifications</span>
-                      <span className="text-ink font-bold">{inspectingDoctor.qualification}</span>
-                    </div>
-                    <div>
-                      <span className="text-[8px] uppercase text-herb font-bold block">Experience</span>
-                      <span className="text-ink font-bold">{inspectingDoctor.experience_years} Years</span>
-                    </div>
-                    <div>
-                      <span className="text-[8px] uppercase text-herb font-bold block">Consultation Fee</span>
-                      <span className="text-ink font-bold">${parseFloat(inspectingDoctor.consultation_fee).toFixed(2)}</span>
-                    </div>
-                    <div>
-                      <span className="text-[8px] uppercase text-herb font-bold block">Clinic Mapping</span>
-                      <span className="text-ink font-bold">{inspectingDoctor.clinic?.name || 'Private Practice'}</span>
-                    </div>
+              {/* Panel Content */}
+              <div className="flex-grow overflow-y-auto p-6 space-y-6 pl-8 text-left">
+                {isLoadingInspecting ? (
+                  <div className="h-full flex flex-col items-center justify-center space-y-2 py-20">
+                    <Loader2 className="w-8 h-8 text-turmeric animate-spin" />
+                    <span className="font-mono text-[10px] uppercase text-herb font-bold animate-pulse">Retrieving Credentials...</span>
                   </div>
-
-                  {inspectingDoctor.bio && (
-                    <div className="space-y-1">
-                      <span className="font-mono text-[8px] uppercase font-bold text-herb">Biography & Expertise</span>
-                      <p className="text-ink opacity-85 leading-relaxed bg-paper bg-opacity-40 p-3 border border-cardboard border-dashed">
-                        {inspectingDoctor.bio}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Geospatial info */}
-                  {(inspectingDoctor.latitude || inspectingDoctor.longitude) && (
-                    <div className="space-y-1 font-mono text-[9px] text-ink opacity-70">
-                      <span className="font-mono text-[8px] uppercase font-bold text-herb block">Clinic Coordinates</span>
-                      <span>Latitude: {inspectingDoctor.latitude} | Longitude: {inspectingDoctor.longitude}</span>
-                    </div>
-                  )}
-
-                  {/* Availability schedule list (GET /doctors/{id}/availability) */}
-                  <div className="space-y-2">
-                    <span className="font-mono text-[8px] uppercase font-bold text-herb block flex items-center">
-                      <CalendarIcon className="w-3.5 h-3.5 mr-1" />
-                      <span>Weekly Consulting Hours</span>
-                    </span>
-
-                    {inspectingSchedule?.schedule && inspectingSchedule.schedule.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-[9px]">
-                        {inspectingSchedule.schedule.map((slot: any) => (
-                          <div key={slot.id} className="border border-cardboard border-opacity-65 p-2 rounded-sm bg-paper bg-opacity-40 flex justify-between items-center">
-                            <span className="font-bold capitalize">{slot.day_of_week}</span>
-                            <span className="opacity-80">{slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)}</span>
+                ) : inspectingDoctor ? (
+                  <div className="space-y-6">
+                    {/* Polaroid-style Avatar inside Drawer */}
+                    <div className="max-w-[200px] mx-auto border-double border-4 border-cardboard bg-paper p-2.5 rounded-none shadow-xs rotate-[-1deg]">
+                      <div className="aspect-square bg-paper border border-cardboard overflow-hidden relative">
+                        {inspectingDoctor.profile_image_url ? (
+                          <img 
+                            src={inspectingDoctor.profile_image_url} 
+                            alt={inspectingDoctor.user?.first_name} 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-paperLight font-display font-black text-4xl text-cardboard">
+                            {inspectingDoctor.user?.first_name?.[0]?.toUpperCase() || 'D'}
                           </div>
-                        ))}
+                        )}
                       </div>
-                    ) : (
-                      <p className="text-[10px] text-cardboard italic">No regular weekly shift planner registered for this doctor.</p>
-                    )}
-                  </div>
-                </div>
+                      <div className="pt-2 text-center">
+                        <span className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold">
+                          {inspectingDoctor.specialization}
+                        </span>
+                      </div>
+                    </div>
 
-                <div className="flex space-x-2 pt-2">
+                    <div className="space-y-4">
+                      {/* Qualification info */}
+                      <div className="grid grid-cols-2 gap-3 bg-paper p-3 border border-cardboard rounded-sm font-mono text-[11px]">
+                        <div>
+                          <span className="text-[10px] uppercase text-paprika font-bold block">Qualifications</span>
+                          <span className="text-ink font-bold">{inspectingDoctor.qualification}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase text-paprika font-bold block">Experience</span>
+                          <span className="text-ink font-bold">{inspectingDoctor.experience_years} Years</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase text-paprika font-bold block">Consultation Fee</span>
+                          <span className="text-ink font-bold text-turmeric">${parseFloat(inspectingDoctor.consultation_fee).toFixed(2)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase text-paprika font-bold block">Clinic Mapping</span>
+                          <span className="text-ink font-bold">{inspectingDoctor.clinic?.name || 'Private Practice'}</span>
+                        </div>
+                      </div>
+
+                      {/* Bio */}
+                      {inspectingDoctor.bio && (
+                        <div className="space-y-1">
+                          <span className="font-mono text-[10px] uppercase font-bold text-paprika">Biography & Expertise</span>
+                          <p className="text-ink opacity-85 leading-relaxed bg-paper bg-opacity-40 p-3 border border-cardboard border-dashed text-xs">
+                            {inspectingDoctor.bio}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Clinic Address details */}
+                      {inspectingDoctor.clinic && (
+                        <div className="space-y-1 font-mono text-[10px] text-ink opacity-80">
+                          <span className="font-mono text-[10px] uppercase font-bold text-paprika block">Clinic Address</span>
+                          <p className="font-body text-xs text-ink bg-paper bg-opacity-40 p-3 border border-cardboard border-dashed">
+                            {inspectingDoctor.clinic.address}, {inspectingDoctor.clinic.city}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Weekly Availability */}
+                      <div className="space-y-2">
+                        <span className="font-mono text-[10px] uppercase font-bold text-paprika block flex items-center">
+                          <CalendarIcon className="w-3.5 h-3.5 mr-1" />
+                          <span>Weekly Consulting Hours</span>
+                        </span>
+
+                        {inspectingSchedule?.schedule && inspectingSchedule.schedule.length > 0 ? (
+                          <div className="grid grid-cols-1 gap-1.5 font-mono text-[10px]">
+                            {inspectingSchedule.schedule.map((slot: any) => (
+                              <div key={slot.id} className="border border-cardboard border-opacity-65 p-2 rounded-sm bg-paper bg-opacity-40 flex justify-between items-center">
+                                <span className="font-bold capitalize">{slot.day_of_week}</span>
+                                <span className="opacity-80">{slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-cardboard italic">No regular weekly shift planner registered.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-paprika">Failed to load doctor profile details.</p>
+                )}
+              </div>
+
+              {/* Panel Footer / Actions */}
+              {inspectingDoctor && (
+                <div className="p-6 bg-paperLight border-t border-cardboard pl-8 space-y-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedDoctorId(inspectingDoctor.id.toString());
-                      setInspectingDoctorId(null);
-                      alert(`Selected Dr. ${inspectingDoctor.user?.first_name || 'Specialist'} for scheduling!`);
-                    }}
-                    className="flex-1 bg-paprika hover:bg-opacity-95 text-paperLight font-mono text-[10px] uppercase py-2.5 font-bold rounded-sm tracking-wide text-center border-0 cursor-pointer"
+                    onClick={() => handleStartBooking(inspectingDoctor.id)}
+                    className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs uppercase py-3.5 rounded-sm tracking-wide transition-colors shadow-sm flex items-center justify-center space-x-2 cursor-pointer hover-bounce"
                   >
-                    Select this Vet
+                    <span>Book Appointment</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setInspectingDoctorId(null)}
-                    className="flex-1 border border-cardboard hover:bg-paper text-ink font-mono text-[10px] uppercase py-2.5 font-bold rounded-sm tracking-wide text-center cursor-pointer"
+                    className="w-full border border-cardboard hover:bg-paper text-ink font-body font-bold text-xs uppercase py-3.5 rounded-sm tracking-wide transition-colors text-center cursor-pointer"
                   >
-                    Close
+                    Close Profile
                   </button>
                 </div>
-              </div>
-            ) : (
-              <p className="text-xs text-paprika">Failed to load doctor profile details.</p>
-            )}
+              )}
+
+            </div>
           </div>
         </div>
       )}
@@ -1132,6 +1529,76 @@ export const ConsultationsPage: React.FC = () => {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Success Booking Delight Overlay */}
+      {showSuccessOverlay && lastBookedSession && (
+        <div className="fixed inset-0 bg-ink bg-opacity-50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-backdrop-in">
+          <div className="w-full max-w-sm bg-paperLight border border-cardboard p-8 rounded-sm shadow-2xl text-center space-y-6 relative overflow-hidden animate-modal-in flex flex-col items-center">
+            
+            {/* Confetti Drift Container */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              {Array.from({ length: 15 }).map((_, i) => {
+                const delay = i * 0.15;
+                const left = 5 + Math.random() * 90;
+                const size = 12 + Math.random() * 16;
+                const rotate = Math.random() * 360;
+                return (
+                  <span
+                    key={i}
+                    className="absolute text-herb opacity-0 animate-drift-down select-none"
+                    style={{
+                      left: `${left}%`,
+                      fontSize: `${size}px`,
+                      animationDelay: `${delay}s`,
+                      transform: `rotate(${rotate}deg)`,
+                      top: '-20px'
+                    }}
+                  >
+                    {i % 3 === 0 ? '🩺' : i % 3 === 1 ? '💚' : '🐾'}
+                  </span>
+                );
+              })}
+            </div>
+
+            {/* Polaroid Booking details inside Overlay */}
+            <div className="relative w-36 h-36 bg-white p-3 border border-cardboard shadow-md rotate-[3deg] animate-pulse flex flex-col justify-between items-center text-center">
+              <div className="w-full border-b border-dashed border-cardboard pb-1.5 flex justify-center">
+                <Stethoscope className="w-6 h-6 text-herb" />
+              </div>
+              <div className="space-y-1">
+                <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">CONFIRMED VET</span>
+                <div className="font-display font-bold text-xs text-ink truncate max-w-[120px]">
+                  Dr. {lastBookedSession.doctorName}
+                </div>
+              </div>
+              <div className="font-mono text-[8px] text-herb font-bold bg-herb bg-opacity-10 border border-herb px-2 py-0.5 rounded-sm">
+                APPROVED APPT
+              </div>
+            </div>
+
+            {/* Custom stamped title */}
+            <div className="space-y-2">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-herb font-bold block">
+                VET CONSULTATION REGISTERED
+              </span>
+              <h3 className="font-display font-bold text-2xl text-ink">
+                Session Booked!
+              </h3>
+              <p className="font-body text-xs text-ink opacity-80 leading-relaxed max-w-xs">
+                Your consultation has been officially ledgered for <strong>{new Date(lastBookedSession.scheduledAt).toLocaleString()}</strong>.
+              </p>
+            </div>
+
+            {/* Custom SVG Stamped approved seal */}
+            <div className="w-24 h-24 border border-dashed border-turmeric border-opacity-70 rounded-full flex items-center justify-center rotate-[-12deg] p-2 scale-100 animate-pulse mt-2">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold text-center leading-tight">
+                SESSION<br/>LEDGERED<br/>CLINIC INK
+              </span>
+            </div>
+
           </div>
         </div>
       )}

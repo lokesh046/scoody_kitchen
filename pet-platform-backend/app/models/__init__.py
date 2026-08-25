@@ -17,6 +17,7 @@ from app.models.doctor_availability import DoctorAvailability
 from app.models.consultation import Consultation
 from app.models.health_record import HealthRecord
 from app.models.enums import ConsultationStatus, HealthRecordType
+from app.models.doctor_application import DoctorApplication
 
 
 from app.models.shipment import Shipment
@@ -51,4 +52,5 @@ __all__ = [
     "ConsultationStatus",
     "HealthRecord",
     "HealthRecordType",
+    "DoctorApplication",
 ]

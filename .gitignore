@@ -42,3 +42,8 @@ pet-platform-backend/migrate_neon_db.py
 # Large downloaded ML models
 chatbot-service/models/
 
+.agent/
+.impeccable/
+DESIGN.md
+PRODUCT.md
+frontend/.impeccable/

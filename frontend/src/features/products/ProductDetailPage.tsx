@@ -3,21 +3,21 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchProductById } from '../../api/products';
 import { useAuthStore } from '../../store/auth';
-import { logoutUser } from '../../api/auth';
 import { IngredientLedger, getIngredientsForProduct } from '../../components/IngredientLedger';
 import { Eyebrow } from '../../components/Eyebrow';
 import { 
-  ArrowLeft, ShoppingCart, LogOut, User, PawPrint, Bone, 
+  ArrowLeft, Bone, ShoppingCart,
   Minus, Plus, ShieldCheck, Heart, AlertCircle, Loader2 
 } from 'lucide-react';
 import { useCartStore } from '../../store/cart';
 import { CartDrawer } from '../../components/CartDrawer';
+import { Header } from '../../components/Header';
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
-  const { user, clearAuth } = useAuthStore();
+  const { user } = useAuthStore();
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedWeight, setSelectedWeight] = useState<string | null>(null);
@@ -25,9 +25,7 @@ export const ProductDetailPage: React.FC = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
-  const cartItems = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
-  const totalCartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   // Parse ID
   const productId = id ? parseInt(id, 10) : NaN;
@@ -50,16 +48,7 @@ export const ProductDetailPage: React.FC = () => {
     }
   }
 
-  const handleLogout = async () => {
-    try {
-      await logoutUser();
-    } catch (err) {
-      console.error('Logout failed:', err);
-    } finally {
-      clearAuth();
-      navigate('/login');
-    }
-  };
+
 
   const handleIncrement = () => {
     if (product && product.available_stock !== null && product.available_stock !== undefined) {
@@ -109,7 +98,7 @@ export const ProductDetailPage: React.FC = () => {
       <div className="min-h-screen bg-paper flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
-          <p className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold">
             Reading recipe entry...
           </p>
         </div>
@@ -120,7 +109,7 @@ export const ProductDetailPage: React.FC = () => {
   if (error || !product) {
     return (
       <div className="min-h-screen bg-paper flex items-center justify-center px-4">
-        <div className="max-w-md w-full border border-paprika bg-paperLight p-8 rounded-sm text-center shadow-md">
+        <div className="max-w-md w-full border border-turmeric bg-paperLight p-8 rounded-sm text-center shadow-md">
           <AlertCircle className="w-12 h-12 text-paprika mx-auto mb-4" />
           <h4 className="font-display font-bold text-lg text-ink mb-2">Recipe Not Found</h4>
           <p className="font-body text-xs text-ink opacity-80 mb-6">
@@ -128,7 +117,7 @@ export const ProductDetailPage: React.FC = () => {
           </p>
           <button
             onClick={() => navigate('/shop')}
-            className="bg-paprika text-paperLight font-body font-bold text-xs uppercase px-4 py-2.5 rounded-sm tracking-wide"
+            className="bg-turmeric text-ink font-body font-bold text-xs uppercase px-4 py-2.5 rounded-sm tracking-wide"
           >
             Back to Recipes
           </button>
@@ -146,78 +135,7 @@ export const ProductDetailPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
       {/* Full-width Top Navigation Header bar */}
-      <header className="w-full border-b border-cardboard border-opacity-25 bg-ink bg-opacity-95 backdrop-blur-md sticky top-0 z-30 shadow-sm text-paper">
-        <div className="w-full px-4 md:px-8 py-4 flex justify-between items-center md:grid md:grid-cols-12">
-          
-          {/* Left Corner: Brand Logo & Title */}
-          <div className="flex items-center space-x-3 cursor-pointer md:col-span-3 justify-start select-none" onClick={() => navigate('/')}>
-            <PawPrint className="text-turmeric w-6 h-6 animate-pulse" />
-            <div>
-              <h1 className="font-display font-bold text-2xl tracking-tight text-paper">
-                Scooby's Kitchen
-              </h1>
-              <p className="font-mono text-[9px] uppercase tracking-wider text-turmeric opacity-85">
-                Notebook Ledger v1.0
-              </p>
-            </div>
-          </div>
-
-          {/* Center: Navigation Menu */}
-          <nav className="hidden md:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper md:col-span-6 justify-center">
-            <button onClick={() => navigate('/shop')} className="hover:text-turmeric transition-colors pb-1 font-bold border-b-2 border-turmeric">Shop Recipes</button>
-            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Know Your Pet</button>
-            <button onClick={() => navigate('/consultations')} className="hover:text-turmeric transition-colors pb-1">Vet Consults</button>
-            <button onClick={() => navigate('/orders')} className="hover:text-turmeric transition-colors pb-1">My Orders</button>
-            <button onClick={() => navigate('/assistant')} className="hover:text-turmeric transition-colors pb-1">AI Assistant 🐾</button>
-            <button onClick={() => navigate('/profile')} className="hover:text-turmeric transition-colors pb-1">My Profile</button>
-            {user?.role === 'admin' && (
-              <button onClick={() => navigate('/admin')} className="hover:text-turmeric text-turmeric transition-colors pb-1">Admin Panel 🛠️</button>
-            )}
-            {(user?.role === 'doctor' || user?.role === 'admin') && (
-              <button onClick={() => navigate('/doctor')} className="hover:text-turmeric text-turmeric transition-colors pb-1">Doctor Panel 🩺</button>
-            )}
-          </nav>
-
-          {/* Right Corner: Actions */}
-          <div className="flex items-center space-x-4 md:col-span-3 justify-end">
-            {user && (
-              <span className="font-mono text-[10px] uppercase font-bold text-turmeric">
-                {user.first_name || 'User'}
-              </span>
-            )}
-
-            <button 
-              onClick={() => setIsCartOpen(true)}
-              className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 relative text-paper"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              {totalCartQuantity > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-paprika text-paperLight font-mono text-[9px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center animate-bounce">
-                  {totalCartQuantity}
-                </span>
-              )}
-            </button>
-
-            {user ? (
-              <button
-                onClick={handleLogout}
-                className="p-2 border border-cardboard border-opacity-45 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper flex items-center space-x-1.5 font-mono text-[9px] uppercase font-bold"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Log Out</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => navigate('/login')}
-                className="p-2 border border-cardboard border-opacity-45 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper flex items-center space-x-1.5 font-mono text-[9px] uppercase font-bold"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>Log In</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+      <Header activeTab="shop" onCartToggle={() => setIsCartOpen(true)} />
 
       {/* Main content wrapper */}
       <div className="flex-grow max-w-7xl w-full mx-auto px-4 md:px-8 py-8 relative">
@@ -228,7 +146,7 @@ export const ProductDetailPage: React.FC = () => {
         <div className="mb-6 pl-4">
           <button
             onClick={() => navigate('/shop')}
-            className="font-mono text-[9px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1"
+            className="font-mono text-[11px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1"
           >
             <ArrowLeft className="w-3 h-3" />
             <span>Back to Product Ledger</span>
@@ -245,23 +163,23 @@ export const ProductDetailPage: React.FC = () => {
                 src={currentDisplayImage}
                 alt={product.name}
                 className={`w-full h-full object-cover transition-all duration-300 ${
-                  !product.is_active ? 'grayscale opacity-50' : 'grayscale-[10%] hover:grayscale-0'
+                  !product.is_active ? 'grayscale opacity-50' : 'hover:scale-[1.03]'
                 }`}
               />
               {/* Category Tag */}
               {product.category?.name && (
-                <div className="absolute top-4 left-4 bg-herb text-paperLight font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-sm">
+                <div className="absolute top-4 left-4 bg-paprika text-paperLight font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-sm">
                   {product.category.name}
                 </div>
               )}
               {/* Deactivated Tag */}
               {!product.is_active && (
-                <div className="absolute top-4 left-4 mt-7 bg-paprika text-paperLight font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold shadow-sm animate-pulse">
+                <div className="absolute top-4 left-4 mt-7 bg-turmeric text-ink font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold shadow-sm animate-pulse">
                   Deactivated
                 </div>
               )}
               {/* Canine Approved Stamp */}
-              <div className="absolute top-4 right-4 bg-turmeric text-paperLight font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-sm flex items-center space-x-1 shadow-sm">
+              <div className="absolute top-4 right-4 bg-turmeric text-paperLight font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-sm flex items-center space-x-1 shadow-sm">
                 <Bone className="w-2.5 h-2.5" />
                 <span>Dog Tested</span>
               </div>
@@ -312,17 +230,17 @@ export const ProductDetailPage: React.FC = () => {
           {/* Quality Seals */}
           <div className="grid grid-cols-2 gap-4">
             <div className="border border-cardboard border-dashed p-3 rounded-sm flex items-center space-x-2.5 bg-paperLight bg-opacity-40">
-              <ShieldCheck className="w-5 h-5 text-herb shrink-0" />
+              <ShieldCheck className="w-5 h-5 text-paprika shrink-0" />
               <div>
-                <span className="font-mono text-[9px] uppercase font-bold text-herb block leading-tight">Human-Grade</span>
-                <span className="font-body text-[10px] text-ink opacity-80 leading-none">100% Sourced Food</span>
+                <span className="font-mono text-[10px] uppercase font-bold text-paprika block leading-tight">Human-Grade</span>
+                <span className="font-body text-xs text-ink opacity-80 leading-none">100% Sourced Food</span>
               </div>
             </div>
             <div className="border border-cardboard border-dashed p-3 rounded-sm flex items-center space-x-2.5 bg-paperLight bg-opacity-40">
               <Heart className="w-5 h-5 text-paprika shrink-0" />
               <div>
-                <span className="font-mono text-[9px] uppercase font-bold text-paprika block leading-tight">Canine Tested</span>
-                <span className="font-body text-[10px] text-ink opacity-80 leading-none">Vol. 07 Formula Approved</span>
+                <span className="font-mono text-[10px] uppercase font-bold text-paprika block leading-tight">Canine Tested</span>
+                <span className="font-body text-xs text-ink opacity-80 leading-none">Vol. 07 Formula Approved</span>
               </div>
             </div>
           </div>
@@ -332,12 +250,12 @@ export const ProductDetailPage: React.FC = () => {
         <div className="lg:col-span-6">
           <div className="bg-paperLight border border-cardboard p-8 rounded-sm shadow-md space-y-6 relative overflow-hidden">
             {/* Page Tab */}
-            <div className="absolute top-0 right-8 bg-cardboard bg-opacity-35 text-ink font-mono text-[8px] uppercase tracking-widest px-3 py-1 rounded-b-sm border-x border-b border-cardboard font-bold">
+            <div className="absolute top-0 right-8 bg-cardboard bg-opacity-35 text-ink font-mono text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-b-sm border-x border-b border-cardboard font-bold">
               RECIPE NO. 0{product.id}
             </div>
 
             {!product.is_active && (
-              <div className="bg-red-50 border border-paprika border-opacity-35 p-4 rounded-sm flex items-start space-x-2.5 text-paprika text-xs font-body mb-4">
+              <div className="bg-red-50 border border-turmeric border-opacity-35 p-4 rounded-sm flex items-start space-x-2.5 text-paprika text-xs font-body mb-4">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <div>
                   <strong className="block font-bold">This product has been deactivated.</strong>
@@ -359,15 +277,15 @@ export const ProductDetailPage: React.FC = () => {
                 
                 {/* Stock Status Badge */}
                 {!product.is_active ? (
-                  <span className="font-mono text-[9px] font-bold text-paprika bg-red-50 border border-paprika border-opacity-35 px-2 py-0.5 rounded-sm uppercase tracking-wider">
+                  <span className="font-mono text-[10px] font-bold text-paprika bg-red-50 border border-turmeric border-opacity-35 px-2 py-0.5 rounded-sm uppercase tracking-wider">
                     Deactivated
                   </span>
                 ) : isOutOfStock ? (
-                  <span className="font-mono text-[9px] font-bold text-paprika bg-red-50 border border-paprika border-opacity-35 px-2 py-0.5 rounded-sm uppercase tracking-wider">
+                  <span className="font-mono text-[10px] font-bold text-paprika bg-red-50 border border-turmeric border-opacity-35 px-2 py-0.5 rounded-sm uppercase tracking-wider">
                     Out of Stock
                   </span>
                 ) : (
-                  <span className="font-mono text-[9px] font-bold text-herb bg-emerald-50 border border-herb border-opacity-35 px-2 py-0.5 rounded-sm uppercase tracking-wider">
+                  <span className="font-mono text-[10px] font-bold text-paprika bg-emerald-50 border border-herb border-opacity-35 px-2 py-0.5 rounded-sm uppercase tracking-wider">
                     In Stock ({product.available_stock !== null ? `${product.available_stock} packs left` : 'Fresh Batch'})
                   </span>
                 )}
@@ -378,7 +296,7 @@ export const ProductDetailPage: React.FC = () => {
 
             {/* Monospace Ingredient Ledger */}
             <div className="space-y-3">
-              <span className="font-mono text-[10px] uppercase font-bold text-herb tracking-wide block">
+              <span className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wide block">
                 🐾 Formula Ingredient Breakdown:
               </span>
               <IngredientLedger ingredients={ingredients} />
@@ -388,7 +306,7 @@ export const ProductDetailPage: React.FC = () => {
 
             {/* Description */}
             <div className="space-y-2 text-left">
-              <span className="font-mono text-[10px] uppercase font-bold text-herb tracking-wide block">
+              <span className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wide block">
                 Nutritionist Notes:
               </span>
               <p className="font-body text-sm md:text-base text-ink opacity-90 leading-relaxed">
@@ -401,7 +319,7 @@ export const ProductDetailPage: React.FC = () => {
               <>
                 <hr className="border-t border-dashed border-cardboard" />
                 <div className="space-y-3 text-left">
-                  <span className="font-mono text-[10px] uppercase font-bold text-herb tracking-wide block">
+                  <span className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wide block">
                     Pack Size:
                   </span>
                   <div className="flex flex-wrap gap-2.5">
@@ -455,7 +373,7 @@ export const ProductDetailPage: React.FC = () => {
                     ? 'bg-cardboard bg-opacity-35 text-ink text-opacity-50 cursor-not-allowed border border-cardboard border-opacity-30'
                     : isAdded
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                    : 'bg-paprika hover:bg-opacity-95 text-paperLight'
+                    : 'bg-turmeric hover:bg-opacity-95 text-ink'
                 } disabled:opacity-50`}
               >
                 {isAdding ? (
@@ -482,10 +400,10 @@ export const ProductDetailPage: React.FC = () => {
 
       {/* Footer */}
       <footer className="mt-20 border-t border-cardboard pt-8 text-center text-ink opacity-60">
-        <p className="font-mono text-[9px] uppercase tracking-wider">
+        <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">
           © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
         </p>
-        <p className="font-body text-[10px] mt-1 max-w-md mx-auto leading-relaxed">
+        <p className="font-body text-xs mt-1 max-w-md mx-auto leading-relaxed">
           Tested and crafted with love for pet parents who care about what goes in the bowl.
         </p>
       </footer>

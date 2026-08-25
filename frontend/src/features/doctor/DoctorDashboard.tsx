@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuthStore } from '../../store/auth';
-import { useCartStore } from '../../store/cart';
+
 import { CartDrawer } from '../../components/CartDrawer';
 import { Eyebrow } from '../../components/Eyebrow';
 import { 
@@ -28,7 +27,10 @@ import {
   updateHealthRecord
 } from '../../api/pets';
 import type { DoctorResponse, ConsultationResponse } from '../../api/consultations';
-import { logoutUser } from '../../api/auth';
+import { fetchMyApplicationStatus } from '../../api/doctor_applications';
+import type { DoctorApplicationResponse } from '../../api/doctor_applications';
+
+import { Header } from '../../components/Header';
 import { 
   Loader2, 
   Plus, 
@@ -37,12 +39,12 @@ import {
   User, 
   Save, 
   Trash2, 
-  LogOut, 
-  ShoppingCart, 
-  PawPrint,
   Stethoscope,
   Briefcase,
-  FileText
+  FileText,
+  CheckCircle2,
+  AlertTriangle,
+  ExternalLink
 } from 'lucide-react';
 
 const DAYS_OF_WEEK = [
@@ -72,14 +74,10 @@ const mapRecordType = (type: string | undefined | null): string => {
 };
 
 export const DoctorDashboard: React.FC = () => {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user, clearAuth } = useAuthStore();
   
-  const [activeTab, setActiveTab] = useState<'consultations' | 'schedule' | 'profile'>('consultations');
+  const [activeTab, setActiveTab] = useState<'consultations' | 'schedule' | 'profile' | 'verification'>('consultations');
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const cartItems = useCartStore((state) => state.items);
-  const totalCartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   // Form States - Availability
   const [availDay, setAvailDay] = useState('monday');
@@ -279,6 +277,12 @@ export const DoctorDashboard: React.FC = () => {
     queryFn: getDoctorProfile
   });
 
+  const { data: application, isLoading: applicationLoading } = useQuery<DoctorApplicationResponse | null, Error>({
+    queryKey: ['myDoctorApplicationStatus'],
+    queryFn: fetchMyApplicationStatus,
+    enabled: activeTab === 'verification'
+  });
+
   useEffect(() => {
     if (profile && !isProfileInitialized) {
       setSpec(profile.specialization || '');
@@ -345,16 +349,7 @@ export const DoctorDashboard: React.FC = () => {
     }
   });
 
-  const handleLogout = async () => {
-    try {
-      await logoutUser();
-    } catch (err) {
-      console.error('Logout failed:', err);
-    } finally {
-      clearAuth();
-      navigate('/login');
-    }
-  };
+
 
   const handleProfileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -404,68 +399,7 @@ export const DoctorDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
       {/* Full-width Top Navigation Header bar */}
-      <header className="w-full border-b border-cardboard border-opacity-25 bg-ink bg-opacity-95 backdrop-blur-md sticky top-0 z-30 shadow-sm text-paper">
-        <div className="w-full px-4 md:px-8 py-4 flex justify-between items-center md:grid md:grid-cols-12">
-          
-          {/* Left Corner: Brand Logo & Title */}
-          <div className="flex items-center space-x-3 cursor-pointer md:col-span-3 justify-start select-none" onClick={() => navigate('/')}>
-            <PawPrint className="text-turmeric w-6 h-6 animate-pulse" />
-            <div>
-              <h1 className="font-display font-bold text-2xl tracking-tight text-paper">
-                Scooby's Kitchen
-              </h1>
-              <p className="font-mono text-[9px] uppercase tracking-wider text-turmeric opacity-85">
-                Veterinarian Ledger v1.0
-              </p>
-            </div>
-          </div>
-
-          {/* Center: Navigation Menu */}
-          <nav className="hidden md:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper md:col-span-6 justify-center">
-            <button onClick={() => navigate('/shop')} className="hover:text-turmeric transition-colors pb-1">Shop Recipes</button>
-            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Know Your Pet</button>
-            <button onClick={() => navigate('/consultations')} className="hover:text-turmeric transition-colors pb-1">Vet Consults</button>
-            <button onClick={() => navigate('/orders')} className="hover:text-turmeric transition-colors pb-1">My Orders</button>
-            <button onClick={() => navigate('/assistant')} className="hover:text-turmeric transition-colors pb-1">AI Assistant 🐾</button>
-            <button onClick={() => navigate('/profile')} className="hover:text-turmeric transition-colors pb-1">My Profile</button>
-            {user?.role === 'admin' && (
-              <button onClick={() => navigate('/admin')} className="hover:text-turmeric text-turmeric transition-colors pb-1">Admin Panel 🛠️</button>
-            )}
-            {(user?.role === 'doctor' || user?.role === 'admin') && (
-              <button onClick={() => navigate('/doctor')} className="hover:text-turmeric text-turmeric transition-colors pb-1 font-bold border-b-2 border-turmeric">Doctor Panel 🩺</button>
-            )}
-          </nav>
-
-          {/* Right Corner: Actions */}
-          <div className="flex items-center space-x-4 md:col-span-3 justify-end">
-            {user && (
-              <span className="font-mono text-[10px] uppercase font-bold text-turmeric">
-                Dr. {user.first_name || 'Vet'}
-              </span>
-            )}
-
-            <button 
-              onClick={() => setIsCartOpen(true)}
-              className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 relative text-paper"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              {totalCartQuantity > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-paprika text-paperLight font-mono text-[9px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center animate-bounce">
-                  {totalCartQuantity}
-                </span>
-              )}
-            </button>
-
-            <button 
-              onClick={handleLogout}
-              className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paprika hover:border-paprika text-paperLight hover:text-paperLight transition-colors"
-              title="Sign Out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </header>
+      <Header activeTab="doctor" onCartToggle={() => setIsCartOpen(true)} />
 
       {/* Main Workspace */}
       <main className="flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-10">
@@ -473,9 +407,9 @@ export const DoctorDashboard: React.FC = () => {
         {/* Banner Section */}
         <div className="border border-cardboard bg-paperLight p-6 rounded-none flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10 shadow-sm text-left">
           <div className="space-y-1">
-            <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Dashboard Workspace</span>
+            <span className="font-mono text-[10px] uppercase font-bold text-paprika tracking-widest block">Dashboard Workspace</span>
             <h2 className="font-display font-bold text-3xl text-ink tracking-tight">Doctor Panel</h2>
-            <p className="font-body text-xs text-ink opacity-70">
+            <p className="font-body text-sm text-ink opacity-70">
               Manage your consulting availability, review patient schedules, and update your doctor credentials card.
             </p>
           </div>
@@ -487,7 +421,7 @@ export const DoctorDashboard: React.FC = () => {
             onClick={() => setActiveTab('consultations')}
             className={`flex items-center space-x-2 font-body text-xs font-bold uppercase tracking-wider pb-4 border-b-2 transition-colors ${
               activeTab === 'consultations'
-                ? 'border-paprika text-paprika'
+                ? 'border-turmeric text-paprika'
                 : 'border-transparent text-ink opacity-70 hover:opacity-100'
             }`}
           >
@@ -499,7 +433,7 @@ export const DoctorDashboard: React.FC = () => {
             onClick={() => setActiveTab('schedule')}
             className={`flex items-center space-x-2 font-body text-xs font-bold uppercase tracking-wider pb-4 border-b-2 transition-colors ${
               activeTab === 'schedule'
-                ? 'border-paprika text-paprika'
+                ? 'border-turmeric text-paprika'
                 : 'border-transparent text-ink opacity-70 hover:opacity-100'
             }`}
           >
@@ -511,12 +445,24 @@ export const DoctorDashboard: React.FC = () => {
             onClick={() => setActiveTab('profile')}
             className={`flex items-center space-x-2 font-body text-xs font-bold uppercase tracking-wider pb-4 border-b-2 transition-colors ${
               activeTab === 'profile'
-                ? 'border-paprika text-paprika'
+                ? 'border-turmeric text-paprika'
                 : 'border-transparent text-ink opacity-70 hover:opacity-100'
             }`}
           >
             <User className="w-4 h-4" />
             <span>Doctor Profile</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('verification')}
+            className={`flex items-center space-x-2 font-body text-xs font-bold uppercase tracking-wider pb-4 border-b-2 transition-colors ${
+              activeTab === 'verification'
+                ? 'border-turmeric text-paprika'
+                : 'border-transparent text-ink opacity-70 hover:opacity-100'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Verify Log & Status</span>
           </button>
         </div>
 
@@ -525,7 +471,7 @@ export const DoctorDashboard: React.FC = () => {
           <div className="space-y-6 text-left animate-fade-in-up">
             <div className="border border-cardboard bg-paperLight p-6 rounded-none space-y-4 shadow-sm">
               <div className="border-b border-cardboard border-dashed pb-3">
-                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Patient Queue</span>
+                <span className="font-mono text-[10px] uppercase font-bold text-paprika tracking-widest block">Patient Queue</span>
                 <h3 className="font-display font-bold text-lg text-ink mt-0.5">Assigned Consultations</h3>
               </div>
 
@@ -547,7 +493,7 @@ export const DoctorDashboard: React.FC = () => {
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs font-body text-ink border-collapse">
                       <thead>
-                        <tr className="bg-paper border-b border-cardboard font-mono text-[9px] uppercase tracking-wider text-herb text-left">
+                        <tr className="bg-paper border-b border-cardboard font-mono text-[10px] uppercase tracking-wider text-paprika text-left">
                           <th className="p-4 font-bold">Appointment</th>
                           <th className="p-4 font-bold">Patient Pet</th>
                           <th className="p-4 font-bold">Inquiry Reason</th>
@@ -703,17 +649,17 @@ export const DoctorDashboard: React.FC = () => {
             {/* Form on the left */}
             <div className="lg:col-span-4 border border-cardboard bg-paperLight p-6 rounded-none space-y-4 shadow-sm h-fit">
               <div className="border-b border-cardboard border-dashed pb-3">
-                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Calendar Grid</span>
+                <span className="font-mono text-[10px] uppercase font-bold text-paprika tracking-widest block">Calendar Grid</span>
                 <h3 className="font-display font-bold text-lg text-ink mt-0.5">Declare Shift Hours</h3>
               </div>
 
               <form onSubmit={handleAddAvailSubmit} className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Day of Week:</label>
+                  <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Day of Week:</label>
                   <select
                     value={availDay}
                     onChange={(e) => setAvailDay(e.target.value)}
-                    className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                    className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors"
                   >
                     {DAYS_OF_WEEK.map((day) => (
                       <option key={day.value} value={day.value}>{day.label}</option>
@@ -723,23 +669,23 @@ export const DoctorDashboard: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Start Shift:</label>
+                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Start Shift:</label>
                     <input
                       type="time"
                       required
                       value={availStart}
                       onChange={(e) => setAvailStart(e.target.value)}
-                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">End Shift:</label>
+                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">End Shift:</label>
                     <input
                       type="time"
                       required
                       value={availEnd}
                       onChange={(e) => setAvailEnd(e.target.value)}
-                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors"
                     />
                   </div>
                 </div>
@@ -747,7 +693,7 @@ export const DoctorDashboard: React.FC = () => {
                 <button
                   type="submit"
                   disabled={addAvailMutation.isPending}
-                  className="w-full bg-paprika text-paperLight font-mono text-[9px] uppercase px-4 py-2.5 font-bold rounded-sm hover-bounce disabled:opacity-50 flex items-center justify-center space-x-1.5"
+                  className="w-full bg-turmeric text-ink font-mono text-[9px] uppercase px-4 py-2.5 font-bold rounded-sm hover-bounce disabled:opacity-50 flex items-center justify-center space-x-1.5"
                 >
                   {addAvailMutation.isPending ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -763,36 +709,36 @@ export const DoctorDashboard: React.FC = () => {
               <hr className="border-t border-dashed border-cardboard my-6" />
 
               <div className="border-b border-cardboard border-dashed pb-3">
-                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Standard Presets</span>
+                <span className="font-mono text-[10px] uppercase font-bold text-paprika tracking-widest block">Standard Presets</span>
                 <h3 className="font-display font-bold text-lg text-ink mt-0.5">Bulk Weekly Shifts</h3>
               </div>
 
               <form onSubmit={handleBulkScheduleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Start Time:</label>
+                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Start Time:</label>
                     <input
                       type="time"
                       required
                       value={bulkStart}
                       onChange={(e) => setBulkStart(e.target.value)}
-                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">End Time:</label>
+                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">End Time:</label>
                     <input
                       type="time"
                       required
                       value={bulkEnd}
                       onChange={(e) => setBulkEnd(e.target.value)}
-                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Select Days:</label>
+                  <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Select Days:</label>
                   <div className="grid grid-cols-2 gap-2">
                     {DAYS_OF_WEEK.map((day) => {
                       const isChecked = bulkDays.includes(day.value);
@@ -810,7 +756,7 @@ export const DoctorDashboard: React.FC = () => {
                             }}
                             className="w-3.5 h-3.5 rounded border-cardboard text-turmeric focus:ring-turmeric focus:ring-opacity-40"
                           />
-                          <span className="font-body text-xs text-ink">{day.label}</span>
+                          <span className="font-body text-sm text-ink">{day.label}</span>
                         </label>
                       );
                     })}
@@ -837,7 +783,7 @@ export const DoctorDashboard: React.FC = () => {
             {/* List on the right */}
             <div className="lg:col-span-8 border border-cardboard bg-paperLight p-6 rounded-none space-y-4 shadow-sm">
               <div className="border-b border-cardboard border-dashed pb-3">
-                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Active Time Windows</span>
+                <span className="font-mono text-[10px] uppercase font-bold text-paprika tracking-widest block">Active Time Windows</span>
                 <h3 className="font-display font-bold text-lg text-ink mt-0.5">Declared Booking Shifts</h3>
               </div>
 
@@ -859,7 +805,7 @@ export const DoctorDashboard: React.FC = () => {
                   <div className="overflow-x-auto">
                      <table className="w-full text-xs font-body text-ink border-collapse">
                       <thead>
-                        <tr className="bg-paper border-b border-cardboard font-mono text-[9px] uppercase tracking-wider text-herb text-left">
+                        <tr className="bg-paper border-b border-cardboard font-mono text-[10px] uppercase tracking-wider text-paprika text-left">
                           <th className="p-4 font-bold">Week Day</th>
                           <th className="p-4 font-bold">Shift Start</th>
                           <th className="p-4 font-bold">Shift End</th>
@@ -882,7 +828,7 @@ export const DoctorDashboard: React.FC = () => {
                                     type="time"
                                     value={editStart}
                                     onChange={(e) => setEditStart(e.target.value)}
-                                    className="px-2 py-1 border border-cardboard rounded-sm bg-paperLight font-mono text-xs text-ink focus:outline-none focus:border-turmeric"
+                                    className="px-2 py-1 border border-cardboard rounded-sm bg-paperLight font-mono text-sm text-ink focus:outline-none focus:border-turmeric"
                                   />
                                 ) : (
                                   avail.start_time.substring(0, 5)
@@ -894,7 +840,7 @@ export const DoctorDashboard: React.FC = () => {
                                     type="time"
                                     value={editEnd}
                                     onChange={(e) => setEditEnd(e.target.value)}
-                                    className="px-2 py-1 border border-cardboard rounded-sm bg-paperLight font-mono text-xs text-ink focus:outline-none focus:border-turmeric"
+                                    className="px-2 py-1 border border-cardboard rounded-sm bg-paperLight font-mono text-sm text-ink focus:outline-none focus:border-turmeric"
                                   />
                                 ) : (
                                   avail.end_time.substring(0, 5)
@@ -994,7 +940,7 @@ export const DoctorDashboard: React.FC = () => {
             {/* Edit Profile Form */}
             <div className="lg:col-span-8 border border-cardboard bg-paperLight p-6 rounded-none space-y-4 shadow-sm">
               <div className="border-b border-cardboard border-dashed pb-3">
-                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Credentials Card</span>
+                <span className="font-mono text-[10px] uppercase font-bold text-paprika tracking-widest block">Credentials Card</span>
                 <h3 className="font-display font-bold text-lg text-ink mt-0.5">Edit Professional Profile</h3>
               </div>
 
@@ -1007,24 +953,24 @@ export const DoctorDashboard: React.FC = () => {
                 <form onSubmit={handleProfileSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Specialization:</label>
+                      <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Specialization:</label>
                       <input
                         type="text"
                         required
                         value={spec}
                         onChange={(e) => setSpec(e.target.value)}
-                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                         placeholder="e.g. Canine Nutritionist, Surgery"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Qualification:</label>
+                      <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Qualification:</label>
                       <input
                         type="text"
                         required
                         value={qual}
                         onChange={(e) => setQual(e.target.value)}
-                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                         placeholder="e.g. B.V.Sc & A.H."
                       />
                     </div>
@@ -1032,37 +978,37 @@ export const DoctorDashboard: React.FC = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Consultation Fee (INR):</label>
+                      <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Consultation Fee (INR):</label>
                       <input
                         type="number"
                         required
                         min="0"
                         value={fee}
                         onChange={(e) => setFee(e.target.value)}
-                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                         placeholder="e.g. 500"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Experience (Years):</label>
+                      <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Experience (Years):</label>
                       <input
                         type="number"
                         required
                         min="0"
                         value={expYears}
                         onChange={(e) => setExpYears(e.target.value)}
-                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Biography (Bio):</label>
+                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Biography (Bio):</label>
                     <textarea
                       rows={4}
                       value={bioText}
                       onChange={(e) => setBioText(e.target.value)}
-                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors resize-none"
+                      className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors resize-none"
                       placeholder="Share a summary of your professional experience and philosophy on veterinary care..."
                     />
                   </div>
@@ -1070,7 +1016,7 @@ export const DoctorDashboard: React.FC = () => {
                   <button
                     type="submit"
                     disabled={updateProfileMutation.isPending}
-                    className="w-full bg-paprika text-paperLight font-mono text-[9px] uppercase px-4 py-3 font-bold rounded-sm hover-bounce disabled:opacity-50 flex items-center justify-center space-x-1.5"
+                    className="w-full bg-turmeric text-ink font-mono text-[9px] uppercase px-4 py-3 font-bold rounded-sm hover-bounce disabled:opacity-50 flex items-center justify-center space-x-1.5"
                   >
                     {updateProfileMutation.isPending ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1088,7 +1034,7 @@ export const DoctorDashboard: React.FC = () => {
             {/* Profile Detail Card on the right */}
             <div className="lg:col-span-4 border border-cardboard bg-paperLight p-6 rounded-none space-y-4 shadow-sm h-fit">
               <div className="border-b border-cardboard border-dashed pb-3">
-                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Active Badge</span>
+                <span className="font-mono text-[10px] uppercase font-bold text-paprika tracking-widest block">Active Badge</span>
                 <h3 className="font-display font-bold text-lg text-ink mt-0.5">Professional Card</h3>
               </div>
 
@@ -1140,6 +1086,206 @@ export const DoctorDashboard: React.FC = () => {
 
           </div>
         )}
+
+        {activeTab === 'verification' && (
+          <div className="max-w-4xl mx-auto space-y-6 text-left animate-fade-in-up">
+            <div className="border border-cardboard bg-paperLight p-8 rounded-none space-y-6 shadow-sm relative overflow-hidden">
+              {/* Decorative left notebook spine border */}
+              <div className="absolute left-1.5 top-0 bottom-0 border-l border-dashed border-cardboard opacity-40"></div>
+              
+              <div className="border-b border-cardboard border-dashed pb-4 pl-4">
+                <span className="font-mono text-[10px] uppercase font-bold text-paprika tracking-widest block">Audit Credentials Ledger</span>
+                <h3 className="font-display font-bold text-2xl text-ink mt-1">Onboarding & Verification Log</h3>
+                <p className="font-body text-sm text-ink opacity-70">
+                  Review your license credentials log, verification checklist statuses, and stage activation details.
+                </p>
+              </div>
+
+              {applicationLoading ? (
+                <div className="py-12 flex flex-col items-center justify-center space-y-2">
+                  <Loader2 className="w-8 h-8 text-turmeric animate-spin" />
+                  <span className="font-mono text-[10px] uppercase text-paprika font-bold">Reading verification files...</span>
+                </div>
+              ) : !application ? (
+                <div className="border border-cardboard bg-paperLight p-8 rounded-sm text-center max-w-md mx-auto space-y-3">
+                  <CheckCircle2 className="w-12 h-12 text-herb mx-auto stroke-1 animate-pulse" />
+                  <h4 className="font-display font-bold text-lg text-ink">Verification Logs Clear</h4>
+                  <p className="font-body text-sm text-ink opacity-70 leading-relaxed">
+                    You have been directly registered or bulk-verified by the system administrator. All credentials, shift schedules, and consultations access are active.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-8 pl-4">
+                  {/* Onboarding Stage Timeline Flow */}
+                  <div className="space-y-3">
+                    <span className="font-mono text-[10px] uppercase font-bold text-paprika block">Onboarding Verification Flow</span>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-[10px] text-ink uppercase">
+                      {/* Step 1 */}
+                      <div className="border border-cardboard p-4 rounded-sm bg-paper bg-opacity-40 space-y-2 flex flex-col justify-between">
+                        <div>
+                          <span className="opacity-60 block text-[8px]">Stage 01</span>
+                          <span className="font-bold text-ink">Submit Application</span>
+                        </div>
+                        <div className="flex items-center space-x-1.5 text-green-700 font-bold mt-2 text-[9px]">
+                          <CheckCircle2 className="w-4 h-4 text-herb" />
+                          <span>Submitted</span>
+                        </div>
+                      </div>
+
+                      {/* Step 2 */}
+                      <div className="border border-cardboard p-4 rounded-sm bg-paper bg-opacity-40 space-y-2 flex flex-col justify-between">
+                        <div>
+                          <span className="opacity-60 block text-[8px]">Stage 02</span>
+                          <span className="font-bold text-ink">Documents Verification</span>
+                        </div>
+                        {application.aadhaar_card_url && application.pan_card_url && application.medical_certificate_url ? (
+                          <div className="flex items-center space-x-1.5 text-green-700 font-bold mt-2 text-[9px]">
+                            <CheckCircle2 className="w-4 h-4 text-herb" />
+                            <span>Documents Logged</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-1.5 text-yellow-750 font-bold mt-2 text-[9px]">
+                            <AlertTriangle className="w-4 h-4 text-turmeric" />
+                            <span>Incomplete Uploads</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Step 3 */}
+                      <div className="border border-cardboard p-4 rounded-sm bg-paper bg-opacity-40 space-y-2 flex flex-col justify-between">
+                        <div>
+                          <span className="opacity-60 block text-[8px]">Stage 03</span>
+                          <span className="font-bold text-ink">Verification Decision</span>
+                        </div>
+                        {application.status?.toUpperCase() === 'APPROVED' ? (
+                          <div className="flex items-center space-x-1.5 text-green-700 font-bold mt-2 text-[9px]">
+                            <CheckCircle2 className="w-4 h-4 text-herb" />
+                            <span>Approved & Active</span>
+                          </div>
+                        ) : application.status?.toUpperCase() === 'REJECTED' ? (
+                          <div className="flex items-center space-x-1.5 text-red-800 font-bold mt-2 text-[9px]">
+                            <AlertTriangle className="w-4 h-4 text-paprika" />
+                            <span>Rejected</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-1.5 text-yellow-750 font-bold mt-2 text-[9px] animate-pulse">
+                            <Clock className="w-4 h-4 text-turmeric animate-spin" />
+                            <span>Pending Review</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Verification checklist details */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-cardboard border-dashed">
+                    {/* Logged Documents Checklist */}
+                    <div className="border border-cardboard p-6 rounded-sm bg-paper bg-opacity-50 space-y-4">
+                      <h4 className="font-display font-bold text-sm text-ink uppercase tracking-wide border-b border-cardboard border-dashed pb-2">
+                        Verification Files Checklist
+                      </h4>
+                      
+                      <div className="space-y-3 font-mono text-[10px]">
+                        <div className="flex justify-between items-center dotted-divider pb-2">
+                          <span className="bg-paper pr-2 text-ink font-bold flex items-center">
+                            <CheckCircle2 className="w-4 h-4 text-herb mr-2" />
+                            <span>Aadhaar Card Record</span>
+                          </span>
+                          <span className="bg-paper pl-2">
+                            {application.aadhaar_card_url ? (
+                              <a 
+                                href={application.aadhaar_card_url} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="text-herb hover:text-ink font-bold underline flex items-center space-x-1"
+                              >
+                                <span>View File</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            ) : (
+                              <span className="text-paprika font-bold">Missing</span>
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center dotted-divider pb-2">
+                          <span className="bg-paper pr-2 text-ink font-bold flex items-center">
+                            <CheckCircle2 className="w-4 h-4 text-herb mr-2" />
+                            <span>PAN Card Record</span>
+                          </span>
+                          <span className="bg-paper pl-2">
+                            {application.pan_card_url ? (
+                              <a 
+                                href={application.pan_card_url} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="text-herb hover:text-ink font-bold underline flex items-center space-x-1"
+                              >
+                                <span>View File</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            ) : (
+                              <span className="text-paprika font-bold">Missing</span>
+                            )}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center pb-1">
+                          <span className="bg-paper pr-2 text-ink font-bold flex items-center">
+                            <CheckCircle2 className="w-4 h-4 text-herb mr-2" />
+                            <span>Medical Certificate</span>
+                          </span>
+                          <span className="bg-paper pl-2">
+                            {application.medical_certificate_url ? (
+                              <a 
+                                href={application.medical_certificate_url} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="text-herb hover:text-ink font-bold underline flex items-center space-x-1"
+                              >
+                                <span>View File</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            ) : (
+                              <span className="text-paprika font-bold">Missing</span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Onboarding Logged Credentials */}
+                    <div className="border border-cardboard p-6 rounded-sm bg-paper bg-opacity-50 space-y-4">
+                      <h4 className="font-display font-bold text-sm text-ink uppercase tracking-wide border-b border-cardboard border-dashed pb-2">
+                        Logged Credentials Details
+                      </h4>
+                      
+                      <div className="space-y-3 font-mono text-[10px]">
+                        <div className="flex justify-between items-center dotted-divider pb-2">
+                          <span className="bg-paper pr-2 text-ink opacity-70">License Number</span>
+                          <span className="bg-paper pl-2 font-bold">{application.license_number}</span>
+                        </div>
+                        <div className="flex justify-between items-center dotted-divider pb-2">
+                          <span className="bg-paper pr-2 text-ink opacity-70">Study Period Duration</span>
+                          <span className="bg-paper pl-2 font-bold">{application.degree_start_year} - {application.degree_end_year} ({application.degree_end_year - application.degree_start_year} years)</span>
+                        </div>
+                        <div className="flex justify-between items-center dotted-divider pb-2">
+                          <span className="bg-paper pr-2 text-ink opacity-70">Clinic Association</span>
+                          <span className="bg-paper pl-2 font-bold text-right">{application.clinic_name} ({application.clinic_city})</span>
+                        </div>
+                        <div className="flex justify-between items-center pb-1">
+                          <span className="bg-paper pr-2 text-ink opacity-70">Submitted On</span>
+                          <span className="bg-paper pl-2 font-bold">{new Date(application.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Medical Log Editor Modal */}
@@ -1148,7 +1294,7 @@ export const DoctorDashboard: React.FC = () => {
           <div className="bg-paper border border-cardboard max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl p-6 flex flex-col space-y-4 text-left">
             <div className="flex justify-between items-start border-b border-cardboard border-dashed pb-3">
               <div>
-                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">
+                <span className="font-mono text-[10px] uppercase font-bold text-paprika tracking-widest block">
                   Patient Dietary & Medical Journal
                 </span>
                 <h3 className="font-display font-bold text-xl text-ink mt-0.5">
@@ -1172,28 +1318,28 @@ export const DoctorDashboard: React.FC = () => {
                 <span className="font-mono text-[10px] uppercase font-bold tracking-wider">Searching Consultation Records...</span>
               </div>
             ) : (
-              <form onSubmit={handleSaveLogSubmit} className="space-y-4 font-body text-xs text-ink">
+              <form onSubmit={handleSaveLogSubmit} className="space-y-4 font-body text-sm text-ink">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   {/* Title field */}
                   <div className="md:col-span-8 space-y-1">
-                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Log Entry Title:</label>
+                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Log Entry Title:</label>
                     <input
                       type="text"
                       required
                       value={logTitle}
                       onChange={(e) => setLogTitle(e.target.value)}
-                      className="w-full px-3 py-2 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                      className="w-full px-3 py-2 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                       placeholder="e.g. Annual Checkup or Nutrition Diagnostic"
                     />
                   </div>
 
                   {/* Record Type field */}
                   <div className="md:col-span-4 space-y-1">
-                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Record Type:</label>
+                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Record Type:</label>
                     <select
                       value={logRecordType}
                       onChange={(e) => setLogRecordType(e.target.value)}
-                      className="w-full px-3 py-2 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                      className="w-full px-3 py-2 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors"
                     >
                       <option value="general">General Log</option>
                       <option value="diagnosis">Diagnostic Log</option>
@@ -1207,24 +1353,24 @@ export const DoctorDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Symptoms */}
                   <div className="space-y-1">
-                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Observed Symptoms:</label>
+                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Observed Symptoms:</label>
                     <textarea
                       rows={2}
                       value={logSymptoms}
                       onChange={(e) => setLogSymptoms(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
+                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
                       placeholder="List any signs or symptoms reported by the owner..."
                     />
                   </div>
 
                   {/* Clinical Findings */}
                   <div className="space-y-1">
-                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Clinical Findings:</label>
+                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Clinical Findings:</label>
                     <textarea
                       rows={2}
                       value={logClinicalFindings}
                       onChange={(e) => setLogClinicalFindings(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
+                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
                       placeholder="Physical exam results, vital signs..."
                     />
                   </div>
@@ -1233,24 +1379,24 @@ export const DoctorDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Diagnosis */}
                   <div className="space-y-1">
-                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Diagnosis conclusion:</label>
+                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Diagnosis conclusion:</label>
                     <textarea
                       rows={2}
                       value={logDiagnosis}
                       onChange={(e) => setLogDiagnosis(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
+                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
                       placeholder="Primary medical conclusions..."
                     />
                   </div>
 
                   {/* Treatment */}
                   <div className="space-y-1">
-                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Prescribed Treatment:</label>
+                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Prescribed Treatment:</label>
                     <textarea
                       rows={2}
                       value={logTreatment}
                       onChange={(e) => setLogTreatment(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
+                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
                       placeholder="Recommended therapeutic or dietary changes..."
                     />
                   </div>
@@ -1259,36 +1405,36 @@ export const DoctorDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   {/* Medications */}
                   <div className="md:col-span-8 space-y-1">
-                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Prescribed Medications:</label>
+                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Prescribed Medications:</label>
                     <input
                       type="text"
                       value={logMedications}
                       onChange={(e) => setLogMedications(e.target.value)}
-                      className="w-full px-3 py-2 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                      className="w-full px-3 py-2 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                       placeholder="e.g. Amoxicillin 250mg once daily for 5 days"
                     />
                   </div>
 
                   {/* Follow-up Date */}
                   <div className="md:col-span-4 space-y-1">
-                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Follow-up Date:</label>
+                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Follow-up Date:</label>
                     <input
                       type="date"
                       value={logFollowUpDate}
                       onChange={(e) => setLogFollowUpDate(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors"
                     />
                   </div>
                 </div>
 
                 {/* Notes */}
                 <div className="space-y-1">
-                  <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Internal Notes:</label>
+                  <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Internal Notes:</label>
                   <textarea
                     rows={2}
                     value={logNotes}
                     onChange={(e) => setLogNotes(e.target.value)}
-                    className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
+                    className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
                     placeholder="Any private case notes, specific recommendations..."
                   />
                 </div>
@@ -1305,7 +1451,7 @@ export const DoctorDashboard: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isSavingLog}
-                    className="px-4 py-2 bg-paprika text-paperLight rounded-full font-mono text-[10px] uppercase font-bold hover:opacity-95 transition-opacity flex items-center space-x-1.5 disabled:opacity-50"
+                    className="px-4 py-2 bg-turmeric text-ink rounded-full font-mono text-[10px] uppercase font-bold hover:opacity-95 transition-opacity flex items-center space-x-1.5 disabled:opacity-50"
                   >
                     {isSavingLog ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1347,17 +1493,17 @@ export const DoctorDashboard: React.FC = () => {
                 <span className="font-mono text-xs uppercase text-ink opacity-60">Loading Session Details...</span>
               </div>
             ) : !doctorConsultationDetails ? (
-              <p className="font-body text-xs text-ink opacity-60">Failed to load consultation record.</p>
+              <p className="font-body text-sm text-ink opacity-60">Failed to load consultation record.</p>
             ) : (
               <div className="space-y-4 text-xs font-body">
                 {/* Session Summary card */}
                 <div className="p-4 border border-cardboard rounded-sm bg-paper bg-opacity-50 space-y-3">
                   <div className="flex justify-between items-center">
                     <div>
-                      <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">APPOINTMENT TIME</span>
-                      <span className="font-mono text-xs text-ink font-bold">{new Date(doctorConsultationDetails.scheduled_at).toLocaleString()}</span>
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold block">APPOINT TIME</span>
+                      <span className="font-mono text-sm text-ink font-bold">{new Date(doctorConsultationDetails.scheduled_at).toLocaleString()}</span>
                     </div>
-                    <span className={`font-mono text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold border ${
+                    <span className={`font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold border ${
                       doctorConsultationDetails.status?.toUpperCase() === 'COMPLETED' ? 'bg-green-100 text-green-800 border-green-200' :
                       doctorConsultationDetails.status?.toUpperCase() === 'CANCELLED' ? 'bg-red-100 text-red-800 border-red-200' :
                       doctorConsultationDetails.status?.toUpperCase() === 'CONFIRMED' ? 'bg-blue-100 text-blue-800 border-blue-200' :
@@ -1370,9 +1516,9 @@ export const DoctorDashboard: React.FC = () => {
                   
                   <hr className="border-t border-cardboard border-dashed" />
                   
-                  <div className="grid grid-cols-2 gap-4 font-mono text-[10px] text-ink">
+                  <div className="grid grid-cols-2 gap-4 font-mono text-[11px] text-ink">
                     <div>
-                      <span className="text-[8px] uppercase text-herb font-bold block">PATIENT PET</span>
+                      <span className="font-mono text-[10px] uppercase text-paprika font-bold block">PATIENT PET</span>
                       <span className="font-bold flex items-center space-x-1">
                         <span>🐾 {doctorConsultationDetails.pet?.name || 'Pet'}</span>
                         <button
@@ -1380,7 +1526,7 @@ export const DoctorDashboard: React.FC = () => {
                             setInspectingPetId(doctorConsultationDetails.pet_id);
                             setSelectedConsultationId(null);
                           }}
-                          className="text-herb hover:underline uppercase font-bold text-[8px]"
+                          className="text-paprika hover:underline uppercase font-bold text-[9px]"
                         >
                           (View Timeline)
                         </button>
@@ -1388,7 +1534,7 @@ export const DoctorDashboard: React.FC = () => {
                       <div className="opacity-70 mt-0.5">{doctorConsultationDetails.pet?.species} {doctorConsultationDetails.pet?.breed ? `(${doctorConsultationDetails.pet.breed})` : ''}</div>
                     </div>
                     <div>
-                      <span className="text-[8px] uppercase text-herb font-bold block">FELLOW SPECIALIST</span>
+                      <span className="font-mono text-[10px] uppercase text-paprika font-bold block">FELLOW SPECIALIST</span>
                       <div className="font-bold">Dr. ID #{doctorConsultationDetails.doctor_id}</div>
                       <div className="opacity-70 mt-0.5">Qualifications: {doctorConsultationDetails.doctor?.qualification}</div>
                     </div>
@@ -1396,14 +1542,14 @@ export const DoctorDashboard: React.FC = () => {
                 </div>
 
                 {/* Reason & Notes */}
-                <div className="space-y-2 font-body text-xs">
+                <div className="space-y-2 font-body text-sm text-ink">
                   <div>
-                    <span className="font-mono text-[8px] uppercase text-herb font-bold block">Owner's Inquiry Reason</span>
+                    <span className="font-mono text-[10px] uppercase text-paprika font-bold block">Owner's Inquiry Reason</span>
                     <p className="text-ink opacity-90">{doctorConsultationDetails.reason}</p>
                   </div>
                   {doctorConsultationDetails.customer_notes && (
                     <div>
-                      <span className="font-mono text-[8px] uppercase text-herb font-bold block">Customer Consultation Notes</span>
+                      <span className="font-mono text-[10px] uppercase text-paprika font-bold block">Customer Consultation Notes</span>
                       <p className="text-ink opacity-70 italic">"{doctorConsultationDetails.customer_notes}"</p>
                     </div>
                   )}
@@ -1411,7 +1557,7 @@ export const DoctorDashboard: React.FC = () => {
 
                 {/* Doctor's Notes */}
                 <div className="border-t border-cardboard border-dashed pt-3">
-                  <span className="font-mono text-[8px] uppercase text-turmeric font-bold block mb-1">Your Prescribed Diagnostics & Notes</span>
+                  <span className="font-mono text-[10px] uppercase text-turmeric font-bold block mb-1">Your Prescribed Diagnostics & Notes</span>
                   {doctorConsultationDetails.doctor_notes ? (
                     <p className="p-3 border border-cardboard border-dashed bg-paper rounded-sm text-ink opacity-90 italic">
                       "{doctorConsultationDetails.doctor_notes}"
@@ -1428,7 +1574,7 @@ export const DoctorDashboard: React.FC = () => {
                         handleOpenLogModal(doctorConsultationDetails);
                         setSelectedConsultationId(null);
                       }}
-                      className="flex-1 bg-paprika text-paperLight font-mono text-[10px] uppercase py-2.5 font-bold rounded-sm tracking-wide text-center"
+                      className="flex-1 bg-turmeric text-ink font-mono text-[10px] uppercase py-2.5 font-bold rounded-sm tracking-wide text-center"
                     >
                       Open Medical Log Editor
                     </button>
@@ -1463,7 +1609,7 @@ export const DoctorDashboard: React.FC = () => {
               <h3 className="font-display font-bold text-2xl text-ink">
                 Pet Health History Timeline
               </h3>
-              <p className="font-body text-xs text-ink opacity-70">
+              <p className="font-body text-sm text-ink opacity-70">
                 Detailed clinical history registry timeline.
               </p>
             </div>
@@ -1499,16 +1645,16 @@ export const DoctorDashboard: React.FC = () => {
 
                         <div className="space-y-2 bg-paper bg-opacity-50 p-4 border border-cardboard border-dashed rounded-sm">
                           <div className="flex justify-between items-baseline">
-                            <span className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold">
+                            <span className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold">
                               {recordType}
                             </span>
-                            <span className="font-mono text-[8px] text-cardboard">{dateStr}</span>
+                            <span className="font-mono text-[9px] text-cardboard font-bold">{dateStr}</span>
                           </div>
 
                           <h4 className="font-display font-bold text-sm text-ink">{record.title}</h4>
                           <hr className="border-t border-cardboard border-dashed" />
 
-                          <div className="space-y-1.5 font-body text-xs text-ink opacity-90">
+                          <div className="space-y-1.5 font-body text-sm text-ink opacity-90">
                             {record.symptoms && (
                               <div><strong>Symptoms:</strong> {record.symptoms}</div>
                             )}

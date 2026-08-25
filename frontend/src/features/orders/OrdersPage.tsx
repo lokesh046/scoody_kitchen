@@ -2,13 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchMyOrders, cancelOrder, fetchOrderTracking } from '../../api/orders';
-import { useAuthStore } from '../../store/auth';
-import { useCartStore } from '../../store/cart';
-import { logoutUser } from '../../api/auth';
+
 import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
+import { Header } from '../../components/Header';
 import { 
-  ArrowLeft, ShoppingCart, LogOut, User, PawPrint, 
+  ArrowLeft, 
   Clock, CheckCircle, XCircle, Loader2, AlertCircle,
   Truck, Calendar, Check
 } from 'lucide-react';
@@ -16,8 +15,6 @@ import {
 export const OrdersPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user, clearAuth } = useAuthStore();
-  const { items: cartItems, clear: clearCart } = useCartStore();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedTrackingOrderId, setSelectedTrackingOrderId] = useState<number | null>(null);
 
@@ -27,13 +24,56 @@ export const OrdersPage: React.FC = () => {
     enabled: selectedTrackingOrderId !== null,
   });
 
-  const totalCartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
 
   // Query order history
   const { data: orders, isLoading, error } = useQuery({
     queryKey: ['orders'],
     queryFn: fetchMyOrders,
   });
+
+  const [activeTab, setActiveTab] = useState<'active' | 'delivered' | 'cancelled'>('active');
+
+  const filteredOrders = orders?.filter((order: any) => {
+    const status = order.status.toUpperCase();
+    if (activeTab === 'active') {
+      return (
+        status === 'CONFIRMED' || 
+        status === 'PROCESSING' || 
+        status === 'PACKED' || 
+        status === 'SHIPPED' || 
+        status === 'IN_TRANSIT' || 
+        status === 'OUT_FOR_DELIVERY'
+      );
+    } else if (activeTab === 'delivered') {
+      return status === 'DELIVERED' || status === 'COMPLETED';
+    } else if (activeTab === 'cancelled') {
+      return status === 'CANCELLED' || status === 'DELIVERY_FAILED';
+    }
+    return false;
+  }) || [];
+
+  const getOrdersCountByTab = (tab: 'active' | 'delivered' | 'cancelled') => {
+    if (!orders) return 0;
+    return orders.filter((order: any) => {
+      const status = order.status.toUpperCase();
+      if (tab === 'active') {
+        return (
+          status === 'CONFIRMED' || 
+          status === 'PROCESSING' || 
+          status === 'PACKED' || 
+          status === 'SHIPPED' || 
+          status === 'IN_TRANSIT' || 
+          status === 'OUT_FOR_DELIVERY'
+        );
+      } else if (tab === 'delivered') {
+        return status === 'DELIVERED' || status === 'COMPLETED';
+      } else if (tab === 'cancelled') {
+        return status === 'CANCELLED' || status === 'DELIVERY_FAILED';
+      }
+      return false;
+    }).length;
+  };
 
   // Cancel order mutation
   const cancelMutation = useMutation({
@@ -47,23 +87,18 @@ export const OrdersPage: React.FC = () => {
     }
   });
 
-  const handleLogout = async () => {
-    try {
-      await logoutUser();
-    } catch (err) {
-      console.error('Logout failed:', err);
-    } finally {
-      clearAuth();
-      clearCart();
-      navigate('/login');
-    }
-  };
+
 
   const getStatusStyle = (status: string) => {
     switch (status.toUpperCase()) {
       case 'PENDING':
         return 'text-turmeric bg-amber-50 border-amber-200';
       case 'PAID':
+      case 'CONFIRMED':
+      case 'PROCESSING':
+      case 'PACKED':
+      case 'IN_TRANSIT':
+      case 'OUT_FOR_DELIVERY':
       case 'SHIPPED':
       case 'DELIVERED':
         return 'text-herb bg-emerald-50 border-emerald-200';
@@ -88,78 +123,7 @@ export const OrdersPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
       {/* Full-width Top Navigation Header bar */}
-      <header className="w-full border-b border-cardboard border-opacity-25 bg-ink bg-opacity-95 backdrop-blur-md sticky top-0 z-30 shadow-sm text-paper">
-        <div className="w-full px-4 md:px-8 py-4 flex justify-between items-center md:grid md:grid-cols-12">
-          
-          {/* Left Corner: Brand Logo & Title */}
-          <div className="flex items-center space-x-3 cursor-pointer md:col-span-3 justify-start select-none" onClick={() => navigate('/')}>
-            <PawPrint className="text-turmeric w-6 h-6 animate-pulse" />
-            <div>
-              <h1 className="font-display font-bold text-2xl tracking-tight text-paper">
-                Scooby's Kitchen
-              </h1>
-              <p className="font-mono text-[9px] uppercase tracking-wider text-turmeric opacity-85">
-                Notebook Ledger v1.0
-              </p>
-            </div>
-          </div>
-
-          {/* Center: Navigation Menu */}
-          <nav className="hidden md:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper md:col-span-6 justify-center">
-            <button onClick={() => navigate('/shop')} className="hover:text-turmeric transition-colors pb-1">Shop Recipes</button>
-            <button onClick={() => navigate('/pets')} className="hover:text-turmeric transition-colors pb-1">Know Your Pet</button>
-            <button onClick={() => navigate('/consultations')} className="hover:text-turmeric transition-colors pb-1">Vet Consults</button>
-            <button onClick={() => navigate('/orders')} className="hover:text-turmeric transition-colors pb-1 font-bold border-b-2 border-turmeric">My Orders</button>
-            <button onClick={() => navigate('/assistant')} className="hover:text-turmeric transition-colors pb-1">AI Assistant 🐾</button>
-            <button onClick={() => navigate('/profile')} className="hover:text-turmeric transition-colors pb-1">My Profile</button>
-            {user?.role === 'admin' && (
-              <button onClick={() => navigate('/admin')} className="hover:text-turmeric text-turmeric transition-colors pb-1">Admin Panel 🛠️</button>
-            )}
-            {(user?.role === 'doctor' || user?.role === 'admin') && (
-              <button onClick={() => navigate('/doctor')} className="hover:text-turmeric text-turmeric transition-colors pb-1">Doctor Panel 🩺</button>
-            )}
-          </nav>
-
-          {/* Right Corner: Actions */}
-          <div className="flex items-center space-x-4 md:col-span-3 justify-end">
-            {user && (
-              <span className="font-mono text-[10px] uppercase font-bold text-turmeric">
-                {user.first_name || 'User'}
-              </span>
-            )}
-
-            <button 
-              onClick={() => setIsCartOpen(true)}
-              className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 relative text-paper"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              {totalCartQuantity > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-paprika text-paperLight font-mono text-[9px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center animate-bounce">
-                  {totalCartQuantity}
-                </span>
-              )}
-            </button>
-
-            {user ? (
-              <button
-                onClick={handleLogout}
-                className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper flex items-center space-x-1.5 font-body text-[10px] font-bold uppercase"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Log Out</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => navigate('/login')}
-                className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper flex items-center space-x-1.5 font-body text-[10px] font-bold uppercase"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Log In</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+      <Header activeTab="orders" onCartToggle={() => setIsCartOpen(true)} />
 
       {/* Centered Main Content Wrapper */}
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 md:px-8 py-8">
@@ -177,8 +141,7 @@ export const OrdersPage: React.FC = () => {
 
       <div className="space-y-6 text-left">
         <div className="space-y-1">
-          <Eyebrow label="VETERINARY SOURCING RECIPES HISTOR" />
-          <h2 className="font-display font-bold text-3xl text-ink">
+          <h2 className="font-display font-black text-4xl uppercase tracking-tight text-ink">
             Your Order Ledger
           </h2>
           <p className="font-body text-xs text-ink opacity-70">
@@ -188,6 +151,43 @@ export const OrdersPage: React.FC = () => {
 
         <hr className="border-t border-dashed border-cardboard" />
 
+        {/* Tactile Category Navigation Tabs */}
+        <div className="flex border-b border-cardboard border-opacity-40 mb-8 font-mono text-xs uppercase tracking-wider font-bold">
+          <button
+            type="button"
+            onClick={() => setActiveTab('active')}
+            className={`px-6 py-3 border-t-2 border-x transition-colors cursor-pointer ${
+              activeTab === 'active'
+                ? 'bg-paperLight border-t-turmeric border-x-cardboard text-ink'
+                : 'bg-transparent border-t-transparent border-x-transparent text-ink opacity-60 hover:opacity-100'
+            }`}
+          >
+            📦 Active & Transit ({getOrdersCountByTab('active')})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('delivered')}
+            className={`px-6 py-3 border-t-2 border-x transition-colors cursor-pointer ${
+              activeTab === 'delivered'
+                ? 'bg-paperLight border-t-turmeric border-x-cardboard text-ink'
+                : 'bg-transparent border-t-transparent border-x-transparent text-ink opacity-60 hover:opacity-100'
+            }`}
+          >
+            ✅ Delivered ({getOrdersCountByTab('delivered')})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('cancelled')}
+            className={`px-6 py-3 border-t-2 border-x transition-colors cursor-pointer ${
+              activeTab === 'cancelled'
+                ? 'bg-paperLight border-t-turmeric border-x-cardboard text-ink'
+                : 'bg-transparent border-t-transparent border-x-transparent text-ink opacity-60 hover:opacity-100'
+            }`}
+          >
+            ❌ Cancelled ({getOrdersCountByTab('cancelled')})
+          </button>
+        </div>
+
         {isLoading ? (
           <div className="py-20 text-center space-y-4">
             <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
@@ -196,34 +196,52 @@ export const OrdersPage: React.FC = () => {
             </p>
           </div>
         ) : error ? (
-          <div className="max-w-md mx-auto border border-paprika bg-paperLight p-8 rounded-sm text-center shadow-md">
+          <div className="max-w-md mx-auto border border-turmeric bg-paperLight p-8 rounded-sm text-center shadow-md">
             <AlertCircle className="w-12 h-12 text-paprika mx-auto mb-4" />
             <h4 className="font-display font-bold text-lg text-ink mb-2">Error Loading Orders</h4>
             <p className="font-body text-xs text-ink opacity-80">
               Failed to retrieve orders history. Please check your authentication status.
             </p>
           </div>
-        ) : !orders || orders.length === 0 ? (
-          <div className="max-w-md mx-auto border border-cardboard bg-paperLight p-8 rounded-sm text-center shadow-md my-12">
+        ) : filteredOrders.length === 0 ? (
+          <div className="max-w-md mx-auto border border-cardboard bg-paperLight p-8 rounded-sm text-center shadow-md my-12 animate-fade-in">
             <Clock className="w-12 h-12 text-cardboard mx-auto mb-4 stroke-1" />
-            <h4 className="font-display font-bold text-lg text-ink mb-2">No Orders Placed Yet</h4>
+            <h4 className="font-display font-bold text-lg text-ink mb-2">
+              {activeTab === 'active' && 'No Active Shipments'}
+              {activeTab === 'delivered' && 'No Delivered Formulations'}
+              {activeTab === 'cancelled' && 'No Cancelled Orders'}
+            </h4>
             <p className="font-body text-xs text-ink opacity-80 mb-6">
-              You haven't ordered any custom pet formulations yet.
+              {activeTab === 'active' && "You don't have any pending or active recipe orders right now."}
+              {activeTab === 'delivered' && "You haven't had any custom pet food recipe orders delivered yet."}
+              {activeTab === 'cancelled' && "You have not cancelled any veterinary formulations."}
             </p>
-            <button
-              onClick={() => navigate('/shop')}
-              className="bg-paprika text-paperLight font-body font-bold text-xs uppercase px-4 py-2.5 rounded-sm tracking-wide"
-            >
-              Browse Sourced Recipes
-            </button>
+            {activeTab === 'active' && (
+              <button
+                type="button"
+                onClick={() => navigate('/shop')}
+                className="bg-turmeric text-ink font-body font-bold text-xs uppercase px-4 py-2.5 rounded-sm tracking-wide"
+              >
+                Browse Sourced Recipes
+              </button>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {orders.map((order) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
+            {filteredOrders.map((order: any) => (
               <div 
                 key={order.id} 
                 className="bg-paperLight border border-cardboard p-6 rounded-sm shadow-sm hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between"
               >
+                {/* Delivered Postmark Stamp */}
+                {order.status.toUpperCase() === 'DELIVERED' && (
+                  <div className="absolute top-2 right-12 opacity-80 pointer-events-none select-none">
+                    <div className="border-2 border-dashed border-herb text-herb font-mono text-[9px] font-bold px-3 py-1.5 uppercase tracking-widest rounded-sm rotate-[-8deg] transform bg-paperLight flex items-center space-x-1 shadow-xs">
+                      <span>🌿 INK APPROVED</span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   {/* Card Header info */}
                   <div className="flex justify-between items-start">
@@ -250,7 +268,7 @@ export const OrdersPage: React.FC = () => {
                       Ledger Recipes Sourced:
                     </span>
                     <div className="space-y-1">
-                      {order.items?.map((item) => (
+                      {order.items?.map((item: any) => (
                         <div key={item.id} className="flex justify-between text-xs font-body opacity-95">
                           <span>
                             {item.product_name ? `${item.product_name} (ID: #${item.product_id})` : `Product #${item.product_id}`}
@@ -289,6 +307,7 @@ export const OrdersPage: React.FC = () => {
 
                   <div className="flex space-x-2">
                     <button
+                      type="button"
                       onClick={() => setSelectedTrackingOrderId(order.id)}
                       className="border border-cardboard hover:bg-paper font-body font-bold text-[10px] uppercase py-1.5 px-3 rounded-sm tracking-wide transition-colors flex items-center space-x-1"
                     >
@@ -298,9 +317,10 @@ export const OrdersPage: React.FC = () => {
 
                     {order.status.toUpperCase() === 'PENDING' && (
                       <button
+                        type="button"
                         onClick={() => cancelMutation.mutate(order.id)}
                         disabled={cancelMutation.isPending}
-                        className="bg-paprika hover:bg-opacity-95 text-paperLight font-body font-bold text-[10px] uppercase py-1.5 px-3 rounded-sm tracking-wide transition-colors disabled:opacity-50"
+                        className="bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-[10px] uppercase py-1.5 px-3 rounded-sm tracking-wide transition-colors disabled:opacity-50"
                       >
                         {cancelMutation.isPending && cancelMutation.variables === order.id ? (
                           <Loader2 className="w-3 h-3 animate-spin" />
@@ -327,7 +347,49 @@ export const OrdersPage: React.FC = () => {
       {/* Sourced Recipe Tracking Modal */}
       {selectedTrackingOrderId !== null && (
         <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-paperLight border border-cardboard rounded-sm shadow-xl max-w-lg w-full p-6 space-y-6 animate-fade-in-up relative text-left">
+          <div className="bg-paperLight border border-cardboard rounded-sm shadow-xl max-w-lg w-full p-6 space-y-6 animate-fade-in-up relative overflow-hidden text-left">
+            {/* Delivery Complete Wax Seal Delight Overlay */}
+            {!trackingLoading && !trackingError && trackingData && trackingData.order_status.toUpperCase() === 'DELIVERED' && (
+              <div className="absolute inset-0 bg-ink bg-opacity-5 backdrop-blur-[0.5px] pointer-events-none flex flex-col items-center justify-center animate-fade-in z-20">
+                <div className="bg-white border-2 border-herb text-herb p-6 rounded-xs shadow-md max-w-xs text-center rotate-[-4deg] transform animate-scale-up space-y-2 relative pointer-events-auto">
+                  <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-herb block">
+                    JOURNEY VERIFIED
+                  </span>
+                  <div className="text-4xl">📦🌿🐾</div>
+                  <span className="font-display font-bold text-lg text-ink block">
+                    Recipes Delivered!
+                  </span>
+                  <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard block">
+                    Scooby's Kitchen Ink Approved
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTrackingOrderId(null)}
+                    className="mt-4 w-full bg-herb hover:bg-opacity-95 text-paperLight font-mono text-[9px] uppercase font-bold py-2 tracking-wider rounded-xs cursor-pointer border-0"
+                  >
+                    Close Ledger
+                  </button>
+                </div>
+                
+                {/* Floating Emojis Confetti */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  {['📦', '🌿', '🐾', '💚', '📦', '🌿'].map((emoji, idx) => (
+                    <span
+                      key={idx}
+                      className="absolute text-xl animate-drift-down"
+                      style={{
+                        left: `${10 + idx * 16}%`,
+                        animationDelay: `${idx * 0.4}s`,
+                        animationDuration: `${2.8 + idx * 0.4}s`
+                      }}
+                    >
+                      {emoji}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <button 
               onClick={() => setSelectedTrackingOrderId(null)}
               className="absolute top-4 right-4 text-ink opacity-60 hover:opacity-100 font-bold"

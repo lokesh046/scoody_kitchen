@@ -9,6 +9,7 @@ export interface User {
   phone?: string | null;
   profile_image_url?: string | null;
   auth_provider?: string;
+  is_phone_verified?: boolean;
 }
 
 interface AuthState {

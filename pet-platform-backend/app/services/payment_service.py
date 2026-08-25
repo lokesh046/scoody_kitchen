@@ -105,6 +105,14 @@ def process_payment_success(
 
     order.status = OrderStatus.CONFIRMED
 
+    from app.models.cart import Cart
+    cart = db.scalar(
+        select(Cart).where(Cart.user_id == order.user_id)
+    )
+    if cart:
+        for cart_item in list(cart.items):
+            db.delete(cart_item)
+
     db.commit()
     db.refresh(payment)
 

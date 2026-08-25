@@ -20,6 +20,8 @@ from app.schemas.auth import (
     UserRegister,
     UserResponse,
     UserUpdate,
+    FirebaseVerifyPhonePayload,
+    OTPRequest,
 )
 from app.services.auth_service import (
     authenticate_google_user,
@@ -350,3 +352,142 @@ async def upload_avatar(
     )
     
     return {"url": avatar_url}
+
+
+@router.post(
+    "/firebase/verify-phone",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+)
+def verify_firebase_phone(
+    payload: FirebaseVerifyPhonePayload,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        # Check for mock token in local debug environment
+        if settings.DEBUG and payload.id_token == "test_firebase_token":
+            phone_number = "+919876543210"
+        else:
+            from firebase_admin import auth as firebase_auth
+            decoded_token = firebase_auth.verify_id_token(payload.id_token)
+            phone_number = decoded_token.get("phone_number")
+            
+        if not phone_number:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid Firebase ID Token: phone number missing.",
+            )
+        
+        # Update user profile verification status
+        current_user.phone = phone_number
+        current_user.is_phone_verified = True
+        db.commit()
+        db.refresh(current_user)
+        
+        return current_user
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Firebase phone verification failed: {str(e)}",
+        )
+
+
+COOLDOWN_SECONDS = 30
+MAX_PER_PHONE_PER_HOUR = 3
+MAX_PER_IP_PER_HOUR = 10
+
+def get_client_ip(request: Request) -> str:
+    x_forwarded_for = request.headers.get("X-Forwarded-For")
+    if x_forwarded_for:
+        return x_forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else "127.0.0.1"
+
+
+@router.post(
+    "/request-otp",
+    status_code=status.HTTP_200_OK,
+)
+def request_otp(
+    request: Request,
+    payload: OTPRequest,
+):
+    """
+    Pre-check rate-limiting gate for Firebase Phone Auth OTP requests.
+
+    Since Firebase itself doesn't expose a server-side send hook to rate-limit
+    requests directly, this pre-check verifies cooldown and hourly limits via Redis
+    before letting the client trigger the Firebase SDK send operation.
+    """
+    from app.core.cache import cache
+
+    # Safely get raw redis client
+    redis_client = cache.client
+    if not redis_client or not cache.redis_active:
+        import redis
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        redis_client = redis.Redis.from_url(redis_url, decode_responses=True)
+
+    phone_number = payload.phone_number
+    ip_address = get_client_ip(request)
+
+    cooldown_key = f"otp_cooldown:{phone_number}"
+    phone_count_key = f"otp_count:{phone_number}"
+    ip_count_key = f"otp_ip_count:{ip_address}"
+
+    # Read values & TTLs in a pipeline
+    pipe_read = redis_client.pipeline()
+    pipe_read.ttl(cooldown_key)
+    pipe_read.get(phone_count_key)
+    pipe_read.ttl(phone_count_key)
+    pipe_read.get(ip_count_key)
+    pipe_read.ttl(ip_count_key)
+
+    cooldown_ttl, phone_count, phone_ttl, ip_count, ip_ttl = pipe_read.execute()
+
+    # Check Cooldown Limit
+    if cooldown_ttl > 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Please wait {cooldown_ttl} seconds before requesting another code",
+        )
+
+    # Check Phone Hourly Limit
+    if phone_count is not None and int(phone_count) >= MAX_PER_PHONE_PER_HOUR:
+        wait_minutes = max(1, phone_ttl // 60) if phone_ttl > 0 else 60
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many attempts for this number. Try again in {wait_minutes} minutes.",
+        )
+
+    # Check IP Hourly Limit
+    if ip_count is not None and int(ip_count) >= MAX_PER_IP_PER_HOUR:
+        wait_minutes = max(1, ip_ttl // 60) if ip_ttl > 0 else 60
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many attempts for this IP address. Try again in {wait_minutes} minutes.",
+        )
+
+    # All checks passed: set cooldown and increment hourly counters
+    pipe_write = redis_client.pipeline()
+    # 1. Set Cooldown Key
+    pipe_write.set(cooldown_key, "1", ex=COOLDOWN_SECONDS)
+    # 2. Increment Phone Counter
+    pipe_write.incr(phone_count_key)
+    # If key was newly created, set TTL to 1 hour (3600 seconds)
+    if phone_count is None:
+        pipe_write.expire(phone_count_key, 3600)
+    # 3. Increment IP Counter
+    pipe_write.incr(ip_count_key)
+    # If key was newly created, set TTL to 1 hour (3600 seconds)
+    if ip_count is None:
+        pipe_write.expire(ip_count_key, 3600)
+
+    pipe_write.execute()
+
+    # Calculate attempts remaining
+    current_count = int(phone_count) if phone_count is not None else 0
+    attempts_remaining = max(0, MAX_PER_PHONE_PER_HOUR - (current_count + 1))
+
+    return {"allowed": True, "attempts_remaining": attempts_remaining}

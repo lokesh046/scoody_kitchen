@@ -7,12 +7,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        paper: '#FFF9F2',        // Warm Milk Cream background (cozy & organic)
+        paper: '#F9F6F0',        // Warm Cream background (cozy & organic)
         paperLight: '#FFFFFF',   // Pure white card surfaces (clean e-commerce style)
-        ink: '#2B1B17',          // Espresso Cocoa text (soft, friendly dark brown)
-        turmeric: '#F4B251',     // Honey Yellow highlights (vibrant dog-approved accents)
-        herb: '#769F6A',         // Clover Green (fresh, natural label accents)
-        paprika: '#FF5A5F',      // Coral Red CTA buttons (playful and highly interactive)
+        ink: '#362820',          // Dark Roasted Coffee text / header background
+        turmeric: '#D09E6B',     // Warm Ochre titles / highlights
+        herb: '#8FA89B',         // Muted Sage Green labels
+        paprika: '#3F5E4D',      // Forest Green CTA buttons
+        navy: '#17233D',         // Midnight Navy secondary accent
         cardboard: '#EBE0D0',    // Creamy Biscuit dividers/borders
       },
       fontFamily: {

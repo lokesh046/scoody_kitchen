@@ -69,6 +69,12 @@ class User(Base):
         default=False,
     )
 
+    is_phone_verified: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+
     role: Mapped[UserRole] = mapped_column(
     SQLEnum(
         UserRole,
@@ -128,6 +134,12 @@ class User(Base):
 
     magic_link_tokens = relationship(
         "MagicLinkToken",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    doctor_applications = relationship(
+        "DoctorApplication",
         back_populates="user",
         cascade="all, delete-orphan",
     )
