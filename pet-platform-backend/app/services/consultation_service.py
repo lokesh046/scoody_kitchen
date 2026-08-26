@@ -212,7 +212,7 @@ def get_consultation_by_id(
         select(Consultation)
         .options(
             joinedload(Consultation.pet),
-            joinedload(Consultation.doctor),
+            joinedload(Consultation.doctor).joinedload(Doctor.user),
         )
         .where(Consultation.id == consultation_id)
     )
@@ -233,7 +233,7 @@ def get_customer_consultations(
         select(Consultation)
         .options(
             joinedload(Consultation.pet),
-            joinedload(Consultation.doctor),
+            joinedload(Consultation.doctor).joinedload(Doctor.user),
         )
         .where(Consultation.customer_id == customer_id)
     )
@@ -256,7 +256,7 @@ def get_doctor_consultations(
         select(Consultation)
         .options(
             joinedload(Consultation.pet),
-            joinedload(Consultation.doctor),
+            joinedload(Consultation.doctor).joinedload(Doctor.user),
         )
         .where(Consultation.doctor_id == doctor_id)
     )

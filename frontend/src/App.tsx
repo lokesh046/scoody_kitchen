@@ -21,6 +21,7 @@ import { ProfilePage } from './features/profile/ProfilePage';
 import HomePage from './features/home/HomePage';
 import ShopPage from './features/shop/ShopPage';
 import ApplyDoctorPage from './features/consultations/ApplyDoctorPage';
+import { OnboardingPage } from './features/onboarding/OnboardingPage';
 
 function AuthEventListener() {
   const navigate = useNavigate();
@@ -131,6 +132,7 @@ export default function App() {
             <Route path="/pets" element={<RequireAuth><PetsPage /></RequireAuth>} />
             <Route path="/consultations" element={<RequireAuth><ConsultationsPage /></RequireAuth>} />
             <Route path="/apply-doctor" element={<RequireAuth><ApplyDoctorPage /></RequireAuth>} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/assistant" element={<RequireAuth><AssistantPage /></RequireAuth>} />
             <Route path="/admin" element={<RequireAuth adminOnly={true}><AdminDashboard /></RequireAuth>} />
             <Route path="/admin/doctors" element={<RequireAuth adminOnly={true}><AdminDoctorsPage /></RequireAuth>} />

@@ -53,12 +53,12 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
   };
 
   const navLinks = [
+    { id: 'onboarding', label: 'Meal Planner 🥗', path: '/onboarding' },
     { id: 'shop', label: 'Shop Recipes', path: '/shop' },
     { id: 'pets', label: 'Know Your Pet', path: '/pets' },
     { id: 'consultations', label: 'Vet Consults', path: '/consultations' },
     { id: 'orders', label: 'My Orders', path: '/orders' },
     { id: 'assistant', label: 'AI Assistant 🐾', path: '/assistant' },
-    { id: 'profile', label: 'My Profile', path: '/profile' },
   ];
 
   return (

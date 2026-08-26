@@ -762,7 +762,11 @@ export const ConsultationsPage: React.FC = () => {
                               <span>VET SPECIALIST</span>
                             </span>
                             <span className="bg-paperLight pl-1 font-bold text-ink flex items-center space-x-1">
-                              <span>🩺 Dr. ID #{consult.doctor_id} ({consult.doctor?.specialization || 'Nutritionist'})</span>
+                              <span>
+                                🩺 {consult.doctor?.user?.first_name || consult.doctor?.user?.last_name 
+                                  ? `Dr. ${consult.doctor.user.first_name || ''} ${consult.doctor.user.last_name || ''}`.trim() 
+                                  : `Dr. ID #${consult.doctor_id}`} ({consult.doctor?.specialization || 'Nutritionist'})
+                              </span>
                               <button
                                 type="button"
                                 onClick={() => setInspectingDoctorId(consult.doctor_id)}
@@ -1467,12 +1471,16 @@ export const ConsultationsPage: React.FC = () => {
                   
                   <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-ink">
                     <div>
-                      <span className="text-[8px] uppercase text-herb font-bold block">Patient Companion</span>
+                      <span className="text-[10px] uppercase text-paprika font-bold block">Patient Companion</span>
                       <span className="font-bold">🐾 {consultationDetails.pet?.name || 'Pet'} ({consultationDetails.pet?.species})</span>
                     </div>
                     <div>
-                      <span className="text-[8px] uppercase text-herb font-bold block">Specialist Vet</span>
-                      <span className="font-bold">Dr. ID #{consultationDetails.doctor_id} ({consultationDetails.doctor?.specialization || 'Vet'})</span>
+                      <span className="text-[10px] uppercase text-paprika font-bold block">Specialist Vet</span>
+                      <span className="font-bold">
+                        {consultationDetails.doctor?.user?.first_name || consultationDetails.doctor?.user?.last_name 
+                          ? `Dr. ${consultationDetails.doctor.user.first_name || ''} ${consultationDetails.doctor.user.last_name || ''}`.trim() 
+                          : `Dr. ID #${consultationDetails.doctor_id}`} ({consultationDetails.doctor?.specialization || 'Vet'})
+                      </span>
                     </div>
                   </div>
                 </div>

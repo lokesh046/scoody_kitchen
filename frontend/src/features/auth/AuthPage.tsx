@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth';
 import { registerUser, requestMagicLink, verifyMagicCode, fetchCurrentUser, authenticateGoogle } from '../../api/auth';
+import { createPet } from '../../api/pets';
 import { Eyebrow } from '../../components/Eyebrow';
 import { Key, Mail, Phone, User, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { DogViewer3D } from '../../components/DogViewer3D';
@@ -163,7 +164,9 @@ export const AuthPage: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   // Get redirect target (defaults to '/')
-  const from = (location.state as any)?.from?.pathname || '/';
+  const queryParams = new URLSearchParams(location.search);
+  const redirectParam = queryParams.get('redirect');
+  const from = redirectParam ? `/${redirectParam}` : ((location.state as any)?.from?.pathname || '/');
 
   // Initialize Google Identity Services
   useEffect(() => {
@@ -211,6 +214,30 @@ export const AuthPage: React.FC = () => {
       setAuth(null, tokenRes.access_token);
       const userProfile = await fetchCurrentUser();
       setAuth(userProfile, tokenRes.access_token);
+
+      // Auto-save pending pet if exists
+      const pendingPetStr = localStorage.getItem('pending_onboarding_pet');
+      if (pendingPetStr) {
+        try {
+          const pendingPet = JSON.parse(pendingPetStr);
+          const birthDate = new Date();
+          birthDate.setFullYear(birthDate.getFullYear() - pendingPet.ageYears);
+          birthDate.setMonth(birthDate.getMonth() - pendingPet.ageMonths);
+          const dateOfBirthStr = birthDate.toISOString().split('T')[0];
+          await createPet({
+            name: pendingPet.name,
+            species: 'dog',
+            breed: pendingPet.breed || 'Mixed Breed',
+            gender: pendingPet.gender || 'unknown',
+            date_of_birth: dateOfBirthStr,
+            weight: Number(pendingPet.weight),
+          });
+          localStorage.removeItem('pending_onboarding_pet');
+        } catch (e) {
+          console.error('Failed to auto-save pending pet:', e);
+        }
+      }
+
       triggerCornerConfetti();
       setTimeout(() => {
         navigate(from, { replace: true });
@@ -278,6 +305,29 @@ export const AuthPage: React.FC = () => {
       
       // Save authenticated user and token
       setAuth(userProfile, tokenRes.access_token);
+
+      // Auto-save pending pet if exists
+      const pendingPetStr = localStorage.getItem('pending_onboarding_pet');
+      if (pendingPetStr) {
+        try {
+          const pendingPet = JSON.parse(pendingPetStr);
+          const birthDate = new Date();
+          birthDate.setFullYear(birthDate.getFullYear() - pendingPet.ageYears);
+          birthDate.setMonth(birthDate.getMonth() - pendingPet.ageMonths);
+          const dateOfBirthStr = birthDate.toISOString().split('T')[0];
+          await createPet({
+            name: pendingPet.name,
+            species: 'dog',
+            breed: pendingPet.breed || 'Mixed Breed',
+            gender: pendingPet.gender || 'unknown',
+            date_of_birth: dateOfBirthStr,
+            weight: Number(pendingPet.weight),
+          });
+          localStorage.removeItem('pending_onboarding_pet');
+        } catch (e) {
+          console.error('Failed to auto-save pending pet:', e);
+        }
+      }
 
       triggerCornerConfetti();
       setTimeout(() => {

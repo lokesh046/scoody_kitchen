@@ -54,8 +54,8 @@ export default function ApplyDoctorPage() {
   // Form states
   const [phone, setPhone] = useState('');
   const [specialization, setSpecialization] = useState('General Veterinarian');
-  const [experienceYears, setExperienceYears] = useState<number | ''>('');
-  const [consultationFee, setConsultationFee] = useState<number | ''>('');
+  const [experienceYears, setExperienceYears] = useState<string>('');
+  const [consultationFee, setConsultationFee] = useState<string>('');
   const [licenseNumber, setLicenseNumber] = useState('');
   const [bio, setBio] = useState('');
   const [nationality, setNationality] = useState('');
@@ -140,8 +140,8 @@ export default function ApplyDoctorPage() {
     if (application && application.status === 'REJECTED') {
       setPhone(application.phone);
       setSpecialization(application.specialization);
-      setExperienceYears(application.experience_years);
-      setConsultationFee(parseFloat(application.consultation_fee));
+      setExperienceYears(application.experience_years !== undefined && application.experience_years !== null ? String(application.experience_years) : '');
+      setConsultationFee(application.consultation_fee ? String(parseFloat(application.consultation_fee)) : '');
       setLicenseNumber(application.license_number);
       setBio(application.bio || '');
       if (application.education_history) {
@@ -194,6 +194,9 @@ export default function ApplyDoctorPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Reset target input value to allow re-selection and re-uploading
+    e.target.value = '';
+
     if (file.size > 5 * 1024 * 1024) {
       alert("File size exceeds 5MB limit.");
       return;
@@ -232,11 +235,13 @@ export default function ApplyDoctorPage() {
       setErrorMsg('Medical License Number is required.');
       return false;
     }
-    if (experienceYears === '' || experienceYears < 0) {
+    const expNum = Number(experienceYears);
+    if (experienceYears === '' || isNaN(expNum) || expNum < 0) {
       setErrorMsg('Years of Experience is required and cannot be negative.');
       return false;
     }
-    if (consultationFee === '' || consultationFee < 0) {
+    const feeNum = Number(consultationFee);
+    if (consultationFee === '' || isNaN(feeNum) || feeNum < 0) {
       setErrorMsg('Consultation Fee is required and cannot be negative.');
       return false;
     }
@@ -296,8 +301,8 @@ export default function ApplyDoctorPage() {
         phone,
         specialization,
         qualification: primaryQual,
-        experience_years: experienceYears === '' ? 0 : experienceYears,
-        consultation_fee: consultationFee === '' ? 0 : consultationFee,
+        experience_years: experienceYears === '' ? 0 : Number(experienceYears),
+        consultation_fee: consultationFee === '' ? 0 : Number(consultationFee),
         license_number: licenseNumber,
         bio,
         degree_start_year: educationHistory[0].start_year,
@@ -710,10 +715,7 @@ export default function ApplyDoctorPage() {
                         type="number"
                         id="exp-years"
                         value={experienceYears}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setExperienceYears(val === '' ? '' : parseInt(val) || 0);
-                        }}
+                        onChange={(e) => setExperienceYears(e.target.value)}
                         min="0"
                         className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                         required
@@ -737,10 +739,7 @@ export default function ApplyDoctorPage() {
                         type="number"
                         id="fee-input"
                         value={consultationFee}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setConsultationFee(val === '' ? '' : parseFloat(val) || 0);
-                        }}
+                        onChange={(e) => setConsultationFee(e.target.value)}
                         min="0"
                         step="0.01"
                         className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"

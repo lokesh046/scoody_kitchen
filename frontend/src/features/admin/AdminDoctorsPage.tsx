@@ -1029,8 +1029,8 @@ export const AdminDoctorsPage: React.FC = () => {
                                 </td>
                                 <td className="py-4 px-2">
                                   <span className="font-display font-black text-ink block text-xs">
-                                    Dr. {con.doctor?.first_name || con.doctor?.last_name 
-                                      ? `${con.doctor.first_name || ''} ${con.doctor.last_name || ''}` 
+                                    Dr. {con.doctor?.user?.first_name || con.doctor?.user?.last_name 
+                                      ? `${con.doctor.user.first_name || ''} ${con.doctor.user.last_name || ''}`.trim() 
                                       : `Vet #${con.doctor_id}`}
                                   </span>
                                   <span className="text-xs text-ink text-opacity-85 block font-mono">{con.doctor?.specialization}</span>

@@ -61,6 +61,7 @@ def test_product_response_schema_with_gallery_images():
         price=Decimal("399.00"),
         image_url="https://res.cloudinary.com/scooby/image/upload/1.jpg",
         is_active=True,
+        in_slider=False,
         created_at="2026-08-16T12:00:00Z",
         updated_at="2026-08-16T12:00:00Z",
         images=[img_resp1, img_resp2],

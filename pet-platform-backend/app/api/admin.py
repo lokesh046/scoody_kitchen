@@ -402,6 +402,7 @@ async def create_order_shipment_admin(
 
 
 from app.models.consultation import Consultation
+from app.models.doctor import Doctor
 from app.models.enums import ConsultationStatus
 from app.schemas.consultation import ConsultationResponse, ConsultationStatusUpdate, PaginatedConsultationResponse
 from app.services.consultation_service import get_consultation_by_id, update_consultation_status
@@ -424,7 +425,7 @@ def list_all_consultations_admin(
         select(Consultation)
         .options(
             joinedload(Consultation.pet),
-            joinedload(Consultation.doctor),
+            joinedload(Consultation.doctor).joinedload(Doctor.user),
         )
     )
     if status_filter is not None:

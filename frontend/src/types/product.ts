@@ -20,6 +20,7 @@ export interface ProductResponse {
   price: string; // Decimal is returned as string from FastAPI
   image_url: string | null;
   is_active: boolean;
+  in_slider: boolean;
   created_at: string;
   updated_at: string;
   category?: CategoryResponse;

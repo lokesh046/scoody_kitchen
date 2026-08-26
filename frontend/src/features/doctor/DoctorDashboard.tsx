@@ -279,16 +279,15 @@ export const DoctorDashboard: React.FC = () => {
 
   const { data: application, isLoading: applicationLoading } = useQuery<DoctorApplicationResponse | null, Error>({
     queryKey: ['myDoctorApplicationStatus'],
-    queryFn: fetchMyApplicationStatus,
-    enabled: activeTab === 'verification'
+    queryFn: fetchMyApplicationStatus
   });
 
   useEffect(() => {
     if (profile && !isProfileInitialized) {
       setSpec(profile.specialization || '');
       setQual(profile.qualification || '');
-      setFee(profile.consultation_fee || '');
-      setExpYears(String(profile.experience_years || '0'));
+      setFee(profile.consultation_fee ? String(profile.consultation_fee) : '');
+      setExpYears(profile.experience_years !== undefined && profile.experience_years !== null ? String(profile.experience_years) : '');
       setBioText(profile.bio || '');
       setIsProfileInitialized(true);
     }
@@ -1079,6 +1078,33 @@ export const DoctorDashboard: React.FC = () => {
                         {profile.is_verified ? 'Verified ✓' : 'Pending Verification'}
                       </span>
                     </div>
+
+                    {/* Mini Onboarding Assets Checklist */}
+                    {application && (
+                      <div className="pt-3 space-y-2 border-t border-cardboard border-dashed mt-2 text-left">
+                        <span className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold block">Onboarding Logged Assets</span>
+                        <div className="space-y-1.5 font-mono text-[10px]">
+                          <div className="flex justify-between items-center">
+                            <span className="text-ink opacity-70">Aadhaar Card Record:</span>
+                            <span className={application.aadhaar_card_url ? "text-green-700 font-bold" : "text-paprika font-bold"}>
+                              {application.aadhaar_card_url ? "✓ Logged" : "✗ Missing"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-ink opacity-70">PAN Card Record:</span>
+                            <span className={application.pan_card_url ? "text-green-700 font-bold" : "text-paprika font-bold"}>
+                              {application.pan_card_url ? "✓ Logged" : "✗ Missing"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-ink opacity-70">Medical Certificate:</span>
+                            <span className={application.medical_certificate_url ? "text-green-700 font-bold" : "text-paprika font-bold"}>
+                              {application.medical_certificate_url ? "✓ Logged" : "✗ Missing"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1291,7 +1317,7 @@ export const DoctorDashboard: React.FC = () => {
       {/* Medical Log Editor Modal */}
       {isLogModalOpen && selectedConsultationForLog && (
         <div className="fixed inset-0 bg-ink bg-opacity-65 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-paper border border-cardboard max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl p-6 flex flex-col space-y-4 text-left">
+          <div className="bg-paper border border-cardboard max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-none shadow-xl p-8 flex flex-col space-y-5 text-left border-2">
             <div className="flex justify-between items-start border-b border-cardboard border-dashed pb-3">
               <div>
                 <span className="font-mono text-[10px] uppercase font-bold text-paprika tracking-widest block">
@@ -1306,7 +1332,7 @@ export const DoctorDashboard: React.FC = () => {
               </div>
               <button
                 onClick={() => setIsLogModalOpen(false)}
-                className="text-ink opacity-50 hover:opacity-100 font-mono text-xs uppercase"
+                className="px-2.5 py-1 border border-cardboard rounded-sm font-mono text-[10px] uppercase font-bold text-ink hover:bg-paperLight transition-all duration-150 cursor-pointer"
               >
                 ✕ Close
               </button>
@@ -1322,24 +1348,24 @@ export const DoctorDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   {/* Title field */}
                   <div className="md:col-span-8 space-y-1">
-                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Log Entry Title:</label>
+                    <label className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wider block mb-1.5">Log Entry Title:</label>
                     <input
                       type="text"
                       required
                       value={logTitle}
                       onChange={(e) => setLogTitle(e.target.value)}
-                      className="w-full px-3 py-2 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                      className="w-full px-3.5 py-2.5 border border-cardboard rounded-none bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-all duration-150"
                       placeholder="e.g. Annual Checkup or Nutrition Diagnostic"
                     />
                   </div>
 
                   {/* Record Type field */}
                   <div className="md:col-span-4 space-y-1">
-                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Record Type:</label>
+                    <label className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wider block mb-1.5">Record Type:</label>
                     <select
                       value={logRecordType}
                       onChange={(e) => setLogRecordType(e.target.value)}
-                      className="w-full px-3 py-2 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors"
+                      className="w-full px-3.5 py-2.5 border border-cardboard rounded-none bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric cursor-pointer transition-all duration-150"
                     >
                       <option value="general">General Log</option>
                       <option value="diagnosis">Diagnostic Log</option>
@@ -1353,24 +1379,24 @@ export const DoctorDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Symptoms */}
                   <div className="space-y-1">
-                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Observed Symptoms:</label>
+                    <label className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wider block mb-1.5">Observed Symptoms:</label>
                     <textarea
-                      rows={2}
+                      rows={3}
                       value={logSymptoms}
                       onChange={(e) => setLogSymptoms(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
+                      className="w-full px-3.5 py-2.5 border border-cardboard rounded-none bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-all duration-150 resize-none"
                       placeholder="List any signs or symptoms reported by the owner..."
                     />
                   </div>
 
                   {/* Clinical Findings */}
                   <div className="space-y-1">
-                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Clinical Findings:</label>
+                    <label className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wider block mb-1.5">Clinical Findings:</label>
                     <textarea
-                      rows={2}
+                      rows={3}
                       value={logClinicalFindings}
                       onChange={(e) => setLogClinicalFindings(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
+                      className="w-full px-3.5 py-2.5 border border-cardboard rounded-none bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-all duration-150 resize-none"
                       placeholder="Physical exam results, vital signs..."
                     />
                   </div>
@@ -1379,24 +1405,24 @@ export const DoctorDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Diagnosis */}
                   <div className="space-y-1">
-                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Diagnosis conclusion:</label>
+                    <label className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wider block mb-1.5">Diagnosis conclusion:</label>
                     <textarea
-                      rows={2}
+                      rows={3}
                       value={logDiagnosis}
                       onChange={(e) => setLogDiagnosis(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
+                      className="w-full px-3.5 py-2.5 border border-cardboard rounded-none bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-all duration-150 resize-none"
                       placeholder="Primary medical conclusions..."
                     />
                   </div>
 
                   {/* Treatment */}
                   <div className="space-y-1">
-                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Prescribed Treatment:</label>
+                    <label className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wider block mb-1.5">Prescribed Treatment:</label>
                     <textarea
-                      rows={2}
+                      rows={3}
                       value={logTreatment}
                       onChange={(e) => setLogTreatment(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
+                      className="w-full px-3.5 py-2.5 border border-cardboard rounded-none bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-all duration-150 resize-none"
                       placeholder="Recommended therapeutic or dietary changes..."
                     />
                   </div>
@@ -1405,36 +1431,36 @@ export const DoctorDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   {/* Medications */}
                   <div className="md:col-span-8 space-y-1">
-                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Prescribed Medications:</label>
+                    <label className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wider block mb-1.5">Prescribed Medications:</label>
                     <input
                       type="text"
                       value={logMedications}
                       onChange={(e) => setLogMedications(e.target.value)}
-                      className="w-full px-3 py-2 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                      className="w-full px-3.5 py-2.5 border border-cardboard rounded-none bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-all duration-150"
                       placeholder="e.g. Amoxicillin 250mg once daily for 5 days"
                     />
                   </div>
 
                   {/* Follow-up Date */}
                   <div className="md:col-span-4 space-y-1">
-                    <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Follow-up Date:</label>
+                    <label className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wider block mb-1.5">Follow-up Date:</label>
                     <input
                       type="date"
                       value={logFollowUpDate}
                       onChange={(e) => setLogFollowUpDate(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors"
+                      className="w-full px-3.5 py-2.5 border border-cardboard rounded-none bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-all duration-150 cursor-pointer"
                     />
                   </div>
                 </div>
 
                 {/* Notes */}
                 <div className="space-y-1">
-                  <label className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wide block">Internal Notes:</label>
+                  <label className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wider block mb-1.5">Internal Notes:</label>
                   <textarea
-                    rows={2}
+                    rows={3}
                     value={logNotes}
                     onChange={(e) => setLogNotes(e.target.value)}
-                    className="w-full px-3 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors resize-none"
+                    className="w-full px-3.5 py-2.5 border border-cardboard rounded-none bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-all duration-150 resize-none"
                     placeholder="Any private case notes, specific recommendations..."
                   />
                 </div>
@@ -1444,14 +1470,14 @@ export const DoctorDashboard: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsLogModalOpen(false)}
-                    className="px-4 py-2 border border-cardboard rounded-full font-mono text-[10px] uppercase font-bold text-ink hover:bg-paper transition-colors"
+                    className="px-5 py-2.5 border border-cardboard rounded-none font-mono text-[10px] uppercase font-bold text-ink hover:bg-paperLight transition-all duration-150 hover:-translate-y-0.5 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isSavingLog}
-                    className="px-4 py-2 bg-turmeric text-ink rounded-full font-mono text-[10px] uppercase font-bold hover:opacity-95 transition-opacity flex items-center space-x-1.5 disabled:opacity-50"
+                    className="px-5 py-2.5 bg-turmeric border border-cardboard text-ink rounded-none font-mono text-[10px] uppercase font-bold hover:bg-opacity-95 transition-all duration-150 hover:-translate-y-0.5 disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer"
                   >
                     {isSavingLog ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1535,7 +1561,11 @@ export const DoctorDashboard: React.FC = () => {
                     </div>
                     <div>
                       <span className="font-mono text-[10px] uppercase text-paprika font-bold block">FELLOW SPECIALIST</span>
-                      <div className="font-bold">Dr. ID #{doctorConsultationDetails.doctor_id}</div>
+                      <div className="font-bold">
+                        {doctorConsultationDetails.doctor?.user?.first_name || doctorConsultationDetails.doctor?.user?.last_name 
+                          ? `Dr. ${doctorConsultationDetails.doctor.user.first_name || ''} ${doctorConsultationDetails.doctor.user.last_name || ''}`.trim() 
+                          : `Dr. ID #${doctorConsultationDetails.doctor_id}`}
+                      </div>
                       <div className="opacity-70 mt-0.5">Qualifications: {doctorConsultationDetails.doctor?.qualification}</div>
                     </div>
                   </div>

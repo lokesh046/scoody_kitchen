@@ -30,6 +30,7 @@ import {
 } from '../../api/productsAdmin';
 import type { CreateProductData, InventoryUpdate } from '../../api/productsAdmin';
 import { fetchRAGDocuments, uploadRAGDocument, deleteRAGDocument } from '../../api/chatbot';
+import { fetchAllBanners, createBanner, updateBanner, deleteBanner } from '../../api/banners';
 import { 
   Loader2, 
   ArrowLeft, 
@@ -45,7 +46,8 @@ import {
   Trash2,
   FileText,
   BarChart3,
-  TrendingUp
+  TrendingUp,
+  Image
 } from 'lucide-react';
 
 const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
@@ -64,7 +66,7 @@ const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'analytics' | 'orders' | 'recipes' | 'inventory' | 'knowledge_agent'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'orders' | 'recipes' | 'inventory' | 'knowledge_agent' | 'banners'>('analytics');
   
   // Form States - AI Knowledge Base
   const [ragFile, setRagFile] = useState<File | null>(null);
@@ -82,6 +84,7 @@ export const AdminDashboard: React.FC = () => {
   const [recipeCategoryId, setRecipeCategoryId] = useState('');
   const [recipeImgUrl, setRecipeImgUrl] = useState('');
   const [recipeWeightsInput, setRecipeWeightsInput] = useState('');
+  const [recipeInSlider, setRecipeInSlider] = useState(false);
 
   // Form States - New Category
   const [categoryName, setCategoryName] = useState('');
@@ -96,11 +99,40 @@ export const AdminDashboard: React.FC = () => {
   // Form States - Shipping
   const [shippingOrderId, setShippingOrderId] = useState<number | null>(null);
 
+  // Form States - Banners
+  const [bannerTitle, setBannerTitle] = useState('');
+  const [bannerSubtitle, setBannerSubtitle] = useState('');
+  const [bannerLinkUrl, setBannerLinkUrl] = useState('');
+  const [bannerDisplayOrder, setBannerDisplayOrder] = useState('0');
+  const [bannerIsActive, setBannerIsActive] = useState(true);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+
+  // Edit State - Banners
+  const [editingBannerId, setEditingBannerId] = useState<number | null>(null);
+  const [editBannerTitle, setEditBannerTitle] = useState('');
+  const [editBannerSubtitle, setEditBannerSubtitle] = useState('');
+  const [editBannerLinkUrl, setEditBannerLinkUrl] = useState('');
+  const [editBannerDisplayOrder, setEditBannerDisplayOrder] = useState('0');
+  const [editBannerIsActive, setEditBannerIsActive] = useState(true);
+  const [editBannerFile, setEditBannerFile] = useState<File | null>(null);
+
+  const resetBannerForm = () => {
+    setBannerTitle('');
+    setBannerSubtitle('');
+    setBannerLinkUrl('');
+    setBannerDisplayOrder('0');
+    setBannerIsActive(true);
+    setBannerFile(null);
+    const fileInput = document.getElementById('banner-file-input') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
   // Form States - Quick Edit Modal
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [editPrice, setEditPrice] = useState('');
   const [editStock, setEditStock] = useState('');
   const [editWeightsInput, setEditWeightsInput] = useState('');
+  const [editInSlider, setEditInSlider] = useState(false);
   const [carrier, setCarrier] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
@@ -241,6 +273,7 @@ export const AdminDashboard: React.FC = () => {
       setRecipePrice('');
       setRecipeImgUrl('');
       setRecipeWeightsInput('');
+      setRecipeInSlider(false);
     }
   });
 
@@ -428,11 +461,49 @@ export const AdminDashboard: React.FC = () => {
     }
   });
 
+  const { data: banners, isLoading: bannersLoading } = useQuery({
+    queryKey: ['admin-banners'],
+    queryFn: fetchAllBanners,
+    enabled: activeTab === 'banners',
+  });
 
+  const createBannerMutation = useMutation({
+    mutationFn: createBanner,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-banners'] });
+      resetBannerForm();
+      alert('Banner created successfully!');
+    },
+    onError: (err: any) => {
+      console.error(err);
+      alert(err.response?.data?.detail || 'Failed to create banner.');
+    }
+  });
 
+  const updateBannerMutation = useMutation({
+    mutationFn: ({ id, formData }: { id: number, formData: FormData }) => updateBanner(id, formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-banners'] });
+      setEditingBannerId(null);
+      alert('Banner updated successfully!');
+    },
+    onError: (err: any) => {
+      console.error(err);
+      alert(err.response?.data?.detail || 'Failed to update banner.');
+    }
+  });
 
-
-
+  const deleteBannerMutation = useMutation({
+    mutationFn: deleteBanner,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-banners'] });
+      alert('Banner deleted successfully!');
+    },
+    onError: (err: any) => {
+      console.error(err);
+      alert(err.response?.data?.detail || 'Failed to delete banner.');
+    }
+  });
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
@@ -483,6 +554,7 @@ export const AdminDashboard: React.FC = () => {
               { id: 'recipes', label: 'Recipes', icon: BookOpen },
               { id: 'inventory', label: 'Inventory', icon: Boxes },
               { id: 'knowledge_agent', label: 'AI Knowledge', icon: Sparkles },
+              { id: 'banners', label: 'Banners', icon: Image },
             ];
 
             return items.map((item) => {
@@ -1147,7 +1219,8 @@ export const AdminDashboard: React.FC = () => {
                         available_stock: Number(recipeStock),
                         category_id: Number(recipeCategoryId),
                         image_url: recipeImgUrl || undefined,
-                        weight_options: parsedOptions
+                        weight_options: parsedOptions,
+                        in_slider: recipeInSlider
                       });
                     }
                   }}
@@ -1227,6 +1300,19 @@ export const AdminDashboard: React.FC = () => {
                     className="bg-paper border border-cardboard w-full p-2.5 text-xs text-ink outline-none font-mono"
                   />
 
+                  <div className="flex items-center space-x-2 py-1 select-none">
+                    <input
+                      type="checkbox"
+                      id="recipeInSlider"
+                      checked={recipeInSlider}
+                      onChange={(e) => setRecipeInSlider(e.target.checked)}
+                      className="w-3.5 h-3.5 border border-cardboard rounded-none bg-paper accent-turmeric cursor-pointer"
+                    />
+                    <label htmlFor="recipeInSlider" className="font-mono text-[9px] uppercase font-bold text-herb cursor-pointer">
+                      Include in Homepage Slider
+                    </label>
+                  </div>
+
                   <button
                     type="submit"
                     disabled={createProductMutation.isPending}
@@ -1263,6 +1349,11 @@ export const AdminDashboard: React.FC = () => {
                           <span className="font-mono text-[8px] uppercase tracking-wider bg-paper border border-cardboard px-1 rounded-sm text-herb">
                             {prod.category?.name || 'Sourced Item'}
                           </span>
+                          {prod.in_slider && (
+                            <span className="font-mono text-[8px] uppercase tracking-wider bg-turmeric text-ink px-1 rounded-sm font-bold">
+                              ✨ Slider
+                            </span>
+                          )}
                         </div>
                         <p className="font-body text-sm text-ink opacity-70 line-clamp-2 pr-6">{prod.description || 'No description provided.'}</p>
                         <div className="font-mono text-[9px] text-ink flex flex-wrap gap-4 pt-1">
@@ -1369,6 +1460,7 @@ export const AdminDashboard: React.FC = () => {
                                   setEditPrice(prod.price);
                                   setEditStock(String(prod.available_stock ?? ''));
                                   setEditWeightsInput(prod.weight_options ? prod.weight_options.map((opt: any) => `${opt.weight}: ${opt.price}`).join(', ') : '');
+                                  setEditInSlider(prod.in_slider ?? false);
                                 }}
                                 className="font-mono text-[9px] uppercase font-bold tracking-wider text-herb hover:underline"
                               >
@@ -1736,6 +1828,244 @@ export const AdminDashboard: React.FC = () => {
           </div>
         )}
 
+        {/* Tab 6: Banners Management */}
+        {activeTab === 'banners' && (
+          <div className="space-y-8 text-left animate-fade-in-up">
+            <div>
+              <h3 className="font-display font-bold text-xl text-ink">Homepage Banners</h3>
+              <p className="font-body text-xs text-ink opacity-70 mt-0.5">
+                Upload and configure the featured banners displayed on the homepage slider.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* Form Card */}
+              <div className="lg:col-span-4 border border-cardboard bg-paperLight p-6 rounded-none space-y-5">
+                <div className="border-b border-cardboard border-dashed pb-3">
+                  <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Banner Management</span>
+                  <h4 className="font-display font-bold text-sm text-ink mt-0.5">Upload New Banner</h4>
+                </div>
+
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!bannerFile) {
+                      alert('Please select a banner image file to upload.');
+                      return;
+                    }
+                    const formData = new FormData();
+                    if (bannerTitle) formData.append('title', bannerTitle);
+                    if (bannerSubtitle) formData.append('subtitle', bannerSubtitle);
+                    if (bannerLinkUrl) formData.append('link_url', bannerLinkUrl);
+                    formData.append('display_order', bannerDisplayOrder);
+                    formData.append('is_active', String(bannerIsActive));
+                    formData.append('image', bannerFile);
+
+                    createBannerMutation.mutate(formData);
+                  }}
+                  className="space-y-4"
+                >
+                  <div className="space-y-1.5">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                      Select Banner Image (Landscape, e.g. 1920x600):
+                    </label>
+                    <input
+                      id="banner-file-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          setBannerFile(e.target.files[0]);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {bannerFile && (
+                    <div className="space-y-1.5 animate-fade-in-up">
+                      <label className="font-mono text-[9px] uppercase font-bold text-herb block">
+                        Selected Image Preview:
+                      </label>
+                      <img
+                        src={URL.createObjectURL(bannerFile)}
+                        alt="Selected Preview"
+                        className="w-full h-32 object-cover border border-cardboard rounded-sm"
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                      Title (Optional):
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Welcome to the Family"
+                      value={bannerTitle}
+                      onChange={(e) => setBannerTitle(e.target.value)}
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                      Subtitle (Optional):
+                    </label>
+                    <textarea
+                      placeholder="e.g. Premium single-source meat recipes..."
+                      value={bannerSubtitle}
+                      onChange={(e) => setBannerSubtitle(e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric resize-none transition-colors"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                      Link URL (Optional redirect):
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. /shop or /product/1"
+                      value={bannerLinkUrl}
+                      onChange={(e) => setBannerLinkUrl(e.target.value)}
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                        Display Order:
+                      </label>
+                      <input
+                        type="number"
+                        value={bannerDisplayOrder}
+                        onChange={(e) => setBannerDisplayOrder(e.target.value)}
+                        min="0"
+                        className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                      />
+                    </div>
+                    <div className="flex items-center space-x-2 pt-5">
+                      <input
+                        type="checkbox"
+                        id="banner-is-active"
+                        checked={bannerIsActive}
+                        onChange={(e) => setBannerIsActive(e.target.checked)}
+                        className="w-4 h-4 border border-cardboard text-turmeric focus:ring-turmeric rounded-none cursor-pointer"
+                      />
+                      <label htmlFor="banner-is-active" className="font-mono text-[9px] uppercase font-bold text-ink cursor-pointer">
+                        Is Active
+                      </label>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={createBannerMutation.isPending}
+                    className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[10px] uppercase font-bold py-3 tracking-wider transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+                  >
+                    {createBannerMutation.isPending ? 'Uploading...' : 'Save Banner'}
+                  </button>
+                </form>
+              </div>
+
+              {/* Banners List Index */}
+              <div className="lg:col-span-8 space-y-4">
+                <div className="border-b border-cardboard border-dashed pb-3 text-left">
+                  <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Active Banners Registry</span>
+                  <h4 className="font-display font-bold text-sm text-ink mt-0.5">Uploaded Banners</h4>
+                </div>
+
+                {bannersLoading ? (
+                  <div className="flex items-center space-x-2 text-ink opacity-60 py-10 justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin text-turmeric" />
+                    <span className="font-mono text-[10px] uppercase font-bold tracking-wider">Loading Banners...</span>
+                  </div>
+                ) : !banners || banners.length === 0 ? (
+                  <div className="text-center py-16 border border-dashed border-cardboard rounded-sm bg-paper bg-opacity-35">
+                    <Image className="w-8 h-8 text-cardboard mx-auto stroke-1 mb-2" />
+                    <h5 className="font-display font-bold text-ink text-xs">No Banners Found</h5>
+                    <p className="font-body text-[10px] text-ink opacity-70 max-w-[240px] mx-auto mt-1">
+                      No banners are registered. Upload a banner image to populate the homepage slide show.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="border border-cardboard bg-paperLight overflow-hidden rounded-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs font-body text-ink border-collapse">
+                        <thead>
+                          <tr className="bg-paper border-b border-cardboard font-mono text-[9px] uppercase tracking-wider text-herb text-left">
+                            <th className="p-4 font-bold">Image</th>
+                            <th className="p-4 font-bold">Details</th>
+                            <th className="p-4 font-bold text-center">Order</th>
+                            <th className="p-4 font-bold text-center">Status</th>
+                            <th className="p-4 font-bold text-center">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-cardboard divide-dashed">
+                          {banners.map((b) => (
+                            <tr key={b.id} className="hover:bg-paper transition-colors">
+                              <td className="p-4">
+                                <img
+                                  src={b.image_url}
+                                  alt={b.title || 'Banner'}
+                                  className="w-24 h-12 object-cover border border-cardboard rounded-none"
+                                />
+                              </td>
+                              <td className="p-4 text-left space-y-1">
+                                <div className="font-bold text-xs">{b.title || 'Untitled Banner'}</div>
+                                {b.subtitle && <div className="text-[10px] text-ink opacity-70 line-clamp-1">{b.subtitle}</div>}
+                                {b.link_url && <div className="text-[9px] font-mono text-herb">Link: {b.link_url}</div>}
+                              </td>
+                              <td className="p-4 text-center font-mono text-[11px] font-bold">{b.display_order}</td>
+                              <td className="p-4 text-center">
+                                <span className={`font-mono text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold ${
+                                  b.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {b.is_active ? 'Active' : 'Disabled'}
+                                </span>
+                              </td>
+                              <td className="p-4 text-center">
+                                <div className="flex items-center justify-center space-x-3">
+                                  <button
+                                    onClick={() => {
+                                      setEditingBannerId(b.id);
+                                      setEditBannerTitle(b.title || '');
+                                      setEditBannerSubtitle(b.subtitle || '');
+                                      setEditBannerLinkUrl(b.link_url || '');
+                                      setEditBannerDisplayOrder(String(b.display_order));
+                                      setEditBannerIsActive(b.is_active);
+                                      setEditBannerFile(null);
+                                    }}
+                                    className="font-mono text-[9px] uppercase font-bold tracking-wider text-turmeric hover:underline cursor-pointer"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (confirm('Are you sure you want to delete this banner?')) {
+                                        deleteBannerMutation.mutate(b.id);
+                                      }
+                                    }}
+                                    className="font-mono text-[9px] uppercase font-bold tracking-wider text-paprika hover:underline cursor-pointer"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   </main>
@@ -1773,7 +2103,8 @@ export const AdminDashboard: React.FC = () => {
                   productData: {
                     price: editPrice || undefined,
                     available_stock: editStock ? Number(editStock) : undefined,
-                    weight_options: parsedOptions.length > 0 ? parsedOptions : []
+                    weight_options: parsedOptions.length > 0 ? parsedOptions : [],
+                    in_slider: editInSlider
                   }
                 });
                 setEditingProduct(null);
@@ -1817,6 +2148,19 @@ export const AdminDashboard: React.FC = () => {
                   onChange={(e) => setEditWeightsInput(e.target.value)}
                   className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors font-mono"
                 />
+              </div>
+
+              <div className="flex items-center space-x-2 py-1 select-none">
+                <input
+                  type="checkbox"
+                  id="editInSlider"
+                  checked={editInSlider}
+                  onChange={(e) => setEditInSlider(e.target.checked)}
+                  className="w-3.5 h-3.5 border border-cardboard rounded-none bg-paperLight accent-turmeric cursor-pointer"
+                />
+                <label htmlFor="editInSlider" className="font-mono text-[9px] uppercase font-bold text-herb cursor-pointer">
+                  Include in Homepage Slider
+                </label>
               </div>
 
               <div className="flex space-x-3 pt-2">
@@ -2239,6 +2583,156 @@ export const AdminDashboard: React.FC = () => {
                   className="border border-cardboard font-mono text-[9px] uppercase px-4 py-2.5 font-bold rounded-sm text-ink hover-bounce"
                 >
                   Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Banner Edit Modal */}
+      {editingBannerId !== null && (
+        <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-paperLight border border-cardboard rounded-none shadow-xl max-w-md w-full p-6 space-y-4 animate-fade-in-up relative text-left">
+            <div className="flex justify-between items-start border-b border-cardboard pb-3">
+              <div>
+                <span className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold">Banner Configuration</span>
+                <h4 className="font-display font-bold text-base text-ink mt-0.5">Edit Homepage Banner</h4>
+              </div>
+              <button 
+                onClick={() => setEditingBannerId(null)}
+                className="text-ink opacity-50 hover:opacity-100 font-bold cursor-pointer font-sans"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData();
+                formData.append('title', editBannerTitle);
+                formData.append('subtitle', editBannerSubtitle);
+                formData.append('link_url', editBannerLinkUrl);
+                formData.append('display_order', editBannerDisplayOrder);
+                formData.append('is_active', String(editBannerIsActive));
+                if (editBannerFile) {
+                  formData.append('image', editBannerFile);
+                }
+
+                updateBannerMutation.mutate({ id: editingBannerId, formData });
+              }}
+              className="space-y-4"
+            >
+              <div className="space-y-1.5">
+                <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                  Replace Banner Image (Optional):
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      setEditBannerFile(e.target.files[0]);
+                    }
+                  }}
+                  className="w-full text-xs font-mono border border-cardboard p-2 bg-paperLight cursor-pointer"
+                />
+              </div>
+
+              {editBannerFile && (
+                <div className="space-y-1.5 animate-fade-in-up">
+                  <label className="font-mono text-[9px] uppercase font-bold text-herb block">
+                    Selected Replacement Image Preview:
+                  </label>
+                  <img
+                    src={URL.createObjectURL(editBannerFile)}
+                    alt="Replacement Preview"
+                    className="w-full h-32 object-cover border border-cardboard rounded-sm"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                  Title:
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Welcome to the Family"
+                  value={editBannerTitle}
+                  onChange={(e) => setEditBannerTitle(e.target.value)}
+                  className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                  Subtitle:
+                </label>
+                <textarea
+                  placeholder="e.g. Premium single-source meat recipes..."
+                  value={editBannerSubtitle}
+                  onChange={(e) => setEditBannerSubtitle(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none resize-none"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                  Link URL:
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. /shop or /product/1"
+                  value={editBannerLinkUrl}
+                  onChange={(e) => setEditBannerLinkUrl(e.target.value)}
+                  className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                    Display Order:
+                  </label>
+                  <input
+                    type="number"
+                    value={editBannerDisplayOrder}
+                    onChange={(e) => setEditBannerDisplayOrder(e.target.value)}
+                    min="0"
+                    className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none"
+                  />
+                </div>
+                <div className="flex items-center space-x-2 pt-5">
+                  <input
+                    type="checkbox"
+                    id="edit-banner-is-active"
+                    checked={editBannerIsActive}
+                    onChange={(e) => setEditBannerIsActive(e.target.checked)}
+                    className="w-4 h-4 border border-cardboard text-turmeric focus:ring-turmeric rounded-none cursor-pointer"
+                  />
+                  <label htmlFor="edit-banner-is-active" className="font-mono text-[9px] uppercase font-bold text-ink cursor-pointer">
+                    Is Active
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 border-t border-cardboard border-dashed pt-4 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingBannerId(null)}
+                  className="px-4 py-2 border border-cardboard rounded-none text-ink font-mono text-[9px] uppercase hover:bg-paper cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateBannerMutation.isPending}
+                  className="px-4 py-2 bg-turmeric text-ink font-mono text-[9px] uppercase font-bold rounded-none hover:bg-opacity-90 cursor-pointer disabled:opacity-50"
+                >
+                  {updateBannerMutation.isPending ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>

@@ -11,6 +11,7 @@ export interface CreateProductData {
   available_stock: number;
   ingredients?: Array<{ name: string; percentage: number }>;
   weight_options?: Array<{ weight: string; price: number | string }>;
+  in_slider?: boolean;
 }
 
 export interface CreateCategoryData {
@@ -35,6 +36,9 @@ export const createProduct = async (productData: CreateProductData): Promise<Pro
   }
   if (productData.weight_options) {
     formData.append('weight_options', JSON.stringify(productData.weight_options));
+  }
+  if (productData.in_slider !== undefined) {
+    formData.append('in_slider', String(productData.in_slider));
   }
   const response = await apiClient.post<ProductResponse>('/product/', formData, {
     headers: {
@@ -75,6 +79,9 @@ export const updateProduct = async (
   }
   if (productData.is_active !== undefined) {
     formData.append('is_active', String(productData.is_active));
+  }
+  if (productData.in_slider !== undefined) {
+    formData.append('in_slider', String(productData.in_slider));
   }
   const response = await apiClient.patch<ProductResponse>(`/product/${productId}`, formData, {
     headers: {

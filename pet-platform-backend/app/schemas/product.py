@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 from app.schemas.category import CategoryResponse
@@ -24,6 +24,8 @@ class ProductCreate(BaseModel):
     price: Decimal = Field(
         gt=Decimal("0.00")
     )
+
+    in_slider: bool = False
 
 
 class ProductUpdate(BaseModel):
@@ -53,6 +55,8 @@ class ProductUpdate(BaseModel):
 
     is_active: bool | None = None
 
+    in_slider: bool | None = None
+
 
 class ProductImageResponse(BaseModel):
     id: int | None = None
@@ -74,6 +78,7 @@ class ProductResponse(BaseModel):
     price: Decimal
     image_url: str | None = None
     is_active: bool
+    in_slider: bool
     created_at: datetime
     updated_at: datetime
 
@@ -85,6 +90,11 @@ class ProductResponse(BaseModel):
     low_stock_threshold: int | None = None
     images: list[ProductImageResponse] = []
     weight_options: list[dict] | None = None
+
+    @field_validator("in_slider", mode="before")
+    @classmethod
+    def set_in_slider_default(cls, v):
+        return v if v is not None else False
 
     model_config = {
         "from_attributes": True

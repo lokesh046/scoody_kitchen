@@ -30,6 +30,7 @@ def test_user_response_schema_role_serialization():
         phone="9876543210",
         auth_provider="magic_link",
         is_email_verified=True,
+        is_phone_verified=True,
         role=UserRole.DOCTOR,
         is_active=True,
     )

@@ -3,6 +3,7 @@ from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator
 
 from app.models.enums import ConsultationStatus
+from app.schemas.auth import UserResponse
 
 
 class ConsultationCreate(BaseModel):
@@ -39,6 +40,7 @@ class DoctorMinimalResponse(BaseModel):
     specialization: str
     qualification: str
     consultation_fee: Decimal
+    user: UserResponse | None = None
 
     model_config = {"from_attributes": True}
 

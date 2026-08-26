@@ -70,6 +70,7 @@ export interface DoctorMinimalResponse {
   specialization: string;
   qualification: string;
   consultation_fee: string;
+  user?: UserResponse | null;
 }
 
 export interface ConsultationResponse {

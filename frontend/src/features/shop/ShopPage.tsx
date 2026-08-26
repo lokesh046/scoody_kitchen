@@ -63,52 +63,84 @@ export default function ShopPage() {
       {/* Full-width Top Navigation Header bar */}
       <Header activeTab="shop" onCartToggle={() => setIsCartOpen(true)} />
 
-      {/* Centered Main Content Wrapper */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 md:px-8 py-8">
+      {/* Main Landing Content */}
+      <main className="flex-grow w-full">
+        
+        {/* Editorial Hero Section */}
+        <section className="bg-gradient-to-br from-ink via-[#2E3C33] to-[#24352A] text-paper py-24 px-4 md:px-8 border-b border-cardboard relative overflow-hidden text-left mb-12">
+          {/* Subtle blueprint graph background overlays */}
+          <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#EBE0D0 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+          <div className="absolute left-1/3 top-0 bottom-0 border-l border-dashed border-cardboard border-opacity-10 hidden md:block"></div>
 
-      {/* Hero Section */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-16 items-center">
-        <div className="lg:col-span-7 space-y-5 text-left">
-          <Eyebrow label="original formula journal entry" />
-          <h2 className="font-display text-3xl md:text-5xl font-bold text-ink leading-tight">
-            Human-Grade Pet Recipes.{' '}
-            <span className="text-paprika italic font-normal block md:inline">
-              Formulated over 7 years
-            </span>{' '}
-            of kitchen testing.
-          </h2>
-          <p className="font-body text-sm md:text-base text-ink opacity-90 leading-relaxed max-w-xl">
-            We believe transparency isn’t a marketing slogan; it’s a ledger of choices. 
-            Every single batch is cooked under human-grade standards with zero fillers, 
-            zero secret byproducts, and 100% trace-ready ingredients. Honest food 
-            designed by a pet parent, for pet parents.
-          </p>
-          <div className="pt-2 flex flex-wrap gap-4">
-            <button onClick={() => {
-              const el = document.getElementById('product-ledger-heading');
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
-            }} className="bg-turmeric text-ink font-body font-bold text-xs uppercase px-6 py-3 rounded-sm tracking-wide hover:bg-opacity-95 transition-all shadow-sm active:translate-y-[1px] active:shadow-none cursor-pointer">
-              Shop the Recipes
-            </button>
+          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
+            <div className="lg:col-span-7 space-y-6 animate-fade-in-up">
+              {/* Pulsing Active Ticker Badge */}
+              <div className="inline-flex items-center space-x-2 bg-paperLight bg-opacity-5 border border-cardboard border-opacity-25 px-3 py-1.5 rounded-none select-none">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="font-mono text-[8px] font-bold uppercase tracking-wider text-turmeric">KITCHEN LEDGER BATCH: ONLINE & ACTIVE 🟢</span>
+              </div>
+
+              <div className="border-t border-b border-dashed border-cardboard border-opacity-30 py-4 space-y-4">
+                <Eyebrow label="est. 2019 — batch ledger cooking" />
+                <h2 className="font-display text-4xl md:text-6xl font-extrabold text-turmeric leading-tight tracking-tight">
+                  Honest Ingredients.<br/>
+                  <span className="text-paperLight italic font-normal">
+                    Zero Filler Secrets.
+                  </span>
+                </h2>
+              </div>
+
+              <p className="font-body text-sm md:text-base text-paper opacity-85 leading-relaxed max-w-xl">
+                We formulated Scooby's Kitchen because transparency shouldn't require a magnifying glass. 
+                We cook human-grade pet meals in documented small batches. No synthetic powders, 
+                no rendering plant meals, and no hidden starches. Just real food prepared for families 
+                who hold their dogs' nutrition to the same standards as their own.
+              </p>
+
+              <div className="pt-4 flex flex-wrap gap-4">
+                <button 
+                  onClick={() => {
+                    const el = document.getElementById('product-ledger-heading');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="bg-turmeric text-ink hover:bg-opacity-95 font-body font-bold text-xs uppercase px-8 py-4 rounded-none tracking-wider transition-all shadow-sm active:translate-y-[1px] hover-bounce cursor-pointer"
+                >
+                  Explore Shop Recipes
+                </button>
+                <button
+                  onClick={() => {
+                    navigate('/#fit-calculator');
+                    setTimeout(() => {
+                      const el = document.getElementById('fit-calculator');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }, 150);
+                  }}
+                  className="border border-cardboard border-opacity-40 text-paper hover:bg-paperLight hover:bg-opacity-10 font-body font-bold text-xs uppercase px-8 py-4 rounded-none tracking-wider transition-colors flex items-center cursor-pointer"
+                >
+                  Configure My Dog's Diet
+                </button>
+              </div>
+            </div>
+
+            <div className="lg:col-span-5 hover:scale-[1.02] hover:-rotate-1 transition-all duration-300 relative">
+              <JournalCard
+                tabLabel="DIAGNOSTIC NOTEBOOK"
+                title="Kitchen Standard 01"
+                stats={[
+                  { label: 'HUMAN GRADE STATUS', value: '100% CERTIFIED' },
+                  { label: 'BATCH LOG RECORDS', value: 'BLOCKCHAIN TRACEABLE' },
+                  { label: 'REV. ARCHIVE COUNT', value: '400+ KITCHEN TRIALS' },
+                  { label: 'TASTE COMPLIANCE', value: '100% TAIL WAG RATE' },
+                ]}
+              >
+                "Every batch is cooked under the direct supervision of veterinary diet consultants, guaranteeing maximum bio-availability and zero allergen cross-contamination."
+              </JournalCard>
+            </div>
           </div>
-        </div>
+        </section>
 
-        <div className="lg:col-span-5">
-          <JournalCard
-            tabLabel="ENTRY — VOL. 07"
-            title="Formula Diagnostics"
-            stats={[
-              { label: 'TESTING PERIOD', value: '7 YEARS' },
-              { label: 'BATCH TYPE', value: 'SMALL BATCH KRAFT' },
-              { label: 'FILLERS & BYPRODUCTS', value: '0.00%' },
-              { label: 'INGREDIENT TRANSPARENCY', value: '100.0%' },
-              { label: 'APPROVED BY', value: 'SCOOBY THE DOG' },
-            ]}
-          >
-            "Tested through 400+ revisions. The recipe was born from a search for clean, single-source meat food when Scooby began showing diet sensitivities."
-          </JournalCard>
-        </div>
-      </section>
+        {/* Centered Main Content Wrapper */}
+        <div className="max-w-7xl w-full mx-auto px-4 md:px-8 py-8">
 
       {/* Shop / Feed Section */}
       <section className="space-y-8" id="product-ledger-heading">
@@ -256,6 +288,7 @@ export default function ShopPage() {
           Tested and crafted with love for pet parents who care about what goes in the bowl.
         </p>
       </footer>
+      </div>
       </main>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>

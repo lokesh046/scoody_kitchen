@@ -58,6 +58,13 @@ class Product(Base):
         index=True,
     )
 
+    in_slider: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        index=True,
+    )
+
     weight_options: Mapped[list | None] = mapped_column(
         JSON,
         nullable=True,

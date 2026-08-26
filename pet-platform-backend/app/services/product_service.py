@@ -40,6 +40,7 @@ def create_product(
         price=product_data.price,
         image_url=image_url,
         weight_options=weight_options,
+        in_slider=product_data.in_slider,
     )
 
     db.add(product)

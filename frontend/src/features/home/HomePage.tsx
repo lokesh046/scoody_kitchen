@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Shield, Sparkles, ChevronRight, Activity, Database } from 'lucide-react';
+import { Heart, Shield, Sparkles, ChevronRight, Activity, Database, ArrowRight } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { fetchProducts } from '../../api/products';
-import { Eyebrow } from '../../components/Eyebrow';
-import { JournalCard } from '../../components/JournalCard';
 import { RecipeCard } from '../../components/RecipeCard';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
+import { HomeBannerCarousel } from '../../components/HomeBannerCarousel';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -28,13 +27,15 @@ export default function HomePage() {
     recommendedProduct: any | null;
   } | null>(null);
 
-  // Queries - Fetch first 3 products for featured spotlight
+  // Queries - Fetch products for slider and featured sections
   const { data: productsData, isLoading: productsLoading } = useQuery({
     queryKey: ['featured-products'],
-    queryFn: () => fetchProducts({ limit: 3 }),
+    queryFn: () => fetchProducts({ limit: 40 }),
   });
 
-  const featuredProducts = productsData?.items?.slice(0, 3) || [];
+  const featuredProducts = productsData?.items?.filter(p => p.is_active)?.slice(0, 3) || [];
+
+
 
 
 
@@ -101,70 +102,8 @@ export default function HomePage() {
       {/* Main Landing Content */}
       <main className="flex-grow w-full">
         
-        {/* Editorial Hero Section */}
-
-        <section className="bg-gradient-to-br from-ink via-[#2E3C33] to-[#24352A] text-paper py-24 px-4 md:px-8 border-b border-cardboard relative overflow-hidden text-left">
-          {/* Subtle blueprint graph background overlays */}
-          <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#EBE0D0 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-          <div className="absolute left-1/3 top-0 bottom-0 border-l border-dashed border-cardboard border-opacity-10 hidden md:block"></div>
-
-          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
-            <div className="lg:col-span-7 space-y-6 animate-fade-in-up">
-              {/* Pulsing Active Ticker Badge */}
-              <div className="inline-flex items-center space-x-2 bg-paperLight bg-opacity-5 border border-cardboard border-opacity-25 px-3 py-1.5 rounded-none select-none">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span className="font-mono text-[8px] font-bold uppercase tracking-wider text-turmeric">KITCHEN LEDGER BATCH: ONLINE & ACTIVE 🟢</span>
-              </div>
-
-              <div className="border-t border-b border-dashed border-cardboard border-opacity-30 py-4 space-y-4">
-                <Eyebrow label="est. 2019 — batch ledger cooking" />
-                <h2 className="font-display text-4xl md:text-6xl font-extrabold text-turmeric leading-tight tracking-tight">
-                  Honest Ingredients.<br/>
-                  <span className="text-paperLight italic font-normal">
-                    Zero Filler Secrets.
-                  </span>
-                </h2>
-              </div>
-
-              <p className="font-body text-sm md:text-base text-paper opacity-85 leading-relaxed max-w-xl">
-                We formulated Scooby's Kitchen because transparency shouldn't require a magnifying glass. 
-                We cook human-grade pet meals in documented small batches. No synthetic powders, 
-                no rendering plant meals, and no hidden starches. Just real food prepared for families 
-                who hold their dogs' nutrition to the same standards as their own.
-              </p>
-
-              <div className="pt-4 flex flex-wrap gap-4">
-                <button 
-                  onClick={() => navigate('/shop')}
-                  className="bg-turmeric text-ink hover:bg-opacity-95 font-body font-bold text-xs uppercase px-8 py-4 rounded-none tracking-wider transition-all shadow-sm active:translate-y-[1px] hover-bounce cursor-pointer"
-                >
-                  Explore Shop Recipes
-                </button>
-                <a 
-                  href="#fit-calculator"
-                  className="border border-cardboard border-opacity-40 text-paper hover:bg-paperLight hover:bg-opacity-10 font-body font-bold text-xs uppercase px-8 py-4 rounded-none tracking-wider transition-colors flex items-center cursor-pointer"
-                >
-                  Configure My Dog's Diet
-                </a>
-              </div>
-            </div>
-
-            <div className="lg:col-span-5 hover:scale-[1.02] hover:-rotate-1 transition-all duration-300 relative">
-              <JournalCard
-                tabLabel="DIAGNOSTIC NOTEBOOK"
-                title="Kitchen Standard 01"
-                stats={[
-                  { label: 'HUMAN GRADE STATUS', value: '100% CERTIFIED' },
-                  { label: 'BATCH LOG RECORDS', value: 'BLOCKCHAIN TRACEABLE' },
-                  { label: 'REV. ARCHIVE COUNT', value: '400+ KITCHEN TRIALS' },
-                  { label: 'TASTE COMPLIANCE', value: '100% TAIL WAG RATE' },
-                ]}
-              >
-                "Every batch is cooked under the direct supervision of veterinary diet consultants, guaranteeing maximum bio-availability and zero allergen cross-contamination."
-              </JournalCard>
-            </div>
-          </div>
-        </section>
+        {/* Centered Peeking Banner Carousel */}
+        <HomeBannerCarousel />
 
         {/* Feature Grid / Brand Philosophy */}
         <section className="bg-paper py-20 px-4 md:px-8 border-b border-cardboard border-opacity-30">
@@ -267,6 +206,15 @@ export default function HomePage() {
               <div className="border-l-2 border-dashed border-cardboard pl-4 py-2 space-y-2 font-mono text-[10px] text-ink opacity-75">
                 <p>Formula base: RER = 70 * (wt_kg)^0.75</p>
                 <p>Output MER = RER * activity_multiplier</p>
+              </div>
+              <div className="pt-2">
+                <button 
+                  onClick={() => navigate('/onboarding')}
+                  className="inline-flex items-center space-x-2 bg-turmeric text-ink hover:bg-opacity-95 font-mono text-[9px] uppercase font-bold px-5 py-3 tracking-wider transition-colors hover-bounce cursor-pointer shadow-xs"
+                >
+                  <span>Interactive Step-by-Step Diet Planner</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
 

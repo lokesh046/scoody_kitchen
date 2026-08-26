@@ -133,6 +133,7 @@ async def create_new_product(
     image_url: str | None = Form(None),
     available_stock: int | None = Form(None),
     weight_options: str | None = Form(None),
+    in_slider: bool = Form(False),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.ADMIN)),
@@ -143,6 +144,7 @@ async def create_new_product(
         description=description,
         sku=sku,
         price=price,
+        in_slider=in_slider,
     )
 
     import json
@@ -231,6 +233,7 @@ async def update_existing_product(
     image_url: str | None = Form(None),
     available_stock: int | None = Form(None),
     weight_options: str | None = Form(None),
+    in_slider: bool | None = Form(None),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(
@@ -274,7 +277,9 @@ async def update_existing_product(
         update_dict["price"] = price
     if is_active is not None:
         update_dict["is_active"] = is_active
-
+    if in_slider is not None:
+        update_dict["in_slider"] = in_slider
+ 
     product_data = ProductUpdate(**update_dict)
 
     old_image_url = product.image_url

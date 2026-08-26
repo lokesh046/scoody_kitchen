@@ -78,7 +78,7 @@ def test_payment_success_lifecycle():
     db.scalars.return_value.all.return_value = [
         OrderItem(id=1, order_id=1, product_id=10, quantity=5)
     ]
-    db.scalar.return_value = inv
+    db.scalar.side_effect = [inv, None]
 
     res_payment = process_payment_success(db, payment)
     assert res_payment.status == PaymentStatus.SUCCESS

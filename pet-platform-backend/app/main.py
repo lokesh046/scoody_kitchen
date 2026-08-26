@@ -33,6 +33,7 @@ from app.api.consultations import router as consultations_router
 from app.api.internal import router as internal_router
 from app.api.doctor_applications import router as doctor_applications_router
 from app.api.colleges import router as colleges_router
+from app.api.banner import router as banners_router
 
 from contextlib import asynccontextmanager
 
@@ -157,6 +158,7 @@ app.include_router(webhooks_router)
 app.include_router(internal_router)
 app.include_router(doctor_applications_router)
 app.include_router(colleges_router)
+app.include_router(banners_router)
 
 if settings.IMAGE_STORAGE_PROVIDER.lower() == "local":
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
