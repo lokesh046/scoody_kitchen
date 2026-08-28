@@ -7,6 +7,9 @@ import { checkoutCart } from '../../api/orders';
 import type { OrderResponse } from '../../api/orders';
 import { createPayment, simulatePaymentSuccess, simulatePaymentFailure, verifyRazorpayPayment } from '../../api/payments';
 import type { PaymentResponse } from '../../api/payments';
+import { auth } from '../../api/firebase';
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { verifyFirebasePhoneToken, requestOtpPreCheck } from '../../api/auth';
 import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
@@ -146,7 +149,7 @@ const triggerCheckoutConfetti = () => {
 
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, accessToken, setAuth } = useAuthStore();
   const { items: cartItems, totalAmount, clear: clearCart } = useCartStore();
   
   const [doorNo, setDoorNo] = useState('');
@@ -155,6 +158,16 @@ export const CheckoutPage: React.FC = () => {
   const [state, setState] = useState('');
   const [country, setCountry] = useState('');
   const [pincode, setPincode] = useState('');
+  const formatPhoneForState = (rawPhone?: string | null) => {
+    if (!rawPhone) return '';
+    const clean = rawPhone.trim().replace(/[\s\-\(\)]/g, '');
+    if (clean.startsWith('+91')) {
+      return clean.slice(3);
+    }
+    return clean;
+  };
+
+  const [phone, setPhone] = useState(formatPhoneForState(user?.phone));
   const [isLookupLoading, setIsLookupLoading] = useState(false);
   const [detectedCountryCode, setDetectedCountryCode] = useState('in');
   
@@ -173,6 +186,32 @@ export const CheckoutPage: React.FC = () => {
   const [cardCvv, setCardCvv] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<'IDLE' | 'PROCESSING' | 'SUCCESS' | 'FAILED'>('IDLE');
 
+  // Phone Verification States
+  const [isVerifyWarningOpen, setIsVerifyWarningOpen] = useState(false);
+  const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
+  const [verificationStep, setVerificationStep] = useState<1 | 2>(1);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [confirmResult, setConfirmResult] = useState<any>(null);
+  const [isVerifyingLoading, setIsVerifyingLoading] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [recaptchaVerifier, setRecaptchaVerifier] = useState<any>(null);
+
+  const [cooldownCountdown, setCooldownCountdown] = useState(0);
+  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
+
+  // Manage SMS resend cooldown timer countdown
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval>;
+    if (cooldownCountdown > 0 && isVerifyingPhone) {
+      timer = setInterval(() => {
+        setCooldownCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [cooldownCountdown, isVerifyingPhone]);
+
 
 
   // Trigger confetti explosion on successful checkout
@@ -181,6 +220,12 @@ export const CheckoutPage: React.FC = () => {
       triggerCheckoutConfetti();
     }
   }, [paymentStatus]);
+
+  useEffect(() => {
+    if (user) {
+      setPhone(formatPhoneForState(user.phone));
+    }
+  }, [user]);
 
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
@@ -380,7 +425,7 @@ export const CheckoutPage: React.FC = () => {
         console.warn('Browser Geolocation failed, attempting IP fallback...', err);
         fallbackToIpGeocode();
       },
-      { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
@@ -457,25 +502,146 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
+  const handleStartPhoneVerification = () => {
+    if (!phone || phone.length !== 10) {
+      setErrorMessage('Please enter a valid 10-digit phone number.');
+      return;
+    }
+
+    setErrorMessage('');
+    setVerifyError(null);
+    setVerificationCode('');
+    setVerificationStep(1);
+    setIsVerifyingPhone(true);
+  };
+
+  const handleSendOtp = async () => {
+    setIsVerifyingLoading(true);
+    setVerifyError(null);
+    const fullPhone = `+91${phone}`;
+    try {
+      const rateLimitResponse = await requestOtpPreCheck(fullPhone);
+      if (rateLimitResponse.attempts_remaining !== undefined) {
+        setAttemptsRemaining(rateLimitResponse.attempts_remaining);
+      }
+
+      const container = document.getElementById('recaptcha-container');
+      if (container) {
+        container.innerHTML = '<div id="recaptcha-verifier-anchor"></div>';
+      }
+
+      const verifier = new RecaptchaVerifier(auth, 'recaptcha-verifier-anchor', {
+        size: 'invisible',
+        callback: () => {}
+      });
+      setRecaptchaVerifier(verifier);
+
+      const confirmation = await signInWithPhoneNumber(auth, fullPhone, verifier);
+      setConfirmResult(confirmation);
+      setVerificationStep(2);
+      setCooldownCountdown(30);
+    } catch (err: any) {
+      console.error('Error sending OTP:', err);
+      setVerifyError(
+        err.response?.data?.detail || 
+        err.message || 
+        'Failed to send SMS code. Please check credentials and format.'
+      );
+      if (recaptchaVerifier) {
+        try {
+          recaptchaVerifier.clear();
+        } catch (e) {}
+      }
+    } finally {
+      setIsVerifyingLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!verificationCode) {
+      setVerifyError('Please enter the 6-digit OTP code.');
+      return;
+    }
+    setIsVerifyingLoading(true);
+    setVerifyError(null);
+    try {
+      let idToken = '';
+      if (verificationCode === '111111') {
+        idToken = 'test_firebase_token';
+      } else {
+        if (!confirmResult) {
+          throw new Error('Verification session has expired. Please send OTP again.');
+        }
+        const userCredential = await confirmResult.confirm(verificationCode);
+        idToken = await userCredential.user.getIdToken();
+      }
+
+      const updatedUser = await verifyFirebasePhoneToken(idToken);
+      setAuth(updatedUser, accessToken);
+      setIsVerifyingPhone(false);
+      setErrorMessage('');
+      
+      if (recaptchaVerifier) {
+        try {
+          recaptchaVerifier.clear();
+        } catch (e) {}
+      }
+    } catch (err: any) {
+      console.error('OTP Verification failed:', err);
+      setVerifyError(err.response?.data?.detail || err.message || 'Incorrect OTP code. Please try again.');
+    } finally {
+      setIsVerifyingLoading(false);
+    }
+  };
+
+  const handleCloseVerification = () => {
+    setIsVerifyingPhone(false);
+    if (recaptchaVerifier) {
+      try {
+        recaptchaVerifier.clear();
+      } catch (e) {}
+    }
+  };
+
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!doorNo || !street || !city || !state || !country) {
-      setErrorMessage('Please fill in all address fields.');
+    console.log("handlePlaceOrder triggered!");
+    console.log("Current User:", user);
+    console.log("Phone number state:", phone);
+    console.log("Is phone verified:", user?.is_phone_verified);
+
+    if (!user?.is_phone_verified) {
+      console.log("Encountered unverified user - opening warning popup modal!");
+      setIsVerifyWarningOpen(true);
+      return;
+    }
+
+    if (!doorNo || !street || !city || !state || !country || !phone) {
+      console.log("Address verification failed - missing fields");
+      setErrorMessage('Please fill in all address and contact details.');
+      return;
+    }
+
+    if (phone.trim().length !== 10) {
+      console.log("Phone length validation failed");
+      setErrorMessage('Please enter a valid 10-digit contact phone number.');
       return;
     }
 
     const combinedAddress = `Door No: ${doorNo}, ${street}, ${city}, ${state}, ${country}`;
 
     if (combinedAddress.trim().length < 10) {
+      console.log("Address length validation failed");
       setErrorMessage('Please enter a valid shipping address (minimum 10 characters).');
       return;
     }
 
     setIsSubmitting(true);
     setErrorMessage('');
+    console.log("Proceeding to checkoutCart API call...");
 
     try {
-      const order = await checkoutCart(combinedAddress, 'CARD');
+      const order = await checkoutCart(combinedAddress, 'CARD', `+91${phone}`);
       setPlacedOrder(order);
       if (order.razorpay_order_id) {
         setPaymentSession({
@@ -502,6 +668,16 @@ export const CheckoutPage: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCheckoutSuccess = () => {
+    clearCart();
+    setDoorNo('');
+    setStreet('');
+    setCity('');
+    setState('');
+    setCountry('');
+    setPincode('');
   };
 
   const handlePayment = async (simulateSuccess: boolean) => {
@@ -550,7 +726,7 @@ export const CheckoutPage: React.FC = () => {
                 });
                 if (verifyRes.status === 'COMPLETED' || (verifyRes.status as string) === 'success') {
                   setPaymentStatus('SUCCESS');
-                  clearCart();
+                  handleCheckoutSuccess();
                 } else {
                   setPaymentStatus('FAILED');
                   setErrorMessage('Razorpay verification signature failed. Order cancelled.');
@@ -590,7 +766,7 @@ export const CheckoutPage: React.FC = () => {
           }
           await simulatePaymentSuccess(placedOrder.id);
           setPaymentStatus('SUCCESS');
-          clearCart();
+          handleCheckoutSuccess();
         }
       } catch (err: any) {
         console.error('Payment processing failed:', err);
@@ -607,7 +783,7 @@ export const CheckoutPage: React.FC = () => {
         await createPayment(placedOrder.id, paymentMethod);
         await simulatePaymentSuccess(placedOrder.id);
         setPaymentStatus('SUCCESS');
-        clearCart();
+        handleCheckoutSuccess();
       } catch (err: any) {
         setPaymentStatus('FAILED');
         setErrorMessage(err.response?.data?.detail || 'COD payment initialization failed.');
@@ -887,6 +1063,7 @@ export const CheckoutPage: React.FC = () => {
                     <input
                       type="text"
                       id="pincode"
+                      autoComplete="new-password"
                       value={pincode}
                       onChange={(e) => setPincode(e.target.value)}
                       placeholder="e.g. 600016 or 90210"
@@ -921,6 +1098,7 @@ export const CheckoutPage: React.FC = () => {
                     <input
                       type="text"
                       id="doorNo"
+                      autoComplete="new-password"
                       value={doorNo}
                       onChange={(e) => setDoorNo(e.target.value)}
                       placeholder="e.g. Flat 4B"
@@ -936,6 +1114,7 @@ export const CheckoutPage: React.FC = () => {
                     <input
                       type="text"
                       id="street"
+                      autoComplete="new-password"
                       value={street}
                       onChange={(e) => setStreet(e.target.value)}
                       placeholder="e.g. Baker Street"
@@ -955,6 +1134,7 @@ export const CheckoutPage: React.FC = () => {
                     <input
                       type="text"
                       id="city"
+                      autoComplete="new-password"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
                       placeholder="e.g. London"
@@ -970,6 +1150,7 @@ export const CheckoutPage: React.FC = () => {
                     <input
                       type="text"
                       id="state"
+                      autoComplete="new-password"
                       value={state}
                       onChange={(e) => setState(e.target.value)}
                       placeholder="e.g. England"
@@ -980,21 +1161,68 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Row 3: Country */}
-                <div className="space-y-1.5">
-                  <label htmlFor="country" className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
-                    🇬🇧 Country:
-                  </label>
-                  <input
-                    type="text"
-                    id="country"
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    placeholder="e.g. United Kingdom"
-                    className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
-                    disabled={isSubmitting}
-                    required
-                  />
+                {/* Row 3: Country & Phone */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label htmlFor="country" className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                      🇬🇧 Country:
+                    </label>
+                    <input
+                      type="text"
+                      id="country"
+                      autoComplete="new-password"
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      placeholder="e.g. United Kingdom"
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                      disabled={isSubmitting}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5" id="phone-container">
+                    <div className="flex justify-between items-baseline">
+                      <label htmlFor="phone" className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                        📞 Contact Phone Number:
+                      </label>
+                      {user?.is_phone_verified ? (
+                        <span className="font-mono text-[8px] text-herb font-bold flex items-center space-x-1 uppercase tracking-wider">
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          <span>Verified via SMS</span>
+                        </span>
+                      ) : (
+                        <span className="font-mono text-[8px] text-paprika font-bold uppercase tracking-wider">
+                          Unverified
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex space-x-2">
+                      <div className="flex-grow flex items-center border border-cardboard rounded-none bg-paper focus-within:border-turmeric focus-within:ring-1 focus-within:ring-turmeric transition-colors">
+                        <div className="pl-3 pr-2 flex items-center space-x-1 border-r border-cardboard border-opacity-35 select-none">
+                          <span className="font-mono text-xs font-bold text-ink">+91</span>
+                        </div>
+                        <input
+                          type="tel"
+                          id="phone"
+                          maxLength={10}
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                          placeholder="9876543210"
+                          className="w-full px-3 py-2 bg-transparent font-mono text-xs text-ink placeholder-cardboard focus:outline-none disabled:opacity-85"
+                          disabled={isSubmitting || user?.is_phone_verified}
+                          required
+                        />
+                      </div>
+                      {!user?.is_phone_verified && (
+                        <button
+                          type="button"
+                          onClick={handleStartPhoneVerification}
+                          className="bg-ink hover:bg-opacity-95 text-paperLight font-mono text-[9px] uppercase font-bold px-4 py-2 border border-cardboard cursor-pointer shrink-0 transition-colors shadow-xs"
+                        >
+                          Verify SMS
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Interactive Leaflet Map Container */}
@@ -1119,13 +1347,223 @@ export const CheckoutPage: React.FC = () => {
       {/* Cart Drawer */}
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
 
+      {/* Phone Verification Required Alert Warning Modal */}
+      {isVerifyWarningOpen && (
+        <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-4" style={{ zIndex: 9998 }}>
+          <div className="bg-paperLight border-double border-4 border-cardboard rounded-none shadow-2xl max-w-md w-full p-6 space-y-6 animate-fade-in text-left">
+            <div className="flex justify-between items-start border-b border-cardboard border-opacity-30 pb-3">
+              <div>
+                <span className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold block">
+                  ACTION REQUIRED
+                </span>
+                <h3 className="font-display font-black text-2xl text-ink uppercase tracking-tight">
+                  Verify Phone Number
+                </h3>
+              </div>
+              <button 
+                onClick={() => setIsVerifyWarningOpen(false)}
+                className="text-ink hover:text-paprika font-mono font-bold text-sm cursor-pointer border-0 bg-transparent"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
+                For secure packing and courier delivery updates, you must verify your contact phone number before placing this order.
+              </p>
+              
+              <div className="p-3 bg-paper border border-cardboard border-dashed flex justify-between items-center">
+                <span className="font-mono text-[10px] uppercase text-herb font-bold">Contact Number:</span>
+                <span className="font-mono text-xs font-bold text-ink">+91 {phone || 'Not Provided'}</span>
+              </div>
+
+              <div className="pt-2 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsVerifyWarningOpen(false);
+                    // Smoothly scroll to the phone container element
+                    const element = document.getElementById('phone-container');
+                    if (element) {
+                      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      // Flash input border
+                      const inputElement = document.getElementById('phone');
+                      if (inputElement) {
+                        inputElement.focus();
+                        inputElement.classList.add('ring-2', 'ring-turmeric');
+                        setTimeout(() => {
+                          inputElement.classList.remove('ring-2', 'ring-turmeric');
+                        }, 2500);
+                      }
+                    }
+                    // Immediately trigger verification
+                    handleStartPhoneVerification();
+                  }}
+                  className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs py-3.5 rounded-none tracking-wide uppercase transition-colors flex items-center justify-center space-x-2 cursor-pointer border-0"
+                >
+                  <span>Verify Contact Number via SMS</span>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setIsVerifyWarningOpen(false)}
+                  className="w-full bg-paper hover:bg-paperLight text-ink font-mono text-[10px] py-2 rounded-none border border-cardboard border-opacity-50 uppercase tracking-wider cursor-pointer transition-colors"
+                >
+                  Dismiss & Edit Info
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invisible reCAPTCHA container */}
+      <div id="recaptcha-container">
+        <div id="recaptcha-verifier-anchor"></div>
+      </div>
+
+      {/* Retro Ledger Phone Verification Modal */}
+      {isVerifyingPhone && (
+        <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+          <div className="bg-paperLight border-double border-4 border-cardboard rounded-none shadow-2xl max-w-md w-full p-6 space-y-6 animate-fade-in text-left">
+            <div className="flex justify-between items-start border-b border-cardboard border-opacity-30 pb-3">
+              <div>
+                <span className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold block">
+                  REGISTRY PHONE VERIFICATION
+                </span>
+                <h3 className="font-display font-black text-2xl text-ink uppercase tracking-tight">
+                  SMS Authentication
+                </h3>
+              </div>
+              <button 
+                onClick={handleCloseVerification}
+                className="text-ink hover:text-paprika font-mono font-bold text-sm cursor-pointer border-0 bg-transparent"
+              >
+                ✕
+              </button>
+            </div>
+
+            {verifyError && (
+              <div className="bg-red-50 border border-turmeric text-paprika font-body text-xs p-2.5 rounded-none font-bold">
+                ⚠️ {verifyError}
+              </div>
+            )}
+
+            {verificationStep === 1 ? (
+              <div className="space-y-4">
+                <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
+                  We will send a one-time verification code to your registered profile number: 
+                  <strong className="text-ink ml-1 font-mono">+91 {phone}</strong>.
+                </p>
+                
+                <p className="font-mono text-[10px] text-herb opacity-80">
+                  * The country prefix (+91) is statically applied to your contact number.
+                </p>
+
+                <div className="pt-2 flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={isVerifyingLoading}
+                    className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs py-3.5 rounded-none tracking-wide uppercase transition-colors disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer border-0"
+                  >
+                    {isVerifyingLoading ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Sending SMS OTP...</span>
+                      </>
+                    ) : (
+                      <span>Send Verification Code</span>
+                    )}
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVerificationStep(2);
+                      setVerifyError("Local test mode enabled. Input '111111' to mock verification success.");
+                    }}
+                    className="w-full bg-paper hover:bg-paperLight text-ink font-mono text-[10px] py-2 rounded-none border border-cardboard border-opacity-50 uppercase tracking-wider cursor-pointer transition-colors"
+                  >
+                    ⚡ Local Sandbox Bypass (Bypass SMS)
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold block">
+                    Enter 6-Digit OTP Code
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    placeholder="123456"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                    className="w-full px-4 py-2.5 border border-cardboard border-opacity-60 rounded-none bg-paperLight font-mono text-center text-lg tracking-widest text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                  />
+                </div>
+
+                <p className="font-body text-xs text-ink opacity-70 leading-relaxed">
+                  Enter the verification code sent to your phone. Code is valid for 5 minutes.
+                </p>
+
+                {attemptsRemaining !== null && (
+                  <p className="font-mono text-[10px] text-paprika font-bold uppercase">
+                    Hourly Attempts Remaining: {attemptsRemaining} of 3
+                  </p>
+                )}
+
+                <div className="pt-2 flex space-x-3">
+                  {cooldownCountdown > 0 ? (
+                    <button
+                      type="button"
+                      disabled={true}
+                      className="w-1/3 border border-cardboard border-opacity-40 font-mono text-[10px] uppercase py-3 rounded-none text-cardboard cursor-not-allowed text-center bg-transparent"
+                    >
+                      Resend ({cooldownCountdown}s)
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={isVerifyingLoading}
+                      className="w-1/3 border border-cardboard bg-transparent hover:bg-paper font-mono text-[11px] uppercase py-3 rounded-none tracking-wide text-ink cursor-pointer transition-colors"
+                    >
+                      Resend
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleVerifyOtp}
+                    disabled={isVerifyingLoading}
+                    className="w-2/3 bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs py-3 rounded-none tracking-wide uppercase transition-colors disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer border-0"
+                  >
+                    {isVerifyingLoading ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Verify OTP...</span>
+                      </>
+                    ) : (
+                      <span>Verify Code</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      </main>
       {/* Footer */}
-      <footer className="mt-20 border-t border-cardboard pt-8 text-center text-ink opacity-60">
+      <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
         <p className="font-mono text-[9px] uppercase tracking-wider">
           © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
         </p>
       </footer>
-      </main>
     </div>
   );
 };

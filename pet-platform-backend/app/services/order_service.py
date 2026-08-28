@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import case, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.cart import Cart
@@ -14,9 +14,9 @@ from app.services.inventory_service import release_stock, reserve_stock
 
 VALID_ORDER_TRANSITIONS: dict[OrderStatus, set[OrderStatus]] = {
     OrderStatus.PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED},
-    OrderStatus.CONFIRMED: {OrderStatus.PROCESSING},
-    OrderStatus.PROCESSING: {OrderStatus.PACKED, OrderStatus.SHIPPED},
-    OrderStatus.PACKED: {OrderStatus.SHIPPED},
+    OrderStatus.CONFIRMED: {OrderStatus.PROCESSING, OrderStatus.CANCELLED},
+    OrderStatus.PROCESSING: {OrderStatus.PACKED, OrderStatus.SHIPPED, OrderStatus.CANCELLED},
+    OrderStatus.PACKED: {OrderStatus.SHIPPED, OrderStatus.CANCELLED},
     OrderStatus.SHIPPED: {OrderStatus.IN_TRANSIT, OrderStatus.DELIVERED, OrderStatus.RETURNED, OrderStatus.DELIVERY_FAILED},
     OrderStatus.IN_TRANSIT: {OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED, OrderStatus.RETURNED, OrderStatus.DELIVERY_FAILED},
     OrderStatus.OUT_FOR_DELIVERY: {OrderStatus.DELIVERED, OrderStatus.RETURNED, OrderStatus.DELIVERY_FAILED},
@@ -63,6 +63,19 @@ def change_order_status(
     db.add(history)
     db.commit()
     db.refresh(order)
+
+    # Queue background notification task (In-App notification + Email dispatch)
+    try:
+        from app.tasks.notification_tasks import dispatch_order_notifications_task
+        dispatch_order_notifications_task.delay(
+            user_id=order.user_id,
+            title=f"Order Update: {new_status.value.upper()}",
+            message=f"Order #{order.id}: {description}."
+        )
+    except Exception as e:
+        # Prevent task failures from blocking database commits
+        print(f"Warning: Failed to queue order notification task: {e}")
+
     return order
 
 
@@ -71,6 +84,13 @@ def create_order_from_cart(
     user_id: int,
     checkout_data: CheckoutRequest,
 ) -> Order:
+    from app.models.user import User
+    user = db.get(User, user_id)
+    if user is None:
+        raise ValueError("User not found")
+    if not user.is_phone_verified:
+        raise ValueError("Phone number must be verified before placing an order")
+
     cart_statement = (
         select(Cart)
         .options(
@@ -187,6 +207,27 @@ def create_order_from_cart(
         order.razorpay_order_id = payment.razorpay_order_id
         order.razorpay_key_id = settings.RAZORPAY_KEY_ID
 
+    # Queue background notification task (In-App notification + Email dispatch)
+    try:
+        from app.tasks.notification_tasks import dispatch_order_notifications_task
+        dispatch_order_notifications_task.delay(
+            user_id=order.user_id,
+            title="Order Placed Successfully",
+            message=f"Order #{order.id} for ₹{order.total_amount:.2f} was created successfully and is pending confirmation."
+        )
+    except Exception as e:
+        print(f"Warning: Failed to queue checkout notification task: {e}")
+
+    # Queue background task to notify admins of a new incoming order
+    try:
+        from app.tasks.notification_tasks import notify_admins_task
+        notify_admins_task.delay(
+            title="New Order Placed",
+            message=f"Order #{order.id} for ₹{order.total_amount:.2f} has been created and needs confirmation."
+        )
+    except Exception as e:
+        print(f"Warning: Failed to queue admin checkout notification task: {e}")
+
     return order
 
 
@@ -206,6 +247,7 @@ def get_user_orders(
             joinedload(Order.items).joinedload(OrderItem.product),
             joinedload(Order.status_history),
             joinedload(Order.shipment),
+            joinedload(Order.user),
         )
         .where(
             Order.user_id == user_id,
@@ -234,6 +276,7 @@ def get_user_order(
             joinedload(Order.items).joinedload(OrderItem.product),
             joinedload(Order.status_history),
             joinedload(Order.shipment),
+            joinedload(Order.user),
         )
         .where(
             Order.id == order_id,
@@ -247,7 +290,7 @@ def get_all_orders(
     db: Session,
     skip: int = 0,
     limit: int = 20,
-    status: OrderStatus | None = None,
+    tab: str | None = None,
 ) -> list[Order]:
     statement = (
         select(Order)
@@ -255,12 +298,44 @@ def get_all_orders(
             joinedload(Order.items).joinedload(OrderItem.product),
             joinedload(Order.status_history),
             joinedload(Order.shipment),
+            joinedload(Order.user),
         )
     )
-    if status is not None:
-        statement = statement.where(Order.status == status)
+    if tab:
+        if tab == "pending":
+            statuses = [OrderStatus.PENDING]
+        elif tab == "confirmed":
+            statuses = [
+                OrderStatus.CONFIRMED,
+                OrderStatus.PROCESSING,
+                OrderStatus.PACKED,
+                OrderStatus.SHIPPED,
+                OrderStatus.IN_TRANSIT,
+                OrderStatus.OUT_FOR_DELIVERY,
+            ]
+        elif tab == "delivered":
+            statuses = [OrderStatus.DELIVERED, OrderStatus.COMPLETED]
+        elif tab == "cancelled":
+            statuses = [
+                OrderStatus.CANCELLED,
+                OrderStatus.RETURNED,
+                OrderStatus.DELIVERY_FAILED,
+            ]
+        else:
+            statuses = []
+        
+        if statuses:
+            statement = statement.where(Order.status.in_(statuses))
 
-    statement = statement.order_by(Order.created_at.desc()).offset(skip).limit(limit)
+    if tab == "delivered":
+        statement = statement.order_by(
+            case((Order.status == OrderStatus.DELIVERED, 0), else_=1),
+            Order.created_at.asc()
+        )
+    else:
+        statement = statement.order_by(Order.created_at.asc())
+
+    statement = statement.offset(skip).limit(limit)
     return list(db.scalars(statement).unique().all())
 
 
@@ -274,6 +349,7 @@ def get_order_by_id(
             joinedload(Order.items).joinedload(OrderItem.product),
             joinedload(Order.status_history),
             joinedload(Order.shipment),
+            joinedload(Order.user),
         )
         .where(Order.id == order_id)
     )

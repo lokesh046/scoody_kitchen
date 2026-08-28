@@ -47,15 +47,10 @@ async def execute_tool(tool_fn: Any, args: dict[str, Any], context: dict[str, An
             "All state-changing actions must be authorized via human-in-the-loop (HITL) confirmation."
         )
         
-    # Safely invoke the tool asynchronously (or fallback to sync for tests)
-    try:
+    # Safely invoke the tool
+    if hasattr(tool_fn, "ainvoke"):
         res = tool_fn.ainvoke(args)
         if inspect.isawaitable(res):
             return await res
-    except Exception:
-        pass
-    
-    res = tool_fn.invoke(args)
-    if inspect.isawaitable(res):
-        return await res
-    return res
+        return res
+    return tool_fn.invoke(args)

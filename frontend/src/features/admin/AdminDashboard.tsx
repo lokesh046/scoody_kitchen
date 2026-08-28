@@ -6,9 +6,6 @@ import { Eyebrow } from '../../components/Eyebrow';
 import { Header } from '../../components/Header';
 import { 
   fetchAdminOrders, 
-  updateAdminOrderStatus, 
-  createOrderShipment, 
-  fetchAdminOrderById,
   fetchAdminConsultations,
   fetchAdminDoctors
 } from '../../api/admin';
@@ -50,18 +47,7 @@ import {
   Image
 } from 'lucide-react';
 
-const VALID_ORDER_TRANSITIONS: Record<string, string[]> = {
-  PENDING: ['CONFIRMED', 'CANCELLED'],
-  CONFIRMED: ['processing'],
-  processing: ['packed', 'shipped'],
-  packed: ['shipped'],
-  shipped: ['in_transit', 'delivered', 'returned', 'delivery_failed'],
-  in_transit: ['out_for_delivery', 'delivered', 'returned', 'delivery_failed'],
-  out_for_delivery: ['delivered', 'returned', 'delivery_failed'],
-  delivered: ['COMPLETED'],
-  COMPLETED: [],
-  CANCELLED: [],
-};
+
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -95,9 +81,6 @@ export const AdminDashboard: React.FC = () => {
   const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [editingCategoryDesc, setEditingCategoryDesc] = useState('');
-
-  // Form States - Shipping
-  const [shippingOrderId, setShippingOrderId] = useState<number | null>(null);
 
   // Form States - Banners
   const [bannerTitle, setBannerTitle] = useState('');
@@ -133,10 +116,6 @@ export const AdminDashboard: React.FC = () => {
   const [editStock, setEditStock] = useState('');
   const [editWeightsInput, setEditWeightsInput] = useState('');
   const [editInSlider, setEditInSlider] = useState(false);
-  const [carrier, setCarrier] = useState('');
-  const [trackingNumber, setTrackingNumber] = useState('');
-  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
-
   // Form States - Alert Threshold Modal
   const [editingThresholdProduct, setEditingThresholdProduct] = useState<any | null>(null);
   const [editThreshold, setEditThreshold] = useState('');
@@ -150,15 +129,9 @@ export const AdminDashboard: React.FC = () => {
 
 
   // Queries
-  const { data: orders, isLoading: ordersLoading } = useQuery({
+  const { data: orders } = useQuery({
     queryKey: ['adminOrders'],
     queryFn: () => fetchAdminOrders(),
-  });
-
-  const { data: orderDetails, isLoading: orderDetailsLoading } = useQuery({
-    queryKey: ['adminOrderDetails', selectedOrderId],
-    queryFn: () => fetchAdminOrderById(selectedOrderId!),
-    enabled: selectedOrderId !== null,
   });
 
 
@@ -242,24 +215,7 @@ export const AdminDashboard: React.FC = () => {
 
 
 
-  const updateOrderStatusMutation = useMutation({
-    mutationFn: ({ orderId, status }: { orderId: number; status: string }) => 
-      updateAdminOrderStatus(orderId, status),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminOrders'] });
-    }
-  });
 
-  const addShipmentMutation = useMutation({
-    mutationFn: ({ orderId, carrier, tracking }: { orderId: number; carrier: string; tracking: string }) => 
-      createOrderShipment(orderId, carrier, tracking),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminOrders'] });
-      setShippingOrderId(null);
-      setCarrier('');
-      setTrackingNumber('');
-    }
-  });
 
 
   const createProductMutation = useMutation({
@@ -563,7 +519,13 @@ export const AdminDashboard: React.FC = () => {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id as any)}
+                  onClick={() => {
+                    if (item.id === 'orders') {
+                      navigate('/admin/orders');
+                    } else {
+                      setActiveTab(item.id as any);
+                    }
+                  }}
                   className={`flex items-center space-x-2 px-5 py-3.5 text-[10px] font-mono font-bold uppercase tracking-wider border-t border-x transition-all duration-150 shrink-0 ${
                     isActive
                       ? 'bg-paperLight border-cardboard border-t-turmeric border-t-2 text-ink -mb-[1px] relative z-10 font-bold'
@@ -855,170 +817,22 @@ export const AdminDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Tab 1: Orders Registry */}
+        {/* Tab 1: Orders Registry (Redirect Card) */}
         {activeTab === 'orders' && (
-          <div className="space-y-8 text-left">
-            <h3 className="font-display font-bold text-xl text-ink">Active Platform Orders</h3>
-            
-            {ordersLoading ? (
-              <div className="flex items-center space-x-2 text-ink opacity-60">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="font-mono text-xs uppercase">Loading Sourced Orders...</span>
-              </div>
-            ) : orders?.length === 0 ? (
-              <p className="font-body text-xs text-ink opacity-70">No orders registered in system.</p>
-            ) : (
-              <div className="grid grid-cols-1 gap-6">
-                {orders?.map((order) => (
-                  <div key={order.id} className="border border-cardboard bg-paperLight p-6 rounded-sm space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b border-cardboard border-dashed pb-4">
-                      <div>
-                        <div className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold flex items-center space-x-1.5">
-                          <span>ORDER RECORD #{order.id}</span>
-                          <button
-                            onClick={() => setSelectedOrderId(order.id)}
-                            className="text-cardboard hover:text-ink hover:underline lowercase font-semibold text-[8px] transition-colors"
-                          >
-                            (view full transaction)
-                          </button>
-                        </div>
-                        <div className="font-body text-xs text-ink opacity-75 mt-0.5">
-                          Placed: {new Date(order.created_at).toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className={`font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold ${
-                          order.status.toUpperCase() === 'COMPLETED' || order.status.toLowerCase() === 'delivered'
-                            ? 'bg-green-100 text-green-800'
-                            : order.status.toUpperCase() === 'CANCELLED'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {order.status}
-                        </span>
-                        
-                        {/* Status Transition Options */}
-                        <select
-                          value={order.status}
-                          disabled={updateOrderStatusMutation.isPending}
-                          onChange={(e) => updateOrderStatusMutation.mutate({ orderId: order.id, status: e.target.value })}
-                          className="bg-paper border border-cardboard font-mono text-[9px] uppercase px-2 py-1 rounded-sm text-ink outline-none disabled:opacity-50"
-                        >
-                          <option value={order.status} disabled>{order.status} (Current)</option>
-                          <option value="PENDING" disabled={!VALID_ORDER_TRANSITIONS[order.status]?.includes('PENDING')}>Set Pending</option>
-                          <option value="CONFIRMED" disabled={!VALID_ORDER_TRANSITIONS[order.status]?.includes('CONFIRMED')}>Confirm Order</option>
-                          <option value="processing" disabled={!VALID_ORDER_TRANSITIONS[order.status]?.includes('processing')}>Process Order</option>
-                          <option value="shipped" disabled={!VALID_ORDER_TRANSITIONS[order.status]?.includes('shipped')}>Ship Order</option>
-                          <option value="delivered" disabled={!VALID_ORDER_TRANSITIONS[order.status]?.includes('delivered')}>Set Delivered</option>
-                          <option value="COMPLETED" disabled={!VALID_ORDER_TRANSITIONS[order.status]?.includes('COMPLETED')}>Complete Order</option>
-                          <option value="CANCELLED" disabled={!VALID_ORDER_TRANSITIONS[order.status]?.includes('CANCELLED')}>Cancel Order</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-                      {/* Left: Items & Total */}
-                      <div className="space-y-3">
-                        <div className="font-mono text-[9px] uppercase tracking-wider text-ink opacity-60">Sourced Recipe Items:</div>
-                        <ul className="divide-y divide-cardboard divide-dashed">
-                          {order.items.map((item) => (
-                            <li key={item.id} className="py-2 flex justify-between">
-                              <span className="font-body font-bold text-ink">
-                                {item.product_name ? `${item.product_name} (ID: #${item.product_id})` : `Product #${item.product_id}`}
-                                {item.selected_weight && <span className="text-[9px] text-herb font-mono ml-1 font-bold">({item.selected_weight})</span>}
-                                <span className="opacity-60 font-normal"> x{item.quantity}</span>
-                              </span>
-                              <span className="font-mono text-ink">₹{Number(item.price).toFixed(2)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="border-t border-cardboard pt-2 flex justify-between font-bold text-ink text-sm">
-                          <span>Total Amount Paid:</span>
-                          <span className="font-mono">₹{Number(order.total_amount).toFixed(2)}</span>
-                        </div>
-                      </div>
-
-                      {/* Right: Shipping & Tracking */}
-                      <div className="space-y-4 border-l border-cardboard border-dashed pl-0 md:pl-6">
-                        <div className="space-y-1">
-                          <div className="font-mono text-[9px] uppercase tracking-wider text-ink opacity-60">Sourcing Recipient:</div>
-                          <div className="font-body text-ink font-semibold">{order.shipping_address}</div>
-                          <div className="font-body text-ink opacity-70">City: {order.shipping_city} | Ph: {order.shipping_phone}</div>
-                        </div>
-
-                        {order.tracking_number ? (
-                          <div className="p-3 border border-cardboard rounded-sm bg-paper space-y-1">
-                            <div className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold flex items-center space-x-1">
-                              <Truck className="w-3.5 h-3.5" />
-                              <span>Active Shipment tracking</span>
-                            </div>
-                            <div className="font-body text-[11px] text-ink">
-                              Carrier: <strong className="uppercase">{order.carrier}</strong>
-                            </div>
-                            <div className="font-mono text-[10px] text-ink">
-                              Tracking No: <strong>{order.tracking_number}</strong>
-                            </div>
-                          </div>
-                        ) : order.status === 'shipped' || order.status === 'processing' ? (
-                          <div className="space-y-2.5">
-                            {shippingOrderId === order.id ? (
-                              <div className="p-3 border border-dashed border-cardboard rounded-sm space-y-2">
-                                <div className="font-mono text-[9px] uppercase tracking-wider text-ink opacity-70">Assign Courier Tracker:</div>
-                                <div className="grid grid-cols-2 gap-2">
-                                  <input
-                                    placeholder="Carrier (e.g. BlueDart)"
-                                    value={carrier}
-                                    onChange={(e) => setCarrier(e.target.value)}
-                                    className="bg-paper border border-cardboard p-1.5 text-xs text-ink outline-none"
-                                  />
-                                  <input
-                                    placeholder="Tracking Number"
-                                    value={trackingNumber}
-                                    onChange={(e) => setTrackingNumber(e.target.value)}
-                                    className="bg-paper border border-cardboard p-1.5 text-xs text-ink outline-none"
-                                  />
-                                </div>
-                                <div className="flex space-x-2">
-                                  <button
-                                    onClick={() => addShipmentMutation.mutate({ orderId: order.id, carrier, tracking: trackingNumber })}
-                                    disabled={addShipmentMutation.isPending}
-                                    className="bg-turmeric text-ink font-mono text-[9px] uppercase px-3 py-1 font-bold rounded-sm disabled:opacity-50 flex items-center space-x-1.5"
-                                  >
-                                    {addShipmentMutation.isPending ? (
-                                      <>
-                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                        <span>Saving...</span>
-                                      </>
-                                    ) : (
-                                      <span>Save Tracking</span>
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={() => setShippingOrderId(null)}
-                                    disabled={addShipmentMutation.isPending}
-                                    className="border border-cardboard font-mono text-[9px] uppercase px-3 py-1 font-bold rounded-sm text-ink disabled:opacity-50"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => setShippingOrderId(order.id)}
-                                className="border border-cardboard hover:bg-paper font-mono text-[9px] uppercase px-3 py-1.5 font-bold rounded-sm text-ink flex items-center space-x-1.5"
-                              >
-                                <Truck className="w-3.5 h-3.5" />
-                                <span>Register Shipment Carrier</span>
-                              </button>
-                            )}
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="border border-cardboard border-dashed bg-paperLight p-8 text-center rounded-sm max-w-xl mx-auto my-12 animate-fade-in-up">
+            <ClipboardList className="w-12 h-12 text-turmeric mx-auto mb-4" />
+            <Eyebrow label="VETERINARY COMMERCE ADMINISTRATIVE CORE" />
+            <h4 className="font-display font-bold text-xl text-ink mt-2">Dedicated Orders Workspace</h4>
+            <p className="font-body text-xs text-ink opacity-70 mt-2 leading-relaxed">
+              Order processing, status confirmations, tracking carrier assignments, and shipping ledgers have migrated to a dedicated full-screen pipeline workspace.
+            </p>
+            <button
+              onClick={() => navigate('/admin/orders')}
+              className="mt-6 bg-turmeric text-ink hover:bg-opacity-95 font-body font-bold text-xs uppercase px-6 py-3 rounded-sm tracking-wide hover-bounce cursor-pointer shadow-xs flex items-center space-x-1.5 mx-auto"
+            >
+              <Truck className="w-4 h-4" />
+              <span>Open Orders Center</span>
+            </button>
           </div>
         )}
 
@@ -2259,122 +2073,7 @@ export const AdminDashboard: React.FC = () => {
 
 
 
-      {/* Order Details Modal */}
-      {selectedOrderId !== null && (
-        <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-paperLight border border-cardboard rounded-sm shadow-xl max-w-lg w-full p-6 space-y-6 animate-fade-in-up relative text-left">
-            <button 
-              onClick={() => setSelectedOrderId(null)}
-              className="absolute top-4 right-4 text-ink opacity-60 hover:opacity-100 font-bold"
-            >
-              ✕
-            </button>
 
-            <div className="space-y-1">
-              <Eyebrow label="SCOOBY PLATFORM TRANSACTION LEDGER" />
-              <h3 className="font-display font-bold text-xl text-ink">
-                Order Sourcing Record #{selectedOrderId}
-              </h3>
-            </div>
-
-            {orderDetailsLoading ? (
-              <div className="py-12 text-center space-y-2">
-                <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
-                <span className="font-mono text-xs uppercase text-ink opacity-60">Loading Order Sourcing Record...</span>
-              </div>
-            ) : !orderDetails ? (
-              <p className="font-body text-xs text-ink opacity-60">Failed to load order transaction details.</p>
-            ) : (
-              <div className="space-y-5 text-xs font-body">
-                {/* Status Indicator banner */}
-                <div className="flex justify-between items-center p-3 border border-cardboard rounded-sm bg-paper bg-opacity-50">
-                  <div>
-                    <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">PLACED DATE</span>
-                    <span className="font-mono text-xs text-ink font-bold">{new Date(orderDetails.created_at).toLocaleString()}</span>
-                  </div>
-                  <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 rounded-sm uppercase tracking-wider ${
-                    orderDetails.status.toUpperCase() === 'COMPLETED' || orderDetails.status.toLowerCase() === 'delivered'
-                      ? 'text-herb bg-emerald-50 border-emerald-200'
-                      : orderDetails.status.toUpperCase() === 'CANCELLED'
-                      ? 'text-paprika bg-red-50 border-red-200'
-                      : 'text-turmeric bg-amber-50 border-amber-200'
-                  }`}>
-                    {orderDetails.status}
-                  </span>
-                </div>
-
-                {/* Sourced Recipe list */}
-                <div className="space-y-2">
-                  <span className="font-mono text-[8px] uppercase tracking-wider text-herb font-bold block">SOURCED RECIPE ITEMS</span>
-                  <ul className="divide-y divide-cardboard divide-dashed border-t border-b border-cardboard">
-                    {orderDetails.items?.map((item) => (
-                      <li key={item.id} className="py-2.5 flex justify-between items-center">
-                        <div>
-                          <span className="font-body font-bold text-ink">
-                            {item.product_name ? `${item.product_name} (ID: #${item.product_id})` : `Product #${item.product_id}`}
-                          </span>
-                          {item.selected_weight && (
-                            <span className="text-[9px] text-herb font-mono ml-1.5 font-bold">({item.selected_weight})</span>
-                          )}
-                          <div className="text-[10px] text-ink opacity-60 font-mono mt-0.5">Quantity: x{item.quantity} | Unit Price: ₹{Number(item.price).toFixed(2)}</div>
-                        </div>
-                        <span className="font-mono font-bold text-ink">₹{(Number(item.price) * item.quantity).toFixed(2)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="flex justify-between font-bold text-ink text-sm pt-1">
-                    <span>Total Sourcing Fee:</span>
-                    <span className="font-mono text-turmeric">₹{Number(orderDetails.total_amount).toFixed(2)}</span>
-                  </div>
-                </div>
-
-                {/* Recipient Details */}
-                <div className="grid grid-cols-2 gap-4 border-t border-cardboard border-dashed pt-4">
-                  <div className="space-y-1">
-                    <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">SHIPPING RECIPIENT</span>
-                    <p className="font-body font-bold text-ink">{orderDetails.shipping_address}</p>
-                    <p className="font-body text-ink opacity-70">City: {orderDetails.shipping_city}</p>
-                    <p className="font-body text-ink opacity-70">Phone: {orderDetails.shipping_phone}</p>
-                  </div>
-                  <div className="space-y-2 border-l border-cardboard border-dashed pl-4">
-                    <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">STATUS MANAGEMENT</span>
-                    
-                    <div className="space-y-1.5">
-                      <select
-                        value={orderDetails.status}
-                        disabled={updateOrderStatusMutation.isPending}
-                        onChange={(e) => {
-                          updateOrderStatusMutation.mutate({ orderId: orderDetails.id, status: e.target.value });
-                          setSelectedOrderId(null);
-                        }}
-                        className="w-full bg-paper border border-cardboard font-mono text-[9px] uppercase px-2 py-2 rounded-sm text-ink outline-none disabled:opacity-50"
-                      >
-                        <option value={orderDetails.status} disabled>{orderDetails.status} (Current)</option>
-                        <option value="PENDING" disabled={!VALID_ORDER_TRANSITIONS[orderDetails.status]?.includes('PENDING')}>Set Pending</option>
-                        <option value="CONFIRMED" disabled={!VALID_ORDER_TRANSITIONS[orderDetails.status]?.includes('CONFIRMED')}>Confirm Order</option>
-                        <option value="processing" disabled={!VALID_ORDER_TRANSITIONS[orderDetails.status]?.includes('processing')}>Process Order</option>
-                        <option value="shipped" disabled={!VALID_ORDER_TRANSITIONS[orderDetails.status]?.includes('shipped')}>Ship Order</option>
-                        <option value="delivered" disabled={!VALID_ORDER_TRANSITIONS[orderDetails.status]?.includes('delivered')}>Set Delivered</option>
-                        <option value="COMPLETED" disabled={!VALID_ORDER_TRANSITIONS[orderDetails.status]?.includes('COMPLETED')}>Complete Order</option>
-                        <option value="CANCELLED" disabled={!VALID_ORDER_TRANSITIONS[orderDetails.status]?.includes('CANCELLED')}>Cancel Order</option>
-                      </select>
-                      <p className="text-[9px] text-ink opacity-60 leading-normal">Status transitions are governed by platform ledger constraints.</p>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedOrderId(null)}
-                  className="w-full bg-ink hover:bg-opacity-90 text-paperLight font-mono text-[9px] uppercase font-bold py-3 tracking-wider rounded-sm transition-colors"
-                >
-                  Return to Active Ledger
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Warehouse Inventory Details Modal */}
       {selectedInventoryProductId !== null && (

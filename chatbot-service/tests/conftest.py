@@ -1,4 +1,8 @@
 import os
+import sys
+
+# Ensure chatbot-service root is prioritized in python path resolution
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Define test environment variables prior to module imports
 os.environ["JWT_SECRET_KEY"] = "test_jwt_secret_key_123456789_long_key_for_sha256"

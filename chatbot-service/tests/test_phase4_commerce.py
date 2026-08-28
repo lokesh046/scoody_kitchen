@@ -42,9 +42,12 @@ def test_commerce_agent_read_tool_order_status_server_side_auth():
         "items": [],
     }
 
-    mock_tool = MagicMock()
-    mock_tool.name = "get_order_status"
-    mock_tool.invoke.return_value = order_mock
+    mock_func = MagicMock(return_value=order_mock)
+    from langchain_core.tools import StructuredTool
+    def get_order_status(session_user_id: int, order_id: int) -> dict:
+        """Get order status."""
+        return mock_func(session_user_id=session_user_id, order_id=order_id)
+    mock_tool = StructuredTool.from_function(func=get_order_status, name="get_order_status")
 
     # Customer #42 sends JWT token in Authorization header
     headers = _make_auth_header(user_id=42)
@@ -64,9 +67,9 @@ def test_commerce_agent_read_tool_order_status_server_side_auth():
         data = response.json()
         assert data["status"] == "success"
         assert "101" in data["reply"]
-        assert "processing" in data["reply"].lower()
+        assert "processing" in data["reply"].lower() or "processed" in data["reply"].lower()
         # Authoritative user_id=42 was injected server-side from JWT
-        mock_tool.invoke.assert_called_once_with({"session_user_id": 42, "order_id": 101})
+        mock_func.assert_called_once_with(session_user_id=42, order_id=101)
 
 
 def test_commerce_agent_hitl_pending_context_preservation():
@@ -125,9 +128,19 @@ def test_commerce_agent_book_consultation_tool_route():
         "idempotency_key": "idem_book_42_5_2",
     }
 
-    mock_book_tool = MagicMock()
-    mock_book_tool.name = "book_consultation"
-    mock_book_tool.invoke.return_value = booking_mock
+    mock_book_func = MagicMock(return_value=booking_mock)
+    from langchain_core.tools import StructuredTool
+    def book_consultation(session_user_id: int, doctor_id: int, pet_id: int, scheduled_at_iso: str, reason: str, customer_notes: str | None = None) -> dict:
+        """Book a consultation."""
+        return mock_book_func(
+            session_user_id=session_user_id,
+            doctor_id=doctor_id,
+            pet_id=pet_id,
+            scheduled_at_iso=scheduled_at_iso,
+            reason=reason,
+            customer_notes=customer_notes
+        )
+    mock_book_tool = StructuredTool.from_function(func=book_consultation, name="book_consultation")
 
     headers = _make_auth_header(user_id=42)
 

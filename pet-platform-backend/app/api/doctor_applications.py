@@ -275,9 +275,11 @@ async def import_verified_doctors_csv(
             # Promote role to doctor
             if user.role != UserRole.DOCTOR and user.role != UserRole.ADMIN:
                 user.role = UserRole.DOCTOR
-                db.add(user)
-                db.commit()
-                db.refresh(user)
+            if phone:
+                user.phone = phone
+            db.add(user)
+            db.commit()
+            db.refresh(user)
                 
         # Resolve Clinic
         clinic_id = None
@@ -388,8 +390,10 @@ def update_application_status_admin(
         if user:
             if user.role != UserRole.DOCTOR and user.role != UserRole.ADMIN:
                 user.role = UserRole.DOCTOR
-                db.add(user)
-                db.commit()
+            if app_record.phone:
+                user.phone = app_record.phone
+            db.add(user)
+            db.commit()
                 
             # Create/Resolve Clinic
             clinic_id = None

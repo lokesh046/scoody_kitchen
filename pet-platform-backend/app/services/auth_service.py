@@ -170,7 +170,14 @@ def verify_magic_link_code(db: Session, email: str, code: str) -> User:
 
 
 def authenticate_google_user(db: Session, id_token: str) -> User:
-    if not settings.GOOGLE_CLIENT_ID:
+    # Build list of accepted client IDs
+    accepted_client_ids = []
+    if settings.GOOGLE_CLIENT_ID:
+        accepted_client_ids.append(settings.GOOGLE_CLIENT_ID)
+    if settings.GOOGLE_CLIENT_IDS:
+        accepted_client_ids.extend(settings.GOOGLE_CLIENT_IDS)
+
+    if not accepted_client_ids:
         raise ValueError("Google OAuth is not configured on the server")
 
     try:
@@ -180,7 +187,7 @@ def authenticate_google_user(db: Session, id_token: str) -> User:
         payload = google_id_token.verify_oauth2_token(
             id_token,
             google_requests.Request(),
-            settings.GOOGLE_CLIENT_ID,
+            accepted_client_ids,
         )
     except Exception as exc:
         raise ValueError(f"Invalid Google ID token signature or claims: {exc}")

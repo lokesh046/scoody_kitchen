@@ -744,11 +744,11 @@ export const AssistantPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Footer */}
-        <footer className="mt-16 border-t border-cardboard pt-6 text-center text-ink opacity-60 font-mono text-[9px] uppercase tracking-wider w-full">
-          © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
-        </footer>
       </main>
+      {/* Footer */}
+      <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 font-mono text-[9px] uppercase tracking-wider w-full">
+        © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
+      </footer>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>
   );

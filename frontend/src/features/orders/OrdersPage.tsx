@@ -38,6 +38,7 @@ export const OrdersPage: React.FC = () => {
     const status = order.status.toUpperCase();
     if (activeTab === 'active') {
       return (
+        status === 'PENDING' ||
         status === 'CONFIRMED' || 
         status === 'PROCESSING' || 
         status === 'PACKED' || 
@@ -59,6 +60,7 @@ export const OrdersPage: React.FC = () => {
       const status = order.status.toUpperCase();
       if (tab === 'active') {
         return (
+          status === 'PENDING' ||
           status === 'CONFIRMED' || 
           status === 'PROCESSING' || 
           status === 'PACKED' || 
@@ -82,8 +84,9 @@ export const OrdersPage: React.FC = () => {
       // Invalidate orders cache to refresh history
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     },
-    onError: (err) => {
+    onError: (err: any) => {
       console.error('Failed to cancel order:', err);
+      alert(err.response?.data?.detail || 'Failed to cancel order. Please try again.');
     }
   });
 
@@ -315,7 +318,7 @@ export const OrdersPage: React.FC = () => {
                       <span>Track Journey</span>
                     </button>
 
-                    {order.status.toUpperCase() === 'PENDING' && (
+                    {['PENDING', 'CONFIRMED', 'PROCESSING'].includes(order.status.toUpperCase()) && (
                       <button
                         type="button"
                         onClick={() => cancelMutation.mutate(order.id)}
@@ -336,12 +339,12 @@ export const OrdersPage: React.FC = () => {
             ))}
           </div>
         )}
-      {/* Footer */}
-      <footer className="mt-20 border-t border-cardboard pt-8 text-center text-ink opacity-60 font-mono text-[9px] uppercase tracking-wider">
-        © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
-      </footer>
       </div>
       </main>
+      {/* Footer */}
+      <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 font-mono text-[9px] uppercase tracking-wider w-full">
+        © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
+      </footer>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
 
       {/* Sourced Recipe Tracking Modal */}

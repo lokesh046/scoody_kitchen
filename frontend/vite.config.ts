@@ -8,10 +8,12 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       port: 3000,
+      allowedHosts: true,
       proxy: {
         '/api': {
           target: env.VITE_BACKEND_TARGET_URL || 'http://127.0.0.1:8000',
           changeOrigin: true,
+          ws: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
         },
         '/chatbot': {

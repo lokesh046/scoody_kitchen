@@ -128,3 +128,67 @@ def send_doctor_verification_email(
     except Exception as exc:
         logger.error(f"Failed to send email to {to_email} via SMTP: {exc}")
         return False
+
+
+def send_order_update_email(
+    to_email: str,
+    first_name: str | None,
+    title: str,
+    message: str,
+) -> bool:
+    subject = f"Scooby's Kitchen: {title}"
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color: #f4f6f8; padding: 20px; color: #333;">
+        <div style="max-width: 500px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+            <h2 style="color: #4F46E5; margin-top: 0;">Order Alert 🐾</h2>
+            <p>Hello {first_name or 'there'},</p>
+            <p>We have a new update regarding your order with Scooby's Kitchen:</p>
+            
+            <div style="background: #f3f4f6; padding: 18px; border-left: 4px solid #4F46E5; border-radius: 4px; margin: 20px 0; font-weight: bold; color: #111827;">
+                {message}
+            </div>
+
+            <p>You can track the live status of your order directly from your profile dashboard on our website.</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{settings.FRONTEND_URL}/orders" style="background-color: #4F46E5; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">View My Orders</a>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+            <p style="font-size: 12px; color: #888;">This is an automated operational email. Thank you for choosing Scooby's Kitchen!</p>
+        </div>
+    </body>
+    </html>
+    """
+
+    logger.info("==================================================")
+    logger.info(f"ORDER UPDATE EMAIL TO: {to_email}")
+    logger.info(f"SUBJECT: {subject}")
+    logger.info(f"MESSAGE: {message}")
+    logger.info("==================================================")
+
+    if not settings.SMTP_HOST or not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        logger.warning("SMTP settings not configured. Order update email logged to console above.")
+        return True
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = settings.EMAILS_FROM or settings.SMTP_USER
+        msg["To"] = to_email
+
+        msg.attach(MIMEText(message, "plain"))
+        msg.attach(MIMEText(html_content, "html"))
+
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+            server.send_message(msg)
+
+        logger.info(f"Order update email sent to {to_email}")
+        return True
+    except Exception as exc:
+        logger.error(f"Failed to send email to {to_email} via SMTP: {exc}")
+        return False

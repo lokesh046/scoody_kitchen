@@ -569,7 +569,7 @@ export const PetsPage: React.FC = () => {
                   <span className="font-mono text-[10px] uppercase font-bold text-paprika block mb-1">
                     Select Species:
                   </span>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                       { id: 'Dog', label: 'Dog 🐶' },
                       { id: 'Cat', label: 'Cat 🐱' },
@@ -920,7 +920,7 @@ export const PetsPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {/* Species */}
                       <div className="space-y-1">
                         <label className="font-mono text-[10px] uppercase font-bold text-paprika block">Species</label>

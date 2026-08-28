@@ -397,17 +397,16 @@ export const ProductDetailPage: React.FC = () => {
           </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="mt-20 border-t border-cardboard pt-8 text-center text-ink opacity-60">
-        <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">
-          © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
-        </p>
-        <p className="font-body text-xs mt-1 max-w-md mx-auto leading-relaxed">
-          Tested and crafted with love for pet parents who care about what goes in the bowl.
-        </p>
-      </footer>
     </div>
+    {/* Footer */}
+    <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
+      <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">
+        © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
+      </p>
+      <p className="font-body text-xs mt-1 max-w-md mx-auto leading-relaxed">
+        Tested and crafted with love for pet parents who care about what goes in the bowl.
+      </p>
+    </footer>
     <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
   </div>
   );

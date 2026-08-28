@@ -18,6 +18,9 @@ export interface OrderResponse {
   shipping_address: string;
   shipping_city: string;
   shipping_phone: string;
+  user_phone?: string | null;
+  user_email?: string | null;
+  user_name?: string | null;
   created_at: string;
   updated_at: string;
   items: OrderItemResponse[];
@@ -74,9 +77,29 @@ export interface PaginatedDoctors {
 }
 
 // ORDER MANAGEMENT
-export const fetchAdminOrders = async (status?: string): Promise<OrderResponse[]> => {
+export interface OrderStatsResponse {
+  pending: number;
+  confirmed: number;
+  delivered: number;
+  cancelled: number;
+}
+
+export const fetchAdminOrderStats = async (): Promise<OrderStatsResponse> => {
+  const response = await apiClient.get<OrderStatsResponse>('/admin/orders/stats');
+  return response.data;
+};
+
+export const fetchAdminOrders = async (
+  tab?: string,
+  page: number = 1,
+  limit: number = 12
+): Promise<OrderResponse[]> => {
   const response = await apiClient.get<OrderResponse[]>('/admin/orders', {
-    params: { status: status || undefined }
+    params: { 
+      tab: tab || undefined,
+      skip: (page - 1) * limit,
+      limit: limit
+    }
   });
   return response.data;
 };
@@ -212,3 +235,11 @@ export const fetchAdminClinicById = async (clinicId: number): Promise<ClinicResp
   const response = await apiClient.get<ClinicResponse>(`/admin/clinics/${clinicId}`);
   return response.data;
 };
+
+export const exportAdminDoctorsCsv = async (): Promise<Blob> => {
+  const response = await apiClient.get('/admin/doctors/export', {
+    responseType: 'blob',
+  });
+  return new Blob([response.data], { type: 'text/csv' });
+};
+

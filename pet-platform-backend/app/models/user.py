@@ -1,7 +1,11 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, String, func,Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+if TYPE_CHECKING:
+    from app.models.notification import Notification
 
 from app.models.enums import UserRole
 
@@ -123,6 +127,12 @@ class User(Base):
     orders = relationship(
         "Order",
         back_populates="user",
+    )
+
+    notifications = relationship(
+        "Notification",
+        back_populates="user",
+        cascade="all, delete-orphan",
     )
 
     doctor_profile = relationship(

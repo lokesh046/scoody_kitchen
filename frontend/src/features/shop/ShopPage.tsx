@@ -278,9 +278,10 @@ export default function ShopPage() {
           </div>
         )}
       </section>
-
+      </div>
+      </main>
       {/* Footer */}
-      <footer className="mt-20 border-t border-cardboard pt-8 text-center text-ink opacity-60">
+      <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
         <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">
           © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
         </p>
@@ -288,8 +289,6 @@ export default function ShopPage() {
           Tested and crafted with love for pet parents who care about what goes in the bowl.
         </p>
       </footer>
-      </div>
-      </main>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>
   );

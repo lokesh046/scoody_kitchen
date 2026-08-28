@@ -114,3 +114,18 @@ class Order(Base):
         back_populates="order",
         cascade="all, delete-orphan",
     )
+
+    @property
+    def user_phone(self) -> str | None:
+        return self.user.phone if self.user else None
+
+    @property
+    def user_email(self) -> str | None:
+        return self.user.email if self.user else None
+
+    @property
+    def user_name(self) -> str | None:
+        if self.user:
+            parts = [p for p in [self.user.first_name, self.user.last_name] if p]
+            return " ".join(parts) if parts else self.user.email
+        return None

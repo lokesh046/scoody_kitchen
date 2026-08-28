@@ -40,6 +40,7 @@ class Setting(BaseSettings):
 
     # Google OAuth 2.0 / OIDC
     GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_IDS: list[str] = []
 
     # SMTP & Email Settings
     SMTP_HOST: str | None = None

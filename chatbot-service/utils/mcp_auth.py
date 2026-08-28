@@ -3,7 +3,9 @@ import jwt
 import uuid
 from datetime import datetime, timezone, timedelta
 
-MCP_CALL_TOKEN_SECRET = os.getenv("MCP_CALL_TOKEN_SECRET", "default_fallback_secret_for_mcp_token_verification_1234567")
+MCP_CALL_TOKEN_SECRET = os.getenv("MCP_CALL_TOKEN_SECRET")
+if not MCP_CALL_TOKEN_SECRET:
+    raise RuntimeError("MCP_CALL_TOKEN_SECRET environment variable is not configured.")
 
 def mint_mcp_call_token(user_id: int, expires_in_seconds: int = 60) -> str:
     """Mint a short-lived, single-use JWT for MCP tool invocation containing the authorized user ID."""

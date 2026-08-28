@@ -16,6 +16,7 @@ import { AssistantPage } from './features/chatbot/AssistantPage';
 import { ChatbotWidget } from './components/ChatbotWidget';
 import { AdminDashboard } from './features/admin/AdminDashboard';
 import { AdminDoctorsPage } from './features/admin/AdminDoctorsPage';
+import AdminOrdersPage from './features/admin/AdminOrdersPage';
 import { DoctorDashboard } from './features/doctor/DoctorDashboard';
 import { ProfilePage } from './features/profile/ProfilePage';
 import HomePage from './features/home/HomePage';
@@ -136,6 +137,7 @@ export default function App() {
             <Route path="/assistant" element={<RequireAuth><AssistantPage /></RequireAuth>} />
             <Route path="/admin" element={<RequireAuth adminOnly={true}><AdminDashboard /></RequireAuth>} />
             <Route path="/admin/doctors" element={<RequireAuth adminOnly={true}><AdminDoctorsPage /></RequireAuth>} />
+            <Route path="/admin/orders" element={<RequireAuth adminOnly={true}><AdminOrdersPage /></RequireAuth>} />
             <Route path="/doctor" element={<RequireAuth doctorOnly={true}><DoctorDashboard /></RequireAuth>} />
           </Routes>
           <ChatbotWidget />

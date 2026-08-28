@@ -38,7 +38,7 @@ from typing import Any
 # Ensure pet-platform-mcp-server is in sys.path for direct module import fallback
 mcp_server_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../pet-platform-mcp-server"))
 if mcp_server_dir not in sys.path:
-    sys.path.insert(0, mcp_server_dir)
+    sys.path.append(mcp_server_dir)
 
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL")
 if not MCP_SERVER_URL:

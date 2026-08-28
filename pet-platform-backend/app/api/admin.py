@@ -16,6 +16,7 @@ from app.services.order_service import (
     get_order_by_id,
     process_order,
     ship_order,
+    change_order_status,
 )
 
 
@@ -53,19 +54,63 @@ def cleanup_unverified_users_admin(
 
 
 @router.get(
+    "/orders/stats",
+)
+def get_orders_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    from app.models.order import Order, OrderStatus
+    from sqlalchemy import func
+    
+    # Perform count grouping
+    results = db.query(Order.status, func.count(Order.id)).group_by(Order.status).all()
+    counts = {status.value if hasattr(status, "value") else str(status): count for status, count in results}
+    
+    pending = counts.get(OrderStatus.PENDING.value, 0)
+    
+    confirmed = sum(counts.get(s, 0) for s in [
+        OrderStatus.CONFIRMED.value,
+        OrderStatus.PROCESSING.value,
+        OrderStatus.PACKED.value,
+        OrderStatus.SHIPPED.value,
+        OrderStatus.IN_TRANSIT.value,
+        OrderStatus.OUT_FOR_DELIVERY.value
+    ])
+    
+    delivered = sum(counts.get(s, 0) for s in [
+        OrderStatus.DELIVERED.value,
+        OrderStatus.COMPLETED.value
+    ])
+    
+    cancelled = sum(counts.get(s, 0) for s in [
+        OrderStatus.CANCELLED.value,
+        OrderStatus.RETURNED.value,
+        OrderStatus.DELIVERY_FAILED.value
+    ])
+    
+    return {
+        "pending": pending,
+        "confirmed": confirmed,
+        "delivered": delivered,
+        "cancelled": cancelled
+    }
+
+
+@router.get(
     "/orders",
     response_model=list[OrderResponse],
 )
 def list_all_orders_admin(
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
-    status: OrderStatus | None = Query(None),
+    limit: int = Query(20, ge=1, le=5000),
+    tab: str | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_role(UserRole.ADMIN)
     ),
 ):
-    return get_all_orders(db, skip=skip, limit=limit, status=status)
+    return get_all_orders(db, skip=skip, limit=limit, tab=tab)
 
 
 @router.get(
@@ -121,6 +166,8 @@ def update_order_status_admin(
             return complete_order(db, order)
         elif target_status == OrderStatus.CANCELLED:
             return cancel_order(db, order)
+        elif target_status in [OrderStatus.IN_TRANSIT, OrderStatus.OUT_FOR_DELIVERY, OrderStatus.PACKED, OrderStatus.RETURNED, OrderStatus.DELIVERY_FAILED]:
+            return change_order_status(db, order, target_status, f"Order status updated to {target_status.value}")
         else:
             raise ValueError(f"Invalid target status '{target_status.value}'")
 
@@ -456,3 +503,53 @@ def update_consultation_status_admin(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.get("/doctors/export")
+def export_doctors_csv(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    """
+    Admin endpoint to export all active doctors to CSV.
+    """
+    import csv
+    from io import StringIO
+    from datetime import datetime, timezone
+    from fastapi.responses import StreamingResponse
+    from sqlalchemy import select
+    from sqlalchemy.orm import joinedload
+    from app.models.doctor import Doctor
+
+    statement = select(Doctor).options(joinedload(Doctor.user), joinedload(Doctor.clinic))
+    doctors = db.scalars(statement).all()
+
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Write CSV Header
+    writer.writerow([
+        "first_name", "last_name", "email", "phone", "specialization", "qualification",
+        "experience_years", "consultation_fee", "license_number", "bio", "clinic_name", 
+        "is_verified", "is_active", "created_at"
+    ])
+    
+    for doc in doctors:
+        first_name = doc.user.first_name if doc.user else ""
+        last_name = doc.user.last_name if doc.user else ""
+        email = doc.user.email if doc.user else ""
+        phone = doc.user.phone if doc.user else ""
+        clinic_name = doc.clinic.name if doc.clinic else "Private Practice"
+        
+        writer.writerow([
+            first_name, last_name, email, phone, doc.specialization, doc.qualification,
+            doc.experience_years, doc.consultation_fee, doc.license_number, doc.bio or "",
+            clinic_name, doc.is_verified, doc.is_active, doc.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        ])
+        
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=active_doctors_{datetime.now(timezone.utc).strftime('%Y%m%d')}.csv"}
+    )

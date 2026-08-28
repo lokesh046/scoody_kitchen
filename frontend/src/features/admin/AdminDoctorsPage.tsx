@@ -13,7 +13,8 @@ import {
   updateAdminClinicStatus,
   updateAdminDoctor,
   fetchAdminConsultations,
-  updateAdminConsultationStatus
+  updateAdminConsultationStatus,
+  exportAdminDoctorsCsv
 } from '../../api/admin';
 import { 
   fetchDoctorApplications, 
@@ -661,8 +662,29 @@ export const AdminDoctorsPage: React.FC = () => {
 
                   {/* Doctor Directory Grid */}
                   <div className="lg:col-span-8 border border-cardboard bg-paperLight p-6 rounded-none space-y-4">
-                    <div className="border-b border-cardboard border-dashed pb-3">
+                    <div className="border-b border-cardboard border-dashed pb-3 flex justify-between items-center">
                       <h4 className="font-display font-bold text-md text-ink">Active Veterinarians Register</h4>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const blob = await exportAdminDoctorsCsv();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `active_doctors_${new Date().toISOString().split('T')[0]}.csv`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            window.URL.revokeObjectURL(url);
+                          } catch (err) {
+                            alert('Failed to export CSV file.');
+                          }
+                        }}
+                        className="bg-ink hover:bg-opacity-95 text-paperLight font-mono text-[9px] uppercase px-3 py-1.5 font-bold rounded-sm tracking-wider cursor-pointer"
+                      >
+                        Download CSV Register
+                      </button>
                     </div>
 
                     {doctorsLoading ? (
@@ -684,6 +706,9 @@ export const AdminDoctorsPage: React.FC = () => {
                                 </span>
                                 <span className="font-display font-black text-ink text-sm">{doc.user?.first_name} {doc.user?.last_name || ''}</span>
                                 <span className="text-xs text-ink text-opacity-80 block font-mono">{doc.user?.email}</span>
+                                {doc.user?.phone && (
+                                  <span className="text-xs text-ink text-opacity-80 block font-mono">{doc.user.phone}</span>
+                                )}
                               </div>
                               <div className="flex items-center space-x-2">
                                 <span className={`px-2.5 py-1 rounded-sm font-mono text-[10px] font-bold uppercase border ${

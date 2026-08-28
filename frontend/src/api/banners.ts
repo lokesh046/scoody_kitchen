@@ -2,7 +2,7 @@ import { apiClient } from './client';
 import type { BannerResponse } from '../types/banner';
 
 export const fetchActiveBanners = async (): Promise<BannerResponse[]> => {
-  const response = await apiClient.get<BannerResponse[]>('/banners');
+  const response = await apiClient.get<BannerResponse[]>('/banners/');
   return response.data;
 };
 

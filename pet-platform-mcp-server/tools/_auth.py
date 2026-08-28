@@ -6,8 +6,7 @@ from datetime import datetime, timezone
 
 MCP_CALL_TOKEN_SECRET = os.getenv("MCP_CALL_TOKEN_SECRET")
 if not MCP_CALL_TOKEN_SECRET:
-    # Use a secure default fallback to prevent crashes if not loaded during boot
-    MCP_CALL_TOKEN_SECRET = "default_fallback_secret_for_mcp_token_verification_1234567"
+    raise RuntimeError("MCP_CALL_TOKEN_SECRET environment variable is not configured.")
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 

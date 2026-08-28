@@ -19,6 +19,9 @@ export interface OrderResponse {
   status: OrderStatus;
   total_amount: string; // Decimal returned as string
   shipping_address: string;
+  user_phone?: string | null;
+  user_email?: string | null;
+  user_name?: string | null;
   created_at: string;
   updated_at: string;
   items: OrderItemResponse[];
@@ -26,10 +29,11 @@ export interface OrderResponse {
   razorpay_key_id?: string | null;
 }
 
-export const checkoutCart = async (shippingAddress: string, paymentMethod?: string): Promise<OrderResponse> => {
+export const checkoutCart = async (shippingAddress: string, paymentMethod?: string, phone?: string): Promise<OrderResponse> => {
   const response = await apiClient.post<OrderResponse>('/orders/checkout', {
     shipping_address: shippingAddress,
     payment_method: paymentMethod,
+    phone: phone || undefined,
   });
   return response.data;
 };

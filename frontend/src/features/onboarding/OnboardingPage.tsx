@@ -466,7 +466,7 @@ export const OnboardingPage: React.FC = () => {
 
                 <div className="space-y-2">
                   <label className="font-mono text-[10px] uppercase font-bold text-ink block">Allergies & Sensitivities (Optional)</label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {[
                       { id: 'beef', label: 'Beef Sensitive' },
                       { id: 'chicken', label: 'Chicken Sensitive' },

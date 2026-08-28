@@ -249,7 +249,7 @@ export const ConsultationsPage: React.FC = () => {
         console.warn('Browser Geolocation failed, attempting IP-based fallback...', error);
         fallbackToIp();
       },
-      { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
@@ -938,7 +938,7 @@ export const ConsultationsPage: React.FC = () => {
                     
                     <hr className="border-t border-dashed border-cardboard" />
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {pets.map((p) => {
                         const isSelected = selectedPetId === p.id.toString();
                         return (
@@ -999,7 +999,7 @@ export const ConsultationsPage: React.FC = () => {
                         </span>
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                         <input
                           type="text"
                           placeholder="Latitude e.g. 13.0827"
@@ -1145,7 +1145,7 @@ export const ConsultationsPage: React.FC = () => {
                             No available slots for this date.
                           </div>
                         ) : (
-                          <div className="grid grid-cols-4 gap-2">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             {availableSlots.map((slot: string) => {
                               const isSelected = selectedSlot === slot;
                               return (
@@ -1266,11 +1266,11 @@ export const ConsultationsPage: React.FC = () => {
         </div>
       )}
 
+      </main>
       {/* Footer */}
-      <footer className="mt-20 border-t border-cardboard pt-8 text-center text-ink opacity-60 font-mono text-[9px] uppercase tracking-wider">
+      <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 font-mono text-[9px] uppercase tracking-wider w-full">
         © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
       </footer>
-      </main>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
 
       {/* Doctor Detail & Availability Side Drawer */}
@@ -1338,7 +1338,7 @@ export const ConsultationsPage: React.FC = () => {
 
                     <div className="space-y-4">
                       {/* Qualification info */}
-                      <div className="grid grid-cols-2 gap-3 bg-paper p-3 border border-cardboard rounded-sm font-mono text-[11px]">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-paper p-3 border border-cardboard rounded-sm font-mono text-[11px]">
                         <div>
                           <span className="text-[10px] uppercase text-paprika font-bold block">Qualifications</span>
                           <span className="text-ink font-bold">{inspectingDoctor.qualification}</span>
@@ -1469,7 +1469,7 @@ export const ConsultationsPage: React.FC = () => {
                   
                   <hr className="border-t border-cardboard border-dashed" />
                   
-                  <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-ink">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] font-mono text-ink">
                     <div>
                       <span className="text-[10px] uppercase text-paprika font-bold block">Patient Companion</span>
                       <span className="font-bold">🐾 {consultationDetails.pet?.name || 'Pet'} ({consultationDetails.pet?.species})</span>

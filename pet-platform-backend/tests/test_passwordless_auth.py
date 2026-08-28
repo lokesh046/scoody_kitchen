@@ -86,3 +86,28 @@ def test_cleanup_unverified_typo_users():
     assert cleaned_count == 2
     assert db.delete.call_count == 2
     assert db.commit.called
+
+
+@patch("google.oauth2.id_token.verify_oauth2_token")
+def test_google_oidc_multiple_client_ids(mock_verify):
+    db = MagicMock()
+    db.scalar.return_value = None
+
+    mock_verify.return_value = {
+        "email": "googleuser@gmail.com",
+        "sub": "google_12345",
+        "given_name": "Alice",
+        "picture": "https://image.jpg",
+    }
+
+    with patch("app.core.config.settings.GOOGLE_CLIENT_ID", "web_client_id"):
+        with patch("app.core.config.settings.GOOGLE_CLIENT_IDS", ["ios_client_id", "android_client_id"]):
+            user = authenticate_google_user(db, "valid_mock_token")
+
+    assert user.email == "googleuser@gmail.com"
+    mock_verify.assert_called_once_with(
+        "valid_mock_token",
+        mock_verify.call_args[0][1],
+        ["web_client_id", "ios_client_id", "android_client_id"]
+    )
+

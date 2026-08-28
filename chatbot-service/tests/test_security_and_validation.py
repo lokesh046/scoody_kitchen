@@ -364,7 +364,7 @@ def test_mcp_client_envelope_contract():
 def test_mcp_call_token_security_and_replay_prevention():
     mcp_server_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../pet-platform-mcp-server"))
     if mcp_server_dir not in sys.path:
-        sys.path.insert(0, mcp_server_dir)
+        sys.path.append(mcp_server_dir)
 
     from utils.mcp_auth import mint_mcp_call_token
     from tools._auth import verify_mcp_call_token

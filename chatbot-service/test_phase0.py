@@ -1,14 +1,17 @@
 import sys
 import os
 
+import importlib.util
 mcp_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../pet-platform-mcp-server"))
-if mcp_dir not in sys.path:
-    sys.path.insert(0, mcp_dir)
+mcp_main_path = os.path.join(mcp_dir, "main.py")
 
 try:
-    import main as mcp_main
+    spec = importlib.util.spec_from_file_location("mcp_main", mcp_main_path)
+    mcp_main = importlib.util.module_from_spec(spec)
+    sys.modules["mcp_main"] = mcp_main
+    spec.loader.exec_module(mcp_main)
     mcp_ping = mcp_main.ping
-except ModuleNotFoundError:
+except Exception:
     def mcp_ping(message: str = "ping") -> str:
         return f"pong: {message}"
 

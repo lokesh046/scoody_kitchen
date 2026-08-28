@@ -24,6 +24,7 @@ from app.models.shipment import Shipment
 from app.models.order_status_history import OrderStatusHistory
 from app.models.webhook_event import ProcessedWebhookEvent
 from app.models.idempotency_key import IdempotencyKey
+from app.models.notification import Notification
 
 
 __all__ = [
@@ -53,4 +54,5 @@ __all__ = [
     "HealthRecord",
     "HealthRecordType",
     "DoctorApplication",
+    "Notification",
 ]

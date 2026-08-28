@@ -182,15 +182,17 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
         if active_conf_id and session_id:
             await session_memory.aconsume_pending_action(active_conf_id, session_id)
 
-        # Support both bare and tool_ prefixed action names
-        normalized_action = pending_action.replace("tool_", "")
+        # Support both bare and tool_ prefixed action names, stripping any server name prefixes
+        clean_action = pending_action.split("__")[-1]
+        normalized_action = clean_action.replace("tool_", "")
         prefixed_action = f"tool_{normalized_action}"
         
-        tool_fn = None
-        if normalized_action in tools_by_name:
-            tool_fn = tools_by_name[normalized_action]
-        elif prefixed_action in tools_by_name:
-            tool_fn = tools_by_name[prefixed_action]
+        tool_fn = tools_by_name.get(pending_action)
+        if not tool_fn:
+            if normalized_action in tools_by_name:
+                tool_fn = tools_by_name[normalized_action]
+            elif prefixed_action in tools_by_name:
+                tool_fn = tools_by_name[prefixed_action]
 
         if tool_fn:
             if normalized_action == "cancel_order":
@@ -337,7 +339,7 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                     "pending_action_args": None,
                 }
 
-            elif pending_action in STATE_CHANGING_TOOLS or prefixed_action in STATE_CHANGING_TOOLS:
+            elif clean_action in STATE_CHANGING_TOOLS or pending_action in STATE_CHANGING_TOOLS or prefixed_action in STATE_CHANGING_TOOLS:
                 # Generic fallback for any other state-changing tool that reaches
                 # this point (e.g. added later) — still requires this same
                 # confirm-then-invoke path, never a direct call.
@@ -423,8 +425,9 @@ async def commerce_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                         t_args = call.get("args") or {}
                         if t_name in tools_by_name:
                             # SAFETY GATE: state-changing tools must go through HITL confirmation
-                            normalized_t_name = t_name.replace("tool_", "")
-                            if normalized_t_name in STATE_CHANGING_TOOLS or t_name in STATE_CHANGING_TOOLS:
+                            clean_t_name = t_name.split("__")[-1]
+                            normalized_t_name = clean_t_name.replace("tool_", "")
+                            if normalized_t_name in STATE_CHANGING_TOOLS or clean_t_name in STATE_CHANGING_TOOLS or t_name in STATE_CHANGING_TOOLS:
                                 confirm_args = _default_pending_args(normalized_t_name, t_args)
                                 confirm_args.pop("session_user_id", None)
                                 confirm_args.pop("mcp_call_token", None)

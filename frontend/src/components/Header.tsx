@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/auth';
 import { useCartStore } from '../store/cart';
 import { logoutUser } from '../api/auth';
 import { cleanupUnverifiedUsers } from '../api/admin';
+import { NotificationDropdown } from './NotificationDropdown';
 import { 
   PawPrint, 
   ShoppingCart, 
@@ -141,9 +142,32 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
             )}
 
             {user && (
-              <span className="font-mono text-[10px] uppercase font-bold text-turmeric hidden sm:inline">
-                {user.first_name || 'User'}
-              </span>
+              <NotificationDropdown />
+            )}
+
+            {user && (
+              <button
+                onClick={() => navigate('/profile')}
+                className={`p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper flex items-center space-x-1.5 font-mono text-[10px] uppercase font-bold transition-all cursor-pointer ${
+                  activeTab === 'profile' ? 'bg-paperLight border-turmeric text-turmeric' : ''
+                }`}
+              >
+                {user.profile_image_url ? (
+                  <img 
+                    src={user.profile_image_url} 
+                    alt="Profile" 
+                    className="w-4 h-4 rounded-full object-cover shrink-0"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <User className="w-3.5 h-3.5 text-turmeric shrink-0" />
+                )}
+                <span className="hidden sm:inline text-turmeric">
+                  {user.first_name || 'Profile'}
+                </span>
+              </button>
             )}
 
             <button 
@@ -295,6 +319,28 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
                   <div className="px-3 font-mono text-[9px] uppercase text-ink opacity-60">
                     Logged in as: <strong className="text-ink">{user.first_name || 'User'}</strong>
                   </div>
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      navigate('/profile');
+                    }}
+                    className={`w-full py-2 px-3 border flex items-center justify-center space-x-1.5 font-body text-[10px] font-bold uppercase transition-all ${
+                      activeTab === 'profile'
+                        ? 'bg-paperLight border-cardboard text-ink'
+                        : 'border-cardboard hover:bg-paperLight text-ink'
+                    }`}
+                  >
+                    {user.profile_image_url ? (
+                      <img 
+                        src={user.profile_image_url} 
+                        alt="Profile" 
+                        className="w-3.5 h-3.5 rounded-full object-cover"
+                      />
+                    ) : (
+                      <User className="w-3.5 h-3.5" />
+                    )}
+                    <span>My Profile</span>
+                  </button>
                   <button
                     onClick={handleLogout}
                     className="w-full py-2 px-3 border border-cardboard hover:bg-paperLight text-ink flex items-center justify-center space-x-1.5 font-body text-[10px] font-bold uppercase"

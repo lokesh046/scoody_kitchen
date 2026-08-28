@@ -31,6 +31,12 @@ def checkout(
     current_user: User = Depends(get_current_user),
 ):
     try:
+        if checkout_data.phone:
+            current_user.phone = checkout_data.phone.strip()
+            db.add(current_user)
+            db.commit()
+            db.refresh(current_user)
+
         return create_order_from_cart(
             db,
             current_user.id,

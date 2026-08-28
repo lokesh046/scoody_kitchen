@@ -12,6 +12,7 @@ class CheckoutRequest(BaseModel):
         max_length=500,
     )
     payment_method: str | None = None
+    phone: str | None = None
 
 
 class OrderItemResponse(BaseModel):
@@ -40,6 +41,9 @@ class OrderResponse(BaseModel):
     updated_at: datetime
     razorpay_order_id: str | None = None
     razorpay_key_id: str | None = None
+    user_phone: str | None = None
+    user_email: str | None = None
+    user_name: str | None = None
 
     items: list[OrderItemResponse]
 
