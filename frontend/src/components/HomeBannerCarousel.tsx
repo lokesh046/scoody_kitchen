@@ -121,6 +121,8 @@ export const HomeBannerCarousel: React.FC = () => {
     setCurrentIndex(index + 1);
   };
 
+  const translationIndex = activeBanners.length > 1 ? currentIndex : 0;
+
   if (isLoading) {
     return (
       <div className="w-full h-[320px] sm:h-[380px] md:h-[450px] bg-paper flex items-center justify-center border-b border-cardboard border-opacity-35">
@@ -153,8 +155,8 @@ export const HomeBannerCarousel: React.FC = () => {
             display: 'flex',
             width: '100%',
             // Calculation computes the offset centering current slide while peeking left and right
-            transform: `translate3d(calc(50vw - (var(--slide-width) / 2) - (${currentIndex} * var(--slide-width))), 0, 0)`,
-            WebkitTransform: `translate3d(calc(50vw - (var(--slide-width) / 2) - (${currentIndex} * var(--slide-width))), 0, 0)`,
+            transform: `translate3d(calc(50vw - (var(--slide-width) / 2) - (${translationIndex} * var(--slide-width))), 0, 0)`,
+            WebkitTransform: `translate3d(calc(50vw - (var(--slide-width) / 2) - (${translationIndex} * var(--slide-width))), 0, 0)`,
             transition: transitionEnabled ? 'transform 700ms cubic-bezier(0.25, 1, 0.5, 1)' : 'none',
             //@ts-ignore
             '--slide-width': window.innerWidth < 768 ? '92vw' : '80vw',

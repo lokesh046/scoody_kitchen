@@ -10,7 +10,14 @@ import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
 import { HomeBannerCarousel } from '../../components/HomeBannerCarousel';
 
+import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
+
 export default function HomePage() {
+  useDocumentMetadata(
+    "Honest Small-Batch Pet Cooking",
+    "Human-grade, small-batch pet food cooked under veterinary supervision. Transparent recipes for pet parents who care."
+  );
+
   const navigate = useNavigate();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
@@ -110,7 +117,7 @@ export default function HomePage() {
           <div className="max-w-7xl mx-auto text-left space-y-12 animate-fade-in-up">
             <div className="max-w-xl">
               <span className="font-mono text-[10px] uppercase font-bold text-herb tracking-widest block mb-2">// OUR QUALITY INDEX PROTOCOL</span>
-              <h3 className="font-display font-black text-4xl uppercase tracking-tight text-ink">Built on Traceability</h3>
+              <h1 className="font-display font-black text-4xl uppercase tracking-tight text-ink">Built on Traceability</h1>
               <p className="font-body text-xs text-ink opacity-70 mt-2 leading-relaxed">
                 We believe pet nutrition isn't a trade secret. Every single batch bag we cook contains a detailed ledger of ingredient decisions.
               </p>

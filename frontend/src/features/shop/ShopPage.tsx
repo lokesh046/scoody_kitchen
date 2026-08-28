@@ -11,7 +11,14 @@ import { RecipeCard } from '../../components/RecipeCard';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
 
+import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
+
 export default function ShopPage() {
+  useDocumentMetadata(
+    "Shop Recipes",
+    "Browse our small-batch recipes, active nutritional formulas, and veterinary-supervised meals cooked with transparent ingredients."
+  );
+
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
@@ -82,12 +89,12 @@ export default function ShopPage() {
 
               <div className="border-t border-b border-dashed border-cardboard border-opacity-30 py-4 space-y-4">
                 <Eyebrow label="est. 2019 — batch ledger cooking" />
-                <h2 className="font-display text-4xl md:text-6xl font-extrabold text-turmeric leading-tight tracking-tight">
+                <h1 className="font-display text-4xl md:text-6xl font-extrabold text-turmeric leading-tight tracking-tight">
                   Honest Ingredients.<br/>
                   <span className="text-paperLight italic font-normal">
                     Zero Filler Secrets.
                   </span>
-                </h2>
+                </h1>
               </div>
 
               <p className="font-body text-sm md:text-base text-paper opacity-85 leading-relaxed max-w-xl">
@@ -162,6 +169,7 @@ export default function ShopPage() {
               placeholder="Search recipes (e.g. Chicken)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search recipes"
               className="w-full pl-9 pr-4 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
             />
           </div>
@@ -217,16 +225,35 @@ export default function ShopPage() {
 
         {/* Product Grid / States */}
         {productsLoading ? (
-          /* Stylized Notebook Grid Skeletons */
+          /* Premium Product Grid Skeletons matching RecipeCard */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[1, 2, 3].map((n) => (
-              <div key={n} className="border border-cardboard bg-paperLight p-6 rounded-sm space-y-4 animate-pulse">
-                <div className="w-full aspect-[4/3] bg-paper border border-cardboard border-dashed"></div>
-                <div className="h-6 bg-paper w-3/4 rounded-sm"></div>
-                <div className="h-4 bg-paper w-1/2 rounded-sm"></div>
-                <div className="border-t border-dashed border-cardboard pt-4">
-                  <div className="h-3 bg-paper w-full rounded-sm mb-2"></div>
-                  <div className="h-3 bg-paper w-5/6 rounded-sm"></div>
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <div key={n} className="border border-cardboard bg-paperLight flex flex-col shadow-sm rounded-[4px] animate-pulse">
+                {/* Image Placeholder */}
+                <div className="w-full aspect-[4/3] bg-cardboard bg-opacity-20 border-b border-cardboard"></div>
+                {/* Content Area Placeholder */}
+                <div className="p-5 flex-grow flex flex-col justify-between space-y-4">
+                  <div>
+                    {/* Header: Title & Price */}
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="h-5 bg-cardboard bg-opacity-20 w-2/3 rounded-[3px]"></div>
+                      <div className="h-5 bg-cardboard bg-opacity-20 w-1/4 rounded-[3px]"></div>
+                    </div>
+                    {/* Description lines */}
+                    <div className="space-y-2 mt-4">
+                      <div className="h-3 bg-cardboard bg-opacity-20 w-full rounded-[3px]"></div>
+                      <div className="h-3 bg-cardboard bg-opacity-20 w-5/6 rounded-[3px]"></div>
+                      <div className="h-3 bg-cardboard bg-opacity-20 w-4/5 rounded-[3px]"></div>
+                    </div>
+                  </div>
+                  {/* Ingredient ledger dots placeholder */}
+                  <div className="border-t border-b border-dashed border-cardboard py-3 flex gap-2">
+                    <div className="h-4 bg-cardboard bg-opacity-20 w-12 rounded-[12px]"></div>
+                    <div className="h-4 bg-cardboard bg-opacity-20 w-16 rounded-[12px]"></div>
+                    <div className="h-4 bg-cardboard bg-opacity-20 w-14 rounded-[12px]"></div>
+                  </div>
+                  {/* Button Placeholder */}
+                  <div className="h-10 bg-cardboard bg-opacity-20 w-full rounded-[4px]"></div>
                 </div>
               </div>
             ))}

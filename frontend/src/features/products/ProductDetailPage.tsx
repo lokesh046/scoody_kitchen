@@ -7,11 +7,13 @@ import { IngredientLedger, getIngredientsForProduct } from '../../components/Ing
 import { Eyebrow } from '../../components/Eyebrow';
 import { 
   ArrowLeft, Bone, ShoppingCart,
-  Minus, Plus, ShieldCheck, Heart, AlertCircle, Loader2 
+  Minus, Plus, ShieldCheck, Heart, AlertCircle
 } from 'lucide-react';
 import { useCartStore } from '../../store/cart';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
+
+import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +38,11 @@ export const ProductDetailPage: React.FC = () => {
     queryFn: () => fetchProductById(productId),
     enabled: !isNaN(productId),
   });
+
+  useDocumentMetadata(
+    product?.name || "Recipe Detail",
+    product?.description || "Browse veterinary-supervised ingredients and active nutritional formulas."
+  );
 
   const availableWeights = product?.weight_options || [];
   const activeWeight = selectedWeight || (availableWeights.length > 0 ? availableWeights[0].weight : null);
@@ -95,13 +102,93 @@ export const ProductDetailPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-paper flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
-          <p className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold">
-            Reading recipe entry...
-          </p>
+      <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
+        {/* Full-width Top Navigation Header bar */}
+        <Header activeTab="shop" onCartToggle={() => setIsCartOpen(true)} />
+
+        {/* Main content wrapper */}
+        <div className="flex-grow max-w-7xl w-full mx-auto px-4 md:px-8 py-8 relative animate-pulse">
+          {/* Back Link Placeholder */}
+          <div className="mb-6 pl-4">
+            <div className="h-3 bg-cardboard bg-opacity-20 w-32 rounded-[3px]"></div>
+          </div>
+
+          {/* Main Recipe Detail Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start text-left pl-4">
+            {/* Left Column - Product Image Placeholder */}
+            <div className="lg:col-span-6 space-y-4">
+              <div className="border border-cardboard bg-paperLight p-4 rounded-sm shadow-sm">
+                <div className="w-full aspect-[4/3] bg-cardboard bg-opacity-20 rounded-[4px] border border-cardboard"></div>
+                {/* Gallery Thumbnails Placeholders */}
+                <div className="flex gap-2 pt-4">
+                  <div className="w-16 h-16 bg-cardboard bg-opacity-20 rounded-sm border border-cardboard"></div>
+                  <div className="w-16 h-16 bg-cardboard bg-opacity-20 rounded-sm border border-cardboard"></div>
+                </div>
+              </div>
+              {/* Quality Seals Placeholders */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="h-14 bg-cardboard bg-opacity-20 rounded-sm border border-cardboard border-dashed"></div>
+                <div className="h-14 bg-cardboard bg-opacity-20 rounded-sm border border-cardboard border-dashed"></div>
+              </div>
+            </div>
+
+            {/* Right Column - Recipe Card Info Placeholder */}
+            <div className="lg:col-span-6">
+              <div className="bg-paperLight border border-cardboard p-8 rounded-sm shadow-md space-y-6">
+                <div className="space-y-3">
+                  <div className="h-3 bg-cardboard bg-opacity-20 w-1/3 rounded-[3px]"></div>
+                  <div className="h-9 bg-cardboard bg-opacity-20 w-3/4 rounded-[4px]"></div>
+                  <div className="h-6 bg-cardboard bg-opacity-20 w-1/4 rounded-[3px] mt-2"></div>
+                </div>
+
+                <hr className="border-t border-dashed border-cardboard" />
+
+                {/* Ingredient breakdown lines */}
+                <div className="space-y-3">
+                  <div className="h-3 bg-cardboard bg-opacity-20 w-1/2 rounded-[3px]"></div>
+                  <div className="flex gap-2">
+                    <div className="h-5 bg-cardboard bg-opacity-20 w-12 rounded-[12px]"></div>
+                    <div className="h-5 bg-cardboard bg-opacity-20 w-16 rounded-[12px]"></div>
+                    <div className="h-5 bg-cardboard bg-opacity-20 w-14 rounded-[12px]"></div>
+                  </div>
+                </div>
+
+                <hr className="border-t border-dashed border-cardboard" />
+
+                {/* Description lines */}
+                <div className="space-y-2">
+                  <div className="h-3 bg-cardboard bg-opacity-20 w-1/3 rounded-[3px]"></div>
+                  <div className="h-4 bg-cardboard bg-opacity-20 w-full rounded-[3px]"></div>
+                  <div className="h-4 bg-cardboard bg-opacity-20 w-5/6 rounded-[3px]"></div>
+                </div>
+
+                <hr className="border-t border-dashed border-cardboard" />
+
+                {/* Selector Placeholder */}
+                <div className="space-y-3">
+                  <div className="h-3 bg-cardboard bg-opacity-20 w-1/4 rounded-[3px]"></div>
+                  <div className="flex gap-2">
+                    <div className="h-8 bg-cardboard bg-opacity-20 w-16 rounded-sm"></div>
+                    <div className="h-8 bg-cardboard bg-opacity-20 w-16 rounded-sm"></div>
+                  </div>
+                </div>
+
+                {/* Buy Box Placeholder */}
+                <div className="pt-4 flex gap-4">
+                  <div className="h-12 bg-cardboard bg-opacity-20 w-32 rounded-sm border border-cardboard"></div>
+                  <div className="h-12 bg-cardboard bg-opacity-20 flex-grow rounded-sm bg-turmeric opacity-20"></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Footer */}
+        <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
+          <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">
+            © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
+          </p>
+        </footer>
       </div>
     );
   }
@@ -348,6 +435,7 @@ export const ProductDetailPage: React.FC = () => {
                 <button
                   onClick={handleDecrement}
                   disabled={quantity <= 1 || isOutOfStock || !product.is_active}
+                  aria-label="Decrease quantity"
                   className="p-1.5 hover:bg-paper rounded-sm text-ink disabled:opacity-30"
                 >
                   <Minus className="w-3.5 h-3.5" />
@@ -358,6 +446,7 @@ export const ProductDetailPage: React.FC = () => {
                 <button
                   onClick={handleIncrement}
                   disabled={isOutOfStock || !product.is_active}
+                  aria-label="Increase quantity"
                   className="p-1.5 hover:bg-paper rounded-sm text-ink disabled:opacity-30"
                 >
                   <Plus className="w-3.5 h-3.5" />

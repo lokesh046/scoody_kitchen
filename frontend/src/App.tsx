@@ -110,9 +110,12 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       retry: 1,
+      staleTime: 5000,
     },
   },
 });
+
+import { WebSocketNotificationListener } from './components/WebSocketNotificationListener';
 
 export default function App() {
   return (
@@ -120,6 +123,7 @@ export default function App() {
       <BrowserRouter>
         <SessionProvider>
           <AuthEventListener />
+          <WebSocketNotificationListener />
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/shop" element={<ShopPage />} />

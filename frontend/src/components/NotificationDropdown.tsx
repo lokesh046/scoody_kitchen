@@ -2,32 +2,20 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell, Clock, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../store/auth';
-import { refreshToken } from '../api/client';
+import { useToastStore } from '../store/toasts';
 import { 
   fetchMyNotifications, 
   fetchUnreadCount, 
   markNotificationAsRead, 
   markAllNotificationsAsRead,
 } from '../api/notifications';
-import type { NotificationResponse } from '../api/notifications';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-
-const getWsUrl = (token: string) => {
-  const base = API_BASE_URL.startsWith('http') 
-    ? API_BASE_URL 
-    : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
-  const wsBase = base.replace(/^http/, 'ws');
-  return `${wsBase}/notifications/ws?token=${token}`;
-};
-
 export function NotificationDropdown() {
-  const accessToken = useAuthStore(state => state.accessToken);
   const user = useAuthStore(state => state.user);
   const queryClient = useQueryClient();
   
   const [isOpen, setIsOpen] = useState(false);
-  const [toasts, setToasts] = useState<NotificationResponse[]>([]);
+  const toasts = useToastStore((state) => state.toasts);
+  const removeToast = useToastStore((state) => state.removeToast);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on click outside
@@ -41,100 +29,23 @@ export function NotificationDropdown() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // WebSockets for Real-Time Notification Delivery
-  useEffect(() => {
-    if (!accessToken) return;
-
-    let socket: WebSocket | null = null;
-    let reconnectTimeout: any = null;
-
-    const connectWs = () => {
-      const url = getWsUrl(accessToken);
-      console.log("[WebSocket Debug] Connecting to:", url);
-      socket = new WebSocket(url);
-
-      socket.onopen = () => {
-        console.log("[WebSocket Debug] Connected successfully!");
-      };
-
-      socket.onmessage = (event) => {
-        console.log("[WebSocket Debug] Raw message received:", event.data);
-        try {
-          const notification: NotificationResponse = JSON.parse(event.data);
-          console.log("[WebSocket Debug] Parsed notification:", notification);
-          
-          // Trigger floating toast
-          setToasts(prev => [...prev, notification]);
-          setTimeout(() => {
-            setToasts(prev => prev.filter(t => t.id !== notification.id));
-          }, 6000);
-
-          // Instantly insert the new notification into the local list cache (0ms latency!)
-          queryClient.setQueryData(['myNotifications'], (oldData: NotificationResponse[] | undefined) => {
-            if (!oldData) return [notification];
-            if (oldData.some(n => n.id === notification.id)) return oldData;
-            return [notification, ...oldData];
-          });
-
-          // Instantly increment the unread count in local cache
-          queryClient.setQueryData(['unreadNotificationsCount'], (oldData: { count: number } | undefined) => {
-            if (!oldData) return { count: 1 };
-            return { count: oldData.count + 1 };
-          });
-        } catch (err) {
-          console.error("[WebSocket Debug] Failed to parse payload:", err);
-        }
-      };
-
-      socket.onclose = async (event) => {
-        console.warn(`[WebSocket Debug] Disconnected. Code: ${event.code}, Reason: ${event.reason || 'None'}.`);
-
-        // If closed because of token verification error (e.g. 1008 Policy Violation or generic 1006 connection close due to 403)
-        if (event.code === 1008 || event.code === 1006) {
-          console.log("[WebSocket Debug] Attempting silent token refresh to recover connection...");
-          try {
-            await refreshToken();
-            // Note: calling refreshToken updates the authStore, which updates `accessToken`.
-            // The dependency array [accessToken] will automatically trigger clean up and re-run this entire useEffect!
-            return;
-          } catch (err) {
-            console.error("[WebSocket Debug] Failed to refresh token during reconnect, session is likely expired:", err);
-          }
-        }
-
-        console.log("[WebSocket Debug] Scheduling reconnect in 5s...");
-        reconnectTimeout = setTimeout(connectWs, 5000);
-      };
-
-      socket.onerror = (error) => {
-        console.error("[WebSocket Debug] Error details:", error);
-        socket?.close();
-      };
-    };
-
-    connectWs();
-
-    return () => {
-      if (socket) {
-        socket.onclose = null;
-        socket.close();
-      }
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-    };
-  }, [accessToken, queryClient]);
-
   // Queries
   const { data: notifications, isLoading: notificationsLoading } = useQuery({
     queryKey: ['myNotifications'],
     queryFn: () => fetchMyNotifications(0, 10),
     enabled: !!user,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const { data: unreadData } = useQuery({
     queryKey: ['unreadNotificationsCount'],
     queryFn: fetchUnreadCount,
     enabled: !!user,
-    refetchInterval: 60000,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const unreadCount = unreadData?.count ?? 0;
@@ -255,7 +166,7 @@ export function NotificationDropdown() {
               <p className="font-body text-[11px] text-ink opacity-85 leading-normal">{toast.message}</p>
             </div>
             <button
-              onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+              onClick={() => removeToast(toast.id)}
               className="absolute top-2.5 right-2.5 text-ink opacity-50 hover:opacity-100 font-bold text-xs cursor-pointer bg-transparent border-0"
             >
               ✕

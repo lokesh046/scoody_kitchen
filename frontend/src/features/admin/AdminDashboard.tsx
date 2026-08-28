@@ -427,6 +427,7 @@ export const AdminDashboard: React.FC = () => {
     mutationFn: createBanner,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-banners'] });
+      queryClient.invalidateQueries({ queryKey: ['active-banners'] });
       resetBannerForm();
       alert('Banner created successfully!');
     },
@@ -440,6 +441,7 @@ export const AdminDashboard: React.FC = () => {
     mutationFn: ({ id, formData }: { id: number, formData: FormData }) => updateBanner(id, formData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-banners'] });
+      queryClient.invalidateQueries({ queryKey: ['active-banners'] });
       setEditingBannerId(null);
       alert('Banner updated successfully!');
     },
@@ -453,6 +455,7 @@ export const AdminDashboard: React.FC = () => {
     mutationFn: deleteBanner,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-banners'] });
+      queryClient.invalidateQueries({ queryKey: ['active-banners'] });
       alert('Banner deleted successfully!');
     },
     onError: (err: any) => {

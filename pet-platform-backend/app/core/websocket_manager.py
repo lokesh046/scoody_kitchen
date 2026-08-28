@@ -14,6 +14,7 @@ class ConnectionManager:
         if user_id not in self.active_connections:
             self.active_connections[user_id] = []
         self.active_connections[user_id].append(websocket)
+        print(f"[WS Manager] User {user_id} connected. Active connections: {len(self.active_connections[user_id])}")
         logger.info(f"[WS Manager] User {user_id} connected. Active connections: {len(self.active_connections[user_id])}")
 
     def disconnect(self, user_id: int, websocket: WebSocket):
@@ -22,6 +23,7 @@ class ConnectionManager:
                 self.active_connections[user_id].remove(websocket)
             if not self.active_connections[user_id]:
                 del self.active_connections[user_id]
+        print(f"[WS Manager] User {user_id} disconnected.")
         logger.info(f"[WS Manager] User {user_id} disconnected.")
 
     async def send_personal_message(self, user_id: int, message: dict):

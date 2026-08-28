@@ -172,6 +172,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
 
             <button 
               onClick={() => onCartToggle?.()}
+              aria-label="Open cart drawer"
               className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 relative text-paper"
             >
               <ShoppingCart className="w-4 h-4" />
@@ -181,7 +182,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
                 </span>
               )}
             </button>
-
+ 
             {user ? (
               <button
                 onClick={handleLogout}
@@ -199,10 +200,12 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
                 <span>Log In</span>
               </button>
             )}
-
+ 
             {/* Mobile Hamburger toggle */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="Toggle navigation menu"
+              aria-expanded={isMobileMenuOpen}
               className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper lg:hidden cursor-pointer"
             >
               {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
@@ -371,6 +374,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
         <button
           type="button"
           onClick={() => onCartToggle?.()}
+          aria-label="Open cart drawer"
           className="fixed bottom-6 right-6 z-40 bg-turmeric text-ink p-4 rounded-full border-double border-4 border-cardboard shadow-2xl hover:scale-105 hover:-translate-y-1 active:translate-y-0 active:scale-100 transition-all duration-300 flex items-center justify-center group cursor-pointer hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)]"
           title="Open Cart Drawer"
         >

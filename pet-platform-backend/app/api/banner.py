@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
+from app.core.cache import cache
 from app.core.database import get_db
 from app.dependencies.auth import require_role
 from app.models.enums import UserRole
@@ -14,8 +15,21 @@ router = APIRouter(prefix="/banners", tags=["Banners"])
 
 @router.get("/", response_model=list[BannerResponse])
 def get_active_banners(db: Session = Depends(get_db)):
+    cache_key = "banners:active"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     stmt = select(Banner).where(Banner.is_active == True).order_by(Banner.display_order.asc())
-    return db.scalars(stmt).all()
+    banners = db.scalars(stmt).all()
+    
+    # Serialize results to list of dicts to safely store in cache
+    serialized = [
+        BannerResponse.model_validate(b).model_dump(mode="json")
+        for b in banners
+    ]
+    cache.set(cache_key, serialized, ttl_seconds=600)
+    return banners
 
 @router.get("/all", response_model=list[BannerResponse])
 def get_all_banners(
@@ -44,7 +58,7 @@ async def create_banner(
     storage_provider = get_storage_provider()
     uploaded_url = storage_provider.upload_image(
         file_bytes=file_bytes,
-        original_filename=image.filename,
+        original_filename=image.filename or "banner.jpg",
         content_type=image.content_type or "image/jpeg"
     )
 
@@ -59,6 +73,7 @@ async def create_banner(
     db.add(new_banner)
     db.commit()
     db.refresh(new_banner)
+    cache.delete("banners:active")
     return new_banner
 
 @router.patch("/{id}", response_model=BannerResponse)
@@ -97,7 +112,7 @@ async def update_banner(
         # Upload new image
         uploaded_url = storage_provider.upload_image(
             file_bytes=file_bytes,
-            original_filename=image.filename,
+            original_filename=image.filename or "banner.jpg",
             content_type=image.content_type or "image/jpeg"
         )
         banner.image_url = uploaded_url
@@ -115,6 +130,7 @@ async def update_banner(
 
     db.commit()
     db.refresh(banner)
+    cache.delete("banners:active")
     return banner
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -140,3 +156,4 @@ def delete_banner(
 
     db.delete(banner)
     db.commit()
+    cache.delete("banners:active")
