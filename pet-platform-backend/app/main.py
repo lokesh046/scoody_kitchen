@@ -42,6 +42,21 @@ import asyncio
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Verify secure internal endpoint credentials on startup
+    missing_secrets = []
+    if not settings.INTERNAL_SERVICE_API_KEY:
+        missing_secrets.append("INTERNAL_SERVICE_API_KEY")
+    if not settings.MCP_INTERNAL_SECRET:
+        missing_secrets.append("MCP_INTERNAL_SECRET")
+    if not settings.CHATBOT_INTERNAL_SECRET:
+        missing_secrets.append("CHATBOT_INTERNAL_SECRET")
+
+    if missing_secrets:
+        raise RuntimeError(
+            f"Security Error: The following internal API security keys are not configured in your environment: "
+            f"{', '.join(missing_secrets)}. Running in this state exposes internal endpoints to the public!"
+        )
+
     # Initialize Firebase Admin SDK
     try:
         import firebase_admin

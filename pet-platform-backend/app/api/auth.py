@@ -4,7 +4,7 @@ import jwt
 from jwt.exceptions import InvalidTokenError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
+import os
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import hash_token
@@ -244,11 +244,6 @@ def refresh_token_endpoint(
     db: Session = Depends(get_db),
 ):
     token_val = refresh_token or request.cookies.get("refresh_token")
-    try:
-        with open("/media/ganesh/2EB4C64AB4C613ED/scooby_pets/pet-platform-backend/refresh_debug.log", "a") as f:
-            f.write(f"REFRESH CALL: cookies={token_val[:15] if token_val else None}\n")
-    except Exception:
-        pass
 
     if not token_val:
         raise HTTPException(

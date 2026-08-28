@@ -150,9 +150,9 @@ def test_cancel_pending_order_releases_stock():
     assert inv.reserved_quantity == 0
 
 
-def test_cancel_confirmed_order_rejected():
+def test_cancel_shipped_order_rejected():
     db = MagicMock()
-    order = Order(id=1, user_id=1, status=OrderStatus.CONFIRMED)
+    order = Order(id=1, user_id=1, status=OrderStatus.SHIPPED)
 
     with pytest.raises(ValueError) as exc_info:
         cancel_order(db, order)
