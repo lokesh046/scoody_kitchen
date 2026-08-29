@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { formatNaiveDateTime } from '../../utils/date';
 import { fetchMyPets, fetchPetHealthRecords } from '../../api/pets';
 import { 
   fetchDoctors, fetchDoctorSlots, bookConsultation, 
@@ -15,7 +16,7 @@ import { Header } from '../../components/Header';
 import { 
   ArrowLeft, PawPrint, 
   Clock, Stethoscope, Loader2, AlertCircle, XCircle,
-  Compass, Calendar as CalendarIcon, Info, Star
+  Compass, Calendar as CalendarIcon, Info, Star, Video
 } from 'lucide-react';
 import { submitDoctorReview } from '../../api/reviews';
 
@@ -83,7 +84,7 @@ export const ConsultationsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCityFilter, setSelectedCityFilter] = useState('');
   const [selectedSpecializationFilter, setSelectedSpecializationFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'COMPLETED' | 'CANCELLED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'>('ALL');
 
   // Nearby Vets Finder States
   const [searchLat, setSearchLat] = useState<string>('');
@@ -424,7 +425,7 @@ export const ConsultationsPage: React.FC = () => {
     switch (status.toUpperCase()) {
       case 'PENDING':
         return 'text-turmeric bg-amber-50 border-amber-200';
-      case 'APPROVED':
+      case 'CONFIRMED':
         return 'text-herb bg-emerald-50 border-emerald-200';
       case 'COMPLETED':
         return 'text-blue-600 bg-blue-50 border-blue-200';
@@ -440,7 +441,7 @@ export const ConsultationsPage: React.FC = () => {
     return c.status.toUpperCase() === statusFilter;
   });
 
-  const getCountForStatus = (status: 'ALL' | 'PENDING' | 'APPROVED' | 'COMPLETED' | 'CANCELLED') => {
+  const getCountForStatus = (status: 'ALL' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED') => {
     if (status === 'ALL') return consultations.length;
     return consultations.filter((c: any) => c.status.toUpperCase() === status).length;
   };
@@ -780,7 +781,7 @@ export const ConsultationsPage: React.FC = () => {
                               <Clock className="w-3.5 h-3.5 text-turmeric mr-2" />
                               <span>SCHEDULED AT</span>
                             </span>
-                            <span className="bg-paperLight pl-1 font-bold text-ink">{new Date(consult.scheduled_at).toLocaleString()}</span>
+                            <span className="bg-paperLight pl-1 font-bold text-ink">{formatNaiveDateTime(consult.scheduled_at).full}</span>
                           </div>
                           
                           <div className="flex justify-between items-center dotted-divider py-1.5">
@@ -829,24 +830,36 @@ export const ConsultationsPage: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Cancel Button */}
-                      {(consult.status.toUpperCase() === 'PENDING' || consult.status.toUpperCase() === 'APPROVED') && (
-                        <div className="mt-4 pt-4 border-t border-cardboard flex justify-end pl-4">
-                          <button
-                            type="button"
-                            onClick={() => cancelMutation.mutate(consult.id)}
-                            disabled={cancelMutation.isPending}
-                            className="bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-[11px] uppercase py-2 px-4 rounded-sm tracking-wide transition-colors disabled:opacity-50 flex items-center space-x-1.5"
-                          >
-                            {cancelMutation.isPending && cancelMutation.variables === consult.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <>
-                                <XCircle className="w-3.5 h-3.5" />
-                                <span>Cancel Appointment</span>
-                              </>
-                            )}
-                          </button>
+                      {/* Action Buttons (Join Call / Cancel) */}
+                      {(consult.status.toUpperCase() === 'PENDING' || consult.status.toUpperCase() === 'CONFIRMED' || consult.status.toUpperCase() === 'IN_PROGRESS') && (
+                        <div className="mt-4 pt-4 border-t border-cardboard flex justify-end pl-4 space-x-3">
+                          {(consult.status.toUpperCase() === 'CONFIRMED' || consult.status.toUpperCase() === 'IN_PROGRESS') && (
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/consultations/${consult.id}/call`)}
+                              className="bg-emerald-700 hover:bg-emerald-800 text-white font-body font-bold text-[11px] uppercase py-2.5 px-4 rounded-sm tracking-wide transition-colors flex items-center space-x-1.5 shadow-md animate-pulse cursor-pointer"
+                            >
+                              <Video className="w-3.5 h-3.5" />
+                              <span>Join Video Call</span>
+                            </button>
+                          )}
+                          {(consult.status.toUpperCase() === 'PENDING' || consult.status.toUpperCase() === 'CONFIRMED') && (
+                            <button
+                              type="button"
+                              onClick={() => cancelMutation.mutate(consult.id)}
+                              disabled={cancelMutation.isPending}
+                              className="bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-[11px] uppercase py-2 px-4 rounded-sm tracking-wide transition-colors disabled:opacity-50 flex items-center space-x-1.5"
+                            >
+                              {cancelMutation.isPending && cancelMutation.variables === consult.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <>
+                                  <XCircle className="w-3.5 h-3.5" />
+                                  <span>Cancel Appointment</span>
+                                </>
+                              )}
+                            </button>
+                          )}
                         </div>
                       )}
 
@@ -897,7 +910,7 @@ export const ConsultationsPage: React.FC = () => {
                     {[
                       { id: 'ALL', label: 'All Sessions' },
                       { id: 'PENDING', label: 'Pending' },
-                      { id: 'APPROVED', label: 'Confirmed' },
+                      { id: 'CONFIRMED', label: 'Confirmed' },
                       { id: 'COMPLETED', label: 'Completed' },
                       { id: 'CANCELLED', label: 'Cancelled' },
                     ].map((filter) => {
@@ -1517,7 +1530,7 @@ export const ConsultationsPage: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <div>
                       <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">SCHEDULED TIME</span>
-                      <span className="font-mono text-xs text-ink font-bold">{new Date(consultationDetails.scheduled_at).toLocaleString()}</span>
+                      <span className="font-mono text-xs text-ink font-bold">{formatNaiveDateTime(consultationDetails.scheduled_at).full}</span>
                     </div>
                     <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 rounded-sm uppercase tracking-wider ${getStatusColor(consultationDetails.status)}`}>
                       {consultationDetails.status}
@@ -1584,6 +1597,20 @@ export const ConsultationsPage: React.FC = () => {
                     </div>
                   )}
                 </div>
+
+                {(consultationDetails.status.toUpperCase() === 'CONFIRMED' || consultationDetails.status.toUpperCase() === 'IN_PROGRESS') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedConsultationId(null);
+                      navigate(`/consultations/${consultationDetails.id}/call`);
+                    }}
+                    className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-mono text-[9px] uppercase font-bold py-3 tracking-wider rounded-sm transition-colors text-center flex items-center justify-center space-x-1.5 animate-pulse cursor-pointer shadow-md mb-2"
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>Join Video Consultation Room</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -1653,7 +1680,7 @@ export const ConsultationsPage: React.FC = () => {
                 Session Booked!
               </h3>
               <p className="font-body text-xs text-ink opacity-80 leading-relaxed max-w-xs">
-                Your consultation has been officially ledgered for <strong>{new Date(lastBookedSession.scheduledAt).toLocaleString()}</strong>.
+                Your consultation has been officially ledgered for <strong>{formatNaiveDateTime(lastBookedSession.scheduledAt).full}</strong>.
               </p>
             </div>
 

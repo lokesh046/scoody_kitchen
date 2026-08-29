@@ -6,6 +6,14 @@ from app.schemas.auth import UserResponse
 from app.schemas.clinic import ClinicResponse, ClinicPublicResponse
 
 
+class UserPublicResponse(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    profile_image_url: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class DoctorCreate(BaseModel):
     user_id: int
     clinic_id: int | None = None
@@ -97,6 +105,7 @@ class DoctorPublicResponse(BaseModel):
     profile_image_url: str | None = None
     is_available: bool
     is_verified: bool
+    user: UserPublicResponse | None = None
     clinic: ClinicPublicResponse | None = None
     average_rating: float = 0.0
     review_count: int = 0
@@ -128,6 +137,7 @@ class NearbyDoctorResponse(BaseModel):
     is_available: bool
     is_verified: bool
     distance_km: float
+    user: UserPublicResponse | None = None
     clinic: ClinicPublicResponse | None = None
     average_rating: float = 0.0
     review_count: int = 0

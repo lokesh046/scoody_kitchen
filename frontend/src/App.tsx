@@ -12,6 +12,7 @@ import { CheckoutPage } from './features/checkout/CheckoutPage';
 import { OrdersPage } from './features/orders/OrdersPage';
 import { PetsPage } from './features/pets/PetsPage';
 import { ConsultationsPage } from './features/consultations/ConsultationsPage';
+import { VideoCallPage } from './features/consultations/VideoCallPage';
 import { AssistantPage } from './features/chatbot/AssistantPage';
 import { ChatbotWidget } from './components/ChatbotWidget';
 import { AdminDashboard } from './features/admin/AdminDashboard';
@@ -136,6 +137,7 @@ export default function App() {
             <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
             <Route path="/pets" element={<RequireAuth><PetsPage /></RequireAuth>} />
             <Route path="/consultations" element={<RequireAuth><ConsultationsPage /></RequireAuth>} />
+            <Route path="/consultations/:id/call" element={<RequireAuth><VideoCallPage /></RequireAuth>} />
             <Route path="/apply-doctor" element={<RequireAuth><ApplyDoctorPage /></RequireAuth>} />
             <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/assistant" element={<RequireAuth><AssistantPage /></RequireAuth>} />

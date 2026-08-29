@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { formatNaiveDateTime } from '../../utils/date';
 
 import { CartDrawer } from '../../components/CartDrawer';
 import { Eyebrow } from '../../components/Eyebrow';
@@ -44,7 +45,8 @@ import {
   FileText,
   CheckCircle2,
   AlertTriangle,
-  ExternalLink
+  ExternalLink,
+  Video
 } from 'lucide-react';
 
 const DAYS_OF_WEEK = [
@@ -75,6 +77,7 @@ const mapRecordType = (type: string | undefined | null): string => {
 
 export const DoctorDashboard: React.FC = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState<'consultations' | 'schedule' | 'profile' | 'verification'>('consultations');
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -305,6 +308,16 @@ export const DoctorDashboard: React.FC = () => {
     }
   });
 
+  const toggleAvailabilityMutation = useMutation({
+    mutationFn: (isAvailable: boolean) => updateDoctorProfile({ is_available: isAvailable } as any),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['doctorProfile'] });
+    },
+    onError: (err: any) => {
+      alert(`Failed to update availability status: ${err?.response?.data?.detail || err.message}`);
+    }
+  });
+
   const addAvailMutation = useMutation({
     mutationFn: createDoctorAvailability,
     onSuccess: () => {
@@ -412,6 +425,35 @@ export const DoctorDashboard: React.FC = () => {
               Manage your consulting availability, review patient schedules, and update your doctor credentials card.
             </p>
           </div>
+          
+          {/* Active accepting consultations status toggle */}
+          {profile && (
+            <div className="flex items-center space-x-3 bg-paper border border-cardboard border-dashed px-4 py-3 rounded-sm shrink-0">
+              <div className="text-left">
+                <span className="font-mono text-[8px] uppercase text-cardboard font-bold block">CONSULTATIONS STATUS</span>
+                <span className="font-mono text-[10px] uppercase font-bold text-ink">
+                  {profile.is_available ? '🟢 Accepting bookings' : '🔴 Off duty (paused)'}
+                </span>
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => toggleAvailabilityMutation.mutate(!profile.is_available)}
+                disabled={toggleAvailabilityMutation.isPending}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  toggleAvailabilityMutation.isPending ? 'opacity-50 cursor-not-allowed' : ''
+                } ${
+                  profile.is_available ? 'bg-herb' : 'bg-cardboard bg-opacity-40'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-paperLight shadow ring-0 transition duration-200 ease-in-out ${
+                    profile.is_available ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Navigation Tabs */}
@@ -502,9 +544,7 @@ export const DoctorDashboard: React.FC = () => {
                       </thead>
                       <tbody className="divide-y divide-cardboard divide-dashed">
                         {consultations.map((c) => {
-                          const dateObj = new Date(c.scheduled_at);
-                          const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                          const formattedTime = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                          const { date: formattedDate, time: formattedTime } = formatNaiveDateTime(c.scheduled_at);
 
                           return (
                             <tr key={c.id} className="hover:bg-paper transition-colors">
@@ -577,6 +617,13 @@ export const DoctorDashboard: React.FC = () => {
                                 {c.status?.toUpperCase() === 'CONFIRMED' && (
                                   <div className="flex justify-center space-x-2">
                                     <button
+                                      onClick={() => navigate(`/consultations/${c.id}/call`)}
+                                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-mono text-[8px] uppercase px-2.5 py-1 font-bold rounded-sm shadow-sm animate-pulse flex items-center space-x-1 cursor-pointer"
+                                    >
+                                      <Video className="w-3 h-3" />
+                                      <span>Join Call</span>
+                                    </button>
+                                    <button
                                       onClick={() => updateStatusMutation.mutate({ id: c.id, status: 'in_progress' })}
                                       disabled={updateStatusMutation.isPending}
                                       className="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-mono text-[8px] uppercase px-2 py-1 font-bold rounded-sm border border-indigo-300 disabled:opacity-50"
@@ -595,6 +642,13 @@ export const DoctorDashboard: React.FC = () => {
 
                                 {c.status?.toUpperCase() === 'IN_PROGRESS' && (
                                   <div className="flex justify-center items-center space-x-2">
+                                    <button
+                                      onClick={() => navigate(`/consultations/${c.id}/call`)}
+                                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-mono text-[8px] uppercase px-2.5 py-1 font-bold rounded-sm shadow-sm animate-pulse flex items-center space-x-1 cursor-pointer"
+                                    >
+                                      <Video className="w-3 h-3" />
+                                      <span>Join Call</span>
+                                    </button>
                                     <button
                                       onClick={() => updateStatusMutation.mutate({ id: c.id, status: 'completed' })}
                                       disabled={updateStatusMutation.isPending}
@@ -1527,7 +1581,7 @@ export const DoctorDashboard: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <div>
                       <span className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold block">APPOINT TIME</span>
-                      <span className="font-mono text-sm text-ink font-bold">{new Date(doctorConsultationDetails.scheduled_at).toLocaleString()}</span>
+                      <span className="font-mono text-sm text-ink font-bold">{formatNaiveDateTime(doctorConsultationDetails.scheduled_at).full}</span>
                     </div>
                     <span className={`font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold border ${
                       doctorConsultationDetails.status?.toUpperCase() === 'COMPLETED' ? 'bg-green-100 text-green-800 border-green-200' :

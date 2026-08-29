@@ -7,6 +7,7 @@ export interface NotificationResponse {
   message: string;
   type: string;
   is_read: boolean;
+  link?: string | null;
   created_at: string;
 }
 
@@ -36,10 +37,11 @@ export const markAllNotificationsAsRead = async (): Promise<{ message: string }>
   return response.data;
 };
 
-export const sendGlobalBroadcast = async (title: string, message: string): Promise<{ message: string }> => {
+export const sendGlobalBroadcast = async (title: string, message: string, link?: string): Promise<{ message: string }> => {
   const response = await apiClient.post<{ message: string }>('/notifications/broadcast', {
     title,
-    message
+    message,
+    link: link || undefined
   });
   return response.data;
 };

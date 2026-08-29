@@ -11,14 +11,16 @@ def create_notification(
     user_id: int,
     title: str,
     message: str,
-    type: str = "SYSTEM"
+    type: str = "SYSTEM",
+    link: str | None = None
 ) -> Notification:
     notification = Notification(
         user_id=user_id,
         title=title,
         message=message,
         type=type,
-        is_read=False
+        is_read=False,
+        link=link
     )
     db.add(notification)
     db.commit()
@@ -32,6 +34,7 @@ def create_notification(
         "message": notification.message,
         "type": notification.type,
         "is_read": notification.is_read,
+        "link": notification.link,
         "created_at": created_at_dt.isoformat()
     }
 

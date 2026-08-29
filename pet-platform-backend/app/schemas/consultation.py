@@ -58,6 +58,7 @@ class ConsultationResponse(BaseModel):
     reason: str
     customer_notes: str | None = None
     doctor_notes: str | None = None
+    meeting_room_id: str | None = None
     created_at: datetime
     updated_at: datetime
 

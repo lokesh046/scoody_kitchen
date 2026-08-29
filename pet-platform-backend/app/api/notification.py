@@ -24,6 +24,7 @@ router = APIRouter(
 class BroadcastRequest(BaseModel):
     title: str = Field(min_length=1, max_length=100)
     message: str = Field(min_length=1, max_length=500)
+    link: str | None = Field(default=None, max_length=255)
 
 
 @router.post("/broadcast", status_code=status.HTTP_202_ACCEPTED)
@@ -33,7 +34,7 @@ def send_broadcast_notification(
 ):
     try:
         from app.tasks.notification_tasks import broadcast_global_notification_task
-        broadcast_global_notification_task.delay(payload.title, payload.message)
+        broadcast_global_notification_task.delay(payload.title, payload.message, payload.link)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

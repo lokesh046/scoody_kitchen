@@ -1,4 +1,5 @@
 from datetime import date, datetime, time, timedelta, timezone
+import uuid
 from sqlalchemy import select, and_
 from sqlalchemy.orm import Session, joinedload
 
@@ -54,6 +55,9 @@ def get_available_slots(
     doctor = db.get(Doctor, doctor_id)
     if doctor is None or not doctor.is_active or not doctor.is_verified:
         raise ValueError("Doctor not found or not active/verified")
+
+    if not doctor.is_available:
+        return []
 
     # Determine day of week
     day_enum = WEEKDAY_TO_DAY_OF_WEEK[target_date.weekday()]
@@ -197,6 +201,7 @@ def create_consultation(
         status=ConsultationStatus.PENDING,
         reason=create_data.reason,
         customer_notes=create_data.customer_notes,
+        meeting_room_id=str(uuid.uuid4()),
     )
     db.add(consultation)
     db.commit()

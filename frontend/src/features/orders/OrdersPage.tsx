@@ -13,6 +13,26 @@ import {
   Truck, Calendar, Check, Star, Camera
 } from 'lucide-react';
 
+const TRACKING_STEPS = [
+  { label: 'Placed', statusKey: 'PENDING', icon: '📝' },
+  { label: 'Confirmed', statusKey: 'CONFIRMED', icon: '🤝' },
+  { label: 'Processing', statusKey: 'PROCESSING', icon: '🍳' },
+  { label: 'Shipped', statusKey: 'SHIPPED', icon: '🚚' },
+  { label: 'Out for Delivery', statusKey: 'OUT_FOR_DELIVERY', icon: '🛵' },
+  { label: 'Delivered', statusKey: 'DELIVERED', icon: '🎁' }
+];
+
+const getActiveStepIndex = (status: string) => {
+  const s = status.toUpperCase();
+  if (s === 'PENDING') return 0;
+  if (s === 'CONFIRMED') return 1;
+  if (s === 'PROCESSING' || s === 'PACKED') return 2;
+  if (s === 'SHIPPED' || s === 'IN_TRANSIT') return 3;
+  if (s === 'OUT_FOR_DELIVERY') return 4;
+  if (s === 'DELIVERED' || s === 'COMPLETED') return 5;
+  return -1;
+};
+
 export const OrdersPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -504,6 +524,112 @@ export const OrdersPage: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-5">
+                {/* Premium Progress Bar Timeline */}
+                {(() => {
+                  const activeStep = getActiveStepIndex(trackingData.order_status);
+                  const isCancelled = ['CANCELLED', 'DELIVERY_FAILED'].includes(trackingData.order_status.toUpperCase());
+                  return (
+                    <div className="w-full bg-paper p-5 border border-cardboard border-opacity-40 rounded-sm space-y-4">
+                      <div className="flex justify-between items-center pb-2 border-b border-cardboard border-dashed">
+                        <span className="font-mono text-[9px] uppercase tracking-wider font-bold text-ink">
+                          Fulfillment Status
+                        </span>
+                        <span className={`font-mono text-[9px] font-bold px-2 py-0.5 border uppercase tracking-wider rounded-xs ${
+                          isCancelled 
+                            ? 'text-paprika bg-red-50 border-red-200' 
+                            : activeStep === 5
+                              ? 'text-herb bg-emerald-50 border-emerald-200'
+                              : 'text-turmeric bg-amber-50 border-amber-200'
+                        }`}>
+                          {trackingData.order_status.replace('_', ' ')}
+                        </span>
+                      </div>
+
+                      {isCancelled ? (
+                        <div className="py-4 text-center space-y-2">
+                          <div className="text-3xl animate-bounce">❌</div>
+                          <h4 className="font-display font-bold text-sm text-paprika uppercase tracking-wide">This shipment has been cancelled</h4>
+                          <p className="font-body text-[11px] text-ink opacity-70">If you have any questions or need support, please contact customer care.</p>
+                        </div>
+                      ) : (
+                        <div className="relative pt-4 pb-2">
+                          {/* Connector Progress Line */}
+                          <div className="absolute top-8 left-[5%] right-[5%] h-1 bg-cardboard bg-opacity-25 rounded-full z-0 hidden sm:block">
+                            <div 
+                              className="h-full bg-turmeric transition-all duration-1000 ease-out rounded-full"
+                              style={{ width: `${(activeStep / (TRACKING_STEPS.length - 1)) * 100}%` }}
+                            />
+                          </div>
+
+                          {/* Horizontal Steps (Desktop) */}
+                          <div className="relative flex justify-between z-10 hidden sm:flex">
+                            {TRACKING_STEPS.map((step, idx) => {
+                              const isCompleted = idx < activeStep || (activeStep === 5 && idx === 5);
+                              const isActive = idx === activeStep && activeStep !== 5;
+                              return (
+                                <div key={idx} className="flex flex-col items-center w-[15%] space-y-2">
+                                  <div 
+                                    className={`w-9 h-9 rounded-full flex items-center justify-center font-mono text-sm border-2 transition-all duration-500 ${
+                                      isActive 
+                                        ? 'bg-turmeric text-paper border-turmeric scale-110 shadow-md ring-2 ring-turmeric ring-opacity-20 animate-pulse'
+                                        : isCompleted
+                                          ? 'bg-ink text-turmeric border-ink'
+                                          : 'bg-paperLight text-cardboard border-cardboard border-opacity-40'
+                                    }`}
+                                  >
+                                    {isCompleted ? <Check className="w-4 h-4 stroke-[3]" /> : step.icon}
+                                  </div>
+                                  <span className={`font-mono text-[9px] uppercase tracking-tight text-center leading-tight font-bold ${
+                                    isActive 
+                                      ? 'text-turmeric'
+                                      : isCompleted
+                                        ? 'text-ink'
+                                        : 'text-cardboard opacity-65'
+                                  }`}>
+                                    {step.label}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Vertical Steps (Mobile) */}
+                          <div className="flex flex-col space-y-4 sm:hidden pl-2">
+                            {TRACKING_STEPS.map((step, idx) => {
+                              const isCompleted = idx < activeStep || (activeStep === 5 && idx === 5);
+                              const isActive = idx === activeStep && activeStep !== 5;
+                              return (
+                                <div key={idx} className="flex items-center space-x-3.5">
+                                  <div 
+                                    className={`w-7 h-7 rounded-full flex items-center justify-center font-mono text-xs border-2 shrink-0 transition-all duration-500 ${
+                                      isActive 
+                                        ? 'bg-turmeric text-paper border-turmeric scale-105 shadow-sm animate-pulse'
+                                        : isCompleted
+                                          ? 'bg-ink text-turmeric border-ink'
+                                          : 'bg-paperLight text-cardboard border-cardboard border-opacity-40'
+                                    }`}
+                                  >
+                                    {isCompleted ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : step.icon}
+                                  </div>
+                                  <span className={`font-mono text-[10px] uppercase font-bold tracking-wide ${
+                                    isActive 
+                                      ? 'text-turmeric'
+                                      : isCompleted
+                                        ? 'text-ink font-semibold'
+                                        : 'text-cardboard opacity-65'
+                                  }`}>
+                                    {step.label}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* Active Shipment block */}
                 {trackingData.shipment ? (
                   <div className="p-4 border border-cardboard rounded-sm bg-paper bg-opacity-50 space-y-3">

@@ -141,6 +141,12 @@ class Doctor(Base):
     )
 
     @property
+    def name(self) -> str:
+        if self.user:
+            return f"{self.user.first_name or ''} {self.user.last_name or ''}".strip() or "Specialist"
+        return "Specialist"
+
+    @property
     def average_rating(self) -> float:
         if not self.reviews:
             return 0.0

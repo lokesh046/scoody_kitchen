@@ -9,6 +9,7 @@ class NotificationResponse(BaseModel):
     message: str
     type: str
     is_read: bool
+    link: str | None = None
     created_at: datetime
 
     model_config = {

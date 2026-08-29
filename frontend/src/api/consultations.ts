@@ -80,10 +80,11 @@ export interface ConsultationResponse {
   doctor_id: number;
   scheduled_at: string;
   duration_minutes: number;
-  status: 'PENDING' | 'APPROVED' | 'COMPLETED' | 'CANCELLED';
+  status: 'PENDING' | 'APPROVED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   reason: string;
   customer_notes: string | null;
   doctor_notes: string | null;
+  meeting_room_id: string | null;
   created_at: string;
   updated_at: string;
   pet?: PetMinimalResponse | null;

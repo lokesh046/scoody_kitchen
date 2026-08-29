@@ -6,16 +6,18 @@ import { sendGlobalBroadcast } from '../api/notifications';
 export function AdminBroadcastCard() {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
+  const [link, setLink] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   const broadcastMutation = useMutation({
-    mutationFn: () => sendGlobalBroadcast(title, message),
+    mutationFn: () => sendGlobalBroadcast(title, message, link),
     onSuccess: (data) => {
       setSuccessMsg(data.message || 'Announcement broadcast successfully!');
       setErrorMsg('');
       setTitle('');
       setMessage('');
+      setLink('');
       // Dismiss success alert after 5 seconds
       setTimeout(() => setSuccessMsg(''), 5000);
     },
@@ -77,6 +79,21 @@ export function AdminBroadcastCard() {
               onChange={(e) => setMessage(e.target.value)}
               disabled={broadcastMutation.isPending}
               className="w-full px-3.5 py-2.5 bg-paper border border-cardboard rounded-none font-body text-xs text-ink placeholder-ink placeholder-opacity-40 focus:outline-none focus:border-turmeric transition-all resize-none"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="font-mono text-[9px] uppercase tracking-wider font-bold text-ink opacity-85">
+              Redirect Link (Optional)
+            </label>
+            <input
+              type="text"
+              maxLength={255}
+              placeholder="e.g. /shop or https://..."
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              disabled={broadcastMutation.isPending}
+              className="w-full px-3.5 py-2.5 bg-paper border border-cardboard rounded-none font-body text-xs text-ink placeholder-ink placeholder-opacity-40 focus:outline-none focus:border-turmeric transition-all"
             />
           </div>
 

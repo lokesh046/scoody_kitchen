@@ -57,12 +57,14 @@ export const HomeBannerCarousel: React.FC = () => {
   const handleNext = () => {
     if (!transitionEnabled) return;
     if (activeBanners.length <= 1) return;
+    if (currentIndex >= clonedBanners.length - 1) return; // Prevent going beyond the last clone
     setCurrentIndex((prev) => prev + 1);
   };
 
   const handlePrev = () => {
     if (!transitionEnabled) return;
     if (activeBanners.length <= 1) return;
+    if (currentIndex <= 0) return; // Prevent going below the first clone
     setCurrentIndex((prev) => prev - 1);
   };
 

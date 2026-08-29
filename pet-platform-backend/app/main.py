@@ -1,4 +1,4 @@
-# Force IPv4 DNS resolution to prevent IPv6 hangs on this system
+# Force IPv4 DNS resolution to prevent IPv6 hangs on this system. Triggering reload.
 import socket
 orig_getaddrinfo = socket.getaddrinfo
 def forced_ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):

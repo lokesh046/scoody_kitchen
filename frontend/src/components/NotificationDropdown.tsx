@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell, Clock, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth';
 import { useToastStore } from '../store/toasts';
 import { 
@@ -12,6 +13,7 @@ import {
 export function NotificationDropdown() {
   const user = useAuthStore(state => state.user);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   
   const [isOpen, setIsOpen] = useState(false);
   const toasts = useToastStore((state) => state.toasts);
@@ -84,7 +86,15 @@ export function NotificationDropdown() {
         notifications.map((n) => (
           <div 
             key={n.id} 
-            onClick={() => !n.is_read && markReadMutation.mutate(n.id)}
+            onClick={() => {
+              if (!n.is_read) {
+                markReadMutation.mutate(n.id);
+              }
+              if (n.link) {
+                navigate(n.link);
+                setIsOpen(false);
+              }
+            }}
             className={`p-4 transition-all duration-150 relative flex gap-3 text-xs cursor-pointer ${
               n.is_read 
                 ? 'bg-transparent opacity-65 hover:bg-paper bg-opacity-30' 
@@ -154,7 +164,13 @@ export function NotificationDropdown() {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className="pointer-events-auto bg-paperLight border-2 border-turmeric rounded-sm shadow-xl p-4.5 flex gap-3.5 items-start text-left animate-slide-in-right relative"
+            onClick={() => {
+              if (toast.link) {
+                navigate(toast.link);
+              }
+              removeToast(toast.id);
+            }}
+            className={`pointer-events-auto bg-paperLight border-2 border-turmeric rounded-sm shadow-xl p-4.5 flex gap-3.5 items-start text-left animate-slide-in-right relative ${toast.link ? 'cursor-pointer' : ''}`}
             role="alert"
           >
             <div className="bg-turmeric bg-opacity-20 p-2 rounded-full text-turmeric shrink-0">
@@ -166,7 +182,10 @@ export function NotificationDropdown() {
               <p className="font-body text-[11px] text-ink opacity-85 leading-normal">{toast.message}</p>
             </div>
             <button
-              onClick={() => removeToast(toast.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                removeToast(toast.id);
+              }}
               className="absolute top-2.5 right-2.5 text-ink opacity-50 hover:opacity-100 font-bold text-xs cursor-pointer bg-transparent border-0"
             >
               ✕

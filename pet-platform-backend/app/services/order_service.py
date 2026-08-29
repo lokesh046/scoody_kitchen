@@ -72,7 +72,8 @@ def change_order_status(
             dispatch_order_notifications_task.delay(
                 user_id=order.user_id,
                 title=f"Order Update: {new_status.value.upper()}",
-                message=f"Order #{order.id}: {description}."
+                message=f"Order #{order.id}: {description}.",
+                link="/orders"
             )
         except Exception as e:
             # Prevent task failures from blocking database commits

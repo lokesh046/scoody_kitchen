@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(name="app.tasks.notification_tasks.dispatch_order_notifications_task")
-def dispatch_order_notifications_task(user_id: int, title: str, message: str) -> bool:
+def dispatch_order_notifications_task(user_id: int, title: str, message: str, link: str | None = None) -> bool:
     logger.info(f"Running dispatch_order_notifications_task for user_id={user_id}")
     db = SessionLocal()
     try:
@@ -24,7 +24,8 @@ def dispatch_order_notifications_task(user_id: int, title: str, message: str) ->
             user_id=user_id,
             title=title,
             message=message,
-            type="ORDER"
+            type="ORDER",
+            link=link
         )
 
         # 2. Send operational email alert
@@ -45,7 +46,7 @@ def dispatch_order_notifications_task(user_id: int, title: str, message: str) ->
 
 
 @celery_app.task(name="app.tasks.notification_tasks.broadcast_global_notification_task")
-def broadcast_global_notification_task(title: str, message: str) -> bool:
+def broadcast_global_notification_task(title: str, message: str, link: str | None = None) -> bool:
     logger.info("Running broadcast_global_notification_task for all active users")
     from sqlalchemy import select
     db = SessionLocal()
@@ -60,7 +61,8 @@ def broadcast_global_notification_task(title: str, message: str) -> bool:
                     user_id=user.id,
                     title=title,
                     message=message,
-                    type="SYSTEM"
+                    type="SYSTEM",
+                    link=link
                 )
             except Exception as e:
                 logger.error(f"Failed to create notification for user {user.id}: {e}")

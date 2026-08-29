@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Eyebrow } from '../../components/Eyebrow';
+import { formatNaiveDateTime } from '../../utils/date';
 import { Header } from '../../components/Header';
 import { 
   fetchAdminClinics, 
@@ -1049,8 +1050,8 @@ export const AdminDoctorsPage: React.FC = () => {
                               <tr key={con.id} className="hover:bg-paper hover:bg-opacity-20 transition-colors">
                                 <td className="py-4 px-2 font-mono font-bold text-ink text-xs">#{con.id}</td>
                                 <td className="py-4 px-2 font-mono text-xs">
-                                  <span className="block text-ink">{new Date(con.scheduled_at).toLocaleDateString()}</span>
-                                  <span className="block text-xs text-ink text-opacity-80">{new Date(con.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                  <span className="block text-ink">{formatNaiveDateTime(con.scheduled_at).date}</span>
+                                  <span className="block text-xs text-ink text-opacity-80">{formatNaiveDateTime(con.scheduled_at).time}</span>
                                 </td>
                                 <td className="py-4 px-2">
                                   <span className="font-display font-black text-ink block text-xs">
