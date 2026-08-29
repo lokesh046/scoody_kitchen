@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchMyOrders, cancelOrder, fetchOrderTracking } from '../../api/orders';
+import { submitProductReview } from '../../api/reviews';
 
 import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
@@ -9,7 +10,7 @@ import { Header } from '../../components/Header';
 import { 
   ArrowLeft, 
   Clock, CheckCircle, XCircle, Loader2, AlertCircle,
-  Truck, Calendar, Check
+  Truck, Calendar, Check, Star, Camera
 } from 'lucide-react';
 
 export const OrdersPage: React.FC = () => {
@@ -17,6 +18,19 @@ export const OrdersPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedTrackingOrderId, setSelectedTrackingOrderId] = useState<number | null>(null);
+
+  // State for rating recipes inside delivered orders
+  const [reviewingOrder, setReviewingOrder] = useState<any | null>(null);
+  const [activeReviewProductId, setActiveReviewProductId] = useState<number | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewTitle, setReviewTitle] = useState('');
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewImage, setReviewImage] = useState<File | null>(null);
+  const [reviewImagePreview, setReviewImagePreview] = useState<string | null>(null);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewSubmitSuccess, setReviewSubmitSuccess] = useState(false);
+  const [reviewSubmitError, setReviewSubmitError] = useState<string | null>(null);
+  const [reviewedProductIds, setReviewedProductIds] = useState<Record<number, boolean>>({});
 
   const { data: trackingData, isLoading: trackingLoading, error: trackingError } = useQuery({
     queryKey: ['tracking', selectedTrackingOrderId],
@@ -89,6 +103,59 @@ export const OrdersPage: React.FC = () => {
       alert(err.response?.data?.detail || 'Failed to cancel order. Please try again.');
     }
   });
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setReviewImage(file);
+      setReviewImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRecipeReviewSubmit = async (e: React.FormEvent, productId: number) => {
+    e.preventDefault();
+    setIsSubmittingReview(true);
+    setReviewSubmitError(null);
+    setReviewSubmitSuccess(false);
+
+    try {
+      const formData = new FormData();
+      formData.append('rating', String(reviewRating));
+      
+      const fullComment = reviewTitle.trim() 
+        ? `${reviewTitle.trim()}\n\n${reviewComment.trim()}` 
+        : reviewComment.trim();
+        
+      formData.append('comment', fullComment);
+      if (reviewImage) {
+        formData.append('file', reviewImage);
+      }
+
+      await submitProductReview(productId, formData);
+      
+      setReviewSubmitSuccess(true);
+      setReviewedProductIds(prev => ({ ...prev, [productId]: true }));
+      
+      // Reset form fields
+      setReviewRating(5);
+      setReviewTitle('');
+      setReviewComment('');
+      setReviewImage(null);
+      setReviewImagePreview(null);
+      
+      // Delay closing or resetting active product
+      setTimeout(() => {
+        setReviewSubmitSuccess(false);
+        setActiveReviewProductId(null);
+      }, 1500);
+
+    } catch (err: any) {
+      console.error('Failed to submit review:', err);
+      setReviewSubmitError(err.response?.data?.detail || 'Failed to submit your review. Please try again.');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
 
 
@@ -318,6 +385,20 @@ export const OrdersPage: React.FC = () => {
                       <span>Track Journey</span>
                     </button>
 
+                    {['DELIVERED', 'COMPLETED'].includes(order.status.toUpperCase()) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReviewingOrder(order);
+                          setActiveReviewProductId(null);
+                        }}
+                        className="bg-[#00b67a] hover:bg-opacity-95 text-white font-body font-bold text-[10px] uppercase py-1.5 px-3 rounded-sm tracking-wide transition-colors flex items-center space-x-1 border-0 cursor-pointer shadow-sm select-none"
+                      >
+                        <Star className="w-3.5 h-3.5 fill-white text-[#00b67a]" />
+                        <span>Rate Recipes</span>
+                      </button>
+                    )}
+
                     {['PENDING', 'CONFIRMED', 'PROCESSING'].includes(order.status.toUpperCase()) && (
                       <button
                         type="button"
@@ -540,6 +621,221 @@ export const OrdersPage: React.FC = () => {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Sourced Recipe Review Modal Overlay */}
+      {reviewingOrder !== null && (
+        <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-paperLight border-double border-4 border-cardboard rounded-none shadow-2xl max-w-xl w-full p-6 space-y-6 relative overflow-y-auto max-h-[85vh] text-left">
+            <button 
+              onClick={() => setReviewingOrder(null)}
+              className="absolute top-4 right-4 text-ink opacity-60 hover:opacity-100 font-bold border-none bg-transparent cursor-pointer text-lg"
+            >
+              ✕
+            </button>
+
+            <div className="space-y-1">
+              <span className="font-mono text-[8px] uppercase tracking-wider text-herb font-bold block">
+                DELIVERED ORDER RECIPIENT FEEDBACK
+              </span>
+              <h3 className="font-display font-black text-2xl text-ink uppercase">
+                Rate Recipe Formulations
+              </h3>
+              <p className="font-body text-xs text-ink opacity-70">
+                Provide feedback for items delivered in Order #{reviewingOrder.id}.
+              </p>
+            </div>
+
+            <hr className="border-t border-dashed border-cardboard" />
+
+            <div className="space-y-4">
+              {reviewingOrder.items?.map((item: any) => {
+                const isAlreadyReviewed = reviewedProductIds[item.product_id];
+                const isCurrentActive = activeReviewProductId === item.product_id;
+
+                return (
+                  <div 
+                    key={item.id} 
+                    className="border border-cardboard p-4 bg-paper bg-opacity-50 space-y-3 rounded-none transition-all"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="space-y-0.5">
+                        <span className="font-display font-bold text-sm text-ink block">
+                          {item.product_name || `Recipe Formulation #${item.product_id}`}
+                        </span>
+                        {item.selected_weight && (
+                          <span className="font-mono text-[9px] text-herb font-bold uppercase tracking-wider block">
+                            Size: {item.selected_weight}
+                          </span>
+                        )}
+                      </div>
+
+                      {isAlreadyReviewed ? (
+                        <div className="border border-[#00b67a] bg-[#00b67a]/5 text-[#00b67a] font-mono text-[9px] font-black uppercase tracking-wider px-2.5 py-1 flex items-center space-x-1 select-none border-solid">
+                          <Check className="w-3 h-3 stroke-[3]" />
+                          <span>Review Posted</span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveReviewProductId(isCurrentActive ? null : item.product_id);
+                            setReviewSubmitError(null);
+                            setReviewSubmitSuccess(false);
+                            setReviewRating(5);
+                            setReviewTitle('');
+                            setReviewComment('');
+                            setReviewImage(null);
+                            setReviewImagePreview(null);
+                          }}
+                          className={`font-mono text-[9px] uppercase tracking-wider px-3 py-1.5 font-bold cursor-pointer transition-colors border ${
+                            isCurrentActive
+                              ? 'border-ink bg-ink text-paperLight'
+                              : 'border-cardboard bg-paperLight text-ink hover:bg-paper'
+                          }`}
+                        >
+                          {isCurrentActive ? 'Close Form' : 'Write Review'}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Collapsible Form for this specific product */}
+                    {isCurrentActive && !isAlreadyReviewed && (
+                      <form 
+                        onSubmit={(e) => handleRecipeReviewSubmit(e, item.product_id)} 
+                        className="space-y-4 pt-4 border-t border-cardboard border-dashed animate-fade-in text-center"
+                      >
+                        {reviewSubmitSuccess ? (
+                          <div className="py-6 text-center space-y-2">
+                            <span className="text-3xl animate-bounce block">🐾🌿💚</span>
+                            <span className="font-display font-bold text-base text-[#00b67a] block uppercase tracking-wide">
+                              Sourced Review Approved!
+                            </span>
+                            <span className="font-mono text-[9px] text-cardboard block">
+                              Thank you for sharing your experience.
+                            </span>
+                          </div>
+                        ) : (
+                          <>
+                            {/* Star Selector */}
+                            <div className="space-y-1 text-left">
+                              <span className="font-mono text-[9px] uppercase font-bold text-ink opacity-85 block">Rating</span>
+                              <div className="flex space-x-1.5">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => setReviewRating(star)}
+                                    className="hover:scale-110 transition-transform cursor-pointer border-0 bg-transparent p-0"
+                                  >
+                                    <Star
+                                      className={`w-6 h-6 ${
+                                        star <= reviewRating
+                                          ? 'fill-[#00b67a] text-[#00b67a]'
+                                          : 'text-[#00b67a] opacity-35'
+                                      }`}
+                                    />
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Title field */}
+                            <div className="space-y-1 text-left">
+                              <label className="font-mono text-[9px] uppercase font-bold text-ink opacity-85 block">Review Title</label>
+                              <input
+                                type="text"
+                                required
+                                value={reviewTitle}
+                                onChange={(e) => setReviewTitle(e.target.value)}
+                                placeholder="e.g. Delicious healthy option!, My dog loved it!"
+                                className="w-full bg-paper border border-cardboard border-opacity-70 p-2.5 outline-none font-body text-xs focus:border-turmeric transition-colors rounded-none"
+                              />
+                            </div>
+
+                            {/* Comment field */}
+                            <div className="space-y-1 text-left">
+                              <label className="font-mono text-[9px] uppercase font-bold text-ink opacity-85 block">Review Details</label>
+                              <textarea
+                                required
+                                rows={3}
+                                value={reviewComment}
+                                onChange={(e) => setReviewComment(e.target.value)}
+                                placeholder="Write your recipe formulation review details here..."
+                                className="w-full bg-paper border border-cardboard border-opacity-70 p-2.5 outline-none font-body text-xs resize-none focus:border-turmeric transition-colors rounded-none"
+                              />
+                            </div>
+
+                            {/* Custom File Upload block */}
+                            <div className="space-y-1 text-left">
+                              <label className="font-mono text-[9px] uppercase font-bold text-ink opacity-85 block">Upload Photo (Optional)</label>
+                              <div className="border border-cardboard border-dashed bg-paper bg-opacity-40 p-4 text-center cursor-pointer relative hover:border-turmeric transition-colors">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleImageChange}
+                                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                />
+                                {reviewImagePreview ? (
+                                  <div className="flex flex-col items-center space-y-2">
+                                    <img
+                                      src={reviewImagePreview}
+                                      alt="Upload Preview"
+                                      className="w-16 h-16 object-cover border border-cardboard rounded-xs"
+                                    />
+                                    <span className="font-mono text-[8px] uppercase font-bold text-herb">
+                                      {reviewImage?.name} (Click to change)
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center space-y-1 text-cardboard hover:text-ink transition-colors">
+                                    <Camera className="w-6 h-6 stroke-1" />
+                                    <span className="font-mono text-[9px] uppercase font-bold">Select Pet Image</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {reviewSubmitError && (
+                              <div className="bg-red-50 border border-red-200 text-paprika font-mono text-[9px] uppercase font-bold p-2 text-left">
+                                ⚠ {reviewSubmitError}
+                              </div>
+                            )}
+
+                            {/* Submit Row */}
+                            <div className="flex justify-end space-x-2 pt-2">
+                              <button
+                                type="button"
+                                onClick={() => setActiveReviewProductId(null)}
+                                className="border border-cardboard hover:bg-paperLight text-ink font-mono text-[9px] uppercase font-bold px-4 py-2 cursor-pointer transition-colors"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={isSubmittingReview}
+                                className="bg-[#00b67a] hover:bg-opacity-95 text-white font-mono text-[9px] uppercase font-bold px-5 py-2 cursor-pointer transition-colors border-0 shadow-sm disabled:opacity-50"
+                              >
+                                {isSubmittingReview ? 'Submitting...' : 'Post Review'}
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </form>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => setReviewingOrder(null)}
+              className="w-full bg-ink hover:bg-opacity-90 text-paperLight font-mono text-[9px] uppercase font-bold py-3 tracking-wider rounded-none transition-colors mt-4 cursor-pointer"
+            >
+              Close Feedback Ledger
+            </button>
           </div>
         </div>
       )}

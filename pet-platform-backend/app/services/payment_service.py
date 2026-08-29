@@ -9,8 +9,7 @@ from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.payment import Payment, PaymentStatus
 from app.services.inventory_service import finalize_stock, release_stock
-from app.services.order_service import validate_order_status_transition
-
+from app.services.order_service import validate_order_status_transition, change_order_status
 
 def create_payment(
     db: Session,
@@ -42,7 +41,7 @@ def create_payment(
         try:
             client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
             amount_paise = int(order.total_amount * 100)
-            razorpay_order = client.order.create({
+            razorpay_order = client.order.create(data={
                 "amount": amount_paise,
                 "currency": "INR",
                 "receipt": f"receipt_order_{order.id}",
@@ -103,7 +102,7 @@ def process_payment_success(
             f"TXN-{uuid.uuid4().hex[:16].upper()}"
         )
 
-    order.status = OrderStatus.CONFIRMED
+    change_order_status(db, order, OrderStatus.CONFIRMED, "Order payment verified and confirmed")
 
     from app.models.cart import Cart
     cart = db.scalar(
@@ -149,7 +148,7 @@ def process_payment_failure(
 
     payment.status = PaymentStatus.FAILED
 
-    order.status = OrderStatus.CANCELLED
+    change_order_status(db, order, OrderStatus.CANCELLED, "Payment verification failed or timed out")
 
     db.commit()
     db.refresh(payment)

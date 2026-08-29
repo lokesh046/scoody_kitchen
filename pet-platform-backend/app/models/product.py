@@ -104,6 +104,23 @@ class Product(Base):
         order_by="ProductImage.display_order",
     )
 
+    reviews = relationship(
+        "ProductReview",
+        back_populates="product",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    @property
+    def average_rating(self) -> float:
+        if not self.reviews:
+            return 0.0
+        return round(sum(r.rating for r in self.reviews) / len(self.reviews), 2)
+
+    @property
+    def review_count(self) -> int:
+        return len(self.reviews)
+
     @property
     def available_stock(self):
         return getattr(self, "_available_stock", None)

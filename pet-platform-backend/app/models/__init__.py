@@ -25,6 +25,8 @@ from app.models.order_status_history import OrderStatusHistory
 from app.models.webhook_event import ProcessedWebhookEvent
 from app.models.idempotency_key import IdempotencyKey
 from app.models.notification import Notification
+from app.models.doctor_review import DoctorReview
+from app.models.product_review import ProductReview
 
 
 __all__ = [
@@ -55,4 +57,6 @@ __all__ = [
     "HealthRecordType",
     "DoctorApplication",
     "Notification",
+    "DoctorReview",
+    "ProductReview",
 ]

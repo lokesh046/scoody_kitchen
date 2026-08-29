@@ -9,6 +9,7 @@ import { RecipeCard } from '../../components/RecipeCard';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
 import { HomeBannerCarousel } from '../../components/HomeBannerCarousel';
+import { ReviewsCarousel } from '../../components/ReviewsCarousel';
 
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 
@@ -397,6 +398,9 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* Let our #Scoobysfam speak for us Carousel */}
+        <ReviewsCarousel />
         
         {/* Footer */}
         <footer className="py-12 bg-ink text-paper px-4 md:px-8 border-t border-cardboard border-opacity-20 text-center">

@@ -31,6 +31,8 @@ export interface ProductResponse {
   low_stock_threshold?: number;
   images?: ProductImageResponse[];
   weight_options?: { weight: string; price: number | string }[];
+  average_rating?: number;
+  review_count?: number;
 }
 
 export interface Ingredient {

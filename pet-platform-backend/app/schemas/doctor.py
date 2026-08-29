@@ -3,7 +3,7 @@ from decimal import Decimal
 from pydantic import BaseModel, Field
 
 from app.schemas.auth import UserResponse
-from app.schemas.clinic import ClinicResponse
+from app.schemas.clinic import ClinicResponse, ClinicPublicResponse
 
 
 class DoctorCreate(BaseModel):
@@ -79,6 +79,8 @@ class DoctorResponse(BaseModel):
     updated_at: datetime
     user: UserResponse | None = None
     clinic: ClinicResponse | None = None
+    average_rating: float = 0.0
+    review_count: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -95,7 +97,9 @@ class DoctorPublicResponse(BaseModel):
     profile_image_url: str | None = None
     is_available: bool
     is_verified: bool
-    clinic: ClinicResponse | None = None
+    clinic: ClinicPublicResponse | None = None
+    average_rating: float = 0.0
+    review_count: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -104,6 +108,10 @@ from app.schemas.pagination import PaginatedResponse
 
 
 class PaginatedDoctorResponse(PaginatedResponse[DoctorResponse]):
+    pass
+
+
+class PaginatedDoctorPublicResponse(PaginatedResponse[DoctorPublicResponse]):
     pass
 
 
@@ -120,6 +128,8 @@ class NearbyDoctorResponse(BaseModel):
     is_available: bool
     is_verified: bool
     distance_km: float
-    clinic: ClinicResponse | None = None
+    clinic: ClinicPublicResponse | None = None
+    average_rating: float = 0.0
+    review_count: int = 0
 
     model_config = {"from_attributes": True}

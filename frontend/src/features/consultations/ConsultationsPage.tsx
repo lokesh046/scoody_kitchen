@@ -15,13 +15,48 @@ import { Header } from '../../components/Header';
 import { 
   ArrowLeft, PawPrint, 
   Clock, Stethoscope, Loader2, AlertCircle, XCircle,
-  Compass, Calendar as CalendarIcon, Info
+  Compass, Calendar as CalendarIcon, Info, Star
 } from 'lucide-react';
+import { submitDoctorReview } from '../../api/reviews';
 
 export const ConsultationsPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Review Modal State
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [selectedReviewConsultationId, setSelectedReviewConsultationId] = useState<number | null>(null);
+  const [selectedReviewDoctorName, setSelectedReviewDoctorName] = useState<string>('');
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewSubmitError, setReviewSubmitError] = useState<string | null>(null);
+  const [reviewSubmitSuccess, setReviewSubmitSuccess] = useState(false);
+
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedReviewConsultationId) return;
+    setIsSubmittingReview(true);
+    setReviewSubmitError(null);
+    setReviewSubmitSuccess(false);
+
+    try {
+      await submitDoctorReview(selectedReviewConsultationId, {
+        rating: reviewRating,
+        comment: reviewComment || null,
+      });
+      setReviewSubmitSuccess(true);
+      setTimeout(() => {
+        setIsReviewModalOpen(false);
+        queryClient.invalidateQueries({ queryKey: ['my-consultations'] });
+      }, 1500);
+    } catch (err: any) {
+      setReviewSubmitError(err.response?.data?.detail || 'Failed to submit review. Please try again.');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
 
 
@@ -804,13 +839,35 @@ export const ConsultationsPage: React.FC = () => {
                             className="bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-[11px] uppercase py-2 px-4 rounded-sm tracking-wide transition-colors disabled:opacity-50 flex items-center space-x-1.5"
                           >
                             {cancelMutation.isPending && cancelMutation.variables === consult.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
                               <>
                                 <XCircle className="w-3.5 h-3.5" />
                                 <span>Cancel Appointment</span>
                               </>
                             )}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Rate Vet Specialist Button */}
+                      {consult.status.toUpperCase() === 'COMPLETED' && (
+                        <div className="mt-4 pt-4 border-t border-cardboard flex justify-end pl-4">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedReviewConsultationId(consult.id);
+                              setSelectedReviewDoctorName(consult.doctor?.user?.first_name ? `Dr. ${consult.doctor.user.first_name} ${consult.doctor.user.last_name || ''}` : `Dr. ID #${consult.doctor_id}`);
+                              setReviewRating(5);
+                              setReviewComment('');
+                              setReviewSubmitError(null);
+                              setReviewSubmitSuccess(false);
+                              setIsReviewModalOpen(true);
+                            }}
+                            className="bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-[11px] uppercase py-2 px-4 rounded-sm tracking-wide transition-colors flex items-center space-x-1.5 cursor-pointer shadow-xs hover-bounce"
+                          >
+                            <Star className="w-3.5 h-3.5 fill-ink text-ink" />
+                            <span>Rate Vet Specialist</span>
                           </button>
                         </div>
                       )}
@@ -1607,6 +1664,94 @@ export const ConsultationsPage: React.FC = () => {
               </span>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Rate Vet Specialist Modal Overlay */}
+      {isReviewModalOpen && selectedReviewConsultationId && (
+        <div className="fixed inset-0 bg-ink bg-opacity-70 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-backdrop-in">
+          <div className="w-full max-w-md bg-paper border-double border-8 border-cardboard p-8 rounded-none shadow-2xl space-y-6 relative overflow-hidden animate-modal-in text-left">
+            <button
+              type="button"
+              onClick={() => setIsReviewModalOpen(false)}
+              className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full border border-cardboard bg-paper text-ink hover:bg-turmeric flex items-center justify-center cursor-pointer shadow-md"
+            >
+              <XCircle className="w-4 h-4" />
+            </button>
+
+            <div className="space-y-2">
+              <span className="font-mono text-[9px] uppercase tracking-widest text-herb font-bold block">
+                SUBMIT PROFESSIONAL FEEDBACK
+              </span>
+              <h3 className="font-display font-black text-2xl text-ink">
+                Rate {selectedReviewDoctorName}
+              </h3>
+              <p className="font-body text-xs text-ink opacity-70">
+                Help the #Scoobysfam community by rating your consultation experience and advice.
+              </p>
+            </div>
+
+            <hr className="border-t border-dashed border-cardboard" />
+
+            <form onSubmit={handleReviewSubmit} className="space-y-4">
+              {/* Rating selection */}
+              <div className="space-y-1.5">
+                <label className="font-mono text-[10px] uppercase font-bold text-ink opacity-85 block">Your Star Rating</label>
+                <div className="flex space-x-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewRating(star)}
+                      className="hover:scale-115 transition-transform cursor-pointer"
+                    >
+                      <Star
+                        className={`w-8 h-8 ${
+                          star <= reviewRating
+                            ? 'fill-[#00b67a] text-[#00b67a]'
+                            : 'text-cardboard opacity-45'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Comment text */}
+              <div className="space-y-1.5">
+                <label className="font-mono text-[10px] uppercase font-bold text-ink opacity-85 block">Review Details</label>
+                <textarea
+                  placeholder="How was the consultation? Did the specialist provide helpful nutrition/medical advice?"
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  maxLength={1000}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-cardboard rounded-none bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric resize-none"
+                  required
+                />
+              </div>
+
+              {reviewSubmitError && (
+                <div className="text-[10px] text-paprika bg-red-50 border border-turmeric border-opacity-20 p-2.5 rounded-sm font-body">
+                  Error: {reviewSubmitError}
+                </div>
+              )}
+
+              {reviewSubmitSuccess && (
+                <div className="text-[10px] text-herb bg-emerald-50 border border-herb border-opacity-20 p-2.5 rounded-sm font-body font-bold">
+                  Your feedback has been successfully submitted. Thank you!
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSubmittingReview}
+                className="w-full bg-turmeric text-ink hover:bg-opacity-95 font-mono text-[10px] uppercase font-bold py-3.5 tracking-wider transition-colors disabled:opacity-50 cursor-pointer shadow-sm hover-bounce"
+              >
+                {isSubmittingReview ? 'Submitting feedback...' : 'Submit Session Rating'}
+              </button>
+            </form>
           </div>
         </div>
       )}

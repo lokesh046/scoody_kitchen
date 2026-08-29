@@ -90,6 +90,8 @@ class ProductResponse(BaseModel):
     low_stock_threshold: int | None = None
     images: list[ProductImageResponse] = []
     weight_options: list[dict] | None = None
+    average_rating: float = 0.0
+    review_count: int = 0
 
     @field_validator("in_slider", mode="before")
     @classmethod

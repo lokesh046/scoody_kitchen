@@ -52,6 +52,7 @@ def change_order_status(
     if order.status == new_status:
         return order
 
+    prev_status = order.status
     validate_order_status_transition(order.status, new_status)
     order.status = new_status
 
@@ -65,16 +66,17 @@ def change_order_status(
     db.refresh(order)
 
     # Queue background notification task (In-App notification + Email dispatch)
-    try:
-        from app.tasks.notification_tasks import dispatch_order_notifications_task
-        dispatch_order_notifications_task.delay(
-            user_id=order.user_id,
-            title=f"Order Update: {new_status.value.upper()}",
-            message=f"Order #{order.id}: {description}."
-        )
-    except Exception as e:
-        # Prevent task failures from blocking database commits
-        print(f"Warning: Failed to queue order notification task: {e}")
+    if not (prev_status == OrderStatus.PENDING and new_status == OrderStatus.CANCELLED):
+        try:
+            from app.tasks.notification_tasks import dispatch_order_notifications_task
+            dispatch_order_notifications_task.delay(
+                user_id=order.user_id,
+                title=f"Order Update: {new_status.value.upper()}",
+                message=f"Order #{order.id}: {description}."
+            )
+        except Exception as e:
+            # Prevent task failures from blocking database commits
+            print(f"Warning: Failed to queue order notification task: {e}")
 
     return order
 
@@ -206,17 +208,6 @@ def create_order_from_cart(
         payment = create_payment(db, order, checkout_data.payment_method)
         order.razorpay_order_id = payment.razorpay_order_id
         order.razorpay_key_id = settings.RAZORPAY_KEY_ID
-
-    # Queue background notification task (In-App notification + Email dispatch)
-    try:
-        from app.tasks.notification_tasks import dispatch_order_notifications_task
-        dispatch_order_notifications_task.delay(
-            user_id=order.user_id,
-            title="Order Placed Successfully",
-            message=f"Order #{order.id} for ₹{order.total_amount:.2f} was created successfully and is pending confirmation."
-        )
-    except Exception as e:
-        print(f"Warning: Failed to queue checkout notification task: {e}")
 
     # Queue background task to notify admins of a new incoming order
     try:

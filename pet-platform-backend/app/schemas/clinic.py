@@ -53,5 +53,15 @@ class ClinicResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ClinicPublicResponse(BaseModel):
+    id: int
+    name: str
+    city: str
+    state: str
+    opening_hours: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class PaginatedClinicResponse(PaginatedResponse[ClinicResponse]):
     pass

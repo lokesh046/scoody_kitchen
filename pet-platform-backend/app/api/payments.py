@@ -18,7 +18,6 @@ router = APIRouter(
     tags=["Payments"],
 )
 
-
 @router.post(
     "/{order_id}",
     response_model=PaymentResponse,

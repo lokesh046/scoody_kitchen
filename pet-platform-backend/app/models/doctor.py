@@ -132,3 +132,20 @@ class Doctor(Base):
         back_populates="doctor",
         cascade="all, delete-orphan",
     )
+
+    reviews = relationship(
+        "DoctorReview",
+        back_populates="doctor",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    @property
+    def average_rating(self) -> float:
+        if not self.reviews:
+            return 0.0
+        return round(sum(r.rating for r in self.reviews) / len(self.reviews), 2)
+
+    @property
+    def review_count(self) -> int:
+        return len(self.reviews)
