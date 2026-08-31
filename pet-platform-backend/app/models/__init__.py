@@ -15,6 +15,7 @@ from app.models.clinic import Clinic
 from app.models.doctor import Doctor
 from app.models.doctor_availability import DoctorAvailability
 from app.models.consultation import Consultation
+from app.models.consultation_session import ConsultationSession, ConsultationParticipant
 from app.models.health_record import HealthRecord
 from app.models.enums import ConsultationStatus, HealthRecordType
 from app.models.doctor_application import DoctorApplication
@@ -52,6 +53,8 @@ __all__ = [
     "Doctor",
     "DoctorAvailability",
     "Consultation",
+    "ConsultationSession",
+    "ConsultationParticipant",
     "ConsultationStatus",
     "HealthRecord",
     "HealthRecordType",

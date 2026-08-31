@@ -86,9 +86,15 @@ export interface ConsultationResponse {
   customer_notes: string | null;
   doctor_notes: string | null;
   meeting_room_id: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
   jitsi_token?: string | null;
   jitsi_app_id?: string | null;
   jitsi_domain?: string | null;
+  can_join?: boolean;
+  time_until_start_seconds?: number | null;
+  time_remaining_seconds?: number | null;
+  is_expired?: boolean;
   created_at: string;
   updated_at: string;
   pet?: PetMinimalResponse | null;
@@ -182,3 +188,79 @@ export const fetchConsultationById = async (consultationId: number): Promise<Con
   const response = await apiClient.get<ConsultationResponse>(`/consultations/${consultationId}`);
   return response.data;
 };
+
+export interface ConsultationJoinResponse {
+  meeting_room_id: string;
+  room_name: string;
+  jitsi_token: string;
+  jitsi_app_id?: string | null;
+  jitsi_domain: string;
+  is_moderator: boolean;
+  role: string;
+  expires_at?: string | null;
+}
+
+export const joinConsultation = async (consultationId: number, isDoctor: boolean = false): Promise<ConsultationJoinResponse> => {
+  const url = isDoctor 
+    ? `/doctor/consultations/${consultationId}/join` 
+    : `/consultations/${consultationId}/join`;
+  const response = await apiClient.post<ConsultationJoinResponse>(url);
+  return response.data;
+};
+
+export interface ConsultationParticipantAudit {
+  id: number;
+  session_id: number;
+  consultation_id: number;
+  user_id: number;
+  role: string;
+  joined_at: string;
+  left_at?: string | null;
+  duration_seconds?: number | null;
+  created_at: string;
+}
+
+export interface ConsultationSessionAudit {
+  id: number;
+  consultation_id: number;
+  room_id: string;
+  status: string;
+  started_at: string;
+  ended_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  participants: ConsultationParticipantAudit[];
+}
+
+export interface ConsultationAuditResponse {
+  consultation_id: number;
+  status: string;
+  scheduled_at: string;
+  started_at?: string | null;
+  ended_at?: string | null;
+  total_sessions: number;
+  sessions: ConsultationSessionAudit[];
+}
+
+export const leaveConsultation = async (consultationId: number, isDoctor: boolean = false): Promise<ConsultationParticipantAudit | null> => {
+  const url = isDoctor 
+    ? `/doctor/consultations/${consultationId}/leave` 
+    : `/consultations/${consultationId}/leave`;
+  try {
+    const response = await apiClient.post<ConsultationParticipantAudit>(url);
+    return response.data;
+  } catch (err) {
+    console.warn('Failed to post participant leave event:', err);
+    return null;
+  }
+};
+
+export const fetchConsultationAudit = async (consultationId: number, isDoctor: boolean = false): Promise<ConsultationAuditResponse> => {
+  const url = isDoctor 
+    ? `/doctor/consultations/${consultationId}/audit` 
+    : `/consultations/${consultationId}/audit`;
+  const response = await apiClient.get<ConsultationAuditResponse>(url);
+  return response.data;
+};
+
+

@@ -101,3 +101,23 @@ def notify_admins_task(title: str, message: str) -> bool:
         return False
     finally:
         db.close()
+
+
+@celery_app.task(name="app.tasks.notification_tasks.check_and_complete_expired_consultations_task")
+def check_and_complete_expired_consultations_task() -> int:
+    """
+    Background worker task to automatically finalize consultations that have passed their duration + grace period.
+    """
+    from app.services.consultation_service import auto_complete_expired_consultations
+    db = SessionLocal()
+    try:
+        completed = auto_complete_expired_consultations(db)
+        if completed:
+            logger.info(f"Auto-completed {len(completed)} expired consultations: {completed}")
+        return len(completed)
+    except Exception as e:
+        logger.error(f"Error in check_and_complete_expired_consultations_task: {e}", exc_info=True)
+        return 0
+    finally:
+        db.close()
+

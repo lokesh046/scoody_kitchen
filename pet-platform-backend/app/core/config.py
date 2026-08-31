@@ -80,6 +80,9 @@ class Setting(BaseSettings):
     JITSI_APP_ID: str = "scooby_kitchen"
     JITSI_APP_SECRET: str | None = None
 
+    # Telehealth Timezone Setting
+    DEFAULT_TIMEZONE: str = "Asia/Kolkata"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",

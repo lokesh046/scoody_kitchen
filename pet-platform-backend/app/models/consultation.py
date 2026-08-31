@@ -76,6 +76,18 @@ class Consultation(Base):
         nullable=True,
     )
 
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
+
+    ended_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -92,3 +104,9 @@ class Consultation(Base):
     customer = relationship("User")
     pet = relationship("Pet")
     doctor = relationship("Doctor")
+    sessions = relationship(
+        "ConsultationSession",
+        back_populates="consultation",
+        cascade="all, delete-orphan",
+        order_by="ConsultationSession.started_at",
+    )

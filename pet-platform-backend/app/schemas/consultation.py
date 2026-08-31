@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, field_validator
 from app.models.enums import ConsultationStatus
 from app.schemas.auth import UserResponse
 from app.schemas.clinic import ClinicResponse
+from app.schemas.pagination import PaginatedResponse
 
 
 class ConsultationCreate(BaseModel):
@@ -60,9 +61,12 @@ class ConsultationResponse(BaseModel):
     customer_notes: str | None = None
     doctor_notes: str | None = None
     meeting_room_id: str | None = None
-    jitsi_token: str | None = None
-    jitsi_app_id: str | None = None
-    jitsi_domain: str | None = None
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    can_join: bool = True
+    time_until_start_seconds: int | None = None
+    time_remaining_seconds: int | None = None
+    is_expired: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -72,6 +76,17 @@ class ConsultationResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ConsultationJoinResponse(BaseModel):
+    meeting_room_id: str
+    room_name: str
+    jitsi_token: str
+    jitsi_app_id: str | None = None
+    jitsi_domain: str
+    is_moderator: bool
+    role: str = "participant"
+    expires_at: str | None = None
+
+
 class DoctorSlotsResponse(BaseModel):
     doctor_id: int
     date: str
@@ -79,8 +94,43 @@ class DoctorSlotsResponse(BaseModel):
     slots: list[str]
 
 
-from app.schemas.pagination import PaginatedResponse
-
-
 class PaginatedConsultationResponse(PaginatedResponse[ConsultationResponse]):
     pass
+
+
+class ConsultationParticipantResponse(BaseModel):
+    id: int
+    session_id: int
+    consultation_id: int
+    user_id: int
+    role: str
+    joined_at: datetime
+    left_at: datetime | None = None
+    duration_seconds: int | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ConsultationSessionResponse(BaseModel):
+    id: int
+    consultation_id: int
+    room_id: str
+    status: str
+    started_at: datetime
+    ended_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+    participants: list[ConsultationParticipantResponse] = []
+
+    model_config = {"from_attributes": True}
+
+
+class ConsultationAuditResponse(BaseModel):
+    consultation_id: int
+    status: ConsultationStatus
+    scheduled_at: datetime
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    total_sessions: int
+    sessions: list[ConsultationSessionResponse] = []

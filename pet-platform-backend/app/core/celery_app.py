@@ -14,4 +14,10 @@ celery_app.conf.update(
     accept_content=["json"],
     timezone="UTC",
     enable_utc=True,
+    beat_schedule={
+        "check-expired-consultations-every-minute": {
+            "task": "app.tasks.notification_tasks.check_and_complete_expired_consultations_task",
+            "schedule": 60.0,
+        },
+    },
 )

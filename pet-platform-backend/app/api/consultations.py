@@ -5,11 +5,22 @@ from app.core.database import get_db
 from app.dependencies.auth import require_roles
 from app.models.enums import ConsultationStatus, UserRole
 from app.models.user import User
-from app.schemas.consultation import ConsultationCreate, ConsultationResponse
+from app.schemas.consultation import (
+    ConsultationAuditResponse,
+    ConsultationCreate,
+    ConsultationJoinResponse,
+    ConsultationParticipantResponse,
+    ConsultationResponse,
+    DoctorSlotsResponse,
+    PaginatedConsultationResponse,
+)
 from app.services.consultation_service import (
     create_consultation,
+    get_consultation_audit_summary,
     get_consultation_by_id,
     get_customer_consultations,
+    record_participant_join,
+    record_participant_leave,
     update_consultation_status,
 )
 from app.core.jitsi import generate_jaas_token
@@ -43,14 +54,6 @@ def book_consultation(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc).strip("'"))
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
-
-
-from app.schemas.consultation import (
-    ConsultationCreate,
-    ConsultationResponse,
-    DoctorSlotsResponse,
-    PaginatedConsultationResponse,
-)
 
 
 @router.get(
@@ -93,16 +96,121 @@ def get_my_consultation_detail(
     if consultation is None or consultation.customer_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation not found")
     
+    from app.services.consultation_service import calculate_session_timing
+    timing = calculate_session_timing(consultation)
+
     from app.core.config import settings
-    token, app_id = generate_jaas_token(consultation, current_user)
     response_dict = ConsultationResponse.model_validate(consultation).model_dump()
-    response_dict["jitsi_token"] = token
-    response_dict["jitsi_app_id"] = app_id
     response_dict["jitsi_domain"] = settings.JITSI_DOMAIN
+    response_dict["can_join"] = timing["can_join"]
+    response_dict["time_until_start_seconds"] = timing["time_until_start_seconds"]
+    response_dict["time_remaining_seconds"] = timing["time_remaining_seconds"]
+    response_dict["is_expired"] = timing["is_expired"]
     
-    # Cache for 30 seconds
-    cache.set(cache_key, response_dict, ttl_seconds=30)
+    # Safe to cache metadata
+    cache.set(cache_key, response_dict, ttl_seconds=10)
     return response_dict
+
+
+@router.post(
+    "/{consultation_id}/join",
+    response_model=ConsultationJoinResponse,
+)
+def join_my_consultation(
+    consultation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+):
+    consultation = get_consultation_by_id(db, consultation_id)
+    if consultation is None or consultation.customer_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation not found")
+    
+    from app.services.consultation_service import calculate_session_timing, update_consultation_status
+    timing = calculate_session_timing(consultation)
+    if not timing["can_join"]:
+        if timing["is_expired"]:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Consultation appointment window has expired.")
+        if timing["time_until_start_seconds"] > 0:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Waiting room active. Consultation has not started yet.")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Consultation is not active.")
+
+    # Auto-transition from CONFIRMED to IN_PROGRESS upon joining
+    if consultation.status == ConsultationStatus.CONFIRMED:
+        update_consultation_status(db, consultation, ConsultationStatus.IN_PROGRESS)
+
+    token, app_id = generate_jaas_token(consultation, current_user)
+    if not token:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to issue meeting credentials.")
+
+    from app.core.config import settings
+    raw_room = getattr(consultation, "meeting_room_id", None) or f"consultation-{consultation.id}"
+    room_name = raw_room if raw_room.startswith("scooby-") else f"scooby-{raw_room}"
+
+    sched_dt = consultation.scheduled_at
+    if sched_dt.tzinfo is None:
+        from datetime import timezone
+        sched_dt = sched_dt.replace(tzinfo=timezone.utc)
+    from datetime import timedelta
+    latest_join_dt = sched_dt + timedelta(minutes=consultation.duration_minutes + 15)
+
+    # Record participant telemetry
+    try:
+        record_participant_join(
+            db=db,
+            consultation_id=consultation.id,
+            user_id=current_user.id,
+            role="customer",
+            room_id=room_name,
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger("app.consultation").warning(f"Failed to record participant join telemetry: {e}")
+
+    return {
+        "meeting_room_id": raw_room,
+        "room_name": room_name,
+        "jitsi_token": token,
+        "jitsi_app_id": app_id,
+        "jitsi_domain": settings.JITSI_DOMAIN,
+        "is_moderator": False,
+        "role": "participant",
+        "expires_at": latest_join_dt.isoformat(),
+    }
+
+
+@router.post(
+    "/{consultation_id}/leave",
+    response_model=ConsultationParticipantResponse | None,
+)
+def leave_my_consultation(
+    consultation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+):
+    consultation = get_consultation_by_id(db, consultation_id)
+    if consultation is None or (consultation.customer_id != current_user.id and current_user.role != UserRole.ADMIN):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation not found")
+
+    return record_participant_leave(db=db, consultation_id=consultation_id, user_id=current_user.id)
+
+
+@router.get(
+    "/{consultation_id}/audit",
+    response_model=ConsultationAuditResponse,
+)
+def get_my_consultation_audit(
+    consultation_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+):
+    consultation = get_consultation_by_id(db, consultation_id)
+    if consultation is None or (consultation.customer_id != current_user.id and current_user.role != UserRole.ADMIN):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation not found")
+
+    audit = get_consultation_audit_summary(db, consultation_id)
+    if not audit:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audit records not found")
+    return audit
 
 
 @router.patch(

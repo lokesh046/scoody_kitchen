@@ -204,7 +204,7 @@ export const ConsultationsPage: React.FC = () => {
   // Book Mutation
   const bookMutation = useMutation({
     mutationFn: (bookingData: any) => bookConsultation(bookingData),
-    onSuccess: (_, variables: any) => {
+    onSuccess: (data: any, variables: any) => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
       
       // Trigger success delight overlay
@@ -213,7 +213,7 @@ export const ConsultationsPage: React.FC = () => {
       
       setLastBookedSession({
         doctorName: docName,
-        scheduledAt: variables.scheduled_at,
+        scheduledAt: data?.scheduled_at || variables.scheduled_at,
       });
       setShowSuccessOverlay(true);
       setTimeout(() => {

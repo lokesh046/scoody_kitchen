@@ -7,6 +7,12 @@ import { Eyebrow } from '../../components/Eyebrow';
 import { Key, Mail, Phone, User, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { DogViewer3D } from '../../components/DogViewer3D';
 
+declare global {
+  interface Window {
+    google?: any;
+  }
+}
+
 const triggerCornerConfetti = () => {
   const canvas = document.createElement('canvas');
   canvas.style.position = 'fixed';
@@ -168,44 +174,9 @@ export const AuthPage: React.FC = () => {
   const redirectParam = queryParams.get('redirect');
   const from = redirectParam ? `/${redirectParam}` : ((location.state as any)?.from?.pathname || '/');
 
-  // Initialize Google Identity Services
-  useEffect(() => {
-    // @ts-ignore
-    if (window.google && !isOtpMode) {
-      // @ts-ignore
-      if (!window.google_initialized) {
-        // @ts-ignore
-        window.google.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-          callback: handleGoogleCredentialResponse,
-        });
-        // @ts-ignore
-        window.google_initialized = true;
-      }
-
-      // Let React finish painting the layout first
-      setTimeout(() => {
-        const btn = document.getElementById('google-signin-btn');
-        if (btn) {
-          // @ts-ignore
-          window.google.accounts.id.renderButton(
-            btn,
-            {
-              type: 'standard',
-              theme: 'outline',
-              size: 'large',
-              text: 'continue_with',
-              shape: 'square',
-              logo_alignment: 'left',
-              width: 320,
-            }
-          );
-        }
-      }, 50);
-    }
-  }, [isOtpMode, isRegister]);
-
+  // Google OAuth 2.0 (Google Identity Services)
   const handleGoogleCredentialResponse = async (response: any) => {
+    if (!response?.credential) return;
     setIsLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -241,13 +212,55 @@ export const AuthPage: React.FC = () => {
       triggerCornerConfetti();
       setTimeout(() => {
         navigate(from, { replace: true });
-      }, 1600);
+      }, 1400);
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.detail || 'Google authentication failed.');
+      setErrorMsg(err.response?.data?.detail || err.message || 'Google OAuth 2.0 authentication failed.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId || isOtpMode) return;
+
+    const renderGoogleBtn = () => {
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleCredentialResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+
+        const btnContainer = document.getElementById('google-signin-btn');
+        if (btnContainer) {
+          btnContainer.innerHTML = '';
+          window.google.accounts.id.renderButton(btnContainer, {
+            type: 'standard',
+            theme: 'outline',
+            size: 'large',
+            text: 'continue_with',
+            shape: 'rectangular',
+            logo_alignment: 'left',
+            width: 320,
+          });
+        }
+      }
+    };
+
+    if (window.google?.accounts?.id) {
+      renderGoogleBtn();
+    } else {
+      const timer = setInterval(() => {
+        if (window.google?.accounts?.id) {
+          clearInterval(timer);
+          renderGoogleBtn();
+        }
+      }, 100);
+      return () => clearInterval(timer);
+    }
+  }, [isOtpMode, isRegister]);
 
   // Handler for Requesting Login Link / Code
   const handleRequestAuth = async (e: React.FormEvent) => {
@@ -584,7 +597,7 @@ export const AuthPage: React.FC = () => {
               </button>
             </form>
 
-            {/* Google OAuth Button */}
+            {/* Google OAuth 2.0 Button */}
             <div className="space-y-4 flex flex-col items-center">
               <div className="w-full flex items-center space-x-2">
                 <span className="flex-grow h-[1px] bg-cardboard opacity-55"></span>
@@ -592,7 +605,7 @@ export const AuthPage: React.FC = () => {
                 <span className="flex-grow h-[1px] bg-cardboard opacity-55"></span>
               </div>
 
-              <div id="google-signin-btn" className="w-full flex justify-center min-h-[40px]"></div>
+              <div id="google-signin-btn" className="w-full flex justify-center min-h-[44px]"></div>
             </div>
           </div>
         ) : (

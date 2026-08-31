@@ -324,6 +324,11 @@ def get_recent_reviews(
     # 3. Format into a unified response
     unified = []
     for r in product_reviews:
+        p_author = "Anonymous"
+        if r.user:
+            u_first = r.user.first_name or ""
+            u_last = r.user.last_name or ""
+            p_author = f"{u_first} {u_last}".strip() or "Anonymous"
         unified.append({
             "id": r.id,
             "type": "product",
@@ -331,7 +336,7 @@ def get_recent_reviews(
             "comment": r.comment,
             "image_url": r.image_url,
             "created_at": r.created_at.isoformat() if r.created_at else None,
-            "author_name": f"{r.user.first_name} {r.user.last_name}" if r.user else "Anonymous",
+            "author_name": p_author,
             "reviewed_item_name": r.product.name if r.product else "Unknown Product",
             "reviewed_item_id": r.product_id,
             "is_verified_buyer": True,
@@ -339,7 +344,14 @@ def get_recent_reviews(
     for r in doctor_reviews:
         doc_name = "Unknown Doctor"
         if r.doctor and r.doctor.user:
-            doc_name = f"Dr. {r.doctor.user.first_name} {r.doctor.user.last_name}"
+            d_first = r.doctor.user.first_name or ""
+            d_last = r.doctor.user.last_name or ""
+            doc_name = f"Dr. {d_first} {d_last}".strip() or "Doctor"
+        c_author = "Anonymous"
+        if r.customer:
+            c_first = r.customer.first_name or ""
+            c_last = r.customer.last_name or ""
+            c_author = f"{c_first} {c_last}".strip() or "Anonymous"
         unified.append({
             "id": r.id,
             "type": "doctor",
@@ -347,7 +359,7 @@ def get_recent_reviews(
             "comment": r.comment,
             "image_url": r.doctor.profile_image_url if r.doctor else None,
             "created_at": r.created_at.isoformat() if r.created_at else None,
-            "author_name": f"{r.customer.first_name} {r.customer.last_name}" if r.customer else "Anonymous",
+            "author_name": c_author,
             "reviewed_item_name": doc_name,
             "reviewed_item_id": r.doctor_id,
             "is_verified_buyer": True,

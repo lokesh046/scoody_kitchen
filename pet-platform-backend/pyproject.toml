@@ -40,3 +40,7 @@ venv = ".venv"
 pythonVersion = "3.13"
 extraPaths = ["."]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+
