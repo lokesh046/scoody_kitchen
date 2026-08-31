@@ -12,6 +12,7 @@ from app.services.consultation_service import (
     get_customer_consultations,
     update_consultation_status,
 )
+from app.core.jitsi import generate_jaas_token
 
 
 router = APIRouter(
@@ -81,10 +82,27 @@ def get_my_consultation_detail(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
 ):
+    from app.core.cache import cache
+    cache_key = f"consultation:detail:{consultation_id}:user:{current_user.id}"
+    cached_data = cache.get(cache_key)
+    
+    if cached_data is not None:
+        return cached_data
+
     consultation = get_consultation_by_id(db, consultation_id)
     if consultation is None or consultation.customer_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation not found")
-    return consultation
+    
+    from app.core.config import settings
+    token, app_id = generate_jaas_token(consultation, current_user)
+    response_dict = ConsultationResponse.model_validate(consultation).model_dump()
+    response_dict["jitsi_token"] = token
+    response_dict["jitsi_app_id"] = app_id
+    response_dict["jitsi_domain"] = settings.JITSI_DOMAIN
+    
+    # Cache for 30 seconds
+    cache.set(cache_key, response_dict, ttl_seconds=30)
+    return response_dict
 
 
 @router.patch(

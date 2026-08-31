@@ -11,7 +11,7 @@ import { createHealthRecord } from '../../api/pets';
 import { Eyebrow } from '../../components/Eyebrow';
 import { 
   Loader2, ShieldAlert, Clock, CheckCircle, 
-  ArrowLeft, FileText, Star
+  ArrowLeft, FileText, Star, Video
 } from 'lucide-react';
 
 declare global {
@@ -38,6 +38,7 @@ export const VideoCallPage: React.FC = () => {
   // Script load & Jitsi API reference
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const jitsiContainerRef = useRef<HTMLDivElement>(null);
+  const isInitializedRef = useRef(false);
   const [jitsiApi, setJitsiApi] = useState<any>(null);
 
   // Review popup for customer
@@ -55,29 +56,47 @@ export const VideoCallPage: React.FC = () => {
   const [isSavingNotes, setIsSavingNotes] = useState(false);
 
   const isDoctor = user?.role === 'doctor';
+  const isAdmin = user?.role === 'admin';
 
-  // 1. Fetch Consultation Details (Polls status changes dynamically)
+  // 1. Fetch Consultation Details (Updates dynamically on WebSocket notifications)
   const { data: consultation, isLoading: isLoadingConsult } = useQuery({
-    queryKey: ['videoConsultation', consultationId],
+    queryKey: ['videoConsultation', consultationId, user?.id],
     queryFn: () => 
       isDoctor 
         ? getDoctorConsultationById(consultationId) 
         : fetchConsultationById(consultationId),
     enabled: consultationId > 0 && !!user,
-    refetchInterval: (query) => {
-      // Poll every 3 seconds if session is active or in waiting room
-      const data = query.state.data;
-      if (data) {
-        const statusUpper = data.status.toUpperCase();
-        if (statusUpper === 'CONFIRMED' || statusUpper === 'IN_PROGRESS') {
-          return 3000;
-        }
-      }
-      return false;
-    }
   });
 
-  const hasAccess = consultation && (user?.id === consultation.customer_id || (isDoctor && consultation.doctor?.user?.email === user?.email));
+  const apiRef = useRef<any>(null);
+
+  const isJaaS = !!consultation?.jitsi_token && !!consultation?.jitsi_app_id && consultation?.jitsi_domain === '8x8.vc';
+  const fallbackDomain = consultation?.jitsi_domain || 'scoobykitchen.duckdns.org';
+  const rawRoomName = consultation
+    ? (consultation.meeting_room_id ? (consultation.meeting_room_id.startsWith('scooby-') ? consultation.meeting_room_id : `scooby-${consultation.meeting_room_id}`) : `scooby-consultation-${consultation.id}`)
+    : '';
+  const roomName = isJaaS ? `${consultation?.jitsi_app_id}/${rawRoomName}` : rawRoomName;
+  const domain = isJaaS ? '8x8.vc' : fallbackDomain;
+  const userName = isDoctor 
+    ? `Dr. ${user?.first_name || ''} ${user?.last_name || ''}`.trim() 
+    : `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
+  
+  const directRoomUrl = consultation 
+    ? `https://${domain}/${roomName}${consultation.jitsi_token ? `?jwt=${consultation.jitsi_token}` : ''}#config.prejoinPageEnabled=false&config.disableDeepLinking=true${!isJaaS ? `&config.focusUserJid=focus%40auth.${domain}` : ''}&userInfo.displayName=${encodeURIComponent(userName)}` 
+    : '';
+
+  const hasAccess = Boolean(
+    consultation && (
+      isAdmin ||
+      Number(user?.id) === Number(consultation.customer_id) || 
+      (isDoctor && (
+        !consultation.doctor ||
+        consultation.doctor?.user?.email === user?.email || 
+        Number(consultation.doctor?.user?.id ?? consultation.doctor?.user_id) === Number(user?.id) ||
+        Number(consultation.doctor_id) === Number((user as any)?.doctor_id)
+      ))
+    )
+  );
 
   // Fetch Pet Health History
   const { data: petHistory } = useQuery({
@@ -91,24 +110,37 @@ export const VideoCallPage: React.FC = () => {
 
   // Load Jitsi Meet External Script
   useEffect(() => {
+    if (!consultation) return;
+    if (typeof (window as any).JitsiMeetExternalAPI === 'function') {
+      setIsScriptLoaded(true);
+      return;
+    }
+
+    const isJaaS = !!consultation.jitsi_token && !!consultation.jitsi_app_id && consultation.jitsi_domain === '8x8.vc';
+    const activeDomain = consultation.jitsi_domain || 'scoobykitchen.duckdns.org';
+    const scriptSrc = isJaaS ? 'https://8x8.vc/external_api.js' : `https://${activeDomain}/external_api.js`;
+    
     const scriptId = 'jitsi-meet-script';
     let script = document.getElementById(scriptId) as HTMLScriptElement;
     
     if (!script) {
       script = document.createElement('script');
       script.id = scriptId;
-      script.src = 'https://meet.ffmuc.net/external_api.js';
+      script.src = scriptSrc;
       script.async = true;
       script.onload = () => setIsScriptLoaded(true);
+      script.onerror = () => {
+        console.error('Failed to load Jitsi external_api.js from', scriptSrc);
+      };
       document.body.appendChild(script);
     } else {
-      setIsScriptLoaded(true);
+      if (typeof (window as any).JitsiMeetExternalAPI === 'function') {
+        setIsScriptLoaded(true);
+      } else {
+        script.addEventListener('load', () => setIsScriptLoaded(true));
+      }
     }
-    
-    return () => {
-      // Do not remove script to avoid reloading on next mount, but clean up API
-    };
-  }, []);
+  }, [consultation?.jitsi_domain, consultation?.jitsi_token]);
 
   // Waiting room countdown effect
   useEffect(() => {
@@ -158,8 +190,8 @@ export const VideoCallPage: React.FC = () => {
   // Auto-detect Completion (For Customer)
   useEffect(() => {
     if (consultation && !isDoctor && consultation.status.toUpperCase() === 'COMPLETED' && !showReviewModal) {
-      if (jitsiApi) {
-        jitsiApi.executeCommand('hangup');
+      if (jitsiApi || apiRef.current) {
+        (jitsiApi || apiRef.current).executeCommand('hangup');
       }
       setShowReviewModal(true);
     }
@@ -167,14 +199,48 @@ export const VideoCallPage: React.FC = () => {
 
   // Initialize Jitsi Conference Frame
   useEffect(() => {
-    if (!isScriptLoaded || !consultation || !hasAccess || jitsiApi) return;
-    if (timeUntilStart && timeUntilStart > 600) return; // Do not join early
+    if (!isScriptLoaded || !consultation || !hasAccess || isInitializedRef.current) return;
     const statusUpper = consultation.status.toUpperCase();
-    if (statusUpper !== 'CONFIRMED' && statusUpper !== 'IN_PROGRESS') return;
+    if (statusUpper !== 'CONFIRMED' && statusUpper !== 'IN_PROGRESS' && statusUpper !== 'PENDING' && statusUpper !== 'APPROVED') return;
+
+    isInitializedRef.current = true;
+
+    // Detect JaaS JWT configuration
+    const isJaaS = !!consultation.jitsi_token && !!consultation.jitsi_app_id && consultation.jitsi_domain === '8x8.vc';
+    const domain = isJaaS ? '8x8.vc' : (consultation.jitsi_domain || 'scoobykitchen.duckdns.org');
+    const rawRoomName = consultation.meeting_room_id
+      ? (consultation.meeting_room_id.startsWith('scooby-') ? consultation.meeting_room_id : `scooby-${consultation.meeting_room_id}`)
+      : `scooby-consultation-${consultation.id}`;
+    const roomName = isJaaS ? `${consultation.jitsi_app_id}/${rawRoomName}` : rawRoomName;
+
+    const configOverwrite: any = {
+      startWithAudioMuted: false,
+      startWithVideoMuted: false,
+      prejoinPageEnabled: false,
+      disableDeepLinking: true,
+      enableClosePage: false,
+      enableWelcomePage: false,
+      logoClickUrl: window.location.origin + '/consultations',
+      logoImageUrl: '',
+      toolbarButtons: [
+        'microphone', 'camera', 'closedcaptions', 'desktop', 'embedmeeting', 'fullscreen',
+        'fodeviceselection', 'hangup', 'profile', 'chat', 'settings', 'videoquality',
+        'tileview', 'select-background', 'participants-pane'
+      ]
+    };
+
+    if (!isJaaS) {
+      configOverwrite.focusUserJid = `focus@auth.${domain}`;
+      configOverwrite.hosts = {
+        domain: domain,
+        muc: `conference.${domain}`,
+        focus: `focus.${domain}`,
+        authdomain: `auth.${domain}`
+      };
+    }
 
     // Create container and config options
-    const roomName = `scooby-consultation-${consultation.meeting_room_id || consultation.id}`;
-    const options = {
+    const options: any = {
       roomName: roomName,
       width: '100%',
       height: '100%',
@@ -185,19 +251,7 @@ export const VideoCallPage: React.FC = () => {
           : `${user?.first_name || ''} ${user?.last_name || ''}`.trim(),
         email: user?.email
       },
-      configOverwrite: {
-        startWithAudioMuted: false,
-        startWithVideoMuted: false,
-        prejoinPageEnabled: false,
-        disableDeepLinking: true,
-        logoClickUrl: 'http://127.0.0.1:3000/consultations',
-        logoImageUrl: '',
-        toolbarButtons: [
-          'microphone', 'camera', 'closedcaptions', 'desktop', 'embedmeeting', 'fullscreen',
-          'fodeviceselection', 'hangup', 'profile', 'chat', 'settings', 'videoquality',
-          'tileview', 'select-background', 'participants-pane'
-        ]
-      },
+      configOverwrite,
       interfaceConfigOverwrite: {
         SHOW_JITSI_WATERMARK: false,
         SHOW_WATERMARK_FOR_GUESTS: false,
@@ -206,36 +260,68 @@ export const VideoCallPage: React.FC = () => {
       }
     };
 
-    const api = new window.JitsiMeetExternalAPI('meet.ffmuc.net', options);
-    setJitsiApi(api);
-
-    // If doctor starts the call, update status to IN_PROGRESS in DB
-    if (isDoctor && consultation.status.toUpperCase() === 'CONFIRMED') {
-      updateConsultationStatus(consultation.id, 'in_progress').catch(err => {
-        console.warn('Failed to update session status to IN_PROGRESS:', err);
-      });
+    if (consultation.jitsi_token) {
+      options.jwt = consultation.jitsi_token;
     }
 
-    // Telemetry Events
-    api.addEventListener('videoConferenceJoined', () => {
-      console.log('Successfully connected to WebRTC room');
-    });
+    if (jitsiContainerRef.current) {
+      jitsiContainerRef.current.innerHTML = '';
+    }
 
-    api.addEventListener('videoConferenceLeft', () => {
-      if (isDoctor) {
-        navigate('/doctor');
-      } else {
-        // Trigger customer rating popup
-        setShowReviewModal(true);
+    try {
+      if (typeof (window as any).JitsiMeetExternalAPI !== 'function') {
+        console.warn('JitsiMeetExternalAPI not ready yet, waiting for script...');
+        isInitializedRef.current = false;
+        return;
       }
-    });
 
+      const api = new (window as any).JitsiMeetExternalAPI(domain, options);
+      apiRef.current = api;
+      setJitsiApi(api);
+
+      // If doctor starts the call, update status to IN_PROGRESS in DB
+      if (isDoctor && (consultation.status.toUpperCase() === 'CONFIRMED' || consultation.status.toUpperCase() === 'APPROVED')) {
+        updateConsultationStatus(consultation.id, 'in_progress').catch(err => {
+          console.warn('Failed to update session status to IN_PROGRESS:', err);
+        });
+      }
+
+      // Telemetry Events
+      api.addEventListener('videoConferenceJoined', () => {
+        console.log('Successfully connected to WebRTC room');
+      });
+
+      const handleCallEnded = () => {
+        if (isDoctor) {
+          navigate('/doctor');
+        } else {
+          // Trigger customer rating popup
+          setShowReviewModal(true);
+        }
+      };
+
+      api.addEventListener('videoConferenceLeft', handleCallEnded);
+      api.addEventListener('readyToClose', handleCallEnded);
+    } catch (err) {
+      console.error('Failed to construct JitsiMeetExternalAPI:', err);
+      isInitializedRef.current = false;
+    }
+  }, [isScriptLoaded, consultation?.id, hasAccess]);
+
+  // Clean up Jitsi API on component unmount
+  useEffect(() => {
     return () => {
-      if (api) {
-        api.dispose();
+      if (apiRef.current) {
+        try {
+          apiRef.current.dispose();
+        } catch (e) {
+          console.warn('Error disposing jitsi api:', e);
+        }
+        apiRef.current = null;
       }
+      isInitializedRef.current = false;
     };
-  }, [isScriptLoaded, consultation, hasAccess, jitsiApi, timeUntilStart]);
+  }, []);
 
   // Session Time Expiration handler
   const handleSessionTimeExpired = async () => {
@@ -483,6 +569,31 @@ export const VideoCallPage: React.FC = () => {
         
         {/* Left Side: WebRTC Jitsi Window */}
         <div className="flex-grow bg-[#121c17] relative flex flex-col items-center justify-center p-2">
+          {!jitsiApi && (
+            <div className="absolute inset-0 flex items-center justify-center flex-col space-y-4 bg-[#121c17] z-10 p-6 text-center">
+              <Loader2 className="w-8 h-8 text-turmeric animate-spin" />
+              <p className="font-mono text-xs uppercase tracking-wider text-paperLight opacity-80">
+                Connecting to video room ({domain})...
+              </p>
+              
+              {directRoomUrl && (
+                <div className="mt-3 p-4 bg-paper bg-opacity-10 rounded-sm border border-cardboard border-opacity-30 max-w-sm space-y-3">
+                  <p className="text-xs font-body text-paperLight opacity-90 leading-relaxed">
+                    On mobile phones, Chrome blocks cross-domain embedded iframes. Tap below to launch your call directly:
+                  </p>
+                  <a
+                    href={directRoomUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center space-x-2 bg-emerald-700 hover:bg-emerald-800 text-white font-body font-bold text-xs uppercase py-3 px-5 rounded-sm tracking-wide transition-colors shadow-lg w-full"
+                  >
+                    <Video className="w-4 h-4" />
+                    <span>Launch Consultation Call Room 🎥</span>
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
           <div 
             ref={jitsiContainerRef} 
             className="w-full h-full rounded-sm overflow-hidden" 

@@ -70,6 +70,16 @@ class Setting(BaseSettings):
     # Firebase Admin SDK Configuration
     FIREBASE_CREDENTIALS_PATH: str = "firebase-service-account.json"
 
+    # Jitsi JaaS (8x8 Video) Configuration
+    JAAS_APP_ID: str | None = None
+    JAAS_API_KEY_ID: str | None = None
+    JAAS_PRIVATE_KEY: str | None = None
+
+    # Custom self-hosted Jitsi domain (defaults to meet.jit.si)
+    JITSI_DOMAIN: str = "meet.jit.si"
+    JITSI_APP_ID: str = "scooby_kitchen"
+    JITSI_APP_SECRET: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",

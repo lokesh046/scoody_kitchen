@@ -13,9 +13,9 @@ from app.schemas.consultation import ConsultationCreate
 
 # State Machine Transition Rules
 VALID_CONSULTATION_TRANSITIONS: dict[ConsultationStatus, set[ConsultationStatus]] = {
-    ConsultationStatus.PENDING: {ConsultationStatus.CONFIRMED, ConsultationStatus.CANCELLED},
+    ConsultationStatus.PENDING: {ConsultationStatus.CONFIRMED, ConsultationStatus.IN_PROGRESS, ConsultationStatus.CANCELLED},
     ConsultationStatus.CONFIRMED: {ConsultationStatus.IN_PROGRESS, ConsultationStatus.CANCELLED},
-    ConsultationStatus.IN_PROGRESS: {ConsultationStatus.COMPLETED},
+    ConsultationStatus.IN_PROGRESS: {ConsultationStatus.COMPLETED, ConsultationStatus.CANCELLED},
     ConsultationStatus.COMPLETED: set(),
     ConsultationStatus.CANCELLED: set(),
 }
@@ -35,6 +35,8 @@ def validate_consultation_transition(
     current_status: ConsultationStatus,
     new_status: ConsultationStatus,
 ) -> None:
+    if current_status == new_status:
+        return
     allowed = VALID_CONSULTATION_TRANSITIONS.get(current_status, set())
     if new_status not in allowed:
         raise ValueError(
@@ -283,9 +285,49 @@ def update_consultation_status(
     doctor_notes: str | None = None,
 ) -> Consultation:
     validate_consultation_transition(consultation.status, new_status)
+    old_status = consultation.status
     consultation.status = new_status
     if doctor_notes is not None:
         consultation.doctor_notes = doctor_notes
     db.commit()
     db.refresh(consultation)
+
+    # Dispatch real-time WebSocket notification when status transitions
+    if old_status != new_status:
+        # Invalidate consultation detail cache key
+        try:
+            from app.core.cache import cache
+            cache.delete(f"consultation:detail:{consultation.id}")
+        except Exception:
+            pass
+
+        try:
+            from app.services.notification_service import create_notification
+            status_text = new_status.value.replace("_", " ").upper()
+            msg = f"Consultation #{consultation.id} status updated to {status_text}."
+            
+            # Notify patient
+            create_notification(
+                db=db,
+                user_id=consultation.customer_id,
+                title="Consultation Status Update",
+                message=msg,
+                type="CONSULTATION",
+                link=f"/consultations/{consultation.id}"
+            )
+            
+            # Notify doctor
+            if consultation.doctor and consultation.doctor.user_id:
+                create_notification(
+                    db=db,
+                    user_id=consultation.doctor.user_id,
+                    title="Consultation Status Update",
+                    message=msg,
+                    type="CONSULTATION",
+                    link="/doctor"
+                )
+        except Exception as e:
+            import logging
+            logging.getLogger("app.consultation").warning(f"Failed to send status update notification: {e}")
+
     return consultation

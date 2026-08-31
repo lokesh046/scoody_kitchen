@@ -833,16 +833,14 @@ export const ConsultationsPage: React.FC = () => {
                       {/* Action Buttons (Join Call / Cancel) */}
                       {(consult.status.toUpperCase() === 'PENDING' || consult.status.toUpperCase() === 'CONFIRMED' || consult.status.toUpperCase() === 'IN_PROGRESS') && (
                         <div className="mt-4 pt-4 border-t border-cardboard flex justify-end pl-4 space-x-3">
-                          {(consult.status.toUpperCase() === 'CONFIRMED' || consult.status.toUpperCase() === 'IN_PROGRESS') && (
-                            <button
-                              type="button"
-                              onClick={() => navigate(`/consultations/${consult.id}/call`)}
-                              className="bg-emerald-700 hover:bg-emerald-800 text-white font-body font-bold text-[11px] uppercase py-2.5 px-4 rounded-sm tracking-wide transition-colors flex items-center space-x-1.5 shadow-md animate-pulse cursor-pointer"
-                            >
-                              <Video className="w-3.5 h-3.5" />
-                              <span>Join Video Call</span>
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/consultations/${consult.id}/call`)}
+                            className="bg-emerald-700 hover:bg-emerald-800 text-white font-body font-bold text-[11px] uppercase py-2.5 px-4 rounded-sm tracking-wide transition-colors flex items-center space-x-1.5 shadow-md animate-pulse cursor-pointer"
+                          >
+                            <Video className="w-3.5 h-3.5" />
+                            <span>Join Video Call</span>
+                          </button>
                           {(consult.status.toUpperCase() === 'PENDING' || consult.status.toUpperCase() === 'CONFIRMED') && (
                             <button
                               type="button"

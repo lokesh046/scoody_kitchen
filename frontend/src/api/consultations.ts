@@ -67,6 +67,7 @@ export interface PetMinimalResponse {
 
 export interface DoctorMinimalResponse {
   id: number;
+  user_id?: number;
   specialization: string;
   qualification: string;
   consultation_fee: string;
@@ -85,6 +86,9 @@ export interface ConsultationResponse {
   customer_notes: string | null;
   doctor_notes: string | null;
   meeting_room_id: string | null;
+  jitsi_token?: string | null;
+  jitsi_app_id?: string | null;
+  jitsi_domain?: string | null;
   created_at: string;
   updated_at: string;
   pet?: PetMinimalResponse | null;

@@ -38,6 +38,7 @@ class PetMinimalResponse(BaseModel):
 
 class DoctorMinimalResponse(BaseModel):
     id: int
+    user_id: int | None = None
     specialization: str
     qualification: str
     consultation_fee: Decimal
@@ -59,6 +60,9 @@ class ConsultationResponse(BaseModel):
     customer_notes: str | None = None
     doctor_notes: str | None = None
     meeting_room_id: str | None = None
+    jitsi_token: str | None = None
+    jitsi_app_id: str | None = None
+    jitsi_domain: str | None = None
     created_at: datetime
     updated_at: datetime
 

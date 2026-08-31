@@ -24,6 +24,7 @@ dependencies = [
     "cloudinary>=1.41.0",
     "google-auth>=2.0.0",
     "celery>=5.4.0",
+    "firebase-admin>=7.5.0",
 ]
 
 [build-system]

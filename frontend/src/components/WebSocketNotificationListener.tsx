@@ -37,6 +37,11 @@ export function WebSocketNotificationListener() {
 
       socket.onopen = () => {
         console.log("[Global WebSocket] Connected successfully!");
+        // Sync active video call page states on connection or reconnection
+        queryClient.invalidateQueries({ queryKey: ['videoConsultation'] });
+        queryClient.invalidateQueries({ queryKey: ['consultation'] });
+        queryClient.invalidateQueries({ queryKey: ['myConsultations'] });
+        queryClient.invalidateQueries({ queryKey: ['doctorConsultations'] });
       };
 
       socket.onmessage = (event) => {
@@ -49,6 +54,15 @@ export function WebSocketNotificationListener() {
           setTimeout(() => {
             removeToast(notification.id);
           }, 6000);
+
+          // Invalidate consultation queries on status updates
+          if (notification.type === 'CONSULTATION') {
+            console.log("[Global WebSocket] Invalidation triggered for consultation queries");
+            queryClient.invalidateQueries({ queryKey: ['videoConsultation'] });
+            queryClient.invalidateQueries({ queryKey: ['consultation'] });
+            queryClient.invalidateQueries({ queryKey: ['myConsultations'] });
+            queryClient.invalidateQueries({ queryKey: ['doctorConsultations'] });
+          }
 
           // Instantly insert into local notifications list cache (0ms latency!)
           queryClient.setQueryData(['myNotifications'], (oldData: NotificationResponse[] | undefined) => {

@@ -17,6 +17,7 @@ from app.services.consultation_service import (
     get_doctor_consultations,
     update_consultation_status,
 )
+from app.core.jitsi import generate_jaas_token
 
 from app.schemas.doctor_availability import (
     BulkScheduleCreate,
@@ -255,10 +256,27 @@ def get_doctor_consultation_detail(
     if doctor is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doctor profile not found")
 
+    from app.core.cache import cache
+    cache_key = f"consultation:detail:{consultation_id}:doctor:{doctor.id}"
+    cached_data = cache.get(cache_key)
+    
+    if cached_data is not None:
+        return cached_data
+
     consultation = get_consultation_by_id(db, consultation_id)
     if consultation is None or consultation.doctor_id != doctor.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation not found")
-    return consultation
+    
+    from app.core.config import settings
+    token, app_id = generate_jaas_token(consultation, current_user)
+    response_dict = ConsultationResponse.model_validate(consultation).model_dump()
+    response_dict["jitsi_token"] = token
+    response_dict["jitsi_app_id"] = app_id
+    response_dict["jitsi_domain"] = settings.JITSI_DOMAIN
+    
+    # Cache for 30 seconds
+    cache.set(cache_key, response_dict, ttl_seconds=30)
+    return response_dict
 
 
 @router.patch(
