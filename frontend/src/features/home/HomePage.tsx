@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Shield, Sparkles, ChevronRight, Activity, Database, ArrowRight } from 'lucide-react';
+import { Heart, Shield, Sparkles, ChevronRight, Activity, Database, ArrowRight, Check } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { fetchProducts } from '../../api/products';
@@ -10,8 +10,20 @@ import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
 import { HomeBannerCarousel } from '../../components/HomeBannerCarousel';
 import { ReviewsCarousel } from '../../components/ReviewsCarousel';
-
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
+
+interface QuickPreset {
+  label: string;
+  weight: number;
+  activity: 'sedentary' | 'active' | 'very_active';
+}
+
+const DOG_PRESETS: QuickPreset[] = [
+  { label: 'Toy / Small (12 lbs)', weight: 12, activity: 'active' },
+  { label: 'Medium Breed (35 lbs)', weight: 35, activity: 'active' },
+  { label: 'Large Breed (65 lbs)', weight: 65, activity: 'active' },
+  { label: 'Working / Giant (90 lbs)', weight: 90, activity: 'very_active' },
+];
 
 export default function HomePage() {
   useDocumentMetadata(
@@ -28,26 +40,21 @@ export default function HomePage() {
 
   // Calculator State
   const [dogName, setDogName] = useState('');
-  const [dogWeight, setDogWeight] = useState<number | ''>('');
+  const [dogWeight, setDogWeight] = useState<number | ''>(35);
   const [activityLevel, setActivityLevel] = useState<'sedentary' | 'active' | 'very_active'>('active');
-  const [calcResult, setCalcResult] = useState<{
-    calories: number;
-    recommendedProduct: any | null;
-  } | null>(null);
+  const [isAddingRecommended, setIsAddingRecommended] = useState(false);
+  const [isAddedRecommended, setIsAddedRecommended] = useState(false);
 
-  // Queries - Fetch products for slider and featured sections
+  // Optimized Query - Fetch limited active products for slider and featured sections
   const { data: productsData, isLoading: productsLoading } = useQuery({
     queryKey: ['featured-products'],
-    queryFn: () => fetchProducts({ limit: 40 }),
+    queryFn: () => fetchProducts({ limit: 12 }),
+    staleTime: 5 * 60 * 1000,
   });
 
-  const featuredProducts = productsData?.items?.filter(p => p.is_active)?.slice(0, 3) || [];
-
-
-
-
-
-
+  const featuredProducts = useMemo(() => {
+    return productsData?.items?.filter((p) => p.is_active)?.slice(0, 3) || [];
+  }, [productsData]);
 
   const handleAddToCart = async (productId: number) => {
     if (!user) {
@@ -61,46 +68,60 @@ export default function HomePage() {
     }
   };
 
-  // Recipe Fit Calculator Logic
-  const handleCalculate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!dogWeight || dogWeight <= 0) return;
+  // Memoized Daily Calorie & Recommended Product calculation
+  const calcResult = useMemo(() => {
+    if (!dogWeight || Number(dogWeight) <= 0) return null;
 
-    // Weight in kg
     const weightInKg = Number(dogWeight) * 0.45359237;
     // RER (Resting Energy Requirement) = 70 * (weight in kg)^0.75
     const rer = 70 * Math.pow(weightInKg, 0.75);
 
-    // MER (Maintenance Energy Requirement) factor
-    let factor = 1.4; // active standard
+    // MER factor based on activity
+    let factor = 1.4;
     if (activityLevel === 'sedentary') factor = 1.0;
     if (activityLevel === 'very_active') factor = 1.8;
 
     const dailyCalories = Math.round(rer * factor);
 
-    // Recommend based on activity and size
     let recProduct = null;
     if (productsData?.items && productsData.items.length > 0) {
       const items = productsData.items;
       if (activityLevel === 'very_active') {
-        // High protein/calorie formula like Beef
-        recProduct = items.find(p => p.name.toLowerCase().includes('beef')) || items[0];
+        recProduct = items.find((p) => p.name.toLowerCase().includes('beef')) || items[0];
       } else if (Number(dogWeight) < 18) {
-        // Delicate digestive or fish formula like Salmon
-        recProduct = items.find(p => p.name.toLowerCase().includes('salmon') || p.name.toLowerCase().includes('fish')) || items[0];
+        recProduct = items.find((p) => p.name.toLowerCase().includes('salmon') || p.name.toLowerCase().includes('fish')) || items[0];
       } else {
-        // Balanced standard formula like Chicken
-        recProduct = items.find(p => p.name.toLowerCase().includes('chicken')) || items[0];
+        recProduct = items.find((p) => p.name.toLowerCase().includes('chicken')) || items[0];
       }
     }
 
-    setCalcResult({
+    return {
       calories: dailyCalories,
-      recommendedProduct: recProduct
-    });
+      recommendedProduct: recProduct,
+    };
+  }, [dogWeight, activityLevel, productsData]);
+
+  const handleApplyPreset = useCallback((preset: QuickPreset) => {
+    setDogWeight(preset.weight);
+    setActivityLevel(preset.activity);
+  }, []);
+
+  const handleAddRecommended = async (productId: number) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setIsAddingRecommended(true);
+    try {
+      await addItem(productId, 1);
+      setIsAddedRecommended(true);
+      setTimeout(() => setIsAddedRecommended(false), 2000);
+    } catch (err) {
+      console.error('Failed to add recommended product:', err);
+    } finally {
+      setIsAddingRecommended(false);
+    }
   };
-
-
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
@@ -109,49 +130,49 @@ export default function HomePage() {
 
       {/* Main Landing Content */}
       <main className="flex-grow w-full">
-        
         {/* Centered Peeking Banner Carousel */}
         <HomeBannerCarousel />
 
         {/* Feature Grid / Brand Philosophy */}
-        <section className="bg-paper py-20 px-4 md:px-8 border-b border-cardboard border-opacity-30">
+        <section className="bg-paper py-16 md:py-24 px-4 sm:px-6 md:px-8 border-b border-cardboard border-opacity-35">
           <div className="max-w-7xl mx-auto text-left space-y-12 animate-fade-in-up">
-            <div className="max-w-xl">
-              <span className="font-mono text-[10px] uppercase font-bold text-herb tracking-widest block mb-2">// OUR QUALITY INDEX PROTOCOL</span>
-              <h1 className="font-display font-black text-4xl uppercase tracking-tight text-ink">Built on Traceability</h1>
-              <p className="font-body text-xs text-ink opacity-70 mt-2 leading-relaxed">
-                We believe pet nutrition isn't a trade secret. Every single batch bag we cook contains a detailed ledger of ingredient decisions.
+            <div className="max-w-2xl">
+              <h2 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl uppercase tracking-tight text-ink">
+                Built on Traceability
+              </h2>
+              <p className="font-body text-sm sm:text-base text-ink opacity-75 mt-3 leading-relaxed">
+                Pet nutrition is not a trade secret. Every single batch we prepare carries a transparent ledger of farm sources, bioavailable proteins, and clinical audits.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="border-double border-4 border-cardboard hover:border-turmeric hover:-translate-y-2 hover:shadow-lg transition-all duration-300 bg-paperLight p-8 rounded-none space-y-4 cursor-default">
-                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-none mb-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+              <div className="border border-cardboard bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 shadow-sm hover-paper-lift transition-all duration-300">
+                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px]">
                   <Heart className="w-6 h-6 text-turmeric" />
                 </div>
-                <h4 className="font-display text-lg font-bold uppercase tracking-tight text-ink">Real Meat First</h4>
-                <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
-                  Single-source premium proteins (Beef, Chicken, Salmon) form 80%+ of our formulations. No meat-meals or hidden byproducts are ever added.
+                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-ink">Real Meat First</h3>
+                <p className="font-body text-xs sm:text-sm text-ink opacity-80 leading-relaxed">
+                  Single-source premium proteins (Beef, Chicken, Salmon) form 80%+ of our formulations. Zero meat-meals or rendering byproducts ever make it into the bowl.
                 </p>
               </div>
 
-              <div className="border-double border-4 border-cardboard hover:border-turmeric hover:-translate-y-2 hover:shadow-lg transition-all duration-300 bg-paperLight p-8 rounded-none space-y-4 cursor-default">
-                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-none mb-2">
+              <div className="border border-cardboard bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 shadow-sm hover-paper-lift transition-all duration-300">
+                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px]">
                   <Shield className="w-6 h-6 text-herb" />
                 </div>
-                <h4 className="font-display text-lg font-bold uppercase tracking-tight text-ink">Zero Starch Fillers</h4>
-                <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
-                  Grain-free and potato-free formulations designed for active bio-absorption. No corn, soy, wheat, or synthetic colorings inside the bowl.
+                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-ink">Zero Starch Fillers</h3>
+                <p className="font-body text-xs sm:text-sm text-ink opacity-80 leading-relaxed">
+                  Grain-free and potato-free formulations crafted for fast bio-absorption. No synthetic preservatives, corn, soy, or wheat fillers.
                 </p>
               </div>
 
-              <div className="border-double border-4 border-cardboard hover:border-turmeric hover:-translate-y-2 hover:shadow-lg transition-all duration-300 bg-paperLight p-8 rounded-none space-y-4 cursor-default">
-                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-none mb-2">
-                  <Sparkles className="w-6 h-6 text-ink" />
+              <div className="border border-cardboard bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 shadow-sm hover-paper-lift transition-all duration-300">
+                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px]">
+                  <Sparkles className="w-6 h-6 text-turmeric" />
                 </div>
-                <h4 className="font-display text-lg font-bold uppercase tracking-tight text-ink">Veterinary Oversight</h4>
-                <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
-                  Each formula batch is audited by certified pet nutrition specialists to ensure complex, life-stage-specific macro profile standards.
+                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-ink">Veterinary Oversight</h3>
+                <p className="font-body text-xs sm:text-sm text-ink opacity-80 leading-relaxed">
+                  Each formula batch is reviewed and validated by certified pet nutrition specialists to ensure complete, life-stage-specific macro profiles.
                 </p>
               </div>
             </div>
@@ -159,32 +180,33 @@ export default function HomePage() {
         </section>
 
         {/* Featured Product Spotlight */}
-        <section className="bg-paper py-16 px-4 md:px-8 border-b border-cardboard border-opacity-30">
-          <div className="max-w-7xl mx-auto space-y-8">
+        <section className="bg-paper py-16 md:py-24 px-4 sm:px-6 md:px-8 border-b border-cardboard border-opacity-35">
+          <div className="max-w-7xl mx-auto space-y-8 md:space-y-12">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 text-left border-b border-cardboard pb-6 animate-fade-in-up">
               <div>
-                <span className="font-mono text-[10px] uppercase font-bold text-herb tracking-widest block mb-2">// RECIPE SPOTLIGHT</span>
-                <h3 className="font-display font-black text-4xl uppercase tracking-tight text-ink">Signature Formulations</h3>
-                <p className="font-body text-xs text-ink opacity-70 mt-1">
-                  Our veterinary-certified small batch recipes, cooked to perfection.
+                <h2 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl uppercase tracking-tight text-ink">
+                  Signature Formulations
+                </h2>
+                <p className="font-body text-sm text-ink opacity-75 mt-2">
+                  Veterinary-audited small batch recipes, cooked to biological perfection.
                 </p>
               </div>
               <button 
                 onClick={() => navigate('/shop')}
-                className="font-mono text-[10px] uppercase font-bold text-turmeric hover:text-ink transition-colors flex items-center space-x-1.5 cursor-pointer group"
+                className="font-mono text-xs uppercase font-bold text-turmeric hover:text-ink transition-colors flex items-center space-x-1.5 cursor-pointer group"
               >
                 <span>View Full Product Ledger</span>
-                <ChevronRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
+                <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
               </button>
             </div>
 
             {productsLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {[1, 2, 3].map((n) => (
-                  <div key={n} className="border border-cardboard bg-paperLight p-6 rounded-none space-y-4 animate-pulse">
-                    <div className="w-full aspect-[4/3] bg-paper border border-cardboard border-dashed"></div>
-                    <div className="h-6 bg-paper w-3/4"></div>
-                    <div className="h-4 bg-paper w-1/2"></div>
+                  <div key={n} className="border border-cardboard bg-paperLight p-6 rounded-[16px] space-y-4 animate-pulse">
+                    <div className="w-full aspect-[4/3] bg-paper border border-cardboard border-dashed rounded-[12px]"></div>
+                    <div className="h-6 bg-paper w-3/4 rounded-xs"></div>
+                    <div className="h-4 bg-paper w-1/2 rounded-xs"></div>
                   </div>
                 ))}
               </div>
@@ -203,41 +225,73 @@ export default function HomePage() {
         </section>
 
         {/* Interactive Recipe Calculator Section */}
-        <section className="bg-paperLight py-20 px-4 md:px-8 border-b border-cardboard border-opacity-30 relative" id="fit-calculator" style={{ backgroundImage: 'radial-gradient(#EBE0D0 1.2px, transparent 1.2px)', backgroundSize: '16px 16px' }}>
-          <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center text-left relative z-10">
-            <div className="lg:col-span-5 space-y-4 animate-fade-in-up">
-              <span className="font-mono text-[10px] uppercase font-bold text-herb tracking-widest block">// DIAGNOSTIC CALCULATOR</span>
-              <h3 className="font-display font-black text-4xl uppercase tracking-tight text-ink">Recipe Fit Calculator</h3>
-              <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
-                Pet nutrition is specific to body mass and active energy outputs. Input your dog's diagnostics to dynamically calculate their targeted caloric demands and find the formula suited to them.
+        <section 
+          className="bg-paperLight py-16 md:py-24 px-4 sm:px-6 md:px-8 border-b border-cardboard border-opacity-35 relative" 
+          id="fit-calculator" 
+          style={{ backgroundImage: 'radial-gradient(#EBE0D0 1.2px, transparent 1.2px)', backgroundSize: '16px 16px' }}
+        >
+          <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center text-left relative z-10">
+            <div className="lg:col-span-5 space-y-5 animate-fade-in-up">
+              <h2 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl uppercase tracking-tight text-ink leading-tight">
+                Recipe Fit Calculator
+              </h2>
+              <p className="font-body text-sm text-ink opacity-80 leading-relaxed">
+                Pet nutrition is directly proportional to body mass and daily energy output. Pick your dog's size or enter their exact weight to calculate targeted caloric requirements in real time.
               </p>
-              <div className="border-l-2 border-dashed border-cardboard pl-4 py-2 space-y-2 font-mono text-[10px] text-ink opacity-75">
-                <p>Formula base: RER = 70 * (wt_kg)^0.75</p>
-                <p>Output MER = RER * activity_multiplier</p>
+
+              {/* Quick Size Presets */}
+              <div className="space-y-2 pt-2">
+                <span className="font-mono text-[10px] uppercase font-bold text-ink opacity-70 block">
+                  Quick Size Presets:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {DOG_PRESETS.map((preset) => {
+                    const isSelected = Number(dogWeight) === preset.weight && activityLevel === preset.activity;
+                    return (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => handleApplyPreset(preset)}
+                        className={`font-mono text-[10px] uppercase px-3 py-1.5 rounded-[8px] transition-all cursor-pointer font-bold border ${
+                          isSelected
+                            ? 'bg-turmeric text-ink border-turmeric shadow-xs'
+                            : 'bg-paper text-ink opacity-85 border-cardboard hover:border-turmeric hover:opacity-100'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+
+              <div className="border-l-2 border-dashed border-cardboard pl-4 py-2 space-y-1 font-mono text-[11px] text-ink opacity-75">
+                <p>Formula base: RER = 70 × (weight_kg)⁰·⁷⁵</p>
+                <p>Output MER = RER × activity_multiplier</p>
+              </div>
+
               <div className="pt-2">
                 <button 
                   onClick={() => navigate('/onboarding')}
-                  className="inline-flex items-center space-x-2 bg-turmeric text-ink hover:bg-opacity-95 font-mono text-[9px] uppercase font-bold px-5 py-3 tracking-wider transition-colors hover-bounce cursor-pointer shadow-xs"
+                  className="inline-flex items-center space-x-2 bg-turmeric text-ink hover:bg-opacity-95 font-mono text-[10px] uppercase font-bold px-5 py-3 rounded-[10px] tracking-wider transition-all hover-bounce cursor-pointer shadow-xs"
                 >
-                  <span>Interactive Step-by-Step Diet Planner</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span>Step-by-Step Diet Planner</span>
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            <div className="lg:col-span-7 bg-paper border border-cardboard p-8 rounded-none relative shadow-md">
-              <form onSubmit={handleCalculate} className="space-y-4">
+            <div className="lg:col-span-7 bg-paper border border-cardboard p-6 sm:p-8 rounded-[20px] relative shadow-md">
+              <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="font-mono text-[10px] uppercase font-bold text-ink opacity-85 block">Dog's Name</label>
+                    <label className="font-mono text-[10px] uppercase font-bold text-ink opacity-85 block">Dog's Name (Optional)</label>
                     <input 
                       type="text" 
                       placeholder="e.g. Scooby" 
                       value={dogName}
                       onChange={(e) => setDogName(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric"
+                      className="w-full px-3.5 py-2.5 border border-cardboard rounded-[10px] bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -247,85 +301,96 @@ export default function HomePage() {
                       placeholder="e.g. 35" 
                       value={dogWeight}
                       onChange={(e) => setDogWeight(e.target.value !== '' ? Number(e.target.value) : '')}
-                      required
                       min="1"
-                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric"
+                      className="w-full px-3.5 py-2.5 border border-cardboard rounded-[10px] bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="font-mono text-[10px] uppercase font-bold text-ink opacity-85 block">Activity Output</label>
+                  <label className="font-mono text-[10px] uppercase font-bold text-ink opacity-85 block">Daily Activity Output</label>
                   <select 
                     value={activityLevel}
                     onChange={(e: any) => setActivityLevel(e.target.value)}
-                    className="w-full px-3 py-2 border border-cardboard rounded-none bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric"
+                    className="w-full px-3.5 py-2.5 border border-cardboard rounded-[10px] bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors cursor-pointer"
                   >
-                    <option value="sedentary">Sedentary (Couches & Walks)</option>
-                    <option value="active">Active (Daily Runs & Playtime)</option>
-                    <option value="very_active">Working/Sporting (Constant activity)</option>
+                    <option value="sedentary">Sedentary (Couches & Relaxed Walks)</option>
+                    <option value="active">Active (Daily Runs, Fetch & Playtime)</option>
+                    <option value="very_active">Working / Sporting (Constant Agility & Training)</option>
                   </select>
                 </div>
-
-                <button 
-                  type="submit" 
-                  className="w-full bg-turmeric text-ink hover:bg-opacity-95 font-mono text-[10px] uppercase font-bold py-3.5 tracking-wider transition-colors hover-bounce cursor-pointer shadow-sm"
-                >
-                  Analyze Diagnostic Log
-                </button>
-              </form>
+              </div>
 
               {calcResult && (
                 <div className="mt-6 border-t-2 border-dashed border-cardboard pt-6 space-y-4 animate-fade-in-up">
-                  {/* Thermal Printer Receipt Style */}
-                  <div className="bg-paperLight p-6 border-4 border-double border-cardboard relative">
-                    <div className="absolute top-0 left-0 right-0 h-1.5 bg-paperLight border-b border-dashed border-cardboard"></div>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center pb-2 border-b border-dashed border-cardboard">
-                        <div className="text-left">
-                          <span className="font-mono text-[9px] uppercase font-bold text-turmeric block">// CALCULATOR OUTPUT</span>
-                          <span className="font-mono text-[8px] uppercase tracking-wider text-ink opacity-65">SUBJECT: {dogName || 'N/A'} ({dogWeight} LBS)</span>
-                        </div>
-                        <Activity className="w-5 h-5 text-turmeric shrink-0" />
+                  {/* Thermal Diagnostic Output Box */}
+                  <div className="bg-paperLight p-5 sm:p-6 border border-cardboard rounded-[14px] shadow-xs relative">
+                    <div className="flex justify-between items-center pb-3 border-b border-dashed border-cardboard">
+                      <div className="text-left">
+                        <span className="font-mono text-[10px] uppercase font-bold text-turmeric block">
+                          DIAGNOSTIC OUTPUT
+                        </span>
+                        <span className="font-mono text-[9px] uppercase tracking-wider text-ink opacity-65">
+                          SUBJECT: {dogName.trim() ? dogName.trim().toUpperCase() : 'CANINE COMPANION'} ({dogWeight} LBS)
+                        </span>
                       </div>
+                      <Activity className="w-5 h-5 text-turmeric shrink-0" />
+                    </div>
 
-                      <div className="flex justify-between items-center">
-                        <span className="font-mono text-[10px] text-ink uppercase font-bold">DAILY DEMAND:</span>
-                        <span className="font-mono font-bold text-lg text-ink">{calcResult.calories} kCal / day</span>
-                      </div>
+                    <div className="flex justify-between items-center pt-3">
+                      <span className="font-mono text-xs text-ink uppercase font-bold">Target Daily Demand:</span>
+                      <span className="font-mono font-black text-xl sm:text-2xl text-ink">
+                        {calcResult.calories} <span className="text-sm font-semibold opacity-70">kCal / day</span>
+                      </span>
                     </div>
                   </div>
 
-                  {calcResult.recommendedProduct ? (
-                    <div className="space-y-3">
-                      <span className="font-mono text-[9px] uppercase font-bold text-herb block">// RECOMMENDED RECIPE BLEND:</span>
-                      <div className="flex flex-col md:flex-row items-start md:items-center justify-between border border-cardboard p-4 gap-4 bg-paperLight">
+                  {calcResult.recommendedProduct && (
+                    <div className="space-y-2.5">
+                      <span className="font-mono text-[10px] uppercase font-bold text-herb block">
+                        RECOMMENDED RECIPE FORMULATION:
+                      </span>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border border-cardboard p-4 gap-4 bg-paperLight rounded-[14px] shadow-xs">
                         <div className="flex items-center space-x-3 text-left">
                           <img 
-                            src={calcResult.recommendedProduct.image_url} 
+                            src={calcResult.recommendedProduct.image_url || 'https://images.unsplash.com/photo-1589924691106-07a3c22a12e7?auto=format&fit=crop&q=80&w=200'} 
                             alt={calcResult.recommendedProduct.name} 
-                            className="w-12 h-12 object-cover border border-cardboard rounded-none"
+                            width={56}
+                            height={56}
+                            className="w-14 h-14 object-cover border border-cardboard rounded-[8px] shrink-0"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1589924691106-07a3c22a12e7?auto=format&fit=crop&q=80&w=200';
                             }}
                           />
                           <div>
-                            <h5 className="font-display font-bold text-xs text-ink">{calcResult.recommendedProduct.name}</h5>
-                            <p className="font-body text-[10px] text-ink opacity-70">${calcResult.recommendedProduct.price} per lb</p>
+                            <h4 className="font-display font-bold text-sm text-ink">{calcResult.recommendedProduct.name}</h4>
+                            <p className="font-mono text-xs text-turmeric font-bold">${parseFloat(calcResult.recommendedProduct.price).toFixed(2)} per lb</p>
                           </div>
                         </div>
                         <button 
-                          onClick={() => handleAddToCart(calcResult.recommendedProduct.id)}
-                          className="bg-turmeric text-ink font-mono text-[9px] font-bold uppercase px-4 py-2 rounded-none hover:bg-opacity-95 transition-colors cursor-pointer hover-bounce"
+                          onClick={() => {
+                            if (calcResult.recommendedProduct) {
+                              handleAddRecommended(calcResult.recommendedProduct.id);
+                            }
+                          }}
+                          disabled={isAddingRecommended}
+                          className={`font-mono text-[10px] font-bold uppercase px-4 py-2.5 rounded-[8px] transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${
+                            isAddedRecommended
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-turmeric text-ink hover:bg-opacity-90 hover-bounce shadow-xs'
+                          }`}
                         >
-                          Add Recommended
+                          {isAddedRecommended ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-white" />
+                              <span>Added! 🐾</span>
+                            </>
+                          ) : (
+                            <span>Add Recommended</span>
+                          )}
                         </button>
                       </div>
                     </div>
-                  ) : (
-                    <p className="font-body text-xs text-ink opacity-70 text-left">
-                      Load full product list in Shop to view matching recipes.
-                    </p>
                   )}
                 </div>
               )}
@@ -334,64 +399,65 @@ export default function HomePage() {
         </section>
 
         {/* Feature Service Cards Section */}
-        <section className="bg-paper py-20 px-4 md:px-8 border-b border-cardboard border-opacity-30">
+        <section className="bg-paper py-16 md:py-24 px-4 sm:px-6 md:px-8 border-b border-cardboard border-opacity-35">
           <div className="max-w-7xl mx-auto space-y-12 text-left animate-fade-in-up">
-            <div className="max-w-xl">
-              <span className="font-mono text-[10px] uppercase font-bold text-herb tracking-widest block mb-2">// INTEGRATED PET LEDGER</span>
-              <h3 className="font-display font-black text-4xl uppercase tracking-tight text-ink">Explore the Ecosystem</h3>
-              <p className="font-body text-xs text-ink opacity-70 mt-2 leading-relaxed">
-                Manage all aspects of your pet's dietary records, care consultations, and real-time AI assistance diagnostics.
+            <div className="max-w-2xl">
+              <h2 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl uppercase tracking-tight text-ink">
+                Explore the Ecosystem
+              </h2>
+              <p className="font-body text-sm sm:text-base text-ink opacity-75 mt-2 leading-relaxed">
+                Seamlessly manage all aspects of your pet's dietary records, online veterinary consultations, and real-time AI nutrition assistance.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
               <div 
                 onClick={() => navigate('/pets')}
-                className="border-double border-4 border-cardboard hover:border-turmeric hover:-translate-y-2 hover:shadow-lg transition-all duration-300 bg-paperLight p-8 rounded-none space-y-4 cursor-pointer group"
+                className="border border-cardboard hover:border-turmeric hover-paperLift bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 cursor-pointer group shadow-sm transition-all duration-300"
               >
-                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-none mb-2">
-                  <Database className="w-5 h-5 text-turmeric" />
+                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px]">
+                  <Database className="w-6 h-6 text-turmeric" />
                 </div>
-                <h4 className="font-display text-lg font-bold uppercase tracking-tight text-ink">Pets Health Ledger</h4>
-                <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
-                  Log your pet's diagnostics, allergen sensitivities, weight trends, and profile details in one secure ledger database.
+                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-ink">Pet Health Ledger</h3>
+                <p className="font-body text-xs sm:text-sm text-ink opacity-80 leading-relaxed">
+                  Log your pet's diagnostics, allergen sensitivities, weight trends, and profile details in one secure database.
                 </p>
-                <div className="flex items-center space-x-1.5 font-mono text-[9px] uppercase font-bold text-turmeric pt-2">
-                  <span>Manage Logs</span>
+                <div className="flex items-center space-x-1.5 font-mono text-xs uppercase font-bold text-turmeric pt-2">
+                  <span>Manage Health Logs</span>
                   <span className="transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
                 </div>
               </div>
 
               <div 
                 onClick={() => navigate('/consultations')}
-                className="border-double border-4 border-cardboard hover:border-turmeric hover:-translate-y-2 hover:shadow-lg transition-all duration-300 bg-paperLight p-8 rounded-none space-y-4 cursor-pointer group"
+                className="border border-cardboard hover:border-turmeric hover-paperLift bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 cursor-pointer group shadow-sm transition-all duration-300"
               >
-                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-none mb-2">
-                  <Heart className="w-5 h-5 text-herb" />
+                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px]">
+                  <Heart className="w-6 h-6 text-herb" />
                 </div>
-                <h4 className="font-display text-lg font-bold uppercase tracking-tight text-ink">Vet Consultations</h4>
-                <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
-                  Schedule direct appointments and maintain records with certified veterinary professionals to audit your dog's custom diets.
+                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-ink">Vet Consultations</h3>
+                <p className="font-body text-xs sm:text-sm text-ink opacity-80 leading-relaxed">
+                  Schedule direct video appointments with certified veterinarians to audit custom dietary plans.
                 </p>
-                <div className="flex items-center space-x-1.5 font-mono text-[9px] uppercase font-bold text-herb pt-2">
-                  <span>Schedule Appointment</span>
+                <div className="flex items-center space-x-1.5 font-mono text-xs uppercase font-bold text-herb pt-2">
+                  <span>Schedule Consultation</span>
                   <span className="transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
                 </div>
               </div>
 
               <div 
                 onClick={() => navigate('/assistant')}
-                className="border-double border-4 border-cardboard hover:border-turmeric hover:-translate-y-2 hover:shadow-lg transition-all duration-300 bg-paperLight p-8 rounded-none space-y-4 cursor-pointer group"
+                className="border border-cardboard hover:border-turmeric hover-paperLift bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 cursor-pointer group shadow-sm transition-all duration-300"
               >
-                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-none mb-2">
-                  <Sparkles className="w-5 h-5 text-turmeric" />
+                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px]">
+                  <Sparkles className="w-6 h-6 text-turmeric" />
                 </div>
-                <h4 className="font-display text-lg font-bold uppercase tracking-tight text-ink">AI Assistant</h4>
-                <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
-                  Get real-time dietary suggestions, recipe ingredient explanations, and general pet health guidance from our AI coach model.
+                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-ink">AI Nutrition Coach</h3>
+                <p className="font-body text-xs sm:text-sm text-ink opacity-80 leading-relaxed">
+                  Get instant dietary recommendations, ingredient breakdowns, and round-the-clock pet wellness guidance.
                 </p>
-                <div className="flex items-center space-x-1.5 font-mono text-[9px] uppercase font-bold text-turmeric pt-2">
-                  <span>Consult Assistant</span>
+                <div className="flex items-center space-x-1.5 font-mono text-xs uppercase font-bold text-turmeric pt-2">
+                  <span>Consult AI Coach</span>
                   <span className="transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
                 </div>
               </div>
@@ -403,13 +469,25 @@ export default function HomePage() {
         <ReviewsCarousel />
         
         {/* Footer */}
-        <footer className="py-12 bg-ink text-paper px-4 md:px-8 border-t border-cardboard border-opacity-20 text-center">
-          <div className="max-w-7xl mx-auto space-y-4">
-            <p className="font-mono text-[9px] uppercase tracking-wider">
-              © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
+        <footer className="py-14 bg-ink text-paper px-4 sm:px-6 md:px-8 border-t border-cardboard border-opacity-20 text-center">
+          <div className="max-w-7xl mx-auto space-y-4 flex flex-col items-center">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 logo-medallion flex items-center justify-center p-1 overflow-hidden mb-1 shadow-lg">
+              <img
+                src="/scooby-logo-256.png"
+                alt="Scooby's Kitchen Logo"
+                width={80}
+                height={80}
+                className="w-full h-full object-contain select-none"
+              />
+            </div>
+            <p className="font-display font-black text-xl text-paper tracking-tight">
+              Scooby's Kitchen
             </p>
-            <p className="font-body text-[10px] max-w-md mx-auto leading-relaxed opacity-75">
+            <p className="font-body text-xs max-w-md mx-auto leading-relaxed text-paper opacity-75">
               Tested and crafted with love for pet parents who care about what goes in the bowl.
+            </p>
+            <p className="font-mono text-[10px] uppercase tracking-wider text-turmeric opacity-85 pt-2">
+              © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
             </p>
           </div>
         </footer>

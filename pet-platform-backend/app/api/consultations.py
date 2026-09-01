@@ -8,6 +8,9 @@ from app.models.user import User
 from app.schemas.consultation import (
     ConsultationAuditResponse,
     ConsultationCreate,
+    ConsultationBookWithPayment,
+    ConsultationPaymentIntentRequest,
+    ConsultationPaymentIntentResponse,
     ConsultationJoinResponse,
     ConsultationParticipantResponse,
     ConsultationResponse,
@@ -16,6 +19,8 @@ from app.schemas.consultation import (
 )
 from app.services.consultation_service import (
     create_consultation,
+    create_consultation_payment_intent,
+    book_consultation_with_payment,
     get_consultation_audit_summary,
     get_consultation_by_id,
     get_customer_consultations,
@@ -30,6 +35,53 @@ router = APIRouter(
     prefix="/consultations",
     tags=["Customer Consultations"],
 )
+
+
+@router.post(
+    "/create-payment-intent",
+    response_model=ConsultationPaymentIntentResponse,
+)
+def get_consultation_payment_intent(
+    intent_data: ConsultationPaymentIntentRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+):
+    try:
+        return create_consultation_payment_intent(
+            db=db,
+            customer_id=current_user.id,
+            intent_data=intent_data,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc).strip("'"))
+    except MemoryError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc).strip("'"))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.post(
+    "/book-with-payment",
+    response_model=ConsultationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def book_consultation_paid(
+    data: ConsultationBookWithPayment,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+):
+    try:
+        return book_consultation_with_payment(
+            db=db,
+            customer_id=current_user.id,
+            data=data,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc).strip("'"))
+    except MemoryError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc).strip("'"))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
 @router.post(

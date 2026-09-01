@@ -25,6 +25,7 @@ dependencies = [
     "google-auth>=2.0.0",
     "celery>=5.4.0",
     "firebase-admin>=7.5.0",
+    "razorpay>=2.0.1",
 ]
 
 [build-system]

@@ -6,6 +6,7 @@ import { logoutUser, updateUserProfile, uploadAvatarImage, verifyFirebasePhoneTo
 import { auth } from '../../api/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { CartDrawer } from '../../components/CartDrawer';
+import { Eyebrow } from '../../components/Eyebrow';
 import { useQuery } from '@tanstack/react-query';
 import { fetchMyPets } from '../../api/pets';
 import { Header } from '../../components/Header';
@@ -22,7 +23,10 @@ import {
   ShieldCheck,
   Upload,
   LogOut,
-  User
+  User,
+  X,
+  CheckCircle2,
+  Lock
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
@@ -92,7 +96,7 @@ export const ProfilePage: React.FC = () => {
 
       setAuth(updatedUser, accessToken);
       setSuccessMsg('Profile ledger successfully updated!');
-      setTimeout(() => setSuccessMsg(null), 3000);
+      setTimeout(() => setSuccessMsg(null), 3500);
     } catch (err: any) {
       setErrorMsg(
         err.response?.data?.detail || 
@@ -102,8 +106,6 @@ export const ProfilePage: React.FC = () => {
       setIsLoading(false);
     }
   };
-
-
 
   const handleLogout = async () => {
     try {
@@ -160,13 +162,13 @@ export const ProfilePage: React.FC = () => {
     setVerifyError(null);
     const fullPhone = `+91${phone}`;
     try {
-      // 1. Call Backend Pre-check Gate to verify Redis rate limits
+      // 1. Backend precheck gate
       const rateLimitResponse = await requestOtpPreCheck(fullPhone);
       if (rateLimitResponse.attempts_remaining !== undefined) {
         setAttemptsRemaining(rateLimitResponse.attempts_remaining);
       }
 
-      // 2. Clear previous recaptcha if any
+      // 2. Setup recaptcha
       const container = document.getElementById('recaptcha-container');
       if (container) {
         container.innerHTML = '<div id="recaptcha-verifier-anchor"></div>';
@@ -174,18 +176,13 @@ export const ProfilePage: React.FC = () => {
 
       const verifier = new RecaptchaVerifier(auth, 'recaptcha-verifier-anchor', {
         size: 'invisible',
-        callback: () => {
-          // reCAPTCHA solved
-        }
       });
       setRecaptchaVerifier(verifier);
 
-      // 3. Request SMS OTP from Firebase SDK
+      // 3. Request SMS OTP
       const confirmation = await signInWithPhoneNumber(auth, fullPhone, verifier);
       setConfirmResult(confirmation);
       setVerificationStep(2);
-      
-      // 4. Reset resend cooldown timer
       setCooldownCountdown(30);
     } catch (err: any) {
       console.error('Error sending OTP:', err);
@@ -214,7 +211,7 @@ export const ProfilePage: React.FC = () => {
     try {
       let idToken = '';
       
-      // Support bypass token for local sandbox developer test
+      // Support bypass token for local sandbox test
       if (verificationCode === '111111') {
         idToken = 'test_firebase_token';
       } else {
@@ -225,17 +222,14 @@ export const ProfilePage: React.FC = () => {
         idToken = await userCredential.user.getIdToken();
       }
 
-      // Verify token on FastAPI backend
       const updatedUser = await verifyFirebasePhoneToken(idToken);
       
-      // Update local storage and stores
       setAuth(updatedUser, accessToken);
-      setSuccessMsg('Phone number successfully verified! Profile updated.');
+      setSuccessMsg('Phone number verified! Profile updated.');
       setTimeout(() => setSuccessMsg(null), 4000);
       setIsVerifyingPhone(false);
       setIsEditingPhone(false);
       
-      // Cleanup recaptcha
       if (recaptchaVerifier) {
         try {
           recaptchaVerifier.clear();
@@ -258,12 +252,10 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
-  // Trigger file input dialog
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
 
-  // Upload local image files directly to the backend storage provider
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -285,14 +277,14 @@ export const ProfilePage: React.FC = () => {
     } finally {
       setIsUploadingImage(false);
       if (fileInputRef.current) {
-        fileInputRef.current.value = ''; // Reset input element
+        fileInputRef.current.value = '';
       }
     }
   };
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
-      {/* Hidden file input for native uploads */}
+      {/* Hidden file input */}
       <input
         type="file"
         accept="image/*"
@@ -301,84 +293,84 @@ export const ProfilePage: React.FC = () => {
         className="hidden"
       />
 
-      {/* Full-width Top Navigation Header bar */}
+      {/* Header */}
       <Header activeTab="profile" onCartToggle={() => setIsCartOpen(true)} />
 
-      {/* Full-width Main Wrapper using all available space */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 md:px-8 py-8 flex flex-col relative space-y-8">
+      {/* Main Content */}
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 md:px-8 py-8 flex flex-col space-y-8">
         
         {/* Navigation Breadcrumb */}
-        <div className="flex justify-between items-center border-b border-cardboard border-opacity-20 pb-4">
+        <div className="flex justify-between items-center border-b border-cardboard border-opacity-35 pb-4">
           <button
             onClick={() => navigate('/shop')}
-            className="flex items-center space-x-1 font-mono text-[9px] uppercase font-bold tracking-wider text-herb hover:text-ink transition-colors"
+            className="flex items-center space-x-1.5 font-mono text-[10px] uppercase font-bold tracking-wider text-ink opacity-75 hover:opacity-100 transition-opacity"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Return to Shop Recipes</span>
+            <span>Return to Fresh Meal Store</span>
           </button>
           
-          <div className="flex items-center space-x-1.5">
+          <div className="flex items-center space-x-1.5 font-mono text-[9px] uppercase tracking-wider text-herb font-bold">
             <BookOpen className="w-4 h-4 text-herb" />
-            <span className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold">
-              Account Registry Ledger
-            </span>
+            <span>Account Registry Ledger</span>
           </div>
         </div>
 
-        {/* Bold Brand Title Header */}
-        <div className="space-y-1.5 text-left mb-6">
-          <h2 className="font-display font-black text-4xl uppercase tracking-tight text-ink">
-            Keeper Registry Profile
-          </h2>
-          <p className="font-body text-xs text-ink opacity-70">
-            View stats, register companion details, and adjust platform settings.
+        {/* Section Header */}
+        <div className="space-y-1 text-left">
+          <Eyebrow label="ACCOUNT & SECURITY REGISTRY" />
+          <h1 className="font-display font-black text-2xl sm:text-4xl text-ink tracking-tight">
+            Pet Parent Profile Ledger
+          </h1>
+          <p className="font-body text-xs sm:text-sm text-ink opacity-75 max-w-2xl mt-1">
+            Review your keeper credentials, manage verified phone contacts, and access quick platform operations.
           </p>
         </div>
 
-        {/* Success / Error Messages */}
+        {/* Alerts */}
         {errorMsg && (
-          <div className="bg-red-50 border border-turmeric text-paprika font-body text-xs p-3 rounded-none font-bold text-left">
+          <div className="bg-rose-50 border border-rose-200 text-rose-800 font-body text-xs p-3 rounded-sm font-bold text-left">
             ⚠️ {errorMsg}
           </div>
         )}
         {successMsg && (
-          <div className="bg-green-50 border border-herb text-herb font-body text-xs p-3 rounded-none font-bold text-left">
-            ✨ {successMsg}
+          <div className="bg-emerald-50 border border-emerald-300 text-emerald-800 font-body text-xs p-3 rounded-sm font-bold text-left flex items-center space-x-1.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{successMsg}</span>
           </div>
         )}
 
-        {/* WIDE TWO-COLUMN PROFILE CONTAINER */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full">
+        {/* Two-Column Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full">
           
-          {/* LEFT SIDE COLUMN: Profile circular avatar picture and meta ledger information */}
-          <div className="lg:col-span-4 bg-paperLight border border-cardboard border-opacity-40 p-8 rounded-none flex flex-col items-center relative text-center min-h-[460px]">
+          {/* Left Column: Avatar & Meta */}
+          <div className="lg:col-span-4 bg-paperLight border border-cardboard border-opacity-40 p-6 sm:p-8 rounded-sm flex flex-col items-center relative text-center">
             
-            {/* Polaroid profile image container */}
-            <div className="relative mt-6 mb-6">
-              <div className="w-40 h-40 bg-white p-2 border border-cardboard shadow-md rotate-[-2deg] flex items-center justify-center shrink-0 z-10">
+            {/* Avatar Frame */}
+            <div className="relative mt-2 mb-4">
+              <div className="w-36 h-36 bg-paper rounded-sm border border-cardboard border-opacity-40 shadow-xs overflow-hidden flex items-center justify-center shrink-0">
                 {imageUrl ? (
                   <img
                     src={imageUrl}
                     alt="Profile Avatar"
-                    className="w-full h-full object-cover polaroid-img"
+                    className="w-full h-full object-cover"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=200';
                     }}
                   />
                 ) : (
-                  <div className="w-full h-full bg-paper flex items-center justify-center font-display font-black text-5xl text-turmeric select-none">
+                  <div className="w-full h-full bg-paper flex items-center justify-center font-display font-black text-4xl text-turmeric select-none">
                     {user?.first_name ? user.first_name.charAt(0).toUpperCase() : 'U'}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Interactive Image Upload Action Button */}
+            {/* Upload Button */}
             <button
               type="button"
               onClick={triggerFileInput}
               disabled={isUploadingImage}
-              className="mb-6 font-mono text-[10px] uppercase font-bold tracking-wider text-paprika hover:text-ink transition-colors flex items-center gap-1.5 border border-cardboard border-opacity-50 px-3 py-1.5 bg-paper hover:bg-paperLight rounded-none disabled:opacity-50 cursor-pointer"
+              className="mb-5 font-mono text-[9px] uppercase font-bold tracking-wider text-herb hover:underline flex items-center gap-1.5 border border-cardboard border-opacity-50 px-3 py-1.5 bg-paper rounded-sm disabled:opacity-50 cursor-pointer shadow-xs"
             >
               {isUploadingImage ? (
                 <>
@@ -387,106 +379,103 @@ export const ProfilePage: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Upload Picture</span>
+                  <Upload className="w-3.5 h-3.5 text-herb" />
+                  <span>Change Profile Photo</span>
                 </>
               )}
             </button>
 
-            {/* Centered Username & Core details */}
-            <h3 className="font-display font-black text-2xl text-ink uppercase tracking-tight leading-tight px-2">
-              {user?.first_name || user?.last_name ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : 'Anonymous Keeper'}
+            {/* Name & Role */}
+            <h3 className="font-display font-black text-xl text-ink">
+              {user?.first_name || user?.last_name ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : 'Keeper Account'}
             </h3>
             
-            <span className="font-mono text-[10px] uppercase tracking-widest text-paprika font-bold mt-2 px-3.5 py-1 bg-paper border border-cardboard border-opacity-40 rounded-none">
-              {user?.role}
-            </span>
+            <div className="mt-2 flex items-center space-x-1.5">
+              <span className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold px-2.5 py-0.5 bg-paper border border-cardboard border-opacity-40 rounded-sm">
+                ROLE: {user?.role}
+              </span>
+            </div>
 
-            <p className="font-body text-xs text-ink opacity-65 mt-3">
+            <p className="font-body text-xs text-ink opacity-70 mt-2 font-mono">
               {user?.email}
             </p>
 
-            {/* Decorative Account Ledger stats grid */}
-            <div className="w-full border-t border-dashed border-cardboard mt-8 pt-6 grid grid-cols-2 gap-4 text-left">
+            {/* Meta Stats Grid */}
+            <div className="w-full border-t border-dashed border-cardboard border-opacity-35 mt-6 pt-5 grid grid-cols-2 gap-4 text-left font-mono text-[10px]">
               <div className="space-y-0.5">
-                <span className="font-mono text-[10px] uppercase opacity-70 block text-ink">Auth Provider</span>
-                <span className="font-body text-xs font-bold text-ink flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-paprika" />
+                <span className="text-ink opacity-60 uppercase block">Auth Method</span>
+                <span className="font-bold text-ink flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-herb" />
                   {user?.auth_provider || 'magic_link'}
                 </span>
               </div>
               <div className="space-y-0.5">
-                <span className="font-mono text-[10px] uppercase opacity-70 block text-ink">Registered Dogs</span>
-                <span className="font-body text-xs font-bold text-ink flex items-center gap-1">
-                  <PawPrint className="w-3.5 h-3.5 text-paprika" />
-                  {pets?.length || 0} Pets
+                <span className="text-ink opacity-60 uppercase block">Registered Pets</span>
+                <span className="font-bold text-ink flex items-center gap-1">
+                  <PawPrint className="w-3.5 h-3.5 text-turmeric" />
+                  {pets?.length || 0} Companions
                 </span>
               </div>
             </div>
           </div>
 
-          {/* RIGHT SIDE COLUMN: Edit Profile details input forms */}
-          <div className="lg:col-span-8 bg-paperLight border border-cardboard border-opacity-40 p-8 md:p-10 rounded-none min-h-[460px]">
+          {/* Right Column: Edit Profile Form */}
+          <div className="lg:col-span-8 bg-paperLight border border-cardboard border-opacity-40 p-6 sm:p-8 rounded-sm">
             
-            <div className="font-mono text-xs uppercase tracking-wider text-paprika font-bold mb-6 border-b border-cardboard border-opacity-25 pb-3 flex items-center gap-1">
-              <span>📒 Edit Registry Details</span>
+            <div className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold mb-6 border-b border-cardboard border-opacity-35 pb-3 flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5" />
+              <span>Edit Account Information</span>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6 text-left">
-              {/* First & Last Name Inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-1.5">
-                  <label className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold block">
+            <form onSubmit={handleSubmit} className="space-y-5 text-left">
+              {/* Names */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold block">
                     First Name
                   </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-cardboard" />
-                    <input
-                      type="text"
-                      placeholder="First Name"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2.5 border border-cardboard border-opacity-60 rounded-none bg-paperLight font-body text-sm text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    placeholder="First Name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                  />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold block">
+                <div className="space-y-1">
+                  <label className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold block">
                     Last Name
                   </label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-cardboard" />
-                    <input
-                      type="text"
-                      placeholder="Last Name"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2.5 border border-cardboard border-opacity-60 rounded-none bg-paperLight font-body text-sm text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    placeholder="Last Name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                  />
                 </div>
               </div>
 
-              {/* Phone Number Input */}
+              {/* Phone */}
               <div className="space-y-1.5 text-left">
                 <div className="flex justify-between items-baseline">
-                  <label className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold block">
-                    Phone Number
+                  <label className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold block">
+                    Contact Phone Number
                   </label>
                   {(user?.is_phone_verified && !isEditingPhone) ? (
-                    <span className="font-mono text-[10px] text-paprika font-bold flex items-center space-x-1">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      <span>Verified via SMS</span>
+                    <span className="font-mono text-[9px] text-emerald-700 font-bold flex items-center space-x-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Verified via SMS ✓</span>
                     </span>
                   ) : (
-                    <span className="font-mono text-[10px] text-paprika font-bold">
-                      {isEditingPhone ? "Modifying..." : "Unverified"}
+                    <span className="font-mono text-[9px] text-amber-800 font-bold">
+                      {isEditingPhone ? "Modifying number..." : "Unverified"}
                     </span>
                   )}
                 </div>
-                <div className="flex space-x-3">
-                  <div className="relative flex-grow flex items-center border border-cardboard border-opacity-60 rounded-none bg-paperLight focus-within:border-turmeric focus-within:ring-1 focus-within:ring-turmeric transition-colors">
+                <div className="flex space-x-2">
+                  <div className="relative flex-grow flex items-center border border-cardboard rounded-sm bg-paper focus-within:border-turmeric transition-colors">
                     <div className="pl-3 pr-2 flex items-center space-x-1.5 border-r border-cardboard border-opacity-30 select-none">
                       <Phone className="w-3.5 h-3.5 text-cardboard" />
                       <span className="font-mono text-xs font-bold text-ink">+91</span>
@@ -498,27 +487,27 @@ export const ProfilePage: React.FC = () => {
                       value={phone}
                       onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
                       disabled={user?.is_phone_verified && !isEditingPhone}
-                      className="w-full px-3 py-2.5 bg-transparent font-mono text-sm text-ink placeholder-cardboard focus:outline-none disabled:opacity-85"
+                      className="w-full px-3 py-2 bg-transparent font-mono text-xs text-ink placeholder-cardboard focus:outline-none disabled:opacity-85"
                     />
                   </div>
                   {user?.is_phone_verified && !isEditingPhone ? (
                     <button
                       type="button"
                       onClick={() => setIsEditingPhone(true)}
-                      className="bg-ink text-paper hover:bg-opacity-95 font-mono text-[10px] uppercase font-bold px-4 py-2.5 rounded-none border border-cardboard cursor-pointer shrink-0 transition-colors"
+                      className="bg-paper text-ink hover:bg-paperLight font-mono text-[9px] uppercase font-bold px-3 py-2 rounded-sm border border-cardboard cursor-pointer shrink-0 transition-colors"
                     >
-                      Change Number
+                      Change
                     </button>
                   ) : (
-                    <div className="flex space-x-2 shrink-0">
+                    <div className="flex space-x-1.5 shrink-0">
                       {isEditingPhone && (
                         <button
                           type="button"
                           onClick={() => {
                             setIsEditingPhone(false);
-                            setPhone(user?.phone || '');
+                            setPhone(formatPhoneForState(user?.phone));
                           }}
-                          className="bg-paper text-ink hover:bg-paperLight font-mono text-[10px] uppercase font-bold px-3 py-2.5 rounded-none border border-cardboard cursor-pointer transition-colors"
+                          className="bg-paper text-ink hover:bg-paperLight font-mono text-[9px] uppercase font-bold px-3 py-2 rounded-sm border border-cardboard cursor-pointer transition-colors"
                         >
                           Cancel
                         </button>
@@ -526,7 +515,7 @@ export const ProfilePage: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleStartPhoneVerification}
-                        className="bg-ink text-paper hover:bg-opacity-95 font-mono text-[10px] uppercase font-bold px-4 py-2.5 rounded-none border border-cardboard cursor-pointer transition-colors"
+                        className="bg-ink hover:bg-opacity-90 text-paper font-mono text-[9px] uppercase font-bold px-3.5 py-2 rounded-sm cursor-pointer transition-colors shadow-xs"
                       >
                         Verify via SMS
                       </button>
@@ -535,19 +524,17 @@ export const ProfilePage: React.FC = () => {
                 </div>
               </div>
 
-
-
-              {/* Submit button */}
-              <div className="pt-4">
+              {/* Submit */}
+              <div className="pt-2">
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs py-3.5 rounded-none tracking-wide uppercase transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+                  className="w-full bg-herb hover:bg-herb/90 text-white font-body font-bold text-xs py-3 rounded-sm tracking-wider uppercase transition-colors disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer shadow-xs"
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Committing Changes...</span>
+                      <span>Saving Profile Changes...</span>
                     </>
                   ) : (
                     <>
@@ -562,84 +549,109 @@ export const ProfilePage: React.FC = () => {
 
         </div>
 
-        {/* BOTTOM SECTION: Operations & Actions Ledger (Spans full horizontal page width) */}
-        <div className="w-full bg-paperLight border border-cardboard border-opacity-40 p-8 rounded-none">
-          
-          <div className="font-mono text-xs uppercase tracking-wider text-paprika font-bold mb-6 border-b border-cardboard border-opacity-25 pb-3 block">
+        {/* Operations Ledger Grid */}
+        <div className="w-full bg-paperLight border border-cardboard border-opacity-40 p-6 sm:p-8 rounded-sm">
+          <div className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold mb-5 border-b border-cardboard border-opacity-35 pb-2.5">
             🛠️ Platform Operations Ledger
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
             
-            {/* View Pets Ledger */}
+            {/* View Pets */}
             <button
               onClick={() => navigate('/pets')}
-              className="flex items-center space-x-3 p-4 border border-cardboard border-opacity-50 hover:bg-paper rounded-none transition-colors text-ink text-left"
+              className="flex items-center space-x-3 p-4 border border-cardboard border-opacity-35 hover:border-turmeric bg-paper hover:bg-paperLight rounded-sm transition-all text-ink text-left cursor-pointer shadow-xs"
             >
-              <div className="p-2.5 bg-paperLight rounded-none border border-cardboard border-opacity-40">
-                <FolderHeart className="w-5 h-5 text-paprika" />
+              <div className="p-2.5 bg-amber-50 rounded-sm border border-amber-200">
+                <FolderHeart className="w-5 h-5 text-amber-700" />
               </div>
               <div>
                 <span className="font-body font-bold text-xs block">My Pets Ledger</span>
-                <span className="font-mono text-[10px] uppercase opacity-70 text-ink">Register new dogs</span>
+                <span className="font-mono text-[9px] uppercase opacity-70 text-ink">{pets?.length || 0} Registered</span>
               </div>
             </button>
 
             {/* View Consultations */}
             <button
               onClick={() => navigate('/consultations')}
-              className="flex items-center space-x-3 p-4 border border-cardboard border-opacity-50 hover:bg-paper rounded-none transition-colors text-ink text-left"
+              className="flex items-center space-x-3 p-4 border border-cardboard border-opacity-35 hover:border-turmeric bg-paper hover:bg-paperLight rounded-sm transition-all text-ink text-left cursor-pointer shadow-xs"
             >
-              <div className="p-2.5 bg-paperLight rounded-none border border-cardboard border-opacity-40">
-                <Stethoscope className="w-5 h-5 text-paprika" />
+              <div className="p-2.5 bg-blue-50 rounded-sm border border-blue-200">
+                <Stethoscope className="w-5 h-5 text-blue-700" />
               </div>
               <div>
                 <span className="font-body font-bold text-xs block">Vet Consultations</span>
-                <span className="font-mono text-[10px] uppercase opacity-70 text-ink">Scheduled logs</span>
+                <span className="font-mono text-[9px] uppercase opacity-70 text-ink">Tele-Health Hub</span>
               </div>
             </button>
 
             {/* View Orders */}
             <button
               onClick={() => navigate('/orders')}
-              className="flex items-center space-x-3 p-4 border border-cardboard border-opacity-50 hover:bg-paper rounded-none transition-colors text-ink text-left"
+              className="flex items-center space-x-3 p-4 border border-cardboard border-opacity-35 hover:border-turmeric bg-paper hover:bg-paperLight rounded-sm transition-all text-ink text-left cursor-pointer shadow-xs"
             >
-              <div className="p-2.5 bg-paperLight rounded-none border border-cardboard border-opacity-40">
-                <FileText className="w-5 h-5 text-paprika" />
+              <div className="p-2.5 bg-emerald-50 rounded-sm border border-emerald-200">
+                <FileText className="w-5 h-5 text-emerald-700" />
               </div>
               <div>
                 <span className="font-body font-bold text-xs block">Recipe Orders</span>
-                <span className="font-mono text-[10px] uppercase opacity-70 text-ink">Transaction files</span>
+                <span className="font-mono text-[9px] uppercase opacity-70 text-ink">Tracking & History</span>
               </div>
             </button>
 
-            {/* Apply as Doctor */}
-            {user?.role === 'customer' && (
+            {/* Doctor Portal or Apply */}
+            {user?.role === 'doctor' ? (
+              <button
+                onClick={() => navigate('/doctorpanel')}
+                className="flex items-center space-x-3 p-4 border border-cardboard border-opacity-35 hover:border-turmeric bg-paper hover:bg-paperLight rounded-sm transition-all text-ink text-left cursor-pointer shadow-xs"
+              >
+                <div className="p-2.5 bg-indigo-50 rounded-sm border border-indigo-200">
+                  <Stethoscope className="w-5 h-5 text-indigo-700" />
+                </div>
+                <div>
+                  <span className="font-body font-bold text-xs block">Doctor Portal</span>
+                  <span className="font-mono text-[9px] uppercase opacity-70 text-ink">Practice Desk</span>
+                </div>
+              </button>
+            ) : user?.role === 'admin' ? (
+              <button
+                onClick={() => navigate('/admin')}
+                className="flex items-center space-x-3 p-4 border border-cardboard border-opacity-35 hover:border-turmeric bg-paper hover:bg-paperLight rounded-sm transition-all text-ink text-left cursor-pointer shadow-xs"
+              >
+                <div className="p-2.5 bg-amber-50 rounded-sm border border-amber-200">
+                  <Lock className="w-5 h-5 text-amber-700" />
+                </div>
+                <div>
+                  <span className="font-body font-bold text-xs block">Admin Dashboard</span>
+                  <span className="font-mono text-[9px] uppercase opacity-70 text-ink">Platform Management</span>
+                </div>
+              </button>
+            ) : (
               <button
                 onClick={() => navigate('/apply-doctor')}
-                className="flex items-center space-x-3 p-4 border border-cardboard border-opacity-50 hover:bg-paper rounded-none transition-colors text-ink text-left cursor-pointer"
+                className="flex items-center space-x-3 p-4 border border-cardboard border-opacity-35 hover:border-turmeric bg-paper hover:bg-paperLight rounded-sm transition-all text-ink text-left cursor-pointer shadow-xs"
               >
-                <div className="p-2.5 bg-paperLight rounded-none border border-cardboard border-opacity-40">
-                  <Stethoscope className="w-5 h-5 text-paprika" />
+                <div className="p-2.5 bg-purple-50 rounded-sm border border-purple-200">
+                  <Stethoscope className="w-5 h-5 text-purple-700" />
                 </div>
                 <div>
                   <span className="font-body font-bold text-xs block">Apply as Doctor</span>
-                  <span className="font-mono text-[10px] uppercase opacity-70 text-ink">Onboard your profile</span>
+                  <span className="font-mono text-[9px] uppercase opacity-70 text-ink">Join Vet Roster</span>
                 </div>
               </button>
             )}
 
-            {/* Log Out */}
+            {/* Logout */}
             <button
               onClick={handleLogout}
-              className="flex items-center space-x-3 p-4 border border-turmeric border-opacity-30 hover:bg-red-50 hover:bg-opacity-50 rounded-none transition-colors text-paprika text-left cursor-pointer"
+              className="flex items-center space-x-3 p-4 border border-rose-200 hover:border-rose-300 bg-rose-50/50 hover:bg-rose-50 rounded-sm transition-all text-rose-900 text-left cursor-pointer shadow-xs"
             >
-              <div className="p-2.5 bg-paperLight rounded-none border border-turmeric border-opacity-30">
-                <LogOut className="w-5 h-5 text-paprika" />
+              <div className="p-2.5 bg-rose-100 rounded-sm border border-rose-200">
+                <LogOut className="w-5 h-5 text-rose-700" />
               </div>
               <div>
                 <span className="font-body font-bold text-xs block">Exit Platform</span>
-                <span className="font-mono text-[10px] uppercase opacity-85 text-paprika">Securely Logout</span>
+                <span className="font-mono text-[9px] uppercase opacity-80 text-rose-800">Secure Logout</span>
               </div>
             </button>
 
@@ -647,45 +659,45 @@ export const ProfilePage: React.FC = () => {
         </div>
 
       </main>
+
       {/* Footer */}
-      <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
-        <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">
+      <footer className="mt-auto border-t border-cardboard border-opacity-30 py-6 text-center text-ink opacity-60 w-full">
+        <p className="font-mono text-[10px] uppercase tracking-wider">
           © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
         </p>
-        <p className="font-body text-xs mt-1 max-w-md mx-auto leading-relaxed">
-          Tested and crafted with love for pet parents who care about what goes in the bowl.
-        </p>
       </footer>
+
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
 
-      {/* Invisible reCAPTCHA container */}
+      {/* Invisible reCAPTCHA anchor */}
       <div id="recaptcha-container">
         <div id="recaptcha-verifier-anchor"></div>
       </div>
 
-      {/* Retro Ledger Phone Verification Modal */}
+      {/* Phone Verification Modal */}
       {isVerifyingPhone && (
-        <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-paperLight border-double border-4 border-cardboard rounded-none shadow-2xl max-w-md w-full p-6 space-y-6 animate-fade-in text-left">
-            <div className="flex justify-between items-start border-b border-cardboard border-opacity-30 pb-3">
+        <div className="fixed inset-0 bg-ink bg-opacity-50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-paper border border-cardboard rounded-sm shadow-2xl max-w-md w-full p-6 space-y-5 animate-fade-in text-left">
+            <div className="flex justify-between items-start border-b border-cardboard border-opacity-35 pb-3">
               <div>
-                <span className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold block">
+                <span className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold block">
                   REGISTRY PHONE VERIFICATION
                 </span>
-                <h3 className="font-display font-black text-2xl text-ink uppercase tracking-tight">
+                <h3 className="font-display font-black text-xl text-ink">
                   SMS Authentication
                 </h3>
               </div>
               <button 
                 onClick={handleCloseVerification}
-                className="text-ink hover:text-paprika font-mono font-bold text-sm cursor-pointer border-0 bg-transparent"
+                className="text-ink opacity-70 hover:opacity-100 font-mono text-sm cursor-pointer p-1"
+                aria-label="Close modal"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {verifyError && (
-              <div className="bg-red-50 border border-turmeric text-paprika font-body text-xs p-2.5 rounded-none font-bold">
+              <div className="bg-rose-50 border border-rose-200 text-rose-800 font-body text-xs p-2.5 rounded-sm font-bold">
                 ⚠️ {verifyError}
               </div>
             )}
@@ -697,8 +709,8 @@ export const ProfilePage: React.FC = () => {
                   <strong className="text-ink ml-1 font-mono">+91 {phone}</strong>.
                 </p>
                 
-                <p className="font-mono text-[10px] text-herb opacity-80">
-                  * The country prefix (+91) is statically applied to your contact number.
+                <p className="font-mono text-[9px] text-herb opacity-80">
+                  * Statically applied prefix (+91) for Indian telecommunication carriers.
                 </p>
 
                 <div className="pt-2 flex flex-col gap-2">
@@ -706,7 +718,7 @@ export const ProfilePage: React.FC = () => {
                     type="button"
                     onClick={handleSendOtp}
                     disabled={isVerifyingLoading}
-                    className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs py-3.5 rounded-none tracking-wide uppercase transition-colors disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer border-0"
+                    className="w-full bg-herb hover:bg-herb/90 text-white font-body font-bold text-xs py-3 rounded-sm tracking-wider uppercase transition-colors disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer shadow-xs"
                   >
                     {isVerifyingLoading ? (
                       <>
@@ -724,7 +736,7 @@ export const ProfilePage: React.FC = () => {
                       setVerificationStep(2);
                       setVerifyError("Local test mode enabled. Input '111111' to mock verification success.");
                     }}
-                    className="w-full bg-paper hover:bg-paperLight text-ink font-mono text-[10px] py-2 rounded-none border border-cardboard border-opacity-50 uppercase tracking-wider cursor-pointer transition-colors"
+                    className="w-full bg-paperLight hover:bg-paper text-ink font-mono text-[9px] py-2 rounded-sm border border-cardboard border-opacity-40 uppercase tracking-wider cursor-pointer transition-colors"
                   >
                     ⚡ Local Sandbox Bypass (Bypass SMS)
                   </button>
@@ -732,8 +744,8 @@ export const ProfilePage: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold block">
+                <div className="space-y-1">
+                  <label className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold block">
                     Enter 6-Digit OTP Code
                   </label>
                   <input
@@ -742,7 +754,7 @@ export const ProfilePage: React.FC = () => {
                     placeholder="123456"
                     value={verificationCode}
                     onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-                    className="w-full px-4 py-2.5 border border-cardboard border-opacity-60 rounded-none bg-paperLight font-mono text-center text-lg tracking-widest text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                    className="w-full px-4 py-2 border border-cardboard rounded-sm bg-paperLight font-mono text-center text-lg tracking-widest text-ink focus:outline-none focus:border-turmeric transition-colors"
                   />
                 </div>
 
@@ -751,17 +763,17 @@ export const ProfilePage: React.FC = () => {
                 </p>
 
                 {attemptsRemaining !== null && (
-                  <p className="font-mono text-[10px] text-paprika font-bold uppercase">
+                  <p className="font-mono text-[9px] text-paprika font-bold uppercase">
                     Hourly Attempts Remaining: {attemptsRemaining} of 3
                   </p>
                 )}
 
-                <div className="pt-2 flex space-x-3">
+                <div className="pt-2 flex space-x-2">
                   {cooldownCountdown > 0 ? (
                     <button
                       type="button"
                       disabled={true}
-                      className="w-1/3 border border-cardboard border-opacity-40 font-mono text-[10px] uppercase py-3 rounded-none text-cardboard cursor-not-allowed text-center bg-transparent"
+                      className="w-1/3 border border-cardboard border-opacity-40 font-mono text-[9px] uppercase py-2.5 rounded-sm text-cardboard cursor-not-allowed text-center bg-transparent"
                     >
                       Resend ({cooldownCountdown}s)
                     </button>
@@ -770,7 +782,7 @@ export const ProfilePage: React.FC = () => {
                       type="button"
                       onClick={handleSendOtp}
                       disabled={isVerifyingLoading}
-                      className="w-1/3 border border-cardboard bg-transparent hover:bg-paper font-mono text-[11px] uppercase py-3 rounded-none tracking-wide text-ink cursor-pointer transition-colors"
+                      className="w-1/3 border border-cardboard bg-transparent hover:bg-paperLight font-mono text-[9px] uppercase py-2.5 rounded-sm tracking-wider text-ink cursor-pointer transition-colors"
                     >
                       Resend
                     </button>
@@ -779,12 +791,12 @@ export const ProfilePage: React.FC = () => {
                     type="button"
                     onClick={handleVerifyOtp}
                     disabled={isVerifyingLoading}
-                    className="w-2/3 bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs py-3 rounded-none tracking-wide uppercase transition-colors disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer border-0"
+                    className="w-2/3 bg-herb hover:bg-herb/90 text-white font-body font-bold text-xs py-2.5 rounded-sm tracking-wider uppercase transition-colors disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer shadow-xs"
                   >
                     {isVerifyingLoading ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Verify OTP...</span>
+                        <span>Verifying OTP...</span>
                       </>
                     ) : (
                       <span>Verify Code</span>

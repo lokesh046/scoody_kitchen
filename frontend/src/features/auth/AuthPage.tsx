@@ -151,9 +151,6 @@ export const AuthPage: React.FC = () => {
   // Toggle register vs login
   const [isRegister, setIsRegister] = useState(false);
 
-  // Field focus tracking
-  const [focusedField, setFocusedField] = useState<string | null>(null);
-
   // Form Fields
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -353,46 +350,6 @@ export const AuthPage: React.FC = () => {
     }
   };
 
-  const renderEyes = () => {
-    if (focusedField === 'otp') {
-      return (
-        <>
-          <line x1="37" y1="40" x2="43" y2="40" stroke="#2E251E" strokeWidth="2.5" strokeLinecap="round" className="transition-all duration-300" />
-          <line x1="57" y1="40" x2="63" y2="40" stroke="#2E251E" strokeWidth="2.5" strokeLinecap="round" className="transition-all duration-300" />
-        </>
-      );
-    }
-
-    let leftCx = 40;
-    let rightCx = 60;
-    let cy = 40;
-
-    if (focusedField === 'email') {
-      leftCx = 38;
-      rightCx = 58;
-      cy = 43;
-    } else if (focusedField === 'first_name') {
-      leftCx = 36;
-      rightCx = 56;
-      cy = 40;
-    } else if (focusedField === 'last_name') {
-      leftCx = 44;
-      rightCx = 64;
-      cy = 40;
-    } else if (focusedField === 'phone') {
-      leftCx = 37;
-      rightCx = 57;
-      cy = 42;
-    }
-
-    return (
-      <>
-        <circle cx={leftCx} cy={cy} r="3" fill="#2E251E" className="transition-all duration-300 ease-out" />
-        <circle cx={rightCx} cy={cy} r="3" fill="#2E251E" className="transition-all duration-300 ease-out" />
-      </>
-    );
-  };
-
   return (
     <div className="min-h-screen bg-paper flex flex-col md:flex-row relative">
       {/* Decorative vertical divider to fit notebook page style */}
@@ -401,42 +358,23 @@ export const AuthPage: React.FC = () => {
       {/* Left Column: Form Section */}
       <div className="w-full md:w-1/2 min-h-screen flex items-center justify-center p-6 md:p-12 relative z-20">
         <div className="w-full max-w-md bg-paperLight border border-cardboard p-8 rounded-sm shadow-md space-y-6 relative overflow-hidden animate-fade-in-up">
-        {/* Animated Dog Mascot */}
-        <div className="flex justify-center -mb-2 pt-2">
-          <div className="relative w-16 h-16 group cursor-pointer">
-            <svg viewBox="0 0 100 100" className="w-full h-full animate-float-slow hover:scale-105 transition-transform" style={{ animationDuration: '4s' }}>
-              {/* Ears */}
-              <path d="M 20,20 Q 5,25 10,45 Q 15,65 25,50 Z" fill="#2E251E" className="origin-top-left animate-wiggle-left" />
-              <path d="M 80,20 Q 95,25 90,45 Q 85,65 75,50 Z" fill="#2E251E" className="origin-top-right animate-wiggle-right" />
-              
-              {/* Face */}
-              <circle cx="50" cy="45" r="30" fill="#FAF6EC" stroke="#2E251E" strokeWidth="2.5" />
-              
-              {/* Eyes */}
-              {renderEyes()}
-              
-              {/* Nose */}
-              <ellipse cx="50" cy="50" rx="6" ry="4" fill="#2E251E" />
-              
-              {/* Mouth w/ Tongue */}
-              <path d="M 46,55 Q 50,58 54,55" fill="none" stroke="#2E251E" strokeWidth="2" />
-              <path d="M 48,56 Q 50,66 52,56" fill="#D34E36" className="origin-top animate-pant" />
-              
-              {/* Cheeks */}
-              <circle cx="33" cy="48" r="4.5" fill="#E5A93C" opacity="0.6" />
-              <circle cx="67" cy="48" r="4.5" fill="#E5A93C" opacity="0.6" />
-            </svg>
-            <div className="absolute -top-1 -left-2 text-[10px] animate-pulse opacity-75">🐾</div>
-            <div className="absolute top-8 -right-3 text-[12px] animate-float-medium opacity-70">🦴</div>
+        {/* Brand Logo & Intro */}
+        <div className="text-center space-y-2 flex flex-col items-center">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 logo-medallion flex items-center justify-center p-1 overflow-hidden mb-1 shadow-md">
+            <img
+              src="/scooby-logo-256.png"
+              alt="Scooby's Kitchen Logo"
+              width={96}
+              height={96}
+              className="w-full h-full object-contain select-none"
+            />
           </div>
-        </div>
-
-        {/* Logo and Intro */}
-        <div className="text-center space-y-1.5">
-          <h2 className="font-display font-bold text-2xl text-ink">Scooby's Kitchen</h2>
-          <p className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold">
-            Recipe Notebook Security Ledger
-          </p>
+          <div>
+            <h2 className="font-display font-black text-2xl text-ink">Scooby's Kitchen</h2>
+            <p className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold">
+              Recipe Notebook Security Ledger
+            </p>
+          </div>
         </div>
 
         {errorMsg && (
@@ -510,8 +448,6 @@ export const AuthPage: React.FC = () => {
                         type="text"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
-                        onFocus={() => setFocusedField('first_name')}
-                        onBlur={() => setFocusedField(null)}
                         placeholder="John"
                         className="w-full pl-9 pr-4 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                       />
@@ -529,8 +465,6 @@ export const AuthPage: React.FC = () => {
                         type="text"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
-                        onFocus={() => setFocusedField('last_name')}
-                        onBlur={() => setFocusedField(null)}
                         placeholder="Doe"
                         className="w-full pl-9 pr-4 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                       />
@@ -548,8 +482,6 @@ export const AuthPage: React.FC = () => {
                         type="tel"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        onFocus={() => setFocusedField('phone')}
-                        onBlur={() => setFocusedField(null)}
                         placeholder="+1 (555) 000-0000"
                         className="w-full pl-9 pr-4 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                       />
@@ -570,8 +502,6 @@ export const AuthPage: React.FC = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    onFocus={() => setFocusedField('email')}
-                    onBlur={() => setFocusedField(null)}
                     placeholder="you@example.com"
                     className="w-full pl-9 pr-4 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                   />
@@ -642,8 +572,6 @@ export const AuthPage: React.FC = () => {
                     pattern="[0-9]{6}"
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                    onFocus={() => setFocusedField('otp')}
-                    onBlur={() => setFocusedField(null)}
                     placeholder="123456"
                     className="w-full pl-9 pr-4 py-3 border border-cardboard rounded-sm bg-paperLight font-mono text-center tracking-[0.5em] text-lg text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                   />

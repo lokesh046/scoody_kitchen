@@ -10,7 +10,12 @@ from app.models.doctor import Doctor
 from app.models.doctor_availability import DoctorAvailability
 from app.models.enums import DayOfWeek, ConsultationStatus, UserRole
 from app.models.pet import Pet
-from app.schemas.consultation import ConsultationCreate
+from app.schemas.consultation import (
+    ConsultationCreate,
+    ConsultationBookWithPayment,
+    ConsultationPaymentIntentRequest,
+    ConsultationPaymentIntentResponse,
+)
 
 
 # State Machine Transition Rules
@@ -31,7 +36,6 @@ WEEKDAY_TO_DAY_OF_WEEK: dict[int, DayOfWeek] = {
     5: DayOfWeek.SATURDAY,
     6: DayOfWeek.SUNDAY,
 }
-
 
 def validate_consultation_transition(
     current_status: ConsultationStatus,
@@ -237,6 +241,169 @@ def create_consultation(
     return consultation
 
 
+def create_consultation_payment_intent(
+    db: Session,
+    customer_id: int,
+    intent_data: ConsultationPaymentIntentRequest,
+) -> dict:
+    # 1. Verify pet ownership
+    pet = db.get(Pet, intent_data.pet_id)
+    if pet is None or pet.user_id != customer_id:
+        raise KeyError("Pet not found")
+
+    # 2. Check doctor availability
+    doctor = db.get(Doctor, intent_data.doctor_id)
+    if doctor is None or not doctor.is_active or not doctor.is_verified:
+        raise ValueError("Doctor not found or not active/verified")
+
+    if not doctor.is_available:
+        raise ValueError("Doctor is currently not accepting consultations")
+
+    # 3. Validate slot timing and doctor timezone
+    doctor_tz = _get_doctor_timezone(doctor)
+    if intent_data.scheduled_at.tzinfo is None:
+        doctor_local_start = intent_data.scheduled_at.replace(tzinfo=doctor_tz)
+        requested_start_dt = doctor_local_start.astimezone(timezone.utc)
+    else:
+        requested_start_dt = intent_data.scheduled_at.astimezone(timezone.utc)
+        doctor_local_start = requested_start_dt.astimezone(doctor_tz)
+
+    now_utc = datetime.now(timezone.utc)
+    if requested_start_dt <= now_utc:
+        raise ValueError("Scheduled time must be in the future")
+
+    duration = 30
+    requested_end_dt = requested_start_dt + timedelta(minutes=duration)
+    doctor_local_end = doctor_local_start + timedelta(minutes=duration)
+
+    day_enum = WEEKDAY_TO_DAY_OF_WEEK[doctor_local_start.weekday()]
+    req_start_time = doctor_local_start.time()
+    req_end_time = doctor_local_end.time()
+
+    availabilities = db.scalars(
+        select(DoctorAvailability).where(
+            DoctorAvailability.doctor_id == doctor.id,
+            DoctorAvailability.day_of_week == day_enum,
+            DoctorAvailability.is_available.is_(True),
+        )
+    ).all()
+
+    has_window = any(
+        _is_time_in_window(req_start_time, req_end_time, avail.start_time, avail.end_time)
+        for avail in availabilities
+    )
+
+    if not has_window:
+        raise ValueError("Requested time slot falls outside doctor's working schedule")
+
+    overlapping = db.scalar(
+        select(Consultation).where(
+            Consultation.doctor_id == doctor.id,
+            Consultation.status != ConsultationStatus.CANCELLED,
+            and_(
+                Consultation.scheduled_at < requested_end_dt,
+                (Consultation.scheduled_at + timedelta(minutes=duration)) > requested_start_dt,
+            ),
+        )
+    )
+
+    if overlapping is not None:
+        raise MemoryError("Requested slot is already booked")
+
+    # 4. Create Razorpay order if credentials configured
+    from app.core.config import settings
+    razorpay_order_id = None
+    if settings.RAZORPAY_KEY_ID and settings.RAZORPAY_KEY_SECRET:
+        try:
+            import razorpay
+            client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+            amount_paise = int(doctor.consultation_fee * 100)
+            razorpay_order = client.order.create(data={
+                "amount": amount_paise,
+                "currency": "INR",
+                "receipt": f"receipt_cons_d{doctor.id}_p{pet.id}",
+                "payment_capture": 1
+            })
+            razorpay_order_id = razorpay_order.get("id")
+        except Exception as e:
+            raise ValueError(f"Failed to initiate Razorpay session: {str(e)}")
+
+    return {
+        "doctor_id": doctor.id,
+        "amount": doctor.consultation_fee,
+        "currency": "INR",
+        "razorpay_order_id": razorpay_order_id,
+        "razorpay_key_id": settings.RAZORPAY_KEY_ID,
+    }
+
+
+def book_consultation_with_payment(
+    db: Session,
+    customer_id: int,
+    data: ConsultationBookWithPayment,
+) -> Consultation:
+    from app.core.config import settings
+
+    doctor = db.get(Doctor, data.doctor_id)
+    if doctor is None or not doctor.is_active or not doctor.is_verified:
+        raise ValueError("Doctor not found or not active/verified")
+
+    # Verify Razorpay signature if Razorpay is configured
+    if settings.RAZORPAY_KEY_ID and settings.RAZORPAY_KEY_SECRET:
+        if not data.razorpay_payment_id or not data.razorpay_signature or not data.razorpay_order_id:
+            raise ValueError("Payment confirmation details are missing")
+        try:
+            import hmac
+            import hashlib
+            msg = f"{data.razorpay_order_id}|{data.razorpay_payment_id}"
+            expected = hmac.new(
+                key=settings.RAZORPAY_KEY_SECRET.encode("utf-8"),
+                msg=msg.encode("utf-8"),
+                digestmod=hashlib.sha256,
+            ).hexdigest()
+            if not hmac.compare_digest(expected, data.razorpay_signature):
+                raise ValueError("Payment signature verification failed")
+        except Exception as e:
+            raise ValueError(f"Payment verification failed: {str(e)}")
+
+    # Create consultation with CONFIRMED status
+    create_dto = ConsultationCreate(
+        pet_id=data.pet_id,
+        doctor_id=data.doctor_id,
+        scheduled_at=data.scheduled_at,
+        reason=data.reason,
+        customer_notes=data.customer_notes,
+    )
+    consultation = create_consultation(db, customer_id, create_dto)
+    consultation.status = ConsultationStatus.CONFIRMED
+    db.commit()
+    db.refresh(consultation)
+
+    # Disptach background Celery task for email invoice and notifications
+    payment_id_str = data.razorpay_payment_id or f"PAY-CONS-{consultation.id}"
+    try:
+        from app.tasks.notification_tasks import dispatch_consultation_booking_confirmed_task
+        dispatch_consultation_booking_confirmed_task.delay(
+            consultation.id,
+            float(doctor.consultation_fee),
+            payment_id_str,
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Could not enqueue Celery task, running inline background dispatch: {e}")
+        try:
+            from app.tasks.notification_tasks import dispatch_consultation_booking_confirmed_task
+            dispatch_consultation_booking_confirmed_task(
+                consultation.id,
+                float(doctor.consultation_fee),
+                payment_id_str,
+            )
+        except Exception as fallback_err:
+            logging.getLogger(__name__).error(f"Failed fallback invoice dispatch: {fallback_err}")
+
+    return consultation
+
+
 def get_consultation_by_id(
     db: Session,
     consultation_id: int,
@@ -245,6 +412,7 @@ def get_consultation_by_id(
         select(Consultation)
         .options(
             joinedload(Consultation.pet),
+            joinedload(Consultation.customer),
             joinedload(Consultation.doctor).joinedload(Doctor.user),
             joinedload(Consultation.doctor).joinedload(Doctor.clinic),
         )
@@ -267,6 +435,7 @@ def get_customer_consultations(
         select(Consultation)
         .options(
             joinedload(Consultation.pet),
+            joinedload(Consultation.customer),
             joinedload(Consultation.doctor).joinedload(Doctor.user),
             joinedload(Consultation.doctor).joinedload(Doctor.clinic),
         )
@@ -291,6 +460,7 @@ def get_doctor_consultations(
         select(Consultation)
         .options(
             joinedload(Consultation.pet),
+            joinedload(Consultation.customer),
             joinedload(Consultation.doctor).joinedload(Doctor.user),
             joinedload(Consultation.doctor).joinedload(Doctor.clinic),
         )
@@ -361,16 +531,39 @@ def update_consultation_status(
         try:
             from app.services.notification_service import create_notification
             status_text = new_status.value.replace("_", " ").upper()
-            msg = f"Consultation #{consultation.id} status updated to {status_text}."
+
+            # Format friendly doctor name
+            doctor_name = "Veterinary Specialist"
+            if consultation.doctor and consultation.doctor.user:
+                doc_user = consultation.doctor.user
+                doc_full = f"{doc_user.first_name or ''} {doc_user.last_name or ''}".strip()
+                doctor_name = f"Dr. {doc_full}" if doc_full else "Specialist"
+            elif consultation.doctor:
+                doctor_name = f"Specialist #{consultation.doctor.id}"
+
+            # Format friendly pet name
+            pet_name = consultation.pet.name if consultation.pet else "Companion Patient"
+
+            # Format friendly customer name
+            customer_name = "Pet Parent"
+            if consultation.customer:
+                cust_full = f"{consultation.customer.first_name or ''} {consultation.customer.last_name or ''}".strip()
+                customer_name = cust_full if cust_full else "Pet Parent"
+
+            # Patient-facing message
+            patient_msg = f"Consultation for {pet_name} with {doctor_name} is now {status_text}."
             
+            # Doctor-facing message
+            doctor_msg = f"Consultation for patient {pet_name} ({customer_name}) is now {status_text}."
+
             # Notify patient
             create_notification(
                 db=db,
                 user_id=consultation.customer_id,
-                title="Consultation Status Update",
-                message=msg,
+                title="🩺 Consultation Status Update",
+                message=patient_msg,
                 type="CONSULTATION",
-                link=f"/consultations/{consultation.id}"
+                link="/consultations"
             )
             
             # Notify doctor
@@ -378,8 +571,8 @@ def update_consultation_status(
                 create_notification(
                     db=db,
                     user_id=consultation.doctor.user_id,
-                    title="Consultation Status Update",
-                    message=msg,
+                    title="🩺 Consultation Status Update",
+                    message=doctor_msg,
                     type="CONSULTATION",
                     link="/doctor"
                 )

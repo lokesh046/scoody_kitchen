@@ -1,4 +1,5 @@
 from app.core.celery_app import celery_app
+from app.core.config import settings
 from app.core.database import SessionLocal
 from app.models.user import User
 from app.services.notification_service import create_notification
@@ -118,6 +119,87 @@ def check_and_complete_expired_consultations_task() -> int:
     except Exception as e:
         logger.error(f"Error in check_and_complete_expired_consultations_task: {e}", exc_info=True)
         return 0
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.notification_tasks.dispatch_consultation_booking_confirmed_task")
+def dispatch_consultation_booking_confirmed_task(
+    consultation_id: int,
+    amount_paid: float,
+    payment_id: str,
+) -> bool:
+    """
+    Background worker task to dispatch the payment receipt invoice email and in-app notifications
+    asynchronously without delaying the booking response to the user.
+    """
+    from app.models.consultation import Consultation
+    from app.models.doctor import Doctor
+    from app.models.pet import Pet
+    from app.services.email_service import send_consultation_invoice_email
+
+    logger.info(f"Running dispatch_consultation_booking_confirmed_task for consultation_id={consultation_id}")
+    db = SessionLocal()
+    try:
+        consultation = db.get(Consultation, consultation_id)
+        if not consultation:
+            logger.error(f"Consultation #{consultation_id} not found.")
+            return False
+
+        customer = db.get(User, consultation.customer_id)
+        doctor = db.get(Doctor, consultation.doctor_id)
+        pet = db.get(Pet, consultation.pet_id)
+
+        doctor_user = db.get(User, doctor.user_id) if doctor and doctor.user_id else None
+        doctor_name = f"{doctor_user.first_name} {doctor_user.last_name}".strip() if doctor_user else f"Specialist #{doctor.id if doctor else ''}"
+        specialization = doctor.specialization if doctor else "General Veterinary Nutrition"
+        pet_name = pet.name if pet else "Companion Patient"
+        customer_name = f"{customer.first_name} {customer.last_name}".strip() if customer else "Pet Parent"
+
+        # Format scheduled time
+        scheduled_at_str = consultation.scheduled_at.strftime("%A, %b %d, %Y at %I:%M %p UTC")
+
+        # 1. Create In-App Notification for Customer
+        create_notification(
+            db=db,
+            user_id=consultation.customer_id,
+            title="🩺 Consultation Confirmed & Paid",
+            message=f"Your appointment with Dr. {doctor_name} for 🐾 {pet_name} on {scheduled_at_str} is confirmed. Payment ID: {payment_id}",
+            type="CONSULTATION",
+            link="/consultations",
+        )
+
+        # 2. Create In-App Notification for Doctor (if doctor user exists)
+        if doctor and doctor.user_id:
+            create_notification(
+                db=db,
+                user_id=doctor.user_id,
+                title="🩺 New Consultation Booked",
+                message=f"Patient 🐾 {pet_name} ({customer_name}) has booked and paid for a consultation on {scheduled_at_str}.",
+                type="CONSULTATION",
+                link="/doctor/dashboard",
+            )
+
+        # 3. Send Consultation Payment Receipt & Invoice Email to Customer
+        if customer and customer.email:
+            send_consultation_invoice_email(
+                to_email=customer.email,
+                customer_name=customer_name,
+                doctor_name=doctor_name,
+                specialization=specialization,
+                pet_name=pet_name,
+                scheduled_at_str=scheduled_at_str,
+                amount_paid=amount_paid,
+                payment_id=payment_id,
+                consultation_id=consultation.id,
+                meeting_link=f"{settings.FRONTEND_URL.rstrip('/')}/consultations/room/{consultation.id}",
+            )
+
+        logger.info(f"Successfully processed background booking confirmation for consultation #{consultation_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error in dispatch_consultation_booking_confirmed_task: {e}", exc_info=True)
+        return False
     finally:
         db.close()
 

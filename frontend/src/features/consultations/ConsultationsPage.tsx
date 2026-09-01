@@ -1,29 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatNaiveDateTime } from '../../utils/date';
 import { fetchMyPets, fetchPetHealthRecords } from '../../api/pets';
+import { useAuthStore } from '../../store/auth';
 import { 
-  fetchDoctors, fetchDoctorSlots, bookConsultation, 
+  fetchDoctors, fetchDoctorSlots, 
   fetchMyConsultations, cancelConsultation,
   fetchDoctorById, fetchDoctorAvailability, fetchNearbyDoctors,
-  fetchConsultationById
+  fetchConsultationById, createConsultationPaymentIntent,
+  bookConsultationWithPayment
 } from '../../api/consultations';
 
 import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
 import { 
-  ArrowLeft, PawPrint, 
+  ArrowLeft, 
   Clock, Stethoscope, Loader2, AlertCircle, XCircle,
-  Compass, Calendar as CalendarIcon, Info, Star, Video
+  Compass, Calendar as CalendarIcon, Star, Video,
+  CheckCircle2, ShieldCheck, ChevronRight, CreditCard, Receipt
 } from 'lucide-react';
 import { submitDoctorReview } from '../../api/reviews';
+import { loadRazorpaySDK } from '../../utils/razorpay';
+
+const getDoctorAvatarUrl = (doc: any): string | null => {
+  if (!doc) return null;
+  return doc.profile_image_url || doc.user?.profile_image_url || null;
+};
 
 export const ConsultationsPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Payment states
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Review Modal State
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
@@ -50,7 +64,7 @@ export const ConsultationsPage: React.FC = () => {
       setReviewSubmitSuccess(true);
       setTimeout(() => {
         setIsReviewModalOpen(false);
-        queryClient.invalidateQueries({ queryKey: ['my-consultations'] });
+        queryClient.invalidateQueries({ queryKey: ['consultations'] });
       }, 1500);
     } catch (err: any) {
       setReviewSubmitError(err.response?.data?.detail || 'Failed to submit review. Please try again.');
@@ -58,8 +72,6 @@ export const ConsultationsPage: React.FC = () => {
       setIsSubmittingReview(false);
     }
   };
-
-
 
   // Form State
   const [selectedPetId, setSelectedPetId] = useState<string>('');
@@ -69,14 +81,13 @@ export const ConsultationsPage: React.FC = () => {
   const [reason, setReason] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [formError, setFormError] = useState<string>('');
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Delight overlay states
   const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
   const [lastBookedSession, setLastBookedSession] = useState<{ doctorName: string; scheduledAt: string } | null>(null);
 
   // Tab & Booking Stepper States
-  const [activeSection, setActiveSection] = useState<'sessions' | 'book' | 'directory'>('directory');
+  const [activeSection, setActiveSection] = useState<'directory' | 'sessions' | 'book'>('directory');
   const [bookingStep, setBookingStep] = useState<number>(1);
   const [isDirectBooking, setIsDirectBooking] = useState(false);
 
@@ -132,7 +143,16 @@ export const ConsultationsPage: React.FC = () => {
   const doctors = doctorsData?.items || [];
   const consultations = consultationsData?.items || [];
 
+  const { id } = useParams<{ id?: string }>();
   const [selectedConsultationId, setSelectedConsultationId] = useState<number | null>(null);
+
+  // Automatically open consultation details journal if loaded via /consultations/:id (e.g. from notification)
+  useEffect(() => {
+    if (id && !isNaN(Number(id))) {
+      setSelectedConsultationId(Number(id));
+      setActiveSection('sessions');
+    }
+  }, [id]);
 
   const { data: consultationDetails, isLoading: isConsultationDetailsLoading } = useQuery({
     queryKey: ['consultationDetails', selectedConsultationId],
@@ -200,43 +220,6 @@ export const ConsultationsPage: React.FC = () => {
       setSelectedDoctorId(doctors[0].id.toString());
     }
   }, [doctors, selectedDoctorId]);
-
-  // Book Mutation
-  const bookMutation = useMutation({
-    mutationFn: (bookingData: any) => bookConsultation(bookingData),
-    onSuccess: (data: any, variables: any) => {
-      queryClient.invalidateQueries({ queryKey: ['consultations'] });
-      
-      // Trigger success delight overlay
-      const doc = doctors.find((d: any) => d.id === variables.doctor_id);
-      const docName = doc && doc.user ? `${doc.user.first_name || ''} ${doc.user.last_name || ''}`.trim() : `Specialist ID #${variables.doctor_id}`;
-      
-      setLastBookedSession({
-        doctorName: docName,
-        scheduledAt: data?.scheduled_at || variables.scheduled_at,
-      });
-      setShowSuccessOverlay(true);
-      setTimeout(() => {
-        setShowSuccessOverlay(false);
-        // Switch back to Ledger view
-        setActiveSection('sessions');
-      }, 3500);
-
-      // Clear inputs and reset booking stepper
-      setReason('');
-      setNotes('');
-      setSelectedSlot('');
-      setFormError('');
-      setSelectedDoctorId('');
-      setSelectedPetId('');
-      setIsDirectBooking(false);
-      setBookingStep(1);
-    },
-    onError: (err: any) => {
-      console.error('Booking failed:', err);
-      setFormError(err.response?.data?.detail || 'Failed to book consultation session.');
-    }
-  });
 
   // Cancel Mutation
   const cancelMutation = useMutation({
@@ -361,7 +344,6 @@ export const ConsultationsPage: React.FC = () => {
         setInspectingSchedule(scheduleData);
       } catch (err) {
         console.error('Failed to load doctor details modal:', err);
-        alert('Failed to load doctor details. Please try again.');
         setInspectingDoctorId(null);
       } finally {
         setIsLoadingInspecting(false);
@@ -374,21 +356,21 @@ export const ConsultationsPage: React.FC = () => {
   const handleStartBooking = (doctorId: number) => {
     setSelectedDoctorId(doctorId.toString());
     setIsDirectBooking(true);
-    setBookingStep(1); // Start directly at companion selection
+    setBookingStep(1);
     setActiveSection('book');
     setInspectingDoctorId(null);
   };
 
-  const handleBookSession = async (e: React.FormEvent) => {
+  const handleProceedToPayment = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
 
     if (!selectedPetId) {
-      setFormError('Please select a pet.');
+      setFormError('Please select a companion patient profile.');
       return;
     }
     if (!selectedDoctorId) {
-      setFormError('Please select a doctor.');
+      setFormError('Please select a veterinary specialist.');
       return;
     }
     if (!targetDate) {
@@ -396,41 +378,157 @@ export const ConsultationsPage: React.FC = () => {
       return;
     }
     if (!selectedSlot) {
-      setFormError('Please choose a slot time.');
+      setFormError('Please choose a time slot.');
       return;
     }
     if (reason.trim().length < 3) {
-      setFormError('Please enter a valid reason (minimum 3 characters).');
+      setFormError('Please enter the reason for visit (minimum 3 characters).');
       return;
     }
 
-    setIsSubmitting(true);
+    setBookingStep(5);
+  };
+
+  const handleInitiatePayment = async () => {
+    setPaymentError(null);
+    setIsPaying(true);
+
+    const selectedDoc = doctors.find((d: any) => d.id.toString() === selectedDoctorId) || 
+      allDoctors.find((d: any) => d.id.toString() === selectedDoctorId);
 
     const scheduledAt = `${targetDate}T${selectedSlot}:00`;
 
-    bookMutation.mutate({
-      pet_id: parseInt(selectedPetId),
-      doctor_id: parseInt(selectedDoctorId),
-      scheduled_at: scheduledAt,
-      reason,
-      customer_notes: notes.trim() || null,
-    }, {
-      onSettled: () => {
-        setIsSubmitting(false);
+    try {
+      const intent = await createConsultationPaymentIntent({
+        pet_id: parseInt(selectedPetId),
+        doctor_id: parseInt(selectedDoctorId),
+        scheduled_at: scheduledAt,
+      });
+
+      if (intent.razorpay_order_id && intent.razorpay_key_id) {
+        const options = {
+          key: intent.razorpay_key_id,
+          amount: Math.round(parseFloat(intent.amount) * 100),
+          currency: intent.currency || 'INR',
+          name: "Scooby's Kitchen",
+          description: `Veterinary Consultation - Dr. ${selectedDoc?.user?.first_name || 'Specialist'}`,
+          order_id: intent.razorpay_order_id,
+          handler: async (response: any) => {
+            try {
+              const confirmedConsultation = await bookConsultationWithPayment({
+                pet_id: parseInt(selectedPetId),
+                doctor_id: parseInt(selectedDoctorId),
+                scheduled_at: scheduledAt,
+                reason,
+                customer_notes: notes.trim() || null,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+
+              queryClient.invalidateQueries({ queryKey: ['consultations'] });
+
+              const docName = `Dr. ${selectedDoc?.user?.first_name || ''} ${selectedDoc?.user?.last_name || ''}`.trim();
+              setLastBookedSession({
+                doctorName: docName,
+                scheduledAt: confirmedConsultation.scheduled_at,
+              });
+              setShowSuccessOverlay(true);
+              setTimeout(() => {
+                setShowSuccessOverlay(false);
+                setActiveSection('sessions');
+              }, 4000);
+
+              setReason('');
+              setNotes('');
+              setSelectedSlot('');
+              setFormError('');
+              setSelectedDoctorId('');
+              setSelectedPetId('');
+              setIsDirectBooking(false);
+              setBookingStep(1);
+            } catch (err: any) {
+              console.error('Paid booking verification error:', err);
+              setPaymentError(err.response?.data?.detail || 'Payment verification failed. Please contact support.');
+            } finally {
+              setIsPaying(false);
+            }
+          },
+          prefill: {
+            name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : 'Pet Parent',
+            email: user?.email || '',
+            contact: user?.phone || '',
+          },
+          theme: {
+            color: '#D09E6B',
+          },
+          modal: {
+            ondismiss: () => {
+              setIsPaying(false);
+              setPaymentError('Payment was not completed. Your consultation appointment has not been booked.');
+            }
+          }
+        };
+
+        const isLoaded = await loadRazorpaySDK();
+        if (isLoaded && (window as any).Razorpay) {
+          const rzp = new (window as any).Razorpay(options);
+          rzp.open();
+        } else {
+          setIsPaying(false);
+          setPaymentError('Razorpay checkout SDK failed to load. Please check your internet connection.');
+        }
+      } else {
+        // Direct booking when Razorpay keys are not active in server config
+        const confirmedConsultation = await bookConsultationWithPayment({
+          pet_id: parseInt(selectedPetId),
+          doctor_id: parseInt(selectedDoctorId),
+          scheduled_at: scheduledAt,
+          reason,
+          customer_notes: notes.trim() || null,
+        });
+
+        queryClient.invalidateQueries({ queryKey: ['consultations'] });
+
+        const docName = `Dr. ${selectedDoc?.user?.first_name || ''} ${selectedDoc?.user?.last_name || ''}`.trim();
+        setLastBookedSession({
+          doctorName: docName,
+          scheduledAt: confirmedConsultation.scheduled_at,
+        });
+        setShowSuccessOverlay(true);
+        setTimeout(() => {
+          setShowSuccessOverlay(false);
+          setActiveSection('sessions');
+        }, 4000);
+
+        setReason('');
+        setNotes('');
+        setSelectedSlot('');
+        setFormError('');
+        setSelectedDoctorId('');
+        setSelectedPetId('');
+        setIsDirectBooking(false);
+        setBookingStep(1);
+        setIsPaying(false);
       }
-    });
+    } catch (err: any) {
+      console.error('Payment intent failed:', err);
+      setPaymentError(err.response?.data?.detail || 'Could not initiate consultation booking. Please check slot availability.');
+      setIsPaying(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
       case 'PENDING':
-        return 'text-turmeric bg-amber-50 border-amber-200';
+        return 'text-amber-800 bg-amber-50 border-amber-300';
       case 'CONFIRMED':
-        return 'text-herb bg-emerald-50 border-emerald-200';
+      case 'IN_PROGRESS':
+        return 'text-emerald-800 bg-emerald-50 border-emerald-300';
       case 'COMPLETED':
-        return 'text-blue-600 bg-blue-50 border-blue-200';
+        return 'text-sky-800 bg-sky-50 border-sky-300';
       case 'CANCELLED':
-        return 'text-paprika bg-red-50 border-red-200';
+        return 'text-rose-800 bg-rose-50 border-rose-300';
       default:
         return 'text-ink bg-gray-50 border-gray-200';
     }
@@ -448,467 +546,460 @@ export const ConsultationsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
-      {/* Full-width Top Navigation Header bar */}
+      {/* Full-width Navigation Header */}
       <Header activeTab="consultations" onCartToggle={() => setIsCartOpen(true)} />
 
-      {/* Centered Main Content Wrapper */}
+      {/* Main Container */}
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 md:px-8 py-8">
-
-      {/* Back Link */}
-      <div className="mb-8 text-left">
-        <button
-          onClick={() => navigate('/shop')}
-          className="font-mono text-[9px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1"
-        >
-          <ArrowLeft className="w-3 h-3" />
-          <span>Back to Product Ledger</span>
-        </button>
-      </div>
-      {/* Binder Tab Navigation Bar */}
-      <div className="flex border-b border-cardboard border-opacity-40 mb-8 font-mono text-xs uppercase tracking-wider font-bold">
-        <button
-          type="button"
-          onClick={() => {
-            setActiveSection('directory');
-            setIsDirectBooking(false);
-          }}
-          className={`px-6 py-3 border-t-2 border-x transition-colors cursor-pointer ${
-            activeSection === 'directory'
-              ? 'bg-paperLight border-t-turmeric border-x-cardboard text-ink'
-              : 'bg-transparent border-t-transparent border-x-transparent text-ink opacity-60 hover:opacity-100'
-          }`}
-        >
-          🔍 Specialist Directory
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveSection('sessions')}
-          className={`px-6 py-3 border-t-2 border-x transition-colors cursor-pointer ${
-            activeSection === 'sessions'
-              ? 'bg-paperLight border-t-turmeric border-x-cardboard text-ink'
-              : 'bg-transparent border-t-transparent border-x-transparent text-ink opacity-60 hover:opacity-100'
-          }`}
-        >
-          📓 Session Ledger ({consultations.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setActiveSection('book');
-            setIsDirectBooking(false);
-            setSelectedDoctorId(''); // reset pre-selected doctor if booking normally
-            setBookingStep(1);
-          }}
-          className={`px-6 py-3 border-t-2 border-x transition-colors cursor-pointer ${
-            activeSection === 'book'
-              ? 'bg-paperLight border-t-turmeric border-x-cardboard text-ink'
-              : 'bg-transparent border-t-transparent border-x-transparent text-ink opacity-60 hover:opacity-100'
-          }`}
-        >
-          🩺 Schedule Specialist
-        </button>
-      </div>
-
-      {/* DIRECTORY SECTION */}
-      {activeSection === 'directory' && (
-        <div className="max-w-7xl mx-auto space-y-6 text-left animate-fade-in">
-          {/* Header Title */}
-          <div className="space-y-1">
-            <h2 className="font-display font-black text-3xl uppercase tracking-tight text-ink">
-              Specialist Directory
-            </h2>
-            <p className="font-body text-xs text-ink opacity-70">
-              Browse, search, and filter verified veterinarians and pet nutritionists in your city.
-            </p>
-          </div>
-
-          <hr className="border-t border-dashed border-cardboard" />
-
-          {/* Search & Filter Bar */}
-          <div className="bg-paperLight border border-cardboard p-6 rounded-sm shadow-xs grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-            {/* Search Input */}
-            <div className="md:col-span-6 flex flex-col space-y-1.5 text-left">
-              <label htmlFor="search-directory" className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wide block">
-                🔍 Search Specialist:
-              </label>
-              <input
-                type="text"
-                id="search-directory"
-                placeholder="Search by name, qualification, or bio..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-cardboard rounded-sm bg-paper font-body text-sm text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
-              />
-            </div>
-
-            {/* City Dropdown */}
-            <div className="md:col-span-3 flex flex-col space-y-1.5 text-left">
-              <label htmlFor="city-filter" className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wide block">
-                📍 Filter by City:
-              </label>
-              <select
-                id="city-filter"
-                value={selectedCityFilter}
-                onChange={(e) => setSelectedCityFilter(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-cardboard rounded-sm bg-paper font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors cursor-pointer"
-              >
-                <option value="">All Cities</option>
-                {uniqueCities.map((city) => (
-                  <option key={city} value={city}>
-                    {city}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Specialization Filter Dropdown */}
-            <div className="md:col-span-3 flex flex-col space-y-1.5 text-left">
-              <label htmlFor="specialization-filter" className="font-mono text-[11px] uppercase font-bold text-paprika tracking-wide block">
-                🩺 Filter by Specialization:
-              </label>
-              <select
-                id="specialization-filter"
-                value={selectedSpecializationFilter}
-                onChange={(e) => setSelectedSpecializationFilter(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-cardboard rounded-sm bg-paper font-body text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors cursor-pointer"
-              >
-                <option value="">All Specializations</option>
-                {uniqueSpecializations.map((spec) => (
-                  <option key={spec} value={spec}>
-                    {spec}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Directory Loading / Results */}
-          {isDoctorsLoading ? (
-            <div className="py-20 text-center space-y-4">
-              <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
-              <p className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold animate-pulse">
-                Fetching specialists register...
-              </p>
-            </div>
-          ) : doctors.length === 0 ? (
-            <div className="border border-cardboard bg-paperLight border-dashed p-12 rounded-sm text-center">
-              <Stethoscope className="w-12 h-12 text-cardboard mx-auto mb-4 stroke-1" />
-              <h4 className="font-display font-bold text-lg text-ink mb-1">No Specialists Found</h4>
-              <p className="font-body text-xs text-ink opacity-70 max-w-xs mx-auto mb-6">
-                Try expanding your filters or adjusting your search query.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedCityFilter('');
-                  setSelectedSpecializationFilter('');
-                }}
-                className="bg-turmeric text-ink font-body font-bold text-xs uppercase px-5 py-2.5 rounded-sm tracking-wide hover-bounce cursor-pointer"
-              >
-                Reset Filter Ledger
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {doctors.map((d: any) => {
-                const doctorName = `Dr. ${d.user?.first_name || 'Specialist'} ${d.user?.last_name || ''}`.trim();
-                return (
-                  <div 
-                    key={d.id} 
-                    className="border border-cardboard bg-paperLight rounded-sm shadow-xs flex flex-col justify-between overflow-hidden relative group hover:border-turmeric transition-colors"
-                  >
-                    {/* Notebook spine visual accent */}
-                    <div className="absolute left-1 top-0 bottom-0 border-l border-dashed border-cardboard opacity-25"></div>
-
-                    {/* Polaroid Image Area */}
-                    <div className="p-6 pb-4 pl-8 flex justify-center bg-paper bg-opacity-25 border-b border-cardboard border-dashed">
-                      <div className="w-32 h-32 bg-white p-2.5 border border-cardboard shadow-xs rotate-[-1.5deg] group-hover:rotate-0 transition-transform duration-300 relative flex items-center justify-center shrink-0">
-                        {d.profile_image_url ? (
-                          <img 
-                            src={d.profile_image_url} 
-                            alt={doctorName} 
-                            className="w-full h-full object-cover polaroid-img"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-paperLight font-display font-black text-3xl text-cardboard">
-                            {d.user?.first_name?.[0]?.toUpperCase() || 'D'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Info text */}
-                    <div className="p-6 pt-4 pl-8 flex-grow space-y-3">
-                      <div className="space-y-1">
-                        <span className="font-mono text-[10px] uppercase tracking-widest text-paprika font-bold block">
-                          {d.specialization}
-                        </span>
-                        <h4 className="font-display font-black text-xl text-ink">
-                          {doctorName}
-                        </h4>
-                        <span className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80 block">
-                          Qualification: {d.qualification}
-                        </span>
-                      </div>
-
-                      <p className="font-body text-xs text-ink opacity-75 line-clamp-3">
-                        {d.bio || 'A dedicated companion animal specialist committed to custom small-batch dietary wellness and diagnosis.'}
-                      </p>
-
-                      <hr className="border-t border-cardboard border-dashed opacity-40" />
-
-                      {/* Location & Experience tags */}
-                      <div className="flex justify-between items-center text-xs font-mono text-ink">
-                        <div>
-                          <span className="text-[10px] uppercase text-ink opacity-70 block font-bold">EXP LEVEL</span>
-                          <span className="font-bold text-paprika">{d.experience_years} Years</span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase text-ink opacity-70 block font-bold">CLINIC CITY</span>
-                          <span className="font-bold text-paprika">{d.clinic?.city || 'Chennai'}</span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase text-ink opacity-70 block font-bold">FEE</span>
-                          <span className="font-bold text-turmeric">${parseFloat(d.consultation_fee).toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Bottom Buttons */}
-                    <div className="border-t border-cardboard p-4 pl-8 bg-paper bg-opacity-20 flex space-x-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setInspectingDoctorId(d.id)}
-                        className="flex-1 border border-cardboard hover:bg-paper text-ink font-body font-bold text-xs uppercase py-2.5 rounded-sm tracking-wide text-center cursor-pointer transition-colors shadow-xs"
-                      >
-                        View Details
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleStartBooking(d.id)}
-                        className="flex-1 bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs uppercase py-2.5 rounded-sm tracking-wide text-center cursor-pointer transition-colors shadow-xs hover-bounce"
-                      >
-                        Book Now
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        
+        {/* Back Link */}
+        <div className="mb-6 text-left">
+          <button
+            onClick={() => navigate('/shop')}
+            className="font-mono text-[10px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1.5 transition-opacity"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Return to Fresh Meal Store</span>
+          </button>
         </div>
-      )}
 
-      {/* SESSIONS SECTION */}
-      {activeSection === 'sessions' && (
-        <div className="max-w-7xl mx-auto space-y-6 text-left animate-fade-in">
-          <div className="space-y-1">
-            <h2 className="font-display font-bold text-3xl text-ink">
-              Clinical Sessions
-            </h2>
-            <p className="font-body text-xs text-ink opacity-70">
-              Check upcoming session diagnostics, veterinarian notes, and prescription advice.
-            </p>
+        {/* Section Header Title */}
+        <div className="space-y-1 text-left mb-8">
+          <Eyebrow label="VETERINARY & CLINICAL CARE DESK" />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="font-display font-black text-2xl sm:text-4xl text-ink tracking-tight">
+                Veterinary Consultations
+              </h1>
+              <p className="font-body text-xs sm:text-sm text-ink opacity-75 max-w-2xl mt-1">
+                Schedule one-on-one live video consultations with verified companion nutritionists and veterinary doctors.
+              </p>
+            </div>
+            <div className="flex items-center space-x-2 shrink-0">
+              <span className="inline-flex items-center px-3 py-1.5 rounded-sm text-xs font-mono font-bold bg-herb/10 text-herb border border-herb/30">
+                <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
+                <span>100% Board Certified Vets</span>
+              </span>
+            </div>
           </div>
+        </div>
 
-          <hr className="border-t border-dashed border-cardboard" />
+        {/* Binder Tab Navigation Bar */}
+        <div className="flex border-b border-cardboard border-opacity-35 mb-8 font-mono text-xs uppercase tracking-wider font-bold overflow-x-auto custom-scrollbar">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveSection('directory');
+              setIsDirectBooking(false);
+            }}
+            className={`px-5 py-3.5 border-b-2 transition-all flex items-center space-x-2 shrink-0 cursor-pointer ${
+              activeSection === 'directory'
+                ? 'border-turmeric text-ink bg-paperLight font-black shadow-xs'
+                : 'border-transparent text-ink opacity-60 hover:opacity-100 hover:text-turmeric'
+            }`}
+          >
+            <Stethoscope className="w-4 h-4 text-turmeric" />
+            <span>Specialist Directory</span>
+            <span className="text-[10px] bg-cardboard/30 px-1.5 py-0.5 rounded-sm font-mono">{doctors.length}</span>
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => setActiveSection('sessions')}
+            className={`px-5 py-3.5 border-b-2 transition-all flex items-center space-x-2 shrink-0 cursor-pointer ${
+              activeSection === 'sessions'
+                ? 'border-turmeric text-ink bg-paperLight font-black shadow-xs'
+                : 'border-transparent text-ink opacity-60 hover:opacity-100 hover:text-turmeric'
+            }`}
+          >
+            <CalendarIcon className="w-4 h-4 text-turmeric" />
+            <span>Session Ledger</span>
+            <span className="text-[10px] bg-cardboard/30 px-1.5 py-0.5 rounded-sm font-mono">{consultations.length}</span>
+          </button>
 
-          {/* Grid Layout for Sessions & Filter sidebar */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Left Pane (9 columns) - Sessions Logs */}
-            <div className="lg:col-span-9 space-y-6 order-2 lg:order-1">
-              {isConsultationsLoading ? (
-                <div className="py-20 text-center space-y-4">
-                  <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
-                  <p className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold">
-                    Reading consultation schedules...
-                  </p>
-                </div>
-              ) : filteredConsultations.length === 0 ? (
-                <div className="border border-cardboard bg-paperLight border-dashed p-10 rounded-sm text-center">
-                  <Stethoscope className="w-12 h-12 text-cardboard mx-auto mb-4 stroke-1" />
-                  <h4 className="font-display font-bold text-lg text-ink mb-1">No Consultations Found</h4>
-                  <p className="font-body text-xs text-ink opacity-70 max-w-xs mx-auto mb-6">
-                    {statusFilter === 'ALL'
-                      ? "You haven't scheduled any professional veterinary review sessions yet."
-                      : `No clinical sessions logged with status '${statusFilter}' at this time.`}
-                  </p>
-                  {statusFilter === 'ALL' && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveSection('book')}
-                      className="bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[10px] uppercase font-bold py-2.5 px-6 rounded-sm tracking-wide transition-colors cursor-pointer"
-                    >
-                      Schedule First Appointment 🩺
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {filteredConsultations.map((consult: any) => (
-                    <div 
-                      key={consult.id}
-                      className="bg-paperLight border border-cardboard p-6 rounded-sm shadow-sm flex flex-col justify-between relative overflow-hidden"
-                    >
-                      {/* Decorative dashed spine tab */}
-                      <div className="absolute top-0 bottom-0 left-3 border-l border-dashed border-cardboard opacity-35"></div>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveSection('book');
+              setIsDirectBooking(false);
+              setSelectedDoctorId('');
+              setBookingStep(1);
+            }}
+            className={`px-5 py-3.5 border-b-2 transition-all flex items-center space-x-2 shrink-0 cursor-pointer ${
+              activeSection === 'book'
+                ? 'border-turmeric text-ink bg-paperLight font-black shadow-xs'
+                : 'border-transparent text-ink opacity-60 hover:opacity-100 hover:text-turmeric'
+            }`}
+          >
+            <Clock className="w-4 h-4 text-turmeric" />
+            <span>Schedule Appointment</span>
+          </button>
+        </div>
 
-                      <div className="space-y-4 pl-8 md:pl-10">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-mono text-[10px] uppercase font-bold text-paprika bg-herb bg-opacity-10 border border-herb px-2.5 py-0.5 rounded-sm">
-                                LEDGER FILE #{consult.id}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setSelectedConsultationId(consult.id)}
-                                className="text-ink hover:text-opacity-80 hover:underline lowercase font-mono text-[10px] tracking-wide"
-                              >
-                                [inspect record]
-                              </button>
-                            </div>
-                          </div>
-                          <span className={`font-mono text-[10px] font-bold border border-dashed px-2.5 py-1 rounded-sm uppercase tracking-wider ${getStatusColor(consult.status)}`}>
-                            {consult.status}
-                          </span>
-                        </div>
+        {/* 1. DIRECTORY SECTION */}
+        {activeSection === 'directory' && (
+          <div className="max-w-7xl mx-auto space-y-8 text-left animate-fade-in">
+            
+            {/* Search & Filter Toolbar */}
+            <div className="bg-paperLight border border-cardboard border-opacity-40 p-5 rounded-sm shadow-xs grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+              {/* Search Bar */}
+              <div className="md:col-span-6 flex flex-col space-y-1.5">
+                <label htmlFor="search-directory" className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wider">
+                  Search Specialist:
+                </label>
+                <input
+                  type="text"
+                  id="search-directory"
+                  placeholder="Search doctor by name, qualification, or clinic..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-cardboard border-opacity-60 rounded-sm bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                />
+              </div>
 
-                        <div className="space-y-1.5 font-mono text-xs uppercase text-ink pr-4">
-                          <div className="flex justify-between items-center dotted-divider py-1.5">
-                            <span className="bg-paperLight pr-1 text-paprika font-bold flex items-center">
-                              <Clock className="w-3.5 h-3.5 text-turmeric mr-2" />
-                              <span>SCHEDULED AT</span>
-                            </span>
-                            <span className="bg-paperLight pl-1 font-bold text-ink">{formatNaiveDateTime(consult.scheduled_at).full}</span>
-                          </div>
-                          
-                          <div className="flex justify-between items-center dotted-divider py-1.5">
-                            <span className="bg-paperLight pr-1 text-paprika font-bold flex items-center">
-                              <PawPrint className="w-3.5 h-3.5 text-turmeric mr-2" />
-                              <span>COMPANION PATIENT</span>
-                            </span>
-                            <span className="bg-paperLight pl-1 font-bold text-ink">🐾 {consult.pet?.name || 'My Pet'} ({consult.pet?.species})</span>
-                          </div>
-                          
-                          <div className="flex justify-between items-center py-1.5">
-                            <span className="bg-paperLight pr-1 text-paprika font-bold flex items-center">
-                              <Stethoscope className="w-3.5 h-3.5 text-paprika mr-2" />
-                              <span>VET SPECIALIST</span>
-                            </span>
-                            <span className="bg-paperLight pl-1 font-bold text-ink flex items-center space-x-1">
-                              <span>
-                                🩺 {consult.doctor?.user?.first_name || consult.doctor?.user?.last_name 
-                                  ? `Dr. ${consult.doctor.user.first_name || ''} ${consult.doctor.user.last_name || ''}`.trim() 
-                                  : `Dr. ID #${consult.doctor_id}`} ({consult.doctor?.specialization || 'Nutritionist'})
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => setInspectingDoctorId(consult.doctor_id)}
-                                className="text-turmeric hover:text-opacity-80 flex items-center border-none bg-transparent cursor-pointer p-0.5"
-                                title="Inspect credentials"
-                              >
-                                <Info className="w-3.5 h-3.5" />
-                              </button>
-                            </span>
-                          </div>
-                        </div>
-
-                        <hr className="border-t border-dashed border-cardboard" />
-
-                        <div>
-                          <span className="font-mono text-[10px] uppercase text-paprika font-bold block">Reason for consultation</span>
-                          <p className="font-body text-xs text-ink opacity-85">{consult.reason}</p>
-                        </div>
-
-                        {consult.doctor_notes && (
-                          <div className="bg-paper p-3 rounded-sm border border-cardboard border-dashed">
-                            <span className="font-mono text-[10px] uppercase text-turmeric font-bold block">Veterinary Clinical Notes</span>
-                            <p className="font-body text-xs text-ink opacity-90 italic">{consult.doctor_notes}</p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Action Buttons (Join Call / Cancel) */}
-                      {(consult.status.toUpperCase() === 'PENDING' || consult.status.toUpperCase() === 'CONFIRMED' || consult.status.toUpperCase() === 'IN_PROGRESS') && (
-                        <div className="mt-4 pt-4 border-t border-cardboard flex justify-end pl-4 space-x-3">
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/consultations/${consult.id}/call`)}
-                            className="bg-emerald-700 hover:bg-emerald-800 text-white font-body font-bold text-[11px] uppercase py-2.5 px-4 rounded-sm tracking-wide transition-colors flex items-center space-x-1.5 shadow-md animate-pulse cursor-pointer"
-                          >
-                            <Video className="w-3.5 h-3.5" />
-                            <span>Join Video Call</span>
-                          </button>
-                          {(consult.status.toUpperCase() === 'PENDING' || consult.status.toUpperCase() === 'CONFIRMED') && (
-                            <button
-                              type="button"
-                              onClick={() => cancelMutation.mutate(consult.id)}
-                              disabled={cancelMutation.isPending}
-                              className="bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-[11px] uppercase py-2 px-4 rounded-sm tracking-wide transition-colors disabled:opacity-50 flex items-center space-x-1.5"
-                            >
-                              {cancelMutation.isPending && cancelMutation.variables === consult.id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <>
-                                  <XCircle className="w-3.5 h-3.5" />
-                                  <span>Cancel Appointment</span>
-                                </>
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Rate Vet Specialist Button */}
-                      {consult.status.toUpperCase() === 'COMPLETED' && (
-                        <div className="mt-4 pt-4 border-t border-cardboard flex justify-end pl-4">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedReviewConsultationId(consult.id);
-                              setSelectedReviewDoctorName(consult.doctor?.user?.first_name ? `Dr. ${consult.doctor.user.first_name} ${consult.doctor.user.last_name || ''}` : `Dr. ID #${consult.doctor_id}`);
-                              setReviewRating(5);
-                              setReviewComment('');
-                              setReviewSubmitError(null);
-                              setReviewSubmitSuccess(false);
-                              setIsReviewModalOpen(true);
-                            }}
-                            className="bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-[11px] uppercase py-2 px-4 rounded-sm tracking-wide transition-colors flex items-center space-x-1.5 cursor-pointer shadow-xs hover-bounce"
-                          >
-                            <Star className="w-3.5 h-3.5 fill-ink text-ink" />
-                            <span>Rate Vet Specialist</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
+              {/* City Filter */}
+              <div className="md:col-span-3 flex flex-col space-y-1.5">
+                <label htmlFor="city-filter" className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wider">
+                  Clinic City:
+                </label>
+                <select
+                  id="city-filter"
+                  value={selectedCityFilter}
+                  onChange={(e) => setSelectedCityFilter(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-cardboard border-opacity-60 rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors cursor-pointer"
+                >
+                  <option value="">All Cities ({uniqueCities.length})</option>
+                  {uniqueCities.map((city) => (
+                    <option key={city} value={city}>{city}</option>
                   ))}
-                </div>
-              )}
+                </select>
+              </div>
+
+              {/* Specialization Filter */}
+              <div className="md:col-span-3 flex flex-col space-y-1.5">
+                <label htmlFor="specialization-filter" className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wider">
+                  Specialization:
+                </label>
+                <select
+                  id="specialization-filter"
+                  value={selectedSpecializationFilter}
+                  onChange={(e) => setSelectedSpecializationFilter(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-cardboard border-opacity-60 rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors cursor-pointer"
+                >
+                  <option value="">All Specializations ({uniqueSpecializations.length})</option>
+                  {uniqueSpecializations.map((spec) => (
+                    <option key={spec} value={spec}>{spec}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            {/* Right Pane (3 columns) - Clickable Status Filter Card */}
-            <div className="lg:col-span-3 order-1 lg:order-2">
-              <div className="bg-paperLight border border-cardboard p-5 rounded-sm shadow-xs space-y-4 relative overflow-hidden">
-                {/* Decorative spine tab */}
-                <div className="absolute top-0 bottom-0 left-1 border-l border-dashed border-cardboard opacity-35"></div>
+            {/* Results Grid */}
+            {isDoctorsLoading ? (
+              <div className="py-20 text-center space-y-4">
+                <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
+                <p className="font-mono text-[11px] uppercase tracking-wider text-herb font-bold animate-pulse">
+                  Retrieving certified specialist ledger...
+                </p>
+              </div>
+            ) : doctors.length === 0 ? (
+              <div className="border border-cardboard border-dashed bg-paperLight p-12 rounded-sm text-center space-y-4">
+                <Stethoscope className="w-12 h-12 text-cardboard mx-auto stroke-1" />
+                <div>
+                  <h4 className="font-display font-bold text-lg text-ink">No Specialists Matching Filters</h4>
+                  <p className="font-body text-xs text-ink opacity-70 max-w-sm mx-auto mt-1">
+                    Try clearing or expanding your city and specialization filters to view all verified veterinarians.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedCityFilter('');
+                    setSelectedSpecializationFilter('');
+                  }}
+                  className="bg-turmeric text-ink font-body font-bold text-xs uppercase px-5 py-2.5 rounded-sm tracking-wide hover-bounce cursor-pointer"
+                >
+                  Reset Filter Ledger
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {doctors.map((d: any) => {
+                  const doctorName = `Dr. ${d.user?.first_name || 'Specialist'} ${d.user?.last_name || ''}`.trim();
+                  const doctorImg = getDoctorAvatarUrl(d);
+                  return (
+                    <div 
+                      key={d.id} 
+                      className="border border-cardboard border-opacity-40 bg-paperLight rounded-sm shadow-xs flex flex-col justify-between overflow-hidden relative group hover:border-turmeric transition-colors"
+                    >
+                      {/* Left vertical notebook spine motif */}
+                      <div className="absolute left-1 top-0 bottom-0 border-l border-dashed border-cardboard opacity-30"></div>
 
-                <div className="pl-3 space-y-3">
-                  <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
-                    Filter Ledger
-                  </span>
-                  <h3 className="font-display font-bold text-lg text-ink">
-                    Status Logs
-                  </h3>
-                  
-                  <hr className="border-t border-dashed border-cardboard" />
-                  
+                      <div className="p-6 pl-8 space-y-4 flex-grow">
+                        {/* Top Doctor Avatar & Info Header */}
+                        <div className="flex items-start space-x-4">
+                          <div className="w-16 h-16 rounded-full bg-paper border-2 border-turmeric/60 overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
+                            {doctorImg ? (
+                              <img 
+                                src={doctorImg} 
+                                alt={doctorName} 
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <span className="font-display font-black text-2xl text-turmeric">
+                                {d.user?.first_name?.[0]?.toUpperCase() || 'D'}
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="min-w-0 flex-1">
+                            <span className="inline-block font-mono text-[9px] uppercase tracking-wider font-bold text-herb bg-herb/10 px-2 py-0.5 rounded-xs mb-1">
+                              {d.specialization}
+                            </span>
+                            <h3 className="font-display font-black text-lg text-ink truncate">
+                              {doctorName}
+                            </h3>
+                            <p className="font-mono text-[10px] text-ink opacity-75 truncate">
+                              {d.qualification}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Bio summary */}
+                        <p className="font-body text-xs text-ink opacity-80 line-clamp-2 leading-relaxed">
+                          {d.bio || 'Dedicated clinical nutritionist specializing in canine allergies, small-batch recovery diets, and digestive balance.'}
+                        </p>
+
+                        <hr className="border-t border-dashed border-cardboard border-opacity-35" />
+
+                        {/* Metadata Grid */}
+                        <div className="grid grid-cols-3 gap-2 font-mono text-[10px] text-center bg-paper/60 p-2.5 rounded-sm border border-cardboard/30">
+                          <div>
+                            <span className="text-[8.5px] uppercase text-ink opacity-60 block font-bold">Experience</span>
+                            <span className="font-bold text-ink">{d.experience_years} Yrs</span>
+                          </div>
+                          <div>
+                            <span className="text-[8.5px] uppercase text-ink opacity-60 block font-bold">Clinic City</span>
+                            <span className="font-bold text-ink truncate block">{d.clinic?.city || 'Chennai'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[8.5px] uppercase text-ink opacity-60 block font-bold">Consult Fee</span>
+                            <span className="font-bold text-herb">${parseFloat(d.consultation_fee).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="border-t border-cardboard border-opacity-35 p-3.5 pl-8 bg-paper/40 flex space-x-2.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setInspectingDoctorId(d.id)}
+                          className="flex-1 border border-cardboard border-opacity-60 hover:bg-paper text-ink font-body font-bold text-xs uppercase py-2.5 rounded-sm tracking-wide text-center cursor-pointer transition-colors"
+                        >
+                          View Bio & Shifts
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleStartBooking(d.id)}
+                          className="flex-1 bg-herb hover:bg-herb/90 text-white font-body font-bold text-xs uppercase py-2.5 rounded-sm tracking-wide text-center cursor-pointer transition-colors shadow-xs"
+                        >
+                          Book Slot
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 2. SESSIONS SECTION */}
+        {activeSection === 'sessions' && (
+          <div className="max-w-7xl mx-auto space-y-6 text-left animate-fade-in">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              
+              {/* Left Column (9 cols): Consultation Sessions List */}
+              <div className="lg:col-span-9 space-y-6 order-2 lg:order-1">
+                {isConsultationsLoading ? (
+                  <div className="py-20 text-center space-y-4">
+                    <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
+                    <p className="font-mono text-[11px] uppercase tracking-wider text-herb font-bold">
+                      Reading consultation logs...
+                    </p>
+                  </div>
+                ) : filteredConsultations.length === 0 ? (
+                  <div className="border border-cardboard border-dashed bg-paperLight p-10 rounded-sm text-center space-y-4">
+                    <Stethoscope className="w-12 h-12 text-cardboard mx-auto stroke-1" />
+                    <div>
+                      <h4 className="font-display font-bold text-lg text-ink">No Consultations Found</h4>
+                      <p className="font-body text-xs text-ink opacity-70 max-w-sm mx-auto mt-1">
+                        {statusFilter === 'ALL'
+                          ? "You haven't scheduled any veterinary consultation sessions yet."
+                          : `No sessions registered with status '${statusFilter}' at this time.`}
+                      </p>
+                    </div>
+                    {statusFilter === 'ALL' && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveSection('book')}
+                        className="bg-herb hover:bg-herb/90 text-white font-mono text-[10px] uppercase font-bold py-2.5 px-6 rounded-sm tracking-wider transition-colors cursor-pointer"
+                      >
+                        Schedule First Appointment 🩺
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredConsultations.map((consult: any) => {
+                      const docName = consult.doctor?.user?.first_name || consult.doctor?.user?.last_name
+                        ? `Dr. ${consult.doctor.user.first_name || ''} ${consult.doctor.user.last_name || ''}`.trim()
+                        : `Dr. ID #${consult.doctor_id}`;
+
+                      return (
+                        <div 
+                          key={consult.id}
+                          className="bg-paperLight border border-cardboard border-opacity-40 p-5 rounded-sm shadow-xs flex flex-col justify-between relative overflow-hidden group hover:border-turmeric transition-colors"
+                        >
+                          <div className="absolute top-0 bottom-0 left-2 border-l border-dashed border-cardboard opacity-30"></div>
+
+                          <div className="space-y-4 pl-6 md:pl-8">
+                            {/* Card Header */}
+                            <div className="flex flex-wrap justify-between items-center gap-2">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-mono text-[9px] uppercase font-bold text-ink bg-cardboard/30 px-2 py-0.5 rounded-xs">
+                                  LOG #{consult.id}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedConsultationId(consult.id)}
+                                  className="text-turmeric hover:underline font-mono text-[10px] font-bold"
+                                >
+                                  [inspect file]
+                                </button>
+                              </div>
+                              <span className={`font-mono text-[10px] font-bold border px-2.5 py-0.5 rounded-sm uppercase tracking-wider ${getStatusColor(consult.status)}`}>
+                                {consult.status}
+                              </span>
+                            </div>
+
+                            {/* Details Row */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-xs border-y border-cardboard border-dashed py-3">
+                              <div>
+                                <span className="text-[9px] uppercase text-paprika font-bold block">Scheduled At</span>
+                                <span className="font-bold text-ink">{formatNaiveDateTime(consult.scheduled_at).full}</span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] uppercase text-paprika font-bold block">Companion Patient</span>
+                                <span className="font-bold text-ink">🐾 {consult.pet?.name || 'Pet'} ({consult.pet?.species || 'Canine'})</span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] uppercase text-paprika font-bold block">Specialist</span>
+                                <div className="flex items-center space-x-2 mt-0.5">
+                                  <div className="w-6 h-6 rounded-full bg-paper border border-cardboard overflow-hidden flex items-center justify-center shrink-0">
+                                    {getDoctorAvatarUrl(consult.doctor) ? (
+                                      <img src={getDoctorAvatarUrl(consult.doctor)!} alt={docName} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <span className="font-mono font-bold text-[9px] text-turmeric">Dr</span>
+                                    )}
+                                  </div>
+                                  <span className="font-bold text-ink truncate">{docName}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Reason for visit */}
+                            <div>
+                              <span className="font-mono text-[9px] uppercase text-paprika font-bold block">Reason For Consultation</span>
+                              <p className="font-body text-xs text-ink opacity-85 mt-0.5">{consult.reason}</p>
+                            </div>
+
+                            {/* Doctor Clinical Notes */}
+                            {consult.doctor_notes && (
+                              <div className="bg-paper p-3 rounded-sm border border-cardboard border-dashed">
+                                <span className="font-mono text-[9px] uppercase text-herb font-bold block">Veterinary Clinical Assessment</span>
+                                <p className="font-body text-xs text-ink opacity-90 italic mt-0.5">{consult.doctor_notes}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action Bar */}
+                          <div className="mt-4 pt-3.5 border-t border-cardboard border-opacity-35 flex flex-wrap justify-end gap-2.5 pl-6">
+                            {(consult.status.toUpperCase() === 'PENDING' || consult.status.toUpperCase() === 'CONFIRMED' || consult.status.toUpperCase() === 'IN_PROGRESS') && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`/consultations/${consult.id}/call`)}
+                                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-body font-bold text-xs uppercase py-2.5 px-4 rounded-sm tracking-wider transition-colors flex items-center space-x-1.5 shadow-xs cursor-pointer animate-pulse"
+                                >
+                                  <Video className="w-3.5 h-3.5" />
+                                  <span>Join Video Call</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => cancelMutation.mutate(consult.id)}
+                                  disabled={cancelMutation.isPending}
+                                  className="border border-cardboard hover:bg-paper text-ink font-body font-bold text-xs uppercase py-2.5 px-3.5 rounded-sm tracking-wider transition-colors disabled:opacity-50 flex items-center space-x-1.5 cursor-pointer"
+                                >
+                                  {cancelMutation.isPending && cancelMutation.variables === consult.id ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <XCircle className="w-3.5 h-3.5" />
+                                      <span>Cancel</span>
+                                    </>
+                                  )}
+                                </button>
+                              </>
+                            )}
+
+                            {consult.status.toUpperCase() === 'COMPLETED' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedReviewConsultationId(consult.id);
+                                  setSelectedReviewDoctorName(docName);
+                                  setReviewRating(5);
+                                  setReviewComment('');
+                                  setReviewSubmitError(null);
+                                  setReviewSubmitSuccess(false);
+                                  setIsReviewModalOpen(true);
+                                }}
+                                className="bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs uppercase py-2.5 px-4 rounded-sm tracking-wider transition-colors flex items-center space-x-1.5 cursor-pointer shadow-xs hover-bounce"
+                              >
+                                <Star className="w-3.5 h-3.5 fill-ink text-ink" />
+                                <span>Rate Vet Specialist</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column (3 cols): Status Filter Card */}
+              <div className="lg:col-span-3 order-1 lg:order-2 w-full">
+                <div className="bg-paperLight border border-cardboard border-opacity-40 p-5 rounded-sm shadow-xs space-y-4 text-left">
+                  <div className="space-y-1">
+                    <span className="font-mono text-[9px] uppercase font-bold text-paprika tracking-wider block">
+                      Status Ledger
+                    </span>
+                    <h3 className="font-display font-black text-lg text-ink">
+                      Filter Sessions
+                    </h3>
+                  </div>
+
+                  <hr className="border-t border-dashed border-cardboard border-opacity-35" />
+
                   <div className="space-y-1.5 font-mono text-xs uppercase font-bold">
                     {[
                       { id: 'ALL', label: 'All Sessions' },
-                      { id: 'PENDING', label: 'Pending' },
                       { id: 'CONFIRMED', label: 'Confirmed' },
+                      { id: 'PENDING', label: 'Pending' },
                       { id: 'COMPLETED', label: 'Completed' },
                       { id: 'CANCELLED', label: 'Cancelled' },
                     ].map((filter) => {
@@ -919,17 +1010,17 @@ export const ConsultationsPage: React.FC = () => {
                           key={filter.id}
                           type="button"
                           onClick={() => setStatusFilter(filter.id as any)}
-                          className={`w-full flex justify-between items-center py-2 px-3 border rounded-xs transition-colors text-left cursor-pointer ${
+                          className={`w-full flex justify-between items-center py-2 px-3 border rounded-sm transition-colors text-left cursor-pointer ${
                             isActive
                               ? 'bg-paper border-turmeric text-ink shadow-xs'
-                              : 'bg-transparent border-transparent text-ink opacity-65 hover:opacity-100 hover:bg-paperLight hover:bg-opacity-50'
+                              : 'bg-transparent border-transparent text-ink opacity-65 hover:opacity-100 hover:bg-paper'
                           }`}
                         >
                           <span className="flex items-center space-x-1.5">
                             {isActive ? <span>🐾</span> : <span className="w-3.5" />}
                             <span>{filter.label}</span>
                           </span>
-                          <span className="bg-cardboard bg-opacity-25 text-ink font-mono text-[9px] px-1.5 py-0.5 rounded-sm">
+                          <span className="bg-cardboard/30 text-ink font-mono text-[9px] px-1.5 py-0.5 rounded-xs">
                             {count}
                           </span>
                         </button>
@@ -938,430 +1029,701 @@ export const ConsultationsPage: React.FC = () => {
                   </div>
                 </div>
               </div>
+
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* BOOKING SECTION */}
-      {activeSection === 'book' && (
-        <div className="max-w-xl mx-auto space-y-6 text-left animate-fade-in">
-          {/* Stepper Progress Bar */}
-          <div className="flex justify-between items-center bg-paperLight border border-cardboard p-4 rounded-sm font-mono text-[9px] text-ink shadow-xs">
-            <span className={bookingStep >= 1 ? "font-bold text-herb" : "opacity-50"}>
-              1. COMPANION
-            </span>
-            <span className="text-cardboard opacity-60">➔</span>
-            <span className={bookingStep >= 2 ? "font-bold text-herb" : "opacity-50"}>
-              2. SPECIALIST
-            </span>
-            <span className="text-cardboard opacity-60">➔</span>
-            <span className={bookingStep >= 3 ? "font-bold text-herb" : "opacity-50"}>
-              3. SCHEDULE
-            </span>
-            <span className="text-cardboard opacity-60">➔</span>
-            <span className={bookingStep >= 4 ? "font-bold text-herb" : "opacity-50"}>
-              4. CONTEXT
-            </span>
-          </div>
-
-          <div className="bg-paperLight border border-cardboard p-8 rounded-sm shadow-md space-y-6 relative overflow-hidden">
-            {/* Stamp Step Indicator Tag */}
-            <div className="absolute top-0 right-8 bg-cardboard bg-opacity-35 text-ink font-mono text-[8px] uppercase tracking-widest px-3 py-1 rounded-b-sm border-x border-b border-cardboard font-bold">
-              STEP {bookingStep} OF 4
+        {/* 3. BOOKING SECTION */}
+        {activeSection === 'book' && (
+          <div className="max-w-2xl mx-auto space-y-6 text-left animate-fade-in">
+            
+            {/* Stepper Progress Bar */}
+            <div className="grid grid-cols-4 gap-2 bg-paperLight border border-cardboard border-opacity-40 p-3 rounded-sm font-mono text-[9px] text-center shadow-xs">
+              <div className={`py-1.5 rounded-xs ${bookingStep >= 1 ? 'bg-herb/15 text-herb font-bold' : 'text-ink opacity-50'}`}>
+                1. PATIENT
+              </div>
+              <div className={`py-1.5 rounded-xs ${(bookingStep >= 2 || (isDirectBooking && selectedDoctorId)) ? 'bg-herb/15 text-herb font-bold' : 'text-ink opacity-50'}`}>
+                2. VET {isDirectBooking && selectedDoctorId ? '✓' : ''}
+              </div>
+              <div className={`py-1.5 rounded-xs ${bookingStep >= 3 ? 'bg-herb/15 text-herb font-bold' : 'text-ink opacity-50'}`}>
+                3. SLOT
+              </div>
+              <div className={`py-1.5 rounded-xs ${bookingStep >= 4 ? 'bg-herb/15 text-herb font-bold' : 'text-ink opacity-50'}`}>
+                4. REASON
+              </div>
             </div>
 
-            {/* Error messaging inside wizard card */}
-            {formError && (
-              <div className="text-[10px] text-paprika bg-red-50 border border-turmeric border-opacity-20 p-2.5 rounded-sm font-body">
-                {formError}
-              </div>
-            )}
+            {/* Main Form Wizard Box */}
+            <div className="bg-paperLight border border-cardboard border-opacity-40 p-6 md:p-8 rounded-sm shadow-md space-y-6 relative overflow-hidden">
+              
+              {formError && (
+                <div className="text-xs text-rose-800 bg-rose-50 border border-rose-200 p-3 rounded-sm font-body">
+                  {formError}
+                </div>
+              )}
 
-            {!pets || pets.length === 0 ? (
-              <div className="text-center py-6 space-y-4 animate-fade-in">
-                <AlertCircle className="w-8 h-8 text-turmeric mx-auto stroke-1" />
-                <p className="font-body text-xs text-ink opacity-80">
-                  Please register a companion pet profile in your ledger first before scheduling a veterinary review.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => navigate('/pets')}
-                  className="bg-turmeric text-ink font-body font-bold text-xs uppercase px-4 py-2 rounded-sm tracking-wider cursor-pointer"
-                >
-                  Create Pet Profile 🐾
-                </button>
-              </div>
-            ) : (
-              <div>
-                {/* STEP 1: Select Companion */}
-                {bookingStep === 1 && (
-                  <div className="space-y-4 animate-fade-in">
-                    <div className="space-y-1">
-                      <h3 className="font-display font-bold text-xl text-ink">Choose Companion Patient</h3>
-                      <p className="font-body text-xs text-ink opacity-70">
-                        Select which companion profile this medical session is booked for:
-                      </p>
-                    </div>
-                    
-                    <hr className="border-t border-dashed border-cardboard" />
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {pets.map((p) => {
-                        const isSelected = selectedPetId === p.id.toString();
-                        return (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedPetId(p.id.toString());
-                              if (isDirectBooking) {
-                                setBookingStep(3); // skip Step 2 select specialist
-                              } else {
-                                setBookingStep(2);
-                              }
-                            }}
-                            className={`p-4 border text-left rounded-sm transition-all hover:border-turmeric cursor-pointer relative overflow-hidden flex flex-col items-center justify-center space-y-3 ${
-                              isSelected ? 'bg-paper border-turmeric ring-1 ring-turmeric shadow-sm' : 'bg-paperLight border-cardboard opacity-80 hover:opacity-100'
-                            }`}
-                          >
-                            {/* Polaroid frame preview */}
-                            <div className="w-16 h-16 bg-white p-1 border border-cardboard shadow-xs rotate-[-2deg] flex items-center justify-center shrink-0">
-                              {p.profile_image_url ? (
-                                <img src={p.profile_image_url} alt={p.name} className="w-full h-full object-cover polaroid-img" />
-                              ) : (
-                                <span className="text-xl">🐾</span>
-                              )}
-                            </div>
-                            <div className="text-center">
-                              <span className="font-display font-bold text-ink block">{p.name}</span>
-                              <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard block">
-                                {p.species} - {p.breed || 'Mixed'}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+              {!pets || pets.length === 0 ? (
+                <div className="text-center py-8 space-y-4">
+                  <AlertCircle className="w-8 h-8 text-turmeric mx-auto stroke-1" />
+                  <div>
+                    <h4 className="font-display font-bold text-base text-ink">No Pets Registered Yet</h4>
+                    <p className="font-body text-xs text-ink opacity-75 max-w-xs mx-auto mt-1">
+                      Please create a companion profile before scheduling a veterinary review.
+                    </p>
                   </div>
-                )}
-
-                {/* STEP 2: Select Veterinarian */}
-                {bookingStep === 2 && (
-                  <div className="space-y-4 animate-fade-in">
-                    <div className="space-y-1">
-                      <h3 className="font-display font-bold text-xl text-ink">Select Veterinarian</h3>
-                      <p className="font-body text-xs text-ink opacity-70">
-                        Pick a professional nutritionist or schedule a diagnostic session:
-                      </p>
-                    </div>
-                    
-                    <hr className="border-t border-dashed border-cardboard" />
-
-                    {/* Integrated Geospatial Locator Tool */}
-                    <div className="border border-cardboard border-dashed p-4 rounded-sm bg-paper bg-opacity-40 space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide flex items-center">
-                          <Compass className="w-3.5 h-3.5 mr-1.5 text-turmeric" />
-                          <span>GPS Clinic Locator</span>
-                        </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        <input
-                          type="text"
-                          placeholder="Latitude e.g. 13.0827"
-                          value={searchLat}
-                          onChange={(e) => setSearchLat(e.target.value)}
-                          className="px-2.5 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink placeholder-cardboard focus:outline-none focus:border-turmeric text-xs"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Longitude e.g. 80.2707"
-                          value={searchLng}
-                          onChange={(e) => setSearchLng(e.target.value)}
-                          className="px-2.5 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink placeholder-cardboard focus:outline-none focus:border-turmeric text-xs"
-                        />
-                      </div>
-                      <div className="flex space-x-2">
-                        <button
-                          type="button"
-                          onClick={handleAutoLocate}
-                          className="w-1/3 border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center space-x-1 cursor-pointer"
-                        >
-                          <span>GPS Locate</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleIpLocate}
-                          className="w-1/3 border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center space-x-1 cursor-pointer"
-                        >
-                          <span>IP Locate</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleSearchNearby}
-                          disabled={isSearchingNearby}
-                          className="w-1/3 bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center space-x-1 disabled:opacity-50 cursor-pointer"
-                        >
-                          {isSearchingNearby ? <Loader2 className="w-3 h-3 animate-spin" /> : <span>Search</span>}
-                        </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/pets')}
+                    className="bg-herb hover:bg-herb/90 text-white font-body font-bold text-xs uppercase px-5 py-2.5 rounded-sm tracking-wider cursor-pointer"
+                  >
+                    Create Pet Profile 🐾
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  {/* STEP 1: Select Pet */}
+                  {bookingStep === 1 && (
+                    <div className="space-y-4 animate-fade-in">
+                      <div className="space-y-1">
+                        <Eyebrow label="STEP 1 OF 5" />
+                        <h3 className="font-display font-black text-xl text-ink">Choose Companion Patient</h3>
+                        <p className="font-body text-xs text-ink opacity-70">
+                          Select which pet this veterinary consultation is booked for:
+                        </p>
                       </div>
 
-                      {searchError && (
-                        <div className="text-[10px] text-paprika bg-red-50 border border-turmeric border-opacity-20 p-2 rounded-sm font-body">
-                          {searchError}
-                        </div>
-                      )}
-
-                      {nearbyDocs.length > 0 && (
-                        <div className="max-h-[140px] overflow-y-auto space-y-1.5 border-t border-cardboard border-dashed pt-2 pr-1 custom-scrollbar">
-                          {nearbyDocs.map((doc) => (
-                            <div key={doc.id} className="flex justify-between items-center border border-cardboard p-2 bg-paperLight rounded-xs text-xs font-mono">
-                              <div>
-                                <span className="font-bold text-ink block">Dr. {doc.name}</span>
-                                <span className="text-[9px] opacity-60 italic">{doc.distance_km.toFixed(1)} km away</span>
+                      {/* Doctor Confirmed Notice if Direct Booking */}
+                      {isDirectBooking && selectedDoctorId && (() => {
+                        const selectedDoc = doctors.find((d: any) => d.id.toString() === selectedDoctorId) || 
+                          allDoctors.find((d: any) => d.id.toString() === selectedDoctorId);
+                        if (!selectedDoc) return null;
+                        const docImg = getDoctorAvatarUrl(selectedDoc);
+                        const docName = `Dr. ${selectedDoc.user?.first_name || 'Specialist'} ${selectedDoc.user?.last_name || ''}`.trim();
+                        return (
+                          <div className="p-3 bg-paper border border-herb/40 rounded-sm flex items-center justify-between shadow-xs">
+                            <div className="flex items-center space-x-3 min-w-0">
+                              <div className="w-9 h-9 rounded-full bg-paperLight border border-cardboard border-opacity-40 overflow-hidden flex items-center justify-center shrink-0">
+                                {docImg ? (
+                                  <img src={docImg} alt={docName} className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="font-bold text-turmeric text-xs">{selectedDoc.user?.first_name?.[0]?.toUpperCase() || 'D'}</span>
+                                )}
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedDoctorId(doc.id.toString());
-                                  setBookingStep(3);
-                                }}
-                                className="bg-herb text-paperLight px-2.5 py-1 text-[8px] uppercase font-bold rounded-sm cursor-pointer border-0"
-                              >
-                                Select
-                              </button>
+                              <div className="min-w-0">
+                                <div className="flex items-center space-x-1.5">
+                                  <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide">Selected Specialist</span>
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-herb" />
+                                </div>
+                                <span className="font-display font-bold text-xs text-ink block truncate">{docName} ({selectedDoc.specialization})</span>
+                              </div>
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Standard Doctors List */}
-                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
-                      {doctors.map((d: any) => {
-                        const isSelected = selectedDoctorId === d.id.toString();
-                        return (
-                          <button
-                            key={d.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedDoctorId(d.id.toString());
-                              setBookingStep(3);
-                            }}
-                            className={`w-full p-3 border text-left rounded-sm transition-all hover:border-turmeric cursor-pointer relative overflow-hidden flex justify-between items-center ${
-                              isSelected ? 'bg-paper border-turmeric ring-1 ring-turmeric' : 'bg-paperLight border-cardboard'
-                            }`}
-                          >
-                            <div>
-                              <span className="font-display font-bold text-ink block">
-                                Dr. {d.user?.first_name || 'Specialist'} {d.user?.last_name || ''}
-                              </span>
-                              <span className="font-mono text-[9px] uppercase tracking-wider text-cardboard block">
-                                {d.specialization} • Exp: {d.experience_years} years
-                              </span>
-                            </div>
-                            <span className="font-mono text-[10px] font-bold text-herb bg-herb bg-opacity-10 border border-herb px-2 py-0.5 rounded-sm">
-                              ${parseFloat(d.consultation_fee).toFixed(2)}
-                            </span>
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsDirectBooking(false);
+                                setBookingStep(2);
+                              }}
+                              className="font-mono text-[9px] uppercase font-bold text-herb hover:underline shrink-0 ml-2 cursor-pointer"
+                            >
+                              Change Vet
+                            </button>
+                          </div>
                         );
-                      })}
+                      })()}
+
+                      <hr className="border-t border-dashed border-cardboard border-opacity-35" />
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        {pets.map((p) => {
+                          const isSelected = selectedPetId === p.id.toString();
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedPetId(p.id.toString());
+                                if (isDirectBooking) {
+                                  setBookingStep(3);
+                                } else {
+                                  setBookingStep(2);
+                                }
+                              }}
+                              className={`p-4 border text-left rounded-sm transition-all cursor-pointer flex items-center space-x-3.5 ${
+                                isSelected 
+                                  ? 'bg-paper border-turmeric ring-1 ring-turmeric shadow-xs' 
+                                  : 'bg-paperLight border-cardboard border-opacity-50 hover:border-turmeric'
+                              }`}
+                            >
+                              <div className="w-12 h-12 rounded-full bg-paper border border-cardboard overflow-hidden flex items-center justify-center shrink-0">
+                                {p.profile_image_url ? (
+                                  <img src={p.profile_image_url} alt={p.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="text-xl">🐾</span>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <span className="font-display font-bold text-ink block truncate">{p.name}</span>
+                                <span className="font-mono text-[9px] uppercase tracking-wider text-paprika block truncate">
+                                  {p.species} • {p.breed || 'Mixed'}
+                                </span>
+                              </div>
+                              {isSelected && <CheckCircle2 className="w-4 h-4 text-herb shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* STEP 3: Date & Slot Booking */}
-                {bookingStep === 3 && (
-                  <div className="space-y-4 animate-fade-in">
-                    <div className="space-y-1">
-                      <h3 className="font-display font-bold text-xl text-ink">Pick Date & Time</h3>
-                      <p className="font-body text-xs text-ink opacity-70">
-                        Choose an available slot for your veterinary session:
-                      </p>
-                    </div>
+                  {/* STEP 2: Select Veterinarian */}
+                  {bookingStep === 2 && (
+                    <div className="space-y-4 animate-fade-in">
+                      <div className="space-y-1">
+                        <Eyebrow label="STEP 2 OF 5" />
+                        <h3 className="font-display font-black text-xl text-ink">Select Specialist</h3>
+                        <p className="font-body text-xs text-ink opacity-70">
+                          Choose a certified veterinarian or use the GPS locator tool:
+                        </p>
+                      </div>
 
-                    <hr className="border-t border-dashed border-cardboard" />
+                      <hr className="border-t border-dashed border-cardboard border-opacity-35" />
 
-                    <div className="space-y-2 text-left">
-                      <label htmlFor="date" className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
-                        📅 Select Date:
-                      </label>
-                      <input
-                        type="date"
-                        id="date"
-                        value={targetDate}
-                        min={getTodayLocalDateString()}
-                        onChange={(e) => setTargetDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors cursor-pointer"
-                      />
-                    </div>
-
-                    {targetDate && (
-                      <div className="space-y-2 text-left pt-2">
-                        <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block mb-1">
-                          ⏰ Select Time Slot:
-                        </span>
+                      {/* GPS Locator */}
+                      <div className="border border-cardboard border-dashed p-4 rounded-sm bg-paper/50 space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide flex items-center">
+                            <Compass className="w-3.5 h-3.5 mr-1.5 text-turmeric" />
+                            <span>GPS Clinic Locator</span>
+                          </span>
+                        </div>
                         
-                        {isSlotsLoading ? (
-                          <div className="text-center py-4">
-                            <Loader2 className="w-5 h-5 text-turmeric animate-spin mx-auto" />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <input
+                            type="text"
+                            placeholder="Latitude (e.g. 13.0827)"
+                            value={searchLat}
+                            onChange={(e) => setSearchLat(e.target.value)}
+                            className="px-3 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink text-xs focus:outline-none focus:border-turmeric"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Longitude (e.g. 80.2707)"
+                            value={searchLng}
+                            onChange={(e) => setSearchLng(e.target.value)}
+                            className="px-3 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink text-xs focus:outline-none focus:border-turmeric"
+                          />
+                        </div>
+                        
+                        <div className="flex space-x-2">
+                          <button
+                            type="button"
+                            onClick={handleAutoLocate}
+                            className="w-1/3 border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center cursor-pointer"
+                          >
+                            GPS Detect
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleIpLocate}
+                            className="w-1/3 border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center cursor-pointer"
+                          >
+                            IP Detect
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSearchNearby}
+                            disabled={isSearchingNearby}
+                            className="w-1/3 bg-turmeric text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center disabled:opacity-50 cursor-pointer"
+                          >
+                            {isSearchingNearby ? <Loader2 className="w-3 h-3 animate-spin" /> : <span>Search Nearby</span>}
+                          </button>
+                        </div>
+
+                        {searchError && (
+                          <div className="text-[10px] text-paprika bg-rose-50 p-2 rounded-sm font-body">
+                            {searchError}
                           </div>
-                        ) : availableSlots.length === 0 ? (
-                          <div className="text-xs text-paprika bg-red-50 border border-turmeric border-opacity-15 p-3 rounded-sm text-center">
-                            No available slots for this date.
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            {availableSlots.map((slot: string) => {
-                              const isSelected = selectedSlot === slot;
+                        )}
+
+                        {nearbyDocs.length > 0 && (
+                          <div className="max-h-[160px] overflow-y-auto space-y-2 border-t border-cardboard border-dashed pt-2 pr-1 custom-scrollbar">
+                            {nearbyDocs.map((doc) => {
+                              const docImg = getDoctorAvatarUrl(doc);
                               return (
-                                <button
-                                  key={slot}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedSlot(slot);
-                                    setBookingStep(4);
-                                  }}
-                                  className={`py-1.5 border text-center font-mono text-xs rounded-sm transition-all hover:border-turmeric cursor-pointer ${
-                                    isSelected ? 'bg-turmeric text-paper border-turmeric' : 'bg-paperLight border-cardboard text-ink'
-                                  }`}
-                                >
-                                  {slot}
-                                </button>
+                                <div key={doc.id} className="flex justify-between items-center border border-cardboard border-opacity-40 p-2 bg-paperLight rounded-xs text-xs font-mono gap-2">
+                                  <div className="flex items-center space-x-2 min-w-0">
+                                    <div className="w-8 h-8 rounded-full bg-paper border border-cardboard overflow-hidden flex items-center justify-center shrink-0">
+                                      {docImg ? (
+                                        <img src={docImg} alt={doc.name} className="w-full h-full object-cover" />
+                                      ) : (
+                                        <span className="font-bold text-turmeric text-xs">{doc.name?.[0]?.toUpperCase() || 'D'}</span>
+                                      )}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <span className="font-bold text-ink block truncate">Dr. {doc.name}</span>
+                                      <span className="text-[9px] opacity-60 italic">{doc.distance_km.toFixed(1)} km away</span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedDoctorId(doc.id.toString());
+                                      setBookingStep(3);
+                                    }}
+                                    className="bg-herb text-white px-2.5 py-1 text-[9px] uppercase font-bold rounded-sm cursor-pointer border-0 shrink-0"
+                                  >
+                                    Select
+                                  </button>
+                                </div>
                               );
                             })}
                           </div>
                         )}
                       </div>
+
+                      {/* Doctor Select Cards */}
+                      <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1 custom-scrollbar">
+                        {doctors.map((d: any) => {
+                          const isSelected = selectedDoctorId === d.id.toString();
+                          const doctorName = `Dr. ${d.user?.first_name || 'Specialist'} ${d.user?.last_name || ''}`.trim();
+                          const doctorImg = getDoctorAvatarUrl(d);
+                          
+                          return (
+                            <button
+                              key={d.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedDoctorId(d.id.toString());
+                                setBookingStep(3);
+                              }}
+                              className={`w-full p-3 border text-left rounded-sm transition-all cursor-pointer flex justify-between items-center gap-3 ${
+                                isSelected 
+                                  ? 'bg-paper border-turmeric ring-1 ring-turmeric shadow-xs' 
+                                  : 'bg-paperLight border-cardboard border-opacity-50 hover:border-turmeric'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-3 min-w-0 pr-2">
+                                <div className="w-10 h-10 rounded-full bg-paper border border-cardboard border-opacity-40 overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
+                                  {doctorImg ? (
+                                    <img src={doctorImg} alt={doctorName} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span className="font-display font-black text-sm text-turmeric">
+                                      {d.user?.first_name?.[0]?.toUpperCase() || 'D'}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="font-display font-bold text-xs sm:text-sm text-ink block truncate">{doctorName}</span>
+                                  <span className="font-mono text-[9px] uppercase tracking-wider text-paprika block truncate">
+                                    {d.specialization} • Exp: {d.experience_years} yrs • {d.clinic?.city || 'Chennai'}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="font-mono text-[10px] font-bold text-herb bg-herb/10 border border-herb/30 px-2.5 py-1 rounded-sm shrink-0">
+                                ${parseFloat(d.consultation_fee).toFixed(2)}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 3: Date & Slot Booking */}
+                  {bookingStep === 3 && (
+                    <div className="space-y-4 animate-fade-in">
+                      <div className="space-y-1">
+                        <Eyebrow label="STEP 3 OF 5" />
+                        <h3 className="font-display font-black text-xl text-ink">Select Date & Time</h3>
+                        <p className="font-body text-xs text-ink opacity-70">
+                          Pick an available time slot on your preferred consultation date:
+                        </p>
+                      </div>
+
+                      {/* Selected Doctor Summary Card in Step 3 */}
+                      {(() => {
+                        const selectedDoc = doctors.find((d: any) => d.id.toString() === selectedDoctorId) || 
+                          allDoctors.find((d: any) => d.id.toString() === selectedDoctorId);
+                        if (!selectedDoc) return null;
+                        const docImg = getDoctorAvatarUrl(selectedDoc);
+                        const docName = `Dr. ${selectedDoc.user?.first_name || 'Specialist'} ${selectedDoc.user?.last_name || ''}`.trim();
+                        return (
+                          <div className="p-3 bg-paper border border-cardboard border-opacity-40 rounded-sm flex items-center justify-between">
+                            <div className="flex items-center space-x-3 min-w-0">
+                              <div className="w-10 h-10 rounded-full bg-paperLight border border-cardboard border-opacity-40 overflow-hidden flex items-center justify-center shrink-0">
+                                {docImg ? (
+                                  <img src={docImg} alt={docName} className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="font-bold text-turmeric text-sm">{selectedDoc.user?.first_name?.[0]?.toUpperCase() || 'D'}</span>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="font-display font-bold text-xs text-ink block truncate">{docName}</span>
+                                <span className="font-mono text-[9px] text-paprika uppercase block truncate">
+                                  {selectedDoc.specialization} • ${parseFloat(selectedDoc.consultation_fee).toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsDirectBooking(false);
+                                setBookingStep(2);
+                              }}
+                              className="font-mono text-[9px] uppercase font-bold text-herb hover:underline shrink-0 ml-2 cursor-pointer"
+                            >
+                              Change
+                            </button>
+                          </div>
+                        );
+                      })()}
+
+                      <hr className="border-t border-dashed border-cardboard border-opacity-35" />
+
+                      <div className="space-y-1.5 text-left">
+                        <label htmlFor="date" className="font-mono text-[10px] uppercase font-bold text-paprika block">
+                          Consultation Date:
+                        </label>
+                        <input
+                          type="date"
+                          id="date"
+                          value={targetDate}
+                          min={getTodayLocalDateString()}
+                          onChange={(e) => setTargetDate(e.target.value)}
+                          className="w-full px-3.5 py-2.5 border border-cardboard border-opacity-60 rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors cursor-pointer"
+                        />
+                      </div>
+
+                      {targetDate && (
+                        <div className="space-y-2 text-left pt-2">
+                          <span className="font-mono text-[10px] uppercase font-bold text-paprika block">
+                            Available Time Slots:
+                          </span>
+                          
+                          {isSlotsLoading ? (
+                            <div className="text-center py-6">
+                              <Loader2 className="w-6 h-6 text-turmeric animate-spin mx-auto" />
+                              <span className="font-mono text-[10px] text-herb uppercase font-bold mt-1 block">Checking availability...</span>
+                            </div>
+                          ) : availableSlots.length === 0 ? (
+                            <div className="text-xs text-rose-800 bg-rose-50 border border-rose-200 p-3.5 rounded-sm text-center">
+                              No slots available on this date. Please pick another date.
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              {availableSlots.map((slot: string) => {
+                                const isSelected = selectedSlot === slot;
+                                return (
+                                  <button
+                                    key={slot}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedSlot(slot);
+                                      setBookingStep(4);
+                                    }}
+                                    className={`py-2 px-3 border text-center font-mono text-xs font-bold rounded-sm transition-all cursor-pointer ${
+                                      isSelected 
+                                        ? 'bg-herb text-white border-herb shadow-xs' 
+                                        : 'bg-paper border-cardboard border-opacity-60 text-ink hover:border-turmeric'
+                                    }`}
+                                  >
+                                    {slot}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* STEP 4: Symptoms & Notes context */}
+                  {bookingStep === 4 && (
+                    <form onSubmit={handleProceedToPayment} className="space-y-4 animate-fade-in">
+                      <div className="space-y-1">
+                        <Eyebrow label="STEP 4 OF 5" />
+                        <h3 className="font-display font-black text-xl text-ink">Clinical Reason & Notes</h3>
+                        <p className="font-body text-xs text-ink opacity-70">
+                          Provide medical context and dietary background for the doctor:
+                        </p>
+                      </div>
+
+                      {/* Doctor & Patient Summary Banner in Step 4 */}
+                      {(() => {
+                        const selectedDoc = doctors.find((d: any) => d.id.toString() === selectedDoctorId) || 
+                          allDoctors.find((d: any) => d.id.toString() === selectedDoctorId);
+                        const selectedPet = pets?.find((p: any) => p.id.toString() === selectedPetId);
+                        const docImg = getDoctorAvatarUrl(selectedDoc);
+                        const docName = `Dr. ${selectedDoc?.user?.first_name || 'Specialist'} ${selectedDoc?.user?.last_name || ''}`.trim();
+                        return (
+                          <div className="grid grid-cols-2 gap-3 p-3 bg-paper border border-cardboard border-opacity-40 rounded-sm">
+                            <div className="flex items-center space-x-2.5 min-w-0">
+                              <div className="w-9 h-9 rounded-full bg-paperLight border border-cardboard border-opacity-40 overflow-hidden flex items-center justify-center shrink-0">
+                                {docImg ? (
+                                  <img src={docImg} alt="Doctor" className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="font-bold text-turmeric text-xs">Dr</span>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="font-mono text-[8px] uppercase text-herb font-bold block">Selected Vet</span>
+                                <span className="font-display font-bold text-xs text-ink truncate block">
+                                  {docName}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2.5 min-w-0">
+                              <div className="w-9 h-9 rounded-full bg-paperLight border border-cardboard border-opacity-40 overflow-hidden flex items-center justify-center shrink-0">
+                                {selectedPet?.profile_image_url ? (
+                                  <img src={selectedPet.profile_image_url} alt={selectedPet.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="text-sm">🐾</span>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="font-mono text-[8px] uppercase text-paprika font-bold block">Patient</span>
+                                <span className="font-display font-bold text-xs text-ink truncate block">
+                                  {selectedPet?.name || 'Pet'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <hr className="border-t border-dashed border-cardboard border-opacity-35" />
+
+                      <div className="space-y-1.5 text-left">
+                        <label htmlFor="reason" className="font-mono text-[10px] uppercase font-bold text-paprika block">
+                          Reason for Consultation (required):
+                        </label>
+                        <input
+                          type="text"
+                          id="reason"
+                          placeholder="e.g. Skin allergy, digestion review, custom meal plan transition"
+                          value={reason}
+                          onChange={(e) => setReason(e.target.value)}
+                          className="w-full px-3.5 py-2.5 border border-cardboard border-opacity-60 rounded-sm bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric transition-colors"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-1.5 text-left">
+                        <label htmlFor="notes" className="font-mono text-[10px] uppercase font-bold text-paprika block">
+                          Additional Context (optional):
+                        </label>
+                        <textarea
+                          id="notes"
+                          rows={3}
+                          placeholder="Detail current food brands, stool consistency, appetite, or past medications..."
+                          value={notes}
+                          onChange={(e) => setNotes(e.target.value)}
+                          className="w-full px-3.5 py-2.5 border border-cardboard border-opacity-60 rounded-sm bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric transition-colors resize-none"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="w-full bg-turmeric hover:bg-turmeric/90 text-ink font-mono text-[11px] uppercase py-3.5 font-bold rounded-sm tracking-wider transition-colors flex items-center justify-center space-x-2 cursor-pointer shadow-sm"
+                      >
+                        <span>Next: Review Invoice & Pay ➔</span>
+                      </button>
+                    </form>
+                  )}
+
+                  {/* STEP 5: Invoice Review & Strict Upfront Payment */}
+                  {bookingStep === 5 && (
+                    <div className="space-y-5 animate-fade-in text-left">
+                      <div className="space-y-1">
+                        <Eyebrow label="STEP 5 OF 5 — PAYMENT & INVOICE" />
+                        <h3 className="font-display font-black text-xl text-ink">Invoice & Secure Payment</h3>
+                        <p className="font-body text-xs text-ink opacity-70">
+                          Review your consultation appointment invoice and complete payment to confirm your booking:
+                        </p>
+                      </div>
+
+                      <hr className="border-t border-dashed border-cardboard border-opacity-35" />
+
+                      {/* Invoice Details Card */}
+                      {(() => {
+                        const selectedDoc = doctors.find((d: any) => d.id.toString() === selectedDoctorId) || 
+                          allDoctors.find((d: any) => d.id.toString() === selectedDoctorId);
+                        const selectedPet = pets?.find((p: any) => p.id.toString() === selectedPetId);
+                        const docImg = getDoctorAvatarUrl(selectedDoc);
+                        const docName = `Dr. ${selectedDoc?.user?.first_name || 'Specialist'} ${selectedDoc?.user?.last_name || ''}`.trim();
+                        const fee = selectedDoc ? parseFloat(selectedDoc.consultation_fee) : 0;
+
+                        return (
+                          <div className="space-y-4">
+                            {/* Summary Box */}
+                            <div className="bg-paper p-4 border border-cardboard border-opacity-60 rounded-sm space-y-3 shadow-xs">
+                              <div className="flex items-center justify-between border-b border-dashed border-cardboard border-opacity-40 pb-3">
+                                <div className="flex items-center space-x-3 min-w-0">
+                                  <div className="w-11 h-11 rounded-full bg-paperLight border-2 border-turmeric/60 overflow-hidden flex items-center justify-center shrink-0">
+                                    {docImg ? (
+                                      <img src={docImg} alt={docName} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <span className="font-display font-black text-sm text-turmeric">Dr</span>
+                                    )}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className="font-display font-bold text-sm text-ink block truncate">{docName}</span>
+                                    <span className="font-mono text-[9px] uppercase tracking-wider text-paprika block truncate">
+                                      {selectedDoc?.specialization} • {selectedDoc?.qualification}
+                                    </span>
+                                  </div>
+                                </div>
+                                <span className="font-mono text-xs font-bold text-herb bg-herb/10 border border-herb/30 px-2.5 py-1 rounded-sm shrink-0">
+                                  ${fee.toFixed(2)}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
+                                <div>
+                                  <span className="text-[9px] uppercase text-paprika font-bold block">Patient Companion</span>
+                                  <span className="font-bold text-ink">🐾 {selectedPet?.name || 'Pet'} ({selectedPet?.species || 'Canine'})</span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] uppercase text-paprika font-bold block">Scheduled Appointment</span>
+                                  <span className="font-bold text-ink">{targetDate} • {selectedSlot}</span>
+                                </div>
+                              </div>
+
+                              <div className="text-xs font-mono pt-1 border-t border-dashed border-cardboard border-opacity-40">
+                                <span className="text-[9px] uppercase text-paprika font-bold block">Reason For Visit</span>
+                                <p className="font-body text-xs text-ink opacity-85 mt-0.5">{reason}</p>
+                                {notes && <p className="font-body text-[11px] text-ink opacity-65 italic mt-1">Note: {notes}</p>}
+                              </div>
+                            </div>
+
+                            {/* Itemized Payment Table */}
+                            <div className="bg-paperLight border border-cardboard border-opacity-50 rounded-sm p-4 space-y-2 font-mono text-xs">
+                              <div className="flex justify-between items-center text-ink opacity-80">
+                                <span>Veterinary Clinical Consultation (30 mins)</span>
+                                <span>${fee.toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between items-center text-ink opacity-80">
+                                <span>Encrypted Video Call & Digital Health File</span>
+                                <span className="text-herb font-bold">FREE (Included)</span>
+                              </div>
+                              <div className="flex justify-between items-center text-ink opacity-80">
+                                <span>Platform Service & Compliance</span>
+                                <span className="text-herb font-bold">$0.00</span>
+                              </div>
+                              <div className="border-t border-cardboard border-dashed pt-2 mt-2 flex justify-between items-center font-bold text-sm text-ink">
+                                <span className="uppercase text-paprika text-xs">Total Payable Amount:</span>
+                                <span className="text-herb text-base">${fee.toFixed(2)}</span>
+                              </div>
+                            </div>
+
+                            {/* Payment Error Alert */}
+                            {paymentError && (
+                              <div className="bg-rose-50 border border-rose-200 text-paprika p-3.5 rounded-sm text-xs font-body flex items-start space-x-2">
+                                <AlertCircle className="w-4 h-4 text-paprika shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="font-bold block">Payment Incomplete</span>
+                                  <span>{paymentError}</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Primary Pay Button */}
+                            <button
+                              type="button"
+                              onClick={handleInitiatePayment}
+                              disabled={isPaying}
+                              className="w-full bg-herb hover:bg-herb/90 text-white font-mono text-[11px] uppercase py-3.5 font-bold rounded-sm tracking-wider transition-colors flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50 shadow-sm"
+                            >
+                              {isPaying ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                  <span>Connecting to Payment Gateway...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CreditCard className="w-4 h-4 mr-1.5" />
+                                  <span>Pay ${fee.toFixed(2)} & Confirm Appointment 💳</span>
+                                </>
+                              )}
+                            </button>
+
+                            <p className="text-center font-mono text-[9px] text-ink opacity-60 uppercase tracking-wide">
+                              🔒 256-Bit SSL Encrypted • Itemized receipt dispatched to your email automatically in the background
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Stepper Navigation Controls */}
+                  <div className="flex justify-between items-center pt-6 border-t border-cardboard border-opacity-35 mt-6">
+                    {bookingStep > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (bookingStep === 3 && isDirectBooking) {
+                            setBookingStep(1);
+                          } else {
+                            setBookingStep(bookingStep - 1);
+                          }
+                        }}
+                        className="border border-cardboard border-opacity-60 hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 px-4 font-bold rounded-sm cursor-pointer"
+                      >
+                        Back
+                      </button>
+                    ) : <div />}
+
+                    {bookingStep < 4 && (
+                      <button
+                        type="button"
+                        disabled={
+                          (bookingStep === 1 && !selectedPetId) ||
+                          (bookingStep === 2 && !selectedDoctorId) ||
+                          (bookingStep === 3 && (!targetDate || !selectedSlot))
+                        }
+                        onClick={() => {
+                          if (bookingStep === 1 && isDirectBooking && selectedDoctorId) {
+                            setBookingStep(3);
+                          } else {
+                            setBookingStep(bookingStep + 1);
+                          }
+                        }}
+                        className="bg-ink hover:bg-ink/90 text-paper font-mono text-[9px] uppercase py-2 px-4 font-bold rounded-sm cursor-pointer disabled:opacity-50 flex items-center space-x-1"
+                      >
+                        <span>Next Step</span>
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
                     )}
                   </div>
-                )}
-
-                {/* STEP 4: Symptoms & Notes context */}
-                {bookingStep === 4 && (
-                  <form onSubmit={handleBookSession} className="space-y-4 animate-fade-in">
-                    <div className="space-y-1">
-                      <h3 className="font-display font-bold text-xl text-ink">Clinical Context</h3>
-                      <p className="font-body text-xs text-ink opacity-70">
-                        Provide notes for the veterinarian regarding symptoms or nutritional needs:
-                      </p>
-                    </div>
-
-                    <hr className="border-t border-dashed border-cardboard" />
-
-                    <div className="space-y-1.5 text-left">
-                      <label htmlFor="reason" className="font-mono text-[9px] uppercase font-bold text-herb block">
-                        Reason for Visit (required):
-                      </label>
-                      <input
-                        type="text"
-                        id="reason"
-                        placeholder="e.g. Skin allergy, digestion reviews"
-                        value={reason}
-                        onChange={(e) => setReason(e.target.value)}
-                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric transition-colors"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-1.5 text-left">
-                      <label htmlFor="notes" className="font-mono text-[9px] uppercase font-bold text-herb block">
-                        Additional Notes (optional):
-                      </label>
-                      <textarea
-                        id="notes"
-                        rows={3}
-                        placeholder="Detail recent diets, weight changes, or symptoms..."
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric transition-colors resize-none"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[10px] uppercase py-3 font-bold rounded-sm tracking-wide transition-colors flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
-                    >
-                      {isSubmitting ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <span>Ledger Consultation Appointment 🩺</span>
-                      )}
-                    </button>
-                  </form>
-                )}
-
-                {/* Stepper Navigation buttons */}
-                <div className="flex justify-between items-center pt-6 border-t border-cardboard mt-6">
-                  {bookingStep > 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (bookingStep === 3 && isDirectBooking) {
-                          setBookingStep(1); // skip going back to Step 2
-                        } else {
-                          setBookingStep(bookingStep - 1);
-                        }
-                      }}
-                      className="border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 px-4 font-bold rounded-sm cursor-pointer"
-                    >
-                      Back
-                    </button>
-                  ) : (
-                    <div />
-                  )}
-                  {bookingStep < 4 && (
-                    <button
-                      type="button"
-                      disabled={
-                        (bookingStep === 1 && !selectedPetId) ||
-                        (bookingStep === 2 && !selectedDoctorId) ||
-                        (bookingStep === 3 && (!targetDate || !selectedSlot))
-                      }
-                      onClick={() => setBookingStep(bookingStep + 1)}
-                      className="bg-ink hover:bg-opacity-90 text-paperLight font-mono text-[9px] uppercase py-2 px-4 font-bold rounded-sm cursor-pointer disabled:opacity-50"
-                    >
-                      Next Step
-                    </button>
-                  )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       </main>
-      {/* Footer */}
-      <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 font-mono text-[9px] uppercase tracking-wider w-full">
-        © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
-      </footer>
-      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
 
-      {/* Doctor Detail & Availability Side Drawer */}
+      {/* Doctor Bio & Schedule Drawer */}
       {inspectingDoctorId && (
-        <div className="fixed inset-0 z-50 overflow-hidden font-body animate-fade-in animate-duration-300">
-          {/* Backdrop */}
+        <div className="fixed inset-0 z-50 overflow-hidden font-body animate-fade-in">
           <div 
             onClick={() => setInspectingDoctorId(null)}
-            className="absolute inset-0 bg-ink bg-opacity-40 backdrop-blur-xs transition-opacity duration-300"
-          ></div>
+            className="absolute inset-0 bg-ink bg-opacity-40 backdrop-blur-xs transition-opacity"
+          />
 
           <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
-            {/* Sliding Panel */}
-            <div className="w-screen max-w-md bg-paperLight border-l border-cardboard shadow-2xl flex flex-col justify-between relative transform transition-transform duration-300 animate-slide-in-right">
+            <div className="w-screen max-w-md bg-paperLight border-l border-cardboard shadow-2xl flex flex-col justify-between relative animate-slide-in-right">
               
-              {/* Decorative notebook binding left border */}
-              <div className="absolute left-1.5 top-0 bottom-0 border-l border-dashed border-cardboard opacity-40"></div>
+              <div className="absolute left-1.5 top-0 bottom-0 border-l border-dashed border-cardboard opacity-35"></div>
 
-              {/* Panel Header */}
-              <div className="p-6 border-b border-cardboard flex justify-between items-center bg-paperLight pl-8">
+              {/* Header */}
+              <div className="p-6 border-b border-cardboard border-opacity-40 flex justify-between items-center bg-paperLight pl-8">
                 <div className="text-left space-y-1">
                   <Eyebrow label={`SPECIALIST PROFILE ID #${inspectingDoctorId}`} />
-                  <h3 className="font-display font-bold text-xl text-ink">
+                  <h3 className="font-display font-black text-xl text-ink">
                     {isLoadingInspecting ? 'Loading Credentials...' : inspectingDoctor ? `Dr. ${inspectingDoctor.user?.first_name || ''} ${inspectingDoctor.user?.last_name || ''}` : 'Specialist Detail'}
                   </h3>
                 </div>
@@ -1373,98 +1735,100 @@ export const ConsultationsPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* Panel Content */}
-              <div className="flex-grow overflow-y-auto p-6 space-y-6 pl-8 text-left">
+              {/* Content */}
+              <div className="flex-grow overflow-y-auto p-6 space-y-6 pl-8 text-left custom-scrollbar">
                 {isLoadingInspecting ? (
                   <div className="h-full flex flex-col items-center justify-center space-y-2 py-20">
                     <Loader2 className="w-8 h-8 text-turmeric animate-spin" />
                     <span className="font-mono text-[10px] uppercase text-herb font-bold animate-pulse">Retrieving Credentials...</span>
                   </div>
                 ) : inspectingDoctor ? (
-                  <div className="space-y-6">
-                    {/* Polaroid-style Avatar inside Drawer */}
-                    <div className="max-w-[200px] mx-auto border-double border-4 border-cardboard bg-paper p-2.5 rounded-none shadow-xs rotate-[-1deg]">
-                      <div className="aspect-square bg-paper border border-cardboard overflow-hidden relative">
-                        {inspectingDoctor.profile_image_url ? (
-                          <img 
-                            src={inspectingDoctor.profile_image_url} 
-                            alt={inspectingDoctor.user?.first_name} 
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-paperLight font-display font-black text-4xl text-cardboard">
-                            {inspectingDoctor.user?.first_name?.[0]?.toUpperCase() || 'D'}
-                          </div>
-                        )}
+                  <div className="space-y-5">
+                    {/* Avatar */}
+                    {(() => {
+                      const modalDocImg = getDoctorAvatarUrl(inspectingDoctor);
+                      return (
+                        <div className="w-24 h-24 mx-auto rounded-full bg-paper border-2 border-turmeric overflow-hidden flex items-center justify-center shadow-xs">
+                          {modalDocImg ? (
+                            <img 
+                              src={modalDocImg} 
+                              alt={inspectingDoctor.user?.first_name} 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="font-display font-black text-3xl text-turmeric">
+                              {inspectingDoctor.user?.first_name?.[0]?.toUpperCase() || 'D'}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    <div className="text-center space-y-1">
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold bg-herb/10 px-2.5 py-0.5 rounded-sm">
+                        {inspectingDoctor.specialization}
+                      </span>
+                    </div>
+
+                    {/* Metadata */}
+                    <div className="grid grid-cols-2 gap-3 bg-paper p-4 border border-cardboard border-opacity-40 rounded-sm font-mono text-[11px]">
+                      <div>
+                        <span className="text-[9px] uppercase text-paprika font-bold block">Qualifications</span>
+                        <span className="text-ink font-bold">{inspectingDoctor.qualification}</span>
                       </div>
-                      <div className="pt-2 text-center">
-                        <span className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold">
-                          {inspectingDoctor.specialization}
-                        </span>
+                      <div>
+                        <span className="text-[9px] uppercase text-paprika font-bold block">Experience</span>
+                        <span className="text-ink font-bold">{inspectingDoctor.experience_years} Years</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase text-paprika font-bold block">Consultation Fee</span>
+                        <span className="text-herb font-bold">${parseFloat(inspectingDoctor.consultation_fee).toFixed(2)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase text-paprika font-bold block">Clinic Mapping</span>
+                        <span className="text-ink font-bold">{inspectingDoctor.clinic?.name || 'Private Practice'}</span>
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      {/* Qualification info */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-paper p-3 border border-cardboard rounded-sm font-mono text-[11px]">
-                        <div>
-                          <span className="text-[10px] uppercase text-paprika font-bold block">Qualifications</span>
-                          <span className="text-ink font-bold">{inspectingDoctor.qualification}</span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase text-paprika font-bold block">Experience</span>
-                          <span className="text-ink font-bold">{inspectingDoctor.experience_years} Years</span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase text-paprika font-bold block">Consultation Fee</span>
-                          <span className="text-ink font-bold text-turmeric">${parseFloat(inspectingDoctor.consultation_fee).toFixed(2)}</span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase text-paprika font-bold block">Clinic Mapping</span>
-                          <span className="text-ink font-bold">{inspectingDoctor.clinic?.name || 'Private Practice'}</span>
-                        </div>
+                    {/* Bio */}
+                    {inspectingDoctor.bio && (
+                      <div className="space-y-1">
+                        <span className="font-mono text-[10px] uppercase font-bold text-paprika">Biography & Expertise</span>
+                        <p className="text-ink opacity-85 leading-relaxed bg-paper p-3.5 border border-cardboard border-dashed rounded-sm text-xs">
+                          {inspectingDoctor.bio}
+                        </p>
                       </div>
+                    )}
 
-                      {/* Bio */}
-                      {inspectingDoctor.bio && (
-                        <div className="space-y-1">
-                          <span className="font-mono text-[10px] uppercase font-bold text-paprika">Biography & Expertise</span>
-                          <p className="text-ink opacity-85 leading-relaxed bg-paper bg-opacity-40 p-3 border border-cardboard border-dashed text-xs">
-                            {inspectingDoctor.bio}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Clinic Address details */}
-                      {inspectingDoctor.clinic && (
-                        <div className="space-y-1 font-mono text-[10px] text-ink opacity-80">
-                          <span className="font-mono text-[10px] uppercase font-bold text-paprika block">Clinic Address</span>
-                          <p className="font-body text-xs text-ink bg-paper bg-opacity-40 p-3 border border-cardboard border-dashed">
-                            {inspectingDoctor.clinic.address}, {inspectingDoctor.clinic.city}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Weekly Availability */}
-                      <div className="space-y-2">
-                        <span className="font-mono text-[10px] uppercase font-bold text-paprika block flex items-center">
-                          <CalendarIcon className="w-3.5 h-3.5 mr-1" />
-                          <span>Weekly Consulting Hours</span>
-                        </span>
-
-                        {inspectingSchedule?.schedule && inspectingSchedule.schedule.length > 0 ? (
-                          <div className="grid grid-cols-1 gap-1.5 font-mono text-[10px]">
-                            {inspectingSchedule.schedule.map((slot: any) => (
-                              <div key={slot.id} className="border border-cardboard border-opacity-65 p-2 rounded-sm bg-paper bg-opacity-40 flex justify-between items-center">
-                                <span className="font-bold capitalize">{slot.day_of_week}</span>
-                                <span className="opacity-80">{slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-[10px] text-cardboard italic">No regular weekly shift planner registered.</p>
-                        )}
+                    {/* Clinic Address */}
+                    {inspectingDoctor.clinic && (
+                      <div className="space-y-1 font-mono text-[10px]">
+                        <span className="text-[10px] uppercase font-bold text-paprika block">Clinic Location</span>
+                        <p className="font-body text-xs text-ink bg-paper p-3 border border-cardboard border-dashed rounded-sm">
+                          {inspectingDoctor.clinic.address}, {inspectingDoctor.clinic.city}
+                        </p>
                       </div>
+                    )}
+
+                    {/* Weekly Hours */}
+                    <div className="space-y-2">
+                      <span className="font-mono text-[10px] uppercase font-bold text-paprika block flex items-center">
+                        <CalendarIcon className="w-3.5 h-3.5 mr-1 text-turmeric" />
+                        <span>Weekly Consulting Hours</span>
+                      </span>
+
+                      {inspectingSchedule?.schedule && inspectingSchedule.schedule.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-1.5 font-mono text-[10px]">
+                          {inspectingSchedule.schedule.map((slot: any) => (
+                            <div key={slot.id} className="border border-cardboard border-opacity-50 p-2 rounded-sm bg-paper flex justify-between items-center">
+                              <span className="font-bold capitalize">{slot.day_of_week}</span>
+                              <span className="opacity-80 font-bold">{slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-cardboard italic">No regular weekly shift planner registered.</p>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -1472,20 +1836,20 @@ export const ConsultationsPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Panel Footer / Actions */}
+              {/* Drawer Actions */}
               {inspectingDoctor && (
-                <div className="p-6 bg-paperLight border-t border-cardboard pl-8 space-y-2">
+                <div className="p-6 bg-paperLight border-t border-cardboard border-opacity-40 pl-8 space-y-2">
                   <button
                     type="button"
                     onClick={() => handleStartBooking(inspectingDoctor.id)}
-                    className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs uppercase py-3.5 rounded-sm tracking-wide transition-colors shadow-sm flex items-center justify-center space-x-2 cursor-pointer hover-bounce"
+                    className="w-full bg-herb hover:bg-herb/90 text-white font-body font-bold text-xs uppercase py-3 rounded-sm tracking-wider transition-colors shadow-sm cursor-pointer"
                   >
-                    <span>Book Appointment</span>
+                    Book Appointment With Dr. {inspectingDoctor.user?.first_name}
                   </button>
                   <button
                     type="button"
                     onClick={() => setInspectingDoctorId(null)}
-                    className="w-full border border-cardboard hover:bg-paper text-ink font-body font-bold text-xs uppercase py-3.5 rounded-sm tracking-wide transition-colors text-center cursor-pointer"
+                    className="w-full border border-cardboard hover:bg-paper text-ink font-body font-bold text-xs uppercase py-2.5 rounded-sm tracking-wider transition-colors cursor-pointer"
                   >
                     Close Profile
                   </button>
@@ -1496,21 +1860,22 @@ export const ConsultationsPage: React.FC = () => {
           </div>
         </div>
       )}
+
       {/* Consultation Details Modal */}
       {selectedConsultationId !== null && (
-        <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-paperLight border border-cardboard rounded-sm shadow-xl max-w-md w-full p-6 space-y-4 animate-fade-in-up relative text-left">
+        <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-paperLight border border-cardboard rounded-sm shadow-xl max-w-md w-full p-6 space-y-4 animate-fade-in relative text-left">
             <button 
               onClick={() => setSelectedConsultationId(null)}
-              className="absolute top-4 right-4 text-ink opacity-60 hover:opacity-100 font-bold"
+              className="absolute top-4 right-4 text-ink opacity-60 hover:opacity-100 font-bold cursor-pointer"
             >
               ✕
             </button>
 
             <div className="space-y-1">
               <Eyebrow label="VETERINARY APPOINTMENT JOURNAL" />
-              <h3 className="font-display font-bold text-xl text-ink">
-                Consultation Details #{selectedConsultationId}
+              <h3 className="font-display font-black text-xl text-ink">
+                Consultation File #{selectedConsultationId}
               </h3>
             </div>
 
@@ -1524,7 +1889,7 @@ export const ConsultationsPage: React.FC = () => {
             ) : (
               <div className="space-y-4 text-xs font-body">
                 {/* General Info */}
-                <div className="p-4 border border-cardboard rounded-sm bg-paper bg-opacity-50 space-y-3">
+                <div className="p-4 border border-cardboard border-opacity-40 rounded-sm bg-paper space-y-3">
                   <div className="flex justify-between items-center">
                     <div>
                       <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">SCHEDULED TIME</span>
@@ -1539,11 +1904,11 @@ export const ConsultationsPage: React.FC = () => {
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] font-mono text-ink">
                     <div>
-                      <span className="text-[10px] uppercase text-paprika font-bold block">Patient Companion</span>
+                      <span className="text-[9px] uppercase text-paprika font-bold block">Patient Companion</span>
                       <span className="font-bold">🐾 {consultationDetails.pet?.name || 'Pet'} ({consultationDetails.pet?.species})</span>
                     </div>
                     <div>
-                      <span className="text-[10px] uppercase text-paprika font-bold block">Specialist Vet</span>
+                      <span className="text-[9px] uppercase text-paprika font-bold block">Specialist Vet</span>
                       <span className="font-bold">
                         {consultationDetails.doctor?.user?.first_name || consultationDetails.doctor?.user?.last_name 
                           ? `Dr. ${consultationDetails.doctor.user.first_name || ''} ${consultationDetails.doctor.user.last_name || ''}`.trim() 
@@ -1556,12 +1921,12 @@ export const ConsultationsPage: React.FC = () => {
                 {/* Reason & Notes */}
                 <div className="space-y-2">
                   <div>
-                    <span className="font-mono text-[8px] uppercase text-herb font-bold block">Reason for Inquiry</span>
+                    <span className="font-mono text-[9px] uppercase text-herb font-bold block">Reason for Inquiry</span>
                     <p className="font-body text-xs text-ink opacity-90">{consultationDetails.reason}</p>
                   </div>
                   {consultationDetails.customer_notes && (
                     <div>
-                      <span className="font-mono text-[8px] uppercase text-herb font-bold block">Your Session Notes</span>
+                      <span className="font-mono text-[9px] uppercase text-herb font-bold block">Your Session Notes</span>
                       <p className="font-body text-xs text-ink opacity-75 italic">"{consultationDetails.customer_notes}"</p>
                     </div>
                   )}
@@ -1570,8 +1935,8 @@ export const ConsultationsPage: React.FC = () => {
                 {/* Clinical Notes & Health Record */}
                 <div className="border-t border-cardboard border-dashed pt-3 space-y-3">
                   {consultationDetails.doctor_notes ? (
-                    <div className="bg-paper p-3 border border-cardboard border-dashed rounded-sm space-y-2">
-                      <span className="font-mono text-[8px] uppercase text-turmeric font-bold block">Veterinary Diagnosis & Notes</span>
+                    <div className="bg-paper p-3 border border-cardboard border-dashed rounded-sm space-y-1">
+                      <span className="font-mono text-[9px] uppercase text-turmeric font-bold block">Veterinary Diagnosis & Notes</span>
                       <p className="font-body text-xs text-ink opacity-90 italic">"{consultationDetails.doctor_notes}"</p>
                     </div>
                   ) : (
@@ -1579,7 +1944,7 @@ export const ConsultationsPage: React.FC = () => {
                   )}
 
                   {matchingHealthRecord && (
-                    <div className="bg-emerald-50 bg-opacity-50 p-3 border border-emerald-200 rounded-sm space-y-2 font-mono text-[10px]">
+                    <div className="bg-emerald-50 p-3 border border-emerald-200 rounded-sm space-y-1.5 font-mono text-[10px]">
                       <span className="text-[8px] uppercase text-herb font-bold block">Prescription & Follow-up Plan</span>
                       {matchingHealthRecord.medications && (
                         <div><strong>Medications:</strong> {matchingHealthRecord.medications}</div>
@@ -1603,19 +1968,19 @@ export const ConsultationsPage: React.FC = () => {
                       setSelectedConsultationId(null);
                       navigate(`/consultations/${consultationDetails.id}/call`);
                     }}
-                    className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-mono text-[9px] uppercase font-bold py-3 tracking-wider rounded-sm transition-colors text-center flex items-center justify-center space-x-1.5 animate-pulse cursor-pointer shadow-md mb-2"
+                    className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-mono text-[10px] uppercase font-bold py-3 tracking-wider rounded-sm transition-colors flex items-center justify-center space-x-1.5 cursor-pointer shadow-md"
                   >
                     <Video className="w-3.5 h-3.5" />
-                    <span>Join Video Consultation Room</span>
+                    <span>Enter Video Consultation</span>
                   </button>
                 )}
 
                 <button
                   type="button"
                   onClick={() => setSelectedConsultationId(null)}
-                  className="w-full bg-ink hover:bg-opacity-90 text-paperLight font-mono text-[9px] uppercase font-bold py-3 tracking-wider rounded-sm transition-colors text-center"
+                  className="w-full bg-paper border border-cardboard hover:bg-paperLight text-ink font-mono text-[9px] uppercase font-bold py-2.5 tracking-wider rounded-sm transition-colors text-center cursor-pointer"
                 >
-                  Return to Consults List
+                  Close Record
                 </button>
               </div>
             )}
@@ -1625,87 +1990,45 @@ export const ConsultationsPage: React.FC = () => {
 
       {/* Success Booking Delight Overlay */}
       {showSuccessOverlay && lastBookedSession && (
-        <div className="fixed inset-0 bg-ink bg-opacity-50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-backdrop-in">
-          <div className="w-full max-w-sm bg-paperLight border border-cardboard p-8 rounded-sm shadow-2xl text-center space-y-6 relative overflow-hidden animate-modal-in flex flex-col items-center">
+        <div className="fixed inset-0 bg-ink bg-opacity-50 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-sm bg-paperLight border border-cardboard p-8 rounded-sm shadow-2xl text-center space-y-6 relative overflow-hidden flex flex-col items-center">
             
-            {/* Confetti Drift Container */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-              {Array.from({ length: 15 }).map((_, i) => {
-                const delay = i * 0.15;
-                const left = 5 + Math.random() * 90;
-                const size = 12 + Math.random() * 16;
-                const rotate = Math.random() * 360;
-                return (
-                  <span
-                    key={i}
-                    className="absolute text-herb opacity-0 animate-drift-down select-none"
-                    style={{
-                      left: `${left}%`,
-                      fontSize: `${size}px`,
-                      animationDelay: `${delay}s`,
-                      transform: `rotate(${rotate}deg)`,
-                      top: '-20px'
-                    }}
-                  >
-                    {i % 3 === 0 ? '🩺' : i % 3 === 1 ? '💚' : '🐾'}
-                  </span>
-                );
-              })}
+            <div className="w-16 h-16 rounded-full bg-herb/15 text-herb border border-herb flex items-center justify-center">
+              <CheckCircle2 className="w-8 h-8" />
             </div>
 
-            {/* Polaroid Booking details inside Overlay */}
-            <div className="relative w-36 h-36 bg-white p-3 border border-cardboard shadow-md rotate-[3deg] animate-pulse flex flex-col justify-between items-center text-center">
-              <div className="w-full border-b border-dashed border-cardboard pb-1.5 flex justify-center">
-                <Stethoscope className="w-6 h-6 text-herb" />
-              </div>
-              <div className="space-y-1">
-                <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">CONFIRMED VET</span>
-                <div className="font-display font-bold text-xs text-ink truncate max-w-[120px]">
-                  Dr. {lastBookedSession.doctorName}
-                </div>
-              </div>
-              <div className="font-mono text-[8px] text-herb font-bold bg-herb bg-opacity-10 border border-herb px-2 py-0.5 rounded-sm">
-                APPROVED APPT
-              </div>
-            </div>
-
-            {/* Custom stamped title */}
             <div className="space-y-2">
               <span className="font-mono text-[9px] uppercase tracking-widest text-herb font-bold block">
-                VET CONSULTATION REGISTERED
+                PAYMENT VERIFIED & APPOINTMENT CONFIRMED
               </span>
-              <h3 className="font-display font-bold text-2xl text-ink">
-                Session Booked!
+              <h3 className="font-display font-black text-2xl text-ink">
+                Session Booked! 🩺
               </h3>
               <p className="font-body text-xs text-ink opacity-80 leading-relaxed max-w-xs">
-                Your consultation has been officially ledgered for <strong>{formatNaiveDateTime(lastBookedSession.scheduledAt).full}</strong>.
+                Your consultation with <strong>Dr. {lastBookedSession.doctorName}</strong> is ledgered for <strong>{formatNaiveDateTime(lastBookedSession.scheduledAt).full}</strong>.
               </p>
+              <div className="mt-3 p-2.5 bg-paper border border-cardboard border-dashed rounded-xs text-[10px] font-mono text-herb font-bold flex items-center justify-center space-x-1.5">
+                <Receipt className="w-3.5 h-3.5 text-turmeric shrink-0" />
+                <span>Invoice receipt dispatched to your email in background</span>
+              </div>
             </div>
-
-            {/* Custom SVG Stamped approved seal */}
-            <div className="w-24 h-24 border border-dashed border-turmeric border-opacity-70 rounded-full flex items-center justify-center rotate-[-12deg] p-2 scale-100 animate-pulse mt-2">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold text-center leading-tight">
-                SESSION<br/>LEDGERED<br/>CLINIC INK
-              </span>
-            </div>
-
           </div>
         </div>
       )}
 
       {/* Rate Vet Specialist Modal Overlay */}
       {isReviewModalOpen && selectedReviewConsultationId && (
-        <div className="fixed inset-0 bg-ink bg-opacity-70 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-backdrop-in">
-          <div className="w-full max-w-md bg-paper border-double border-8 border-cardboard p-8 rounded-none shadow-2xl space-y-6 relative overflow-hidden animate-modal-in text-left">
+        <div className="fixed inset-0 bg-ink bg-opacity-60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-paper border border-cardboard p-6 sm:p-8 rounded-sm shadow-2xl space-y-6 relative overflow-hidden text-left">
             <button
               type="button"
               onClick={() => setIsReviewModalOpen(false)}
-              className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full border border-cardboard bg-paper text-ink hover:bg-turmeric flex items-center justify-center cursor-pointer shadow-md"
+              className="absolute top-4 right-4 z-10 text-ink opacity-60 hover:opacity-100 cursor-pointer"
             >
-              <XCircle className="w-4 h-4" />
+              <XCircle className="w-5 h-5" />
             </button>
 
-            <div className="space-y-2">
+            <div className="space-y-1">
               <span className="font-mono text-[9px] uppercase tracking-widest text-herb font-bold block">
                 SUBMIT PROFESSIONAL FEEDBACK
               </span>
@@ -1713,29 +2036,28 @@ export const ConsultationsPage: React.FC = () => {
                 Rate {selectedReviewDoctorName}
               </h3>
               <p className="font-body text-xs text-ink opacity-70">
-                Help the #Scoobysfam community by rating your consultation experience and advice.
+                Help pet parents in the Scooby's Kitchen community by rating your consultation experience.
               </p>
             </div>
 
-            <hr className="border-t border-dashed border-cardboard" />
+            <hr className="border-t border-dashed border-cardboard border-opacity-40" />
 
             <form onSubmit={handleReviewSubmit} className="space-y-4">
-              {/* Rating selection */}
               <div className="space-y-1.5">
-                <label className="font-mono text-[10px] uppercase font-bold text-ink opacity-85 block">Your Star Rating</label>
+                <label className="font-mono text-[10px] uppercase font-bold text-paprika block">Your Star Rating</label>
                 <div className="flex space-x-2">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       type="button"
                       onClick={() => setReviewRating(star)}
-                      className="hover:scale-115 transition-transform cursor-pointer"
+                      className="hover:scale-110 transition-transform cursor-pointer"
                     >
                       <Star
-                        className={`w-8 h-8 ${
+                        className={`w-7 h-7 ${
                           star <= reviewRating
                             ? 'fill-[#00b67a] text-[#00b67a]'
-                            : 'text-cardboard opacity-45'
+                            : 'text-cardboard opacity-40'
                         }`}
                       />
                     </button>
@@ -1743,43 +2065,45 @@ export const ConsultationsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Comment text */}
               <div className="space-y-1.5">
-                <label className="font-mono text-[10px] uppercase font-bold text-ink opacity-85 block">Review Details</label>
+                <label className="font-mono text-[10px] uppercase font-bold text-paprika block">Consultation Feedback</label>
                 <textarea
-                  placeholder="How was the consultation? Did the specialist provide helpful nutrition/medical advice?"
+                  placeholder="How was the consultation? Did the doctor provide actionable nutritional or wellness guidance?"
                   value={reviewComment}
                   onChange={(e) => setReviewComment(e.target.value)}
                   maxLength={1000}
                   rows={4}
-                  className="w-full px-3 py-2 border border-cardboard rounded-none bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric resize-none"
+                  className="w-full px-3.5 py-2.5 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric resize-none"
                   required
                 />
               </div>
 
               {reviewSubmitError && (
-                <div className="text-[10px] text-paprika bg-red-50 border border-turmeric border-opacity-20 p-2.5 rounded-sm font-body">
-                  Error: {reviewSubmitError}
+                <div className="text-xs text-rose-800 bg-rose-50 border border-rose-200 p-2.5 rounded-sm font-body">
+                  {reviewSubmitError}
                 </div>
               )}
 
               {reviewSubmitSuccess && (
-                <div className="text-[10px] text-herb bg-emerald-50 border border-herb border-opacity-20 p-2.5 rounded-sm font-body font-bold">
-                  Your feedback has been successfully submitted. Thank you!
+                <div className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 p-2.5 rounded-sm font-body font-bold">
+                  Thank you! Your review has been successfully submitted.
                 </div>
               )}
 
               <button
                 type="submit"
                 disabled={isSubmittingReview}
-                className="w-full bg-turmeric text-ink hover:bg-opacity-95 font-mono text-[10px] uppercase font-bold py-3.5 tracking-wider transition-colors disabled:opacity-50 cursor-pointer shadow-sm hover-bounce"
+                className="w-full bg-herb hover:bg-herb/90 text-white font-mono text-[10px] uppercase font-bold py-3.5 tracking-wider transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
               >
-                {isSubmittingReview ? 'Submitting feedback...' : 'Submit Session Rating'}
+                {isSubmittingReview ? 'Submitting...' : 'Submit Session Feedback'}
               </button>
             </form>
           </div>
         </div>
       )}
+
+      {/* Cart Drawer */}
+      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>
   );
 };

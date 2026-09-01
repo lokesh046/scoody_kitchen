@@ -38,6 +38,17 @@ export const VideoCallPage: React.FC = () => {
   // Short-lived Join Credentials from POST /join
   const [joinCredentials, setJoinCredentials] = useState<ConsultationJoinResponse | null>(null);
   const [isJoining, setIsJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [connectionLogs, setConnectionLogs] = useState<string[]>([]);
+  const [webrtcStatus, setWebrtcStatus] = useState<'idle' | 'authorizing' | 'ready' | 'connected' | 'error'>('idle');
+  const [showDebugDrawer, setShowDebugDrawer] = useState(false);
+
+  const addLog = (msg: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    const logLine = `[${timestamp}] ${msg}`;
+    console.log(logLine);
+    setConnectionLogs((prev) => [...prev.slice(-40), logLine]);
+  };
 
   // Script load & Jitsi API reference
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
@@ -87,7 +98,7 @@ export const VideoCallPage: React.FC = () => {
     : `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
   
   const directRoomUrl = consultation && joinCredentials
-    ? `https://${activeDomain}/${finalRoomName}${joinCredentials.jitsi_token ? `?jwt=${joinCredentials.jitsi_token}` : ''}#config.prejoinPageEnabled=false&config.disableDeepLinking=true${!isJaaS ? `&config.focusUserJid=focus%40auth.${activeDomain}` : ''}&userInfo.displayName=${encodeURIComponent(userName)}` 
+    ? `https://${activeDomain}/${finalRoomName}${joinCredentials.jitsi_token ? `?jwt=${joinCredentials.jitsi_token}` : ''}#config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false&config.disableDeepLinking=true&config.p2p.enabled=true&userInfo.displayName=${encodeURIComponent(userName)}` 
     : '';
 
   const hasAccess = Boolean(
@@ -239,12 +250,21 @@ export const VideoCallPage: React.FC = () => {
     if (statusUpper === 'CANCELLED' || statusUpper === 'COMPLETED') return;
 
     setIsJoining(true);
+    setJoinError(null);
+    setWebrtcStatus('authorizing');
+    addLog(`[STEP 1] Requesting token from backend POST /api/consultations/${consultation.id}/join (${isDoctor ? 'Doctor' : 'Patient'})...`);
+
     joinConsultation(consultation.id, isDoctor)
       .then((data) => {
+        addLog(`[STEP 2] Token generated! Room: ${data.room_name}, Domain: ${data.jitsi_domain}, Moderator: ${data.is_moderator}`);
         setJoinCredentials(data);
+        setWebrtcStatus('ready');
       })
       .catch((err) => {
-        console.error('Failed to obtain short-lived meeting credentials:', err);
+        const errorDetail = err.response?.data?.detail || err.message || 'Failed to authenticate consultation credentials';
+        addLog(`[ERROR] Backend /join failed: ${errorDetail}`);
+        setJoinError(errorDetail);
+        setWebrtcStatus('error');
       })
       .finally(() => {
         setIsJoining(false);
@@ -253,11 +273,10 @@ export const VideoCallPage: React.FC = () => {
 
   // Initialize Jitsi Conference Frame with fresh credentials
   useEffect(() => {
-    if (!isScriptLoaded || !consultation || !hasAccess || !joinCredentials || isInitializedRef.current) return;
+    if (!isScriptLoaded || !consultation || !hasAccess || !joinCredentials || !jitsiContainerRef.current) return;
     const statusUpper = consultation.status.toUpperCase();
     if (statusUpper === 'CANCELLED' || statusUpper === 'COMPLETED') return;
-
-    isInitializedRef.current = true;
+    if (apiRef.current) return; // Already initialized
 
     const domain = joinCredentials.jitsi_domain || 'meet.lokeshm.me';
     const isJaaSMeeting = domain === '8x8.vc';
@@ -265,13 +284,30 @@ export const VideoCallPage: React.FC = () => {
       ? `${joinCredentials.jitsi_app_id}/${joinCredentials.room_name}` 
       : joinCredentials.room_name;
 
+    addLog(`[STEP 3] Initializing Jitsi container for room: ${roomName} (Domain: ${domain})...`);
+
     const configOverwrite: any = {
+      hosts: {
+        domain: domain,
+        muc: `conference.${domain}`,
+        focus: `focus.${domain}`
+      },
+      focusUserJid: `focus@auth.${domain}`,
       startWithAudioMuted: false,
       startWithVideoMuted: false,
       prejoinPageEnabled: false,
+      prejoinConfig: {
+        enabled: false
+      },
       disableDeepLinking: true,
       enableClosePage: false,
       enableWelcomePage: false,
+      p2p: {
+        enabled: true,
+        useStunTurn: true
+      },
+      bosh: `https://${domain}/http-bind`,
+      websocket: `wss://${domain}/xmpp-websocket`,
       logoClickUrl: window.location.origin + '/consultations',
       logoImageUrl: '',
       toolbarButtons: [
@@ -280,11 +316,6 @@ export const VideoCallPage: React.FC = () => {
         'tileview', 'select-background', 'participants-pane'
       ]
     };
-
-    if (!isJaaSMeeting) {
-      configOverwrite.bosh = `https://${domain}/http-bind`;
-      configOverwrite.websocket = null;
-    }
 
     // Create container and config options
     const options: any = {
@@ -314,21 +345,40 @@ export const VideoCallPage: React.FC = () => {
 
     try {
       if (typeof (window as any).JitsiMeetExternalAPI !== 'function') {
-        console.warn('JitsiMeetExternalAPI not ready yet, waiting for script...');
-        isInitializedRef.current = false;
+        addLog('[WARN] JitsiMeetExternalAPI script not ready yet, retrying...');
         return;
       }
 
+      addLog(`[STEP 4] Mounting Jitsi Meet External API frame on ${domain}...`);
       const api = new (window as any).JitsiMeetExternalAPI(domain, options);
       apiRef.current = api;
       setJitsiApi(api);
 
       // Telemetry Events
       api.addEventListener('videoConferenceJoined', () => {
-        console.log('Successfully connected to WebRTC room');
+        addLog('[STEP 5] WebRTC Conference joined successfully! Audio/Video active.');
+        setWebrtcStatus('connected');
+        setJoinError(null);
+      });
+
+      api.addEventListener('participantJoined', (p: any) => {
+        addLog(`[TELEMETRY] Participant joined: ${p.displayName || p.id}`);
+      });
+
+      api.addEventListener('participantLeft', (p: any) => {
+        addLog(`[TELEMETRY] Participant left: ${p.displayName || p.id}`);
+      });
+
+      api.addEventListener('cameraError', (e: any) => {
+        addLog(`[HARDWARE ERROR] Camera failure: ${e.message || JSON.stringify(e)}`);
+      });
+
+      api.addEventListener('micError', (e: any) => {
+        addLog(`[HARDWARE ERROR] Mic failure: ${e.message || JSON.stringify(e)}`);
       });
 
       const handleCallEnded = () => {
+        addLog('[TELEMETRY] Video conference session ended.');
         if (consultation?.id) {
           leaveConsultation(consultation.id, isDoctor).catch(() => {});
         }
@@ -341,11 +391,13 @@ export const VideoCallPage: React.FC = () => {
 
       api.addEventListener('videoConferenceLeft', handleCallEnded);
       api.addEventListener('readyToClose', handleCallEnded);
-    } catch (err) {
-      console.error('Failed to construct JitsiMeetExternalAPI:', err);
-      isInitializedRef.current = false;
+    } catch (err: any) {
+      const msg = err.message || 'Failed to instantiate Jitsi Meet External API';
+      addLog(`[ERROR] Frame init failed: ${msg}`);
+      setJoinError(msg);
+      setWebrtcStatus('error');
     }
-  }, [isScriptLoaded, consultation?.id, hasAccess, joinCredentials]);
+  }, [isScriptLoaded, consultation, hasAccess, joinCredentials, isDoctor, user, navigate]);
 
   // Clean up Jitsi API and send leave telemetry on component unmount / tab close
   useEffect(() => {
@@ -597,10 +649,13 @@ export const VideoCallPage: React.FC = () => {
           <div>
             <div className="flex items-center space-x-2">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${webrtcStatus === 'connected' ? 'bg-emerald-400' : webrtcStatus === 'error' ? 'bg-red-400' : 'bg-amber-400'}`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${webrtcStatus === 'connected' ? 'bg-emerald-500' : webrtcStatus === 'error' ? 'bg-red-500' : 'bg-amber-500'}`}></span>
               </span>
               <span className="font-mono text-[9px] uppercase tracking-widest text-herb font-bold">Telehealth Video Room</span>
+              <span className="text-[8px] font-mono uppercase px-1.5 py-0.5 rounded bg-black/10 border border-cardboard">
+                {webrtcStatus.toUpperCase()}
+              </span>
             </div>
             <h1 className="font-display font-bold text-sm text-ink mt-0.5">
               {isDoctor 
@@ -610,16 +665,27 @@ export const VideoCallPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Live Timer Countdown */}
-        {timeLeft !== null && (
-          <div className="flex items-center space-x-2 bg-paper border border-cardboard border-dashed px-3.5 py-1.5 rounded-sm font-mono text-xs text-ink">
-            <Clock className="w-3.5 h-3.5 text-turmeric" />
-            <span className="font-bold">SESSION TIME LEFT:</span>
-            <span className={`font-black ${timeLeft < 180 ? 'text-paprika animate-pulse' : 'text-herb'}`}>
-              {formatTimer(timeLeft)}
-            </span>
-          </div>
-        )}
+        <div className="flex items-center space-x-2">
+          {/* Live Debug Toggle Button */}
+          <button
+            onClick={() => setShowDebugDrawer(!showDebugDrawer)}
+            className="flex items-center space-x-1 text-[9px] font-mono uppercase bg-paper border border-cardboard px-2.5 py-1.5 rounded-sm hover:bg-paperLight transition-colors font-bold text-ink"
+            title="Toggle Live Connection Telemetry"
+          >
+            <span>🧪 Diagnostics ({connectionLogs.length})</span>
+          </button>
+
+          {/* Live Timer Countdown */}
+          {timeLeft !== null && (
+            <div className="flex items-center space-x-2 bg-paper border border-cardboard border-dashed px-3.5 py-1.5 rounded-sm font-mono text-xs text-ink">
+              <Clock className="w-3.5 h-3.5 text-turmeric" />
+              <span className="font-bold">SESSION TIME LEFT:</span>
+              <span className={`font-black ${timeLeft < 180 ? 'text-paprika animate-pulse' : 'text-herb'}`}>
+                {formatTimer(timeLeft)}
+              </span>
+            </div>
+          )}
+        </div>
       </header>
 
       {/* Main Workspace Frame (WebRTC Grid + Control Bar + Sidebar) */}
@@ -627,17 +693,62 @@ export const VideoCallPage: React.FC = () => {
         
         {/* Left Side: WebRTC Jitsi Window */}
         <div className="flex-grow bg-[#121c17] relative flex flex-col items-center justify-center p-2">
-          {!jitsiApi && (
+          
+          {/* Diagnostic Overlay when an error occurs or while loading */}
+          {joinError && (
+            <div className="absolute inset-0 flex items-center justify-center flex-col space-y-4 bg-[#121c17]/95 z-20 p-6 text-center">
+              <div className="p-6 bg-paper rounded-sm border-2 border-red-500 max-w-md w-full shadow-2xl text-left space-y-3">
+                <div className="flex items-center space-x-2 text-red-600">
+                  <ShieldAlert className="w-6 h-6 shrink-0" />
+                  <h3 className="font-display font-bold text-base text-ink">Connection Issue Encountered</h3>
+                </div>
+                <div className="bg-red-50 border border-red-200 p-3 rounded text-xs font-mono text-red-800 break-words">
+                  {joinError}
+                </div>
+                <p className="text-xs font-body text-ink opacity-80 leading-relaxed">
+                  The video room could not be initialized automatically. You can retry joining or review the diagnostic report.
+                </p>
+                <div className="flex items-center space-x-2 pt-2">
+                  <button
+                    onClick={() => {
+                      setJoinError(null);
+                      setJoinCredentials(null);
+                      setIsJoining(false);
+                    }}
+                    className="flex-1 bg-paprika hover:bg-red-700 text-white font-mono text-[10px] uppercase font-bold py-2.5 px-3 rounded text-center transition-colors cursor-pointer"
+                  >
+                    🔄 Retry Connection
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(connectionLogs.join('\n'));
+                      alert('Diagnostic logs copied to clipboard!');
+                    }}
+                    className="bg-paper border border-cardboard text-ink font-mono text-[10px] uppercase font-bold py-2.5 px-3 rounded hover:bg-paperLight transition-colors cursor-pointer"
+                  >
+                    📋 Copy Logs
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!jitsiApi && !joinError && (
             <div className="absolute inset-0 flex items-center justify-center flex-col space-y-4 bg-[#121c17] z-10 p-6 text-center">
               <Loader2 className="w-8 h-8 text-turmeric animate-spin" />
               <p className="font-mono text-xs uppercase tracking-wider text-paperLight opacity-80">
                 Connecting to video room ({activeDomain})...
               </p>
+
+              {/* Progress Stepper Bar */}
+              <div className="w-full max-w-xs bg-paper/10 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-turmeric h-full animate-pulse w-3/4"></div>
+              </div>
               
               {directRoomUrl && (
                 <div className="mt-3 p-4 bg-paper bg-opacity-10 rounded-sm border border-cardboard border-opacity-30 max-w-sm space-y-3">
                   <p className="text-xs font-body text-paperLight opacity-90 leading-relaxed">
-                    On mobile phones, Chrome blocks cross-domain embedded iframes. Tap below to launch your call directly:
+                    On mobile phones or strict corporate firewalls, launch the direct room link below:
                   </p>
                   <a
                     href={directRoomUrl}
@@ -657,6 +768,23 @@ export const VideoCallPage: React.FC = () => {
             className="w-full h-full rounded-sm overflow-hidden" 
             style={{ minHeight: '300px' }}
           />
+
+          {/* Live Debug Telemetry Drawer */}
+          {showDebugDrawer && (
+            <div className="absolute bottom-4 left-4 right-4 md:right-auto md:w-96 max-h-60 bg-black/90 text-paper border border-cardboard/40 rounded p-3 z-30 font-mono text-[9px] overflow-hidden flex flex-col shadow-2xl backdrop-blur-md">
+              <div className="flex justify-between items-center pb-2 border-b border-paper/20">
+                <span className="font-bold uppercase text-turmeric">Live Connection Telemetry</span>
+                <button onClick={() => setShowDebugDrawer(false)} className="text-paper hover:text-paprika">✕</button>
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-1 mt-2 text-left pr-1 select-text">
+                {connectionLogs.map((log, idx) => (
+                  <div key={idx} className={log.includes('ERROR') ? 'text-red-400 font-bold' : log.includes('STEP') ? 'text-emerald-400' : 'text-paperLight'}>
+                    {log}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Side: Tabbed Information Panel Drawer */}

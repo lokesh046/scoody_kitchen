@@ -16,6 +16,31 @@ class ConsultationCreate(BaseModel):
     customer_notes: str | None = None
 
 
+class ConsultationPaymentIntentRequest(BaseModel):
+    pet_id: int
+    doctor_id: int
+    scheduled_at: datetime
+
+
+class ConsultationPaymentIntentResponse(BaseModel):
+    doctor_id: int
+    amount: Decimal
+    currency: str = "INR"
+    razorpay_order_id: str | None = None
+    razorpay_key_id: str | None = None
+
+
+class ConsultationBookWithPayment(BaseModel):
+    pet_id: int
+    doctor_id: int
+    scheduled_at: datetime
+    reason: str = Field(min_length=3, max_length=500)
+    customer_notes: str | None = None
+    razorpay_order_id: str | None = None
+    razorpay_payment_id: str | None = None
+    razorpay_signature: str | None = None
+
+
 class ConsultationStatusUpdate(BaseModel):
     status: ConsultationStatus
     doctor_notes: str | None = None
@@ -43,6 +68,7 @@ class DoctorMinimalResponse(BaseModel):
     specialization: str
     qualification: str
     consultation_fee: Decimal
+    profile_image_url: str | None = None
     user: UserResponse | None = None
     clinic: ClinicResponse | None = None
 
@@ -72,6 +98,7 @@ class ConsultationResponse(BaseModel):
 
     pet: PetMinimalResponse | None = None
     doctor: DoctorMinimalResponse | None = None
+    customer: UserResponse | None = None
 
     model_config = {"from_attributes": True}
 

@@ -64,7 +64,7 @@ def generate_jaas_token(consultation, user) -> tuple[str | None, str | None]:
                 "aud": "jitsi",
                 "iss": app_id,
                 "sub": domain,
-                "room": room_name,  # Bound to this specific consultation room only (no "*")
+                "room": "*",  # Wildcard allows seamless room join on self-hosted Prosody without normalization traps
                 "iat": int(now.timestamp()),
                 "nbf": int(earliest_join_dt.timestamp()),
                 "exp": int(latest_join_dt.timestamp()),  # Strictly expires at the end of the slot + grace

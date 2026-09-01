@@ -7,6 +7,7 @@ import { checkoutCart } from '../../api/orders';
 import type { OrderResponse } from '../../api/orders';
 import { createPayment, simulatePaymentSuccess, simulatePaymentFailure, verifyRazorpayPayment } from '../../api/payments';
 import type { PaymentResponse } from '../../api/payments';
+import { loadRazorpaySDK } from '../../utils/razorpay';
 import { auth } from '../../api/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { verifyFirebasePhoneToken, requestOtpPreCheck } from '../../api/auth';
@@ -232,18 +233,7 @@ export const CheckoutPage: React.FC = () => {
 
   // Dynamic Razorpay Checkout SDK Script Injection
   useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    script.id = 'razorpay-checkout-js';
-    document.body.appendChild(script);
-
-    return () => {
-      const existingScript = document.getElementById('razorpay-checkout-js');
-      if (existingScript) {
-        existingScript.remove();
-      }
-    };
+    loadRazorpaySDK();
   }, []);
 
   // Dynamic Leaflet CSS Injection
@@ -751,7 +741,8 @@ export const CheckoutPage: React.FC = () => {
             }
           };
           
-          if ((window as any).Razorpay) {
+          const isLoaded = await loadRazorpaySDK();
+          if (isLoaded && (window as any).Razorpay) {
             const rzp = new (window as any).Razorpay(options);
             rzp.open();
           } else {

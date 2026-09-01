@@ -7,12 +7,11 @@ import { logoutUser } from '../api/auth';
 import { cleanupUnverifiedUsers } from '../api/admin';
 import { NotificationDropdown } from './NotificationDropdown';
 import { 
-  PawPrint, 
   ShoppingCart, 
-  LogOut, 
   User, 
   Menu, 
-  X 
+  X, 
+  LogOut 
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -65,17 +64,32 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
   return (
     <>
       <header className="w-full border-b border-cardboard border-opacity-25 bg-ink bg-opacity-95 backdrop-blur-md sticky top-0 z-30 shadow-sm text-paper">
-        <div className="w-full px-4 lg:px-8 py-4 flex justify-between items-center lg:grid lg:grid-cols-12">
+        <div className="w-full px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5 flex justify-between items-center lg:grid lg:grid-cols-12 gap-2">
           
-          {/* Left Corner: Brand Logo & Title */}
-          <div className="flex items-center space-x-2 sm:space-x-3 cursor-pointer lg:col-span-3 justify-start select-none shrink-0" onClick={() => navigate('/')}>
-            <PawPrint className="text-turmeric w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
-            <div>
-              <h1 className="font-display font-bold text-lg sm:text-2xl tracking-tight text-paper">
+          {/* Left Corner: Brand Logo & Title with Artisanal Porcelain Medallion Badge */}
+          <div 
+            className="flex items-center space-x-2.5 sm:space-x-3.5 cursor-pointer lg:col-span-3 justify-start select-none min-w-0 group" 
+            onClick={() => navigate('/')}
+          >
+            <div className="relative flex items-center justify-center shrink-0">
+              {/* Porcelain Medallion Badge Container (Enlarged & Sharp) */}
+              <div className="w-12 h-12 sm:w-13 sm:h-13 md:w-14 md:h-14 lg:w-15 lg:h-15 logo-medallion flex items-center justify-center p-1 overflow-hidden shrink-0 shadow-md">
+                <img
+                  src="/scooby-logo.png"
+                  alt="Scooby's Kitchen Logo"
+                  width={60}
+                  height={60}
+                  className="w-full h-full object-contain select-none pointer-events-none"
+                  draggable={false}
+                />
+              </div>
+            </div>
+            <div className="min-w-0">
+              <h1 className="font-display font-black text-base sm:text-xl lg:text-2xl tracking-tight text-paper group-hover:text-turmeric transition-colors leading-tight truncate">
                 Scooby's Kitchen
               </h1>
-              <p className="font-mono text-[8px] sm:text-[9px] uppercase tracking-wider text-turmeric opacity-85 hidden sm:block">
-                Notebook Ledger v1.0
+              <p className="font-mono text-[8px] sm:text-[9px] uppercase tracking-wider text-turmeric opacity-90 hidden sm:block truncate">
+                Human-Grade Pet Cooking
               </p>
             </div>
           </div>
@@ -126,7 +140,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
           </nav>
 
           {/* Right Corner: Actions */}
-          <div className="flex items-center space-x-2 sm:space-x-4 lg:col-span-3 justify-end">
+          <div className="flex items-center space-x-1.5 sm:space-x-2.5 md:space-x-3.5 lg:col-span-3 justify-end shrink-0">
             {user?.role === 'admin' && (
               <button
                 onClick={() => {
@@ -148,7 +162,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
             {user && (
               <button
                 onClick={() => navigate('/profile')}
-                className={`p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper flex items-center space-x-1.5 font-mono text-[10px] uppercase font-bold transition-all cursor-pointer ${
+                className={`p-1.5 sm:p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper flex items-center space-x-1.5 font-mono text-[10px] uppercase font-bold transition-all cursor-pointer ${
                   activeTab === 'profile' ? 'bg-paperLight border-turmeric text-turmeric' : ''
                 }`}
               >
@@ -173,11 +187,11 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
             <button 
               onClick={() => onCartToggle?.()}
               aria-label="Open cart drawer"
-              className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 relative text-paper"
+              className="p-1.5 sm:p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 relative text-paper cursor-pointer"
             >
               <ShoppingCart className="w-4 h-4" />
               {totalCartQuantity > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-turmeric text-ink font-mono text-[9px] font-bold w-4.5 h-4.5 rounded-none flex items-center justify-center">
+                <span className="absolute -top-1.5 -right-1.5 bg-turmeric text-ink font-mono text-[9px] font-bold w-4 h-4 rounded-none flex items-center justify-center">
                   {totalCartQuantity}
                 </span>
               )}
@@ -186,7 +200,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
             {user ? (
               <button
                 onClick={handleLogout}
-                className="hidden lg:flex p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper items-center space-x-1.5 font-body text-[10px] font-bold uppercase"
+                className="hidden lg:flex p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper items-center space-x-1.5 font-body text-[10px] font-bold uppercase"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Log Out</span>
@@ -194,7 +208,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
             ) : (
               <button
                 onClick={() => navigate('/login')}
-                className="hidden lg:flex p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper items-center space-x-1.5 font-body text-[10px] font-bold uppercase"
+                className="hidden lg:flex p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper items-center space-x-1.5 font-body text-[10px] font-bold uppercase"
               >
                 <User className="w-3.5 h-3.5" />
                 <span>Log In</span>
@@ -206,9 +220,9 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label="Toggle navigation menu"
               aria-expanded={isMobileMenuOpen}
-              className="p-2 border border-cardboard border-opacity-40 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper lg:hidden cursor-pointer"
+              className="p-1.5 sm:p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper lg:hidden cursor-pointer"
             >
-              {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+              {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4 text-paper" />}
             </button>
           </div>
         </div>
@@ -225,9 +239,21 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
           {/* Sliding Navigation Container */}
           <div className="relative flex-1 flex flex-col max-w-[280px] w-full bg-paper border-r border-cardboard p-6 space-y-6 text-left animate-slide-in shadow-xl z-50">
             <div className="flex justify-between items-center border-b border-cardboard pb-4">
-              <div>
-                <h4 className="font-display font-bold text-lg text-ink">Scooby's Kitchen</h4>
-                <span className="font-mono text-[8px] uppercase tracking-wider text-herb font-bold">Ledger Menu</span>
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 logo-medallion flex items-center justify-center p-1 overflow-hidden shrink-0 shadow-md">
+                  <img
+                    src="/scooby-logo-256.png"
+                    alt="Scooby's Kitchen Logo"
+                    width={48}
+                    height={48}
+                    className="w-full h-full object-contain select-none pointer-events-none"
+                    draggable={false}
+                  />
+                </div>
+                <div>
+                  <h4 className="font-display font-black text-lg text-ink leading-tight">Scooby's Kitchen</h4>
+                  <span className="font-mono text-[8.5px] uppercase tracking-wider text-herb font-bold">Ledger Menu</span>
+                </div>
               </div>
               <button 
                 onClick={() => setIsMobileMenuOpen(false)} 

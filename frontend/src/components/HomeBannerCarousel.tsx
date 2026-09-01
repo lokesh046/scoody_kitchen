@@ -289,8 +289,10 @@ export const HomeBannerCarousel: React.FC = () => {
                     alt={slide.title || 'Featured Banner'}
                     className="w-full h-full object-cover select-none pointer-events-none rounded-[24px]"
                     draggable={false}
-                    loading="eager"
+                    loading={isActive ? "eager" : "lazy"}
                     decoding="sync"
+                    // @ts-ignore
+                    fetchPriority={isActive ? "high" : "low"}
                   />
 
                   {/* Dark gradient shadow vignette for readability anchored at bottom */}

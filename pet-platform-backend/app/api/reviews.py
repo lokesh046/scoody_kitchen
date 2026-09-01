@@ -48,7 +48,7 @@ def create_doctor_review(
     consultation_id: int,
     review_data: DoctorReviewCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.CUSTOMER)),
+    current_user: User = Depends(get_current_user),
 ):
     # 1. Fetch consultation
     consultation = db.get(Consultation, consultation_id)

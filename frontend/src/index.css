@@ -21,9 +21,21 @@
     color: #FFFFFF !important;
   }
 
-  header svg.animate-pulse {
-    stroke: #FFDD43 !important;
-    filter: drop-shadow(0 0 8px rgba(255, 221, 67, 0.9));
+  /* Artisanal Porcelain Medallion Badge for Scoobys Mascot Logo */
+  .logo-medallion {
+    background: #FAF6EC;
+    border: 1.5px solid #D09E6B;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    border-radius: 9999px;
+    transition: border-color 0.2s ease, box-shadow 0.25s ease;
+  }
+  .logo-medallion:hover {
+    border-color: #E5A93C;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), 0 0 12px rgba(255, 221, 67, 0.4);
+  }
+
+  .logo-medallion img {
+    image-rendering: auto;
   }
 
   input, select, textarea {

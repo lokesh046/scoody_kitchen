@@ -137,7 +137,9 @@ export default function App() {
             <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
             <Route path="/pets" element={<RequireAuth><PetsPage /></RequireAuth>} />
             <Route path="/consultations" element={<RequireAuth><ConsultationsPage /></RequireAuth>} />
+            <Route path="/consultations/:id" element={<RequireAuth><ConsultationsPage /></RequireAuth>} />
             <Route path="/consultations/:id/call" element={<RequireAuth><VideoCallPage /></RequireAuth>} />
+            <Route path="/consultations/room/:id" element={<RequireAuth><VideoCallPage /></RequireAuth>} />
             <Route path="/apply-doctor" element={<RequireAuth><ApplyDoctorPage /></RequireAuth>} />
             <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/assistant" element={<RequireAuth><AssistantPage /></RequireAuth>} />
@@ -145,6 +147,7 @@ export default function App() {
             <Route path="/admin/doctors" element={<RequireAuth adminOnly={true}><AdminDoctorsPage /></RequireAuth>} />
             <Route path="/admin/orders" element={<RequireAuth adminOnly={true}><AdminOrdersPage /></RequireAuth>} />
             <Route path="/doctor" element={<RequireAuth doctorOnly={true}><DoctorDashboard /></RequireAuth>} />
+            <Route path="/doctor/dashboard" element={<RequireAuth doctorOnly={true}><DoctorDashboard /></RequireAuth>} />
           </Routes>
           <ChatbotWidget />
         </SessionProvider>

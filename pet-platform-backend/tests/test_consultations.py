@@ -9,9 +9,10 @@ from app.models.doctor import Doctor
 from app.models.doctor_availability import DoctorAvailability
 from app.models.enums import DayOfWeek, ConsultationStatus
 from app.models.pet import Pet
-from app.schemas.consultation import ConsultationCreate
+from app.schemas.consultation import ConsultationCreate, ConsultationPaymentIntentRequest
 from app.services.consultation_service import (
     create_consultation,
+    create_consultation_payment_intent,
     get_available_slots,
     get_consultation_audit_summary,
     record_participant_join,
@@ -311,3 +312,74 @@ def test_timezone_conversion_slot_and_booking():
     with pytest.raises(ValueError) as exc:
         create_consultation(db, customer_id=5, create_data=create_invalid)
     assert "falls outside doctor's working schedule" in str(exc.value)
+
+
+def test_create_consultation_payment_intent_timezone_handling():
+    db = MagicMock()
+    pet = Pet(id=10, user_id=5)
+    doc = Doctor(
+        id=7,
+        user_id=20,
+        is_active=True,
+        is_verified=True,
+        is_available=True,
+        consultation_fee=500.0,
+    )
+
+    doctor_tz = ZoneInfo("Asia/Kolkata")
+    now_local = datetime.now(doctor_tz)
+    days_ahead = (1 - now_local.weekday()) % 7
+    if days_ahead == 0:
+        days_ahead += 7
+    target_date = (now_local + timedelta(days=days_ahead)).date()
+
+    avail = DoctorAvailability(
+        doctor_id=7,
+        day_of_week=DayOfWeek.TUESDAY,
+        start_time=time(9, 0),
+        end_time=time(11, 0),
+        is_available=True,
+    )
+
+    mock_avail_res = MagicMock()
+    mock_avail_res.all.return_value = [avail]
+    db.scalars.return_value = mock_avail_res
+    db.scalar.return_value = None  # No overlapping consultations
+
+    def mock_get(model, id_val):
+        if model == Pet and id_val == 10:
+            return pet
+        if model == Doctor and id_val == 7:
+            return doc
+        return None
+
+    db.get.side_effect = mock_get
+
+    from unittest.mock import patch
+    from app.core.config import settings
+
+    with patch.object(settings, "RAZORPAY_KEY_ID", None), patch.object(settings, "RAZORPAY_KEY_SECRET", None):
+        # 1. Timezone-aware booking at 10:00 AM IST (04:30 UTC)
+        booking_local = datetime.combine(target_date, time(10, 0), tzinfo=doctor_tz)
+        booking_utc = booking_local.astimezone(timezone.utc)
+
+        intent_aware = ConsultationPaymentIntentRequest(
+            pet_id=10,
+            doctor_id=7,
+            scheduled_at=booking_utc,
+        )
+        result_aware = create_consultation_payment_intent(db, customer_id=5, intent_data=intent_aware)
+        assert result_aware["doctor_id"] == 7
+        assert result_aware["amount"] == 500.0
+
+        # 2. Timezone-naive booking at 10:30 AM local
+        booking_naive = datetime.combine(target_date, time(10, 30))
+        intent_naive = ConsultationPaymentIntentRequest(
+            pet_id=10,
+            doctor_id=7,
+            scheduled_at=booking_naive,
+        )
+        result_naive = create_consultation_payment_intent(db, customer_id=5, intent_data=intent_naive)
+        assert result_naive["doctor_id"] == 7
+        assert result_naive["amount"] == 500.0
+

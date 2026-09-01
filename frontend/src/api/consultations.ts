@@ -135,6 +135,51 @@ export const fetchDoctorSlots = async (doctorId: number, dateStr: string): Promi
   return response.data;
 };
 
+export interface ConsultationPaymentIntentRequest {
+  pet_id: number;
+  doctor_id: number;
+  scheduled_at: string;
+}
+
+export interface ConsultationPaymentIntentResponse {
+  doctor_id: number;
+  amount: string; // Decimal as string
+  currency: string;
+  razorpay_order_id?: string | null;
+  razorpay_key_id?: string | null;
+}
+
+export interface ConsultationBookWithPayment {
+  pet_id: number;
+  doctor_id: number;
+  scheduled_at: string;
+  reason: string;
+  customer_notes?: string | null;
+  razorpay_order_id?: string | null;
+  razorpay_payment_id?: string | null;
+  razorpay_signature?: string | null;
+}
+
+export const createConsultationPaymentIntent = async (
+  intentData: ConsultationPaymentIntentRequest
+): Promise<ConsultationPaymentIntentResponse> => {
+  const response = await apiClient.post<ConsultationPaymentIntentResponse>(
+    '/consultations/create-payment-intent',
+    intentData
+  );
+  return response.data;
+};
+
+export const bookConsultationWithPayment = async (
+  bookingData: ConsultationBookWithPayment
+): Promise<ConsultationResponse> => {
+  const response = await apiClient.post<ConsultationResponse>(
+    '/consultations/book-with-payment',
+    bookingData
+  );
+  return response.data;
+};
+
 export const bookConsultation = async (bookingData: ConsultationCreate): Promise<ConsultationResponse> => {
   const response = await apiClient.post<ConsultationResponse>('/consultations', bookingData);
   return response.data;
