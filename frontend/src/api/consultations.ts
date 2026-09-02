@@ -99,6 +99,7 @@ export interface ConsultationResponse {
   updated_at: string;
   pet?: PetMinimalResponse | null;
   doctor?: DoctorMinimalResponse | null;
+  customer?: UserResponse | null;
 }
 
 export interface PaginatedConsultationResponse {

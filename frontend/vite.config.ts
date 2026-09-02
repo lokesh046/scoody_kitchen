@@ -21,6 +21,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/chatbot/, ''),
         },
+        '/vision': {
+          target: env.VITE_VISION_TARGET_URL || 'http://127.0.0.1:8003',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/vision/, ''),
+        },
       },
     },
   };

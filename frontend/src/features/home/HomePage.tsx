@@ -11,6 +11,7 @@ import { Header } from '../../components/Header';
 import { HomeBannerCarousel } from '../../components/HomeBannerCarousel';
 import { ReviewsCarousel } from '../../components/ReviewsCarousel';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
+import { useFeatureFlag } from '../../hooks/useFeatureFlag';
 
 interface QuickPreset {
   label: string;
@@ -34,6 +35,11 @@ export default function HomePage() {
   const navigate = useNavigate();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
+
+  // Feature Flags
+  const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
+  const isShopEnabled = useFeatureFlag('shop_checkout', true);
 
   // Auth Store
   const { user } = useAuthStore();
@@ -410,7 +416,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
               <div 
                 onClick={() => navigate('/pets')}
                 className="border border-cardboard hover:border-turmeric hover-paperLift bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 cursor-pointer group shadow-sm transition-all duration-300"
@@ -428,39 +434,43 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div 
-                onClick={() => navigate('/consultations')}
-                className="border border-cardboard hover:border-turmeric hover-paperLift bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 cursor-pointer group shadow-sm transition-all duration-300"
-              >
-                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px]">
-                  <Heart className="w-6 h-6 text-herb" />
+              {isConsultationsEnabled && (
+                <div 
+                  onClick={() => navigate('/consultations')}
+                  className="border border-cardboard hover:border-turmeric hover-paperLift bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 cursor-pointer group shadow-sm transition-all duration-300"
+                >
+                  <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px]">
+                    <Heart className="w-6 h-6 text-herb" />
+                  </div>
+                  <h3 className="font-display text-xl font-bold uppercase tracking-tight text-ink">Vet Consultations</h3>
+                  <p className="font-body text-xs sm:text-sm text-ink opacity-80 leading-relaxed">
+                    Schedule direct video appointments with certified veterinarians to audit custom dietary plans.
+                  </p>
+                  <div className="flex items-center space-x-1.5 font-mono text-xs uppercase font-bold text-herb pt-2">
+                    <span>Schedule Consultation</span>
+                    <span className="transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
+                  </div>
                 </div>
-                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-ink">Vet Consultations</h3>
-                <p className="font-body text-xs sm:text-sm text-ink opacity-80 leading-relaxed">
-                  Schedule direct video appointments with certified veterinarians to audit custom dietary plans.
-                </p>
-                <div className="flex items-center space-x-1.5 font-mono text-xs uppercase font-bold text-herb pt-2">
-                  <span>Schedule Consultation</span>
-                  <span className="transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
-                </div>
-              </div>
+              )}
 
-              <div 
-                onClick={() => navigate('/assistant')}
-                className="border border-cardboard hover:border-turmeric hover-paperLift bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 cursor-pointer group shadow-sm transition-all duration-300"
-              >
-                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px]">
-                  <Sparkles className="w-6 h-6 text-turmeric" />
+              {isChatbotEnabled && (
+                <div 
+                  onClick={() => navigate('/assistant')}
+                  className="border border-cardboard hover:border-turmeric hover-paperLift bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 cursor-pointer group shadow-sm transition-all duration-300"
+                >
+                  <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px]">
+                    <Sparkles className="w-6 h-6 text-turmeric" />
+                  </div>
+                  <h3 className="font-display text-xl font-bold uppercase tracking-tight text-ink">AI Nutrition Coach</h3>
+                  <p className="font-body text-xs sm:text-sm text-ink opacity-80 leading-relaxed">
+                    Get instant dietary recommendations, ingredient breakdowns, and round-the-clock pet wellness guidance.
+                  </p>
+                  <div className="flex items-center space-x-1.5 font-mono text-xs uppercase font-bold text-turmeric pt-2">
+                    <span>Consult AI Coach</span>
+                    <span className="transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
+                  </div>
                 </div>
-                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-ink">AI Nutrition Coach</h3>
-                <p className="font-body text-xs sm:text-sm text-ink opacity-80 leading-relaxed">
-                  Get instant dietary recommendations, ingredient breakdowns, and round-the-clock pet wellness guidance.
-                </p>
-                <div className="flex items-center space-x-1.5 font-mono text-xs uppercase font-bold text-turmeric pt-2">
-                  <span>Consult AI Coach</span>
-                  <span className="transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </section>

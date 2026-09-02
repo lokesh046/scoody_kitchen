@@ -28,6 +28,7 @@ import {
 import type { CreateProductData, InventoryUpdate } from '../../api/productsAdmin';
 import { fetchRAGDocuments, uploadRAGDocument, deleteRAGDocument } from '../../api/chatbot';
 import { fetchAllBanners, createBanner, updateBanner, deleteBanner } from '../../api/banners';
+import { fetchAdminFeatures, updateAdminFeature } from '../../api/features';
 import { 
   Loader2, 
   ArrowLeft, 
@@ -44,7 +45,10 @@ import {
   FileText,
   BarChart3,
   TrendingUp,
-  Image
+  Image,
+  Sliders,
+  ShieldCheck,
+  CheckCircle2
 } from 'lucide-react';
 
 
@@ -52,7 +56,12 @@ import {
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'analytics' | 'orders' | 'recipes' | 'inventory' | 'knowledge_agent' | 'banners'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'orders' | 'recipes' | 'inventory' | 'knowledge_agent' | 'banners' | 'features'>('analytics');
+  
+  // Feature Flags Management State
+  const [featureCategoryFilter, setFeatureCategoryFilter] = useState<string>('all');
+  const [featureSearchQuery, setFeatureSearchQuery] = useState<string>('');
+  const [togglingKey, setTogglingKey] = useState<string | null>(null);
   
   // Form States - AI Knowledge Base
   const [ragFile, setRagFile] = useState<File | null>(null);
@@ -417,10 +426,29 @@ export const AdminDashboard: React.FC = () => {
     }
   });
 
-  const { data: banners, isLoading: bannersLoading } = useQuery({
-    queryKey: ['admin-banners'],
+  const { data: banners = [], isLoading: bannersLoading } = useQuery({
+    queryKey: ['adminBanners'],
     queryFn: fetchAllBanners,
     enabled: activeTab === 'banners',
+  });
+
+  // Feature Flags Query & Mutation
+  const { data: adminFeatures = [], isLoading: isLoadingFeatures } = useQuery({
+    queryKey: ['adminFeatures'],
+    queryFn: fetchAdminFeatures,
+    enabled: activeTab === 'features',
+  });
+
+  const toggleFeatureMutation = useMutation({
+    mutationFn: ({ key, is_enabled }: { key: string; is_enabled: boolean }) =>
+      updateAdminFeature(key, is_enabled),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminFeatures'] });
+      queryClient.invalidateQueries({ queryKey: ['featureFlags'] });
+    },
+    onSettled: () => {
+      setTogglingKey(null);
+    },
   });
 
   const createBannerMutation = useMutation({
@@ -514,6 +542,7 @@ export const AdminDashboard: React.FC = () => {
               { id: 'inventory', label: 'Inventory', icon: Boxes },
               { id: 'knowledge_agent', label: 'AI Knowledge', icon: Sparkles },
               { id: 'banners', label: 'Banners', icon: Image },
+              { id: 'features', label: 'Feature Flags', icon: Sliders },
             ];
 
             return items.map((item) => {
@@ -1880,6 +1909,258 @@ export const AdminDashboard: React.FC = () => {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Tab 6: Feature Control Center */}
+        {activeTab === 'features' && (
+          <div className="space-y-8 text-left animate-fade-in-up">
+            {/* Header */}
+            <div className="border-b border-cardboard border-opacity-40 pb-5">
+              <Eyebrow label="SYSTEM ADMIN // LIVE TOGGLE CENTER" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-1">
+                <div>
+                  <h3 className="font-display font-black text-2xl text-ink">
+                    Platform Feature Control Center
+                  </h3>
+                  <p className="font-body text-xs text-ink opacity-70 mt-1 max-w-2xl">
+                    Master switches to dynamically enable or disable features in real-time. Changes apply across the website immediately for all users without code changes or restarts.
+                  </p>
+                </div>
+                <div className="flex items-center space-x-1.5 bg-herb/10 border border-herb/30 px-3 py-1.5 rounded-sm shrink-0 self-start sm:self-auto">
+                  <ShieldCheck className="w-4 h-4 text-herb shrink-0" />
+                  <span className="font-mono text-[10px] text-herb font-bold uppercase tracking-wider">
+                    Admin Exclusive Access
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Stats Banner */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-paper p-4 border border-cardboard border-opacity-50 rounded-sm">
+                <span className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold block">
+                  Total Managed
+                </span>
+                <span className="font-display font-black text-2xl text-ink mt-0.5 block">
+                  {adminFeatures.length}
+                </span>
+                <span className="font-mono text-[9px] text-ink/50 uppercase">Registered Capabilities</span>
+              </div>
+              <div className="bg-paper p-4 border border-cardboard border-opacity-50 rounded-sm">
+                <span className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold block">
+                  Active Features
+                </span>
+                <span className="font-display font-black text-2xl text-herb mt-0.5 block">
+                  {adminFeatures.filter((f) => f.is_enabled).length}
+                </span>
+                <span className="font-mono text-[9px] text-ink/50 uppercase">Visible to Customers</span>
+              </div>
+              <div className="bg-paper p-4 border border-cardboard border-opacity-50 rounded-sm">
+                <span className="font-mono text-[9px] uppercase tracking-wider text-turmeric font-bold block">
+                  Paused / Disabled
+                </span>
+                <span className="font-display font-black text-2xl text-paprika mt-0.5 block">
+                  {adminFeatures.filter((f) => !f.is_enabled).length}
+                </span>
+                <span className="font-mono text-[9px] text-ink/50 uppercase">Hidden / Locked</span>
+              </div>
+              <div className="bg-paper p-4 border border-cardboard border-opacity-50 rounded-sm">
+                <span className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold block">
+                  Propagation Speed
+                </span>
+                <span className="font-display font-black text-2xl text-ink mt-0.5 block">
+                  &lt; 1s
+                </span>
+                <span className="font-mono text-[9px] text-ink/50 uppercase">Real-Time Invalidation</span>
+              </div>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="bg-paperLight border border-cardboard border-opacity-60 p-3.5 rounded-sm flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between shadow-2xs">
+              {/* Category Filter Pills */}
+              <div className="flex flex-wrap gap-1.5 font-mono text-[9px] uppercase font-bold">
+                {[
+                  { id: 'all', label: 'All Modules' },
+                  { id: 'consultations', label: '🩺 Consultations' },
+                  { id: 'pets', label: '🐾 Pets' },
+                  { id: 'shop', label: '🛍️ Shop' },
+                  { id: 'ai', label: '🤖 AI Intelligence' },
+                ].map((cat) => {
+                  const isActive = featureCategoryFilter === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setFeatureCategoryFilter(cat.id)}
+                      className={`px-3 py-1.5 rounded-sm border transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-paper border-turmeric text-ink shadow-2xs ring-1 ring-turmeric'
+                          : 'bg-paper/40 border-cardboard border-opacity-60 text-ink/65 hover:text-ink hover:bg-paper'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Search input */}
+              <div className="relative sm:w-64 shrink-0">
+                <input
+                  type="text"
+                  placeholder="Filter by feature name or key..."
+                  value={featureSearchQuery}
+                  onChange={(e) => setFeatureSearchQuery(e.target.value)}
+                  className="w-full px-3 py-1.5 border border-cardboard border-opacity-60 rounded-sm bg-paper font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric transition-colors"
+                />
+                {featureSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setFeatureSearchQuery('')}
+                    className="absolute right-2 top-1.5 text-xs text-ink/50 hover:text-ink cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Feature Cards Grid */}
+            {isLoadingFeatures ? (
+              <div className="text-center py-16 space-y-3">
+                <Loader2 className="w-8 h-8 animate-spin text-turmeric mx-auto" />
+                <span className="font-mono text-xs uppercase tracking-wider text-ink/60 block">
+                  Loading Platform Feature Registry...
+                </span>
+              </div>
+            ) : (() => {
+              const filtered = adminFeatures.filter((f) => {
+                const matchCategory =
+                  featureCategoryFilter === 'all' || f.category.toLowerCase() === featureCategoryFilter;
+                const matchSearch =
+                  !featureSearchQuery ||
+                  f.name.toLowerCase().includes(featureSearchQuery.toLowerCase()) ||
+                  f.key.toLowerCase().includes(featureSearchQuery.toLowerCase()) ||
+                  (f.description && f.description.toLowerCase().includes(featureSearchQuery.toLowerCase()));
+                return matchCategory && matchSearch;
+              });
+
+              if (filtered.length === 0) {
+                return (
+                  <div className="p-10 bg-paper border border-dashed border-cardboard rounded-sm text-center font-mono text-xs text-ink/60 space-y-2">
+                    <p>No feature flags found matching your filter criteria.</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFeatureCategoryFilter('all');
+                        setFeatureSearchQuery('');
+                      }}
+                      className="text-herb underline font-bold uppercase text-[10px] cursor-pointer"
+                    >
+                      Reset Filters
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filtered.map((feature) => {
+                    const isPending = togglingKey === feature.key;
+
+                    return (
+                      <div
+                        key={feature.key}
+                        className={`p-5 rounded-sm border transition-all shadow-2xs flex flex-col justify-between space-y-4 ${
+                          feature.is_enabled
+                            ? 'bg-paperLight border-cardboard border-opacity-60 hover:border-turmeric/70'
+                            : 'bg-paper/40 border-dashed border-cardboard/70 opacity-80'
+                        }`}
+                      >
+                        {/* Top: Category Tag & Key */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2 border-b border-cardboard border-opacity-30 pb-2">
+                            <span className="font-mono text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-xs bg-cardboard/25 text-ink">
+                              {feature.category}
+                            </span>
+                            <span className="font-mono text-[9px] text-ink/50 truncate select-all">
+                              {feature.key}
+                            </span>
+                          </div>
+
+                          {/* Feature Name & Description */}
+                          <div>
+                            <h4 className="font-display font-bold text-base text-ink flex items-center space-x-1.5">
+                              <span>{feature.name}</span>
+                            </h4>
+                            <p className="font-body text-xs text-ink/75 mt-1 leading-relaxed">
+                              {feature.description}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Bottom: State & Interactive Switch */}
+                        <div className="pt-3 border-t border-dashed border-cardboard border-opacity-35 flex items-center justify-between gap-3">
+                          <div className="flex items-center space-x-2 min-w-0">
+                            <span
+                              className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                                feature.is_enabled ? 'bg-herb animate-pulse' : 'bg-paprika'
+                              }`}
+                            />
+                            <div className="min-w-0">
+                              <span
+                                className={`font-mono text-[10px] uppercase font-bold block truncate ${
+                                  feature.is_enabled ? 'text-herb' : 'text-paprika'
+                                }`}
+                              >
+                                {feature.is_enabled ? 'Active / Visible' : 'Disabled / Hidden'}
+                              </span>
+                              <span className="font-mono text-[8.5px] text-ink/45 block">
+                                {feature.is_enabled ? 'Available to customers' : 'Temporarily suspended'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Big Tactile Toggle Button */}
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => {
+                              setTogglingKey(feature.key);
+                              toggleFeatureMutation.mutate({
+                                key: feature.key,
+                                is_enabled: !feature.is_enabled,
+                              });
+                            }}
+                            className={`relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${
+                              feature.is_enabled ? 'bg-herb' : 'bg-cardboard'
+                            }`}
+                            title={`Click to ${feature.is_enabled ? 'disable' : 'enable'} ${feature.name}`}
+                          >
+                            <span className="sr-only">Toggle feature</span>
+                            <span
+                              aria-hidden="true"
+                              className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out flex items-center justify-center ${
+                                feature.is_enabled ? 'translate-x-6' : 'translate-x-0'
+                              }`}
+                            >
+                              {isPending ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-ink" />
+                              ) : feature.is_enabled ? (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-herb" />
+                              ) : (
+                                <span className="text-[10px] text-paprika font-bold">✕</span>
+                              )}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         )}
 

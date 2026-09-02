@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchActiveBanners } from '../api/banners';
+import { useFeatureFlag } from '../hooks/useFeatureFlag';
 
 export const HomeBannerCarousel: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +12,10 @@ export const HomeBannerCarousel: React.FC = () => {
   const [transitionEnabled, setTransitionEnabled] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
   const autoPlayTimerRef = useRef<any>(null);
+
+  // Feature Flags
+  const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  const isShopEnabled = useFeatureFlag('shop_checkout', true);
 
   // Fetch banners from API
   const { data: banners, isLoading } = useQuery({
@@ -53,17 +58,23 @@ export const HomeBannerCarousel: React.FC = () => {
     }
   ];
 
-  const enrichedBanners = (banners && banners.length > 0 ? banners : fallbackBanners).map((b: any, index: number) => {
-    const fallback = fallbackBanners[index % fallbackBanners.length] || {};
-    return {
-      ...fallback,
-      ...b,
-      badge: b.badge || fallback.badge,
-      pretitle: b.pretitle || fallback.pretitle,
-      tagline: b.tagline || fallback.tagline,
-      button_text: b.button_text || fallback.button_text || "Know More"
-    };
-  });
+  const enrichedBanners = (banners && banners.length > 0 ? banners : fallbackBanners)
+    .filter((b: any) => {
+      if (b.link_url === '/consultations' && !isConsultationsEnabled) return false;
+      if (b.link_url === '/shop' && !isShopEnabled) return false;
+      return true;
+    })
+    .map((b: any, index: number) => {
+      const fallback = fallbackBanners[index % fallbackBanners.length] || {};
+      return {
+        ...fallback,
+        ...b,
+        badge: b.badge || fallback.badge,
+        pretitle: b.pretitle || fallback.pretitle,
+        tagline: b.tagline || fallback.tagline,
+        button_text: b.button_text || fallback.button_text || "Know More"
+      };
+    });
 
   const activeBanners = enrichedBanners.length < 3 
     ? [...enrichedBanners, ...fallbackBanners.slice(0, 3 - enrichedBanners.length)] 
@@ -292,7 +303,7 @@ export const HomeBannerCarousel: React.FC = () => {
                     loading={isActive ? "eager" : "lazy"}
                     decoding="sync"
                     // @ts-ignore
-                    fetchPriority={isActive ? "high" : "low"}
+                    fetchpriority={isActive ? "high" : "low"}
                   />
 
                   {/* Dark gradient shadow vignette for readability anchored at bottom */}

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query';
 import { formatNaiveDateTime } from '../../utils/date';
 import { fetchMyPets, fetchPetHealthRecords } from '../../api/pets';
 import { useAuthStore } from '../../store/auth';
@@ -16,17 +16,341 @@ import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
 import { 
-  ArrowLeft, 
+  ArrowLeft, ArrowRight,
   Clock, Stethoscope, Loader2, AlertCircle, XCircle,
   Compass, Calendar as CalendarIcon, Star, Video,
   CheckCircle2, ShieldCheck, ChevronRight, CreditCard, Receipt
 } from 'lucide-react';
 import { submitDoctorReview } from '../../api/reviews';
 import { loadRazorpaySDK } from '../../utils/razorpay';
+import { useFeatureFlag } from '../../hooks/useFeatureFlag';
 
 const getDoctorAvatarUrl = (doc: any): string | null => {
   if (!doc) return null;
   return doc.profile_image_url || doc.user?.profile_image_url || null;
+};
+
+export const DoctorAvatar: React.FC<{
+  src?: string | null;
+  name?: string;
+  className?: string;
+  shape?: 'circle' | 'square';
+  initialsClassName?: string;
+}> = ({ 
+  src, 
+  name = 'Doctor', 
+  className = 'w-16 h-16', 
+  shape = 'circle',
+  initialsClassName = 'font-display font-black text-2xl text-turmeric' 
+}) => {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [src]);
+
+  const cleanName = name.replace(/^Dr\.?\s*/i, '').trim();
+  const initial = (cleanName[0] || name[0] || 'D').toUpperCase();
+  const radiusClass = shape === 'circle' ? 'rounded-full' : 'rounded-sm';
+
+  if (!src || hasError) {
+    return (
+      <div className={`${className} ${radiusClass} bg-paper border border-cardboard border-opacity-60 flex items-center justify-center shrink-0 shadow-2xs select-none`}>
+        <span className={initialsClassName}>
+          {initial}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${className} ${radiusClass} bg-paper border border-cardboard border-opacity-60 overflow-hidden flex items-center justify-center shrink-0 shadow-2xs`}>
+      <img
+        src={src}
+        alt={name}
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
+        onError={() => setHasError(true)}
+        className="w-full h-full object-cover"
+        loading="lazy"
+      />
+    </div>
+  );
+};
+
+const formatDisplayDate = (dateStr: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  return dateStr;
+};
+
+const getUpcomingAlternativeDates = (baseDateStr: string, count: number = 6) => {
+  const dates: { dateStr: string; label: string; weekday: string; formatted: string }[] = [];
+  
+  let base: Date;
+  if (baseDateStr) {
+    const parts = baseDateStr.split('-');
+    if (parts.length === 3) {
+      base = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    } else {
+      base = new Date();
+    }
+  } else {
+    base = new Date();
+  }
+
+  for (let i = 1; i <= count; i++) {
+    const d = new Date(base);
+    d.setDate(d.getDate() + i);
+
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+
+    const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+    const monthName = d.toLocaleDateString('en-US', { month: 'short' });
+    const dayNum = d.getDate();
+
+    const label = i === 1 ? `Tomorrow (${weekday})` : `${weekday}`;
+    dates.push({
+      dateStr,
+      label,
+      weekday,
+      formatted: `${monthName} ${dayNum}`,
+    });
+  }
+
+  return dates;
+};
+
+const SuggestedDoctorCard: React.FC<{
+  doctor: any;
+  targetDate: string;
+  slots: string[];
+  isLoading: boolean;
+  onSelectDoctor: (doctorId: number) => void;
+  onSelectSlot: (doctorId: number, slot: string) => void;
+}> = ({ doctor, targetDate: _targetDate, slots, isLoading, onSelectDoctor, onSelectSlot }) => {
+  const docName = doctor.user?.first_name 
+    ? `Dr. ${doctor.user.first_name} ${doctor.user.last_name || ''}`.trim()
+    : `Dr. ${doctor.name || 'Practitioner'}`;
+  const avatarUrl = getDoctorAvatarUrl(doctor);
+  const hasSlots = slots.length > 0;
+
+  return (
+    <div className={`bg-paper border rounded-sm p-3.5 space-y-3 transition-all shadow-2xs text-left ${
+      hasSlots ? 'border-herb/60 ring-1 ring-herb/25' : 'border-cardboard border-opacity-60 hover:border-turmeric'
+    }`}>
+      {/* Top Profile Header (Clickable anywhere on profile to switch doctor) */}
+      <button
+        type="button"
+        onClick={() => onSelectDoctor(doctor.id)}
+        className="w-full flex items-start justify-between gap-2.5 cursor-pointer text-left group p-1 -m-1 rounded-sm hover:bg-paperLight/80 transition-colors focus:outline-none"
+        title={`Click to select ${docName}`}
+      >
+        <div className="flex items-center space-x-3 min-w-0">
+          <DoctorAvatar
+            src={avatarUrl}
+            name={docName}
+            className="w-12 h-12 group-hover:border-turmeric transition-colors"
+            shape="square"
+            initialsClassName="text-base font-display font-black text-turmeric"
+          />
+          <div className="min-w-0">
+            <div className="flex items-center space-x-1.5">
+              <span className="font-display font-bold text-xs sm:text-sm text-ink group-hover:text-paprika transition-colors block truncate">
+                {docName}
+              </span>
+              {hasSlots ? (
+                <span className="font-mono text-[8px] uppercase font-bold text-herb bg-herb/15 px-1.5 py-0.5 rounded-xs border border-herb/30 shrink-0">
+                  {slots.length} Slots Open
+                </span>
+              ) : (
+                <span className="font-mono text-[8px] uppercase font-bold text-herb bg-herb/10 px-1.5 py-0.5 rounded-xs border border-herb/25 shrink-0 group-hover:bg-paprika group-hover:text-white group-hover:border-paprika transition-colors">
+                  Select Vet
+                </span>
+              )}
+            </div>
+            <div className="flex items-center space-x-1.5 text-ink/70 text-[10px] font-mono uppercase mt-0.5">
+              <span>{doctor.specialization || 'Veterinarian'}</span>
+              {doctor.experience_years ? <span>• {doctor.experience_years}y exp</span> : null}
+            </div>
+            {doctor.clinic?.city && (
+              <div className="flex items-center space-x-1 text-herb text-[10px] font-mono uppercase mt-0.5">
+                <Compass className="w-3 h-3 text-herb shrink-0" />
+                <span className="truncate">{doctor.clinic.name ? `${doctor.clinic.name}, ` : ''}{doctor.clinic.city}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="text-right shrink-0">
+          <span className="font-mono text-xs font-bold text-paprika block">
+            ₹{parseFloat(doctor.consultation_fee || '0').toFixed(2)}
+          </span>
+          {Number(doctor.average_rating) > 0 && (
+            <span className="font-mono text-[9px] text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-sm inline-flex items-center space-x-0.5 mt-0.5">
+              <Star className="w-2.5 h-2.5 text-amber-500 fill-amber-500" />
+              <span>{Number(doctor.average_rating).toFixed(1)}</span>
+            </span>
+          )}
+        </div>
+      </button>
+
+      {/* Available Slots Row for this Suggested Doctor */}
+      <div className="pt-2 border-t border-dashed border-cardboard border-opacity-40">
+        {isLoading ? (
+          <div className="flex items-center space-x-2 text-ink/50 text-[10px] font-mono py-1">
+            <Loader2 className="w-3 h-3 animate-spin text-turmeric" />
+            <span>Checking availability for {docName}...</span>
+          </div>
+        ) : hasSlots ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-[10px] font-mono">
+              <span className="text-herb font-bold uppercase flex items-center space-x-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                <span>{slots.length} Slots Open on this date</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => onSelectDoctor(doctor.id)}
+                className="text-paprika font-bold hover:underline cursor-pointer uppercase flex items-center space-x-1"
+              >
+                <span>Select Doctor</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {slots.slice(0, 5).map((slot: string) => (
+                <button
+                  key={slot}
+                  type="button"
+                  onClick={() => onSelectSlot(doctor.id, slot)}
+                  className="py-1 px-2.5 bg-paperLight hover:bg-herb hover:text-white border border-cardboard text-ink font-mono text-[11px] font-bold rounded-sm transition-colors cursor-pointer shadow-2xs active:scale-95"
+                  title={`Book ${slot} with ${docName}`}
+                >
+                  {slot}
+                </button>
+              ))}
+              {slots.length > 5 && (
+                <button
+                  type="button"
+                  onClick={() => onSelectDoctor(doctor.id)}
+                  className="py-1 px-2 bg-paperLight hover:bg-cardboard/30 border border-cardboard text-ink/70 font-mono text-[10px] font-bold rounded-sm transition-colors cursor-pointer"
+                >
+                  +{slots.length - 5} more
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between text-[10px] font-mono">
+            <span className="text-ink/50 uppercase">No slots on this date</span>
+            <button
+              type="button"
+              onClick={() => onSelectDoctor(doctor.id)}
+              className="font-bold text-paprika hover:underline cursor-pointer uppercase flex items-center space-x-1"
+            >
+              <span>Switch to this Doctor</span>
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const SuggestedDoctorsList: React.FC<{
+  doctors: any[];
+  targetDate: string;
+  onSelectDoctor: (doctorId: number) => void;
+  onSelectSlot: (doctorId: number, slot: string) => void;
+}> = ({ doctors, targetDate, onSelectDoctor, onSelectSlot }) => {
+  const todayStr = useMemo(() => {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }, []);
+
+  const queries = useQueries({
+    queries: doctors.map((doc) => ({
+      queryKey: ['suggestedDoctorSlots', doc.id, targetDate],
+      queryFn: () => fetchDoctorSlots(doc.id, targetDate),
+      staleTime: 30 * 1000,
+    })),
+  });
+
+  // Sort: Doctors with open slots (> 0) ALWAYS appear first
+  const sortedDoctors = useMemo(() => {
+    const items = doctors.map((doc, idx) => {
+      const q = queries[idx];
+      const rawSlots = q?.data?.slots || [];
+      const slots = targetDate === todayStr 
+        ? rawSlots.filter((slot: string) => {
+            const now = new Date();
+            const curTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            return slot > curTime;
+          })
+        : rawSlots;
+
+      return {
+        doctor: doc,
+        slots,
+        isLoading: q?.isLoading || false,
+      };
+    });
+
+    return [...items].sort((a, b) => {
+      const aHas = a.slots.length > 0 ? 1 : 0;
+      const bHas = b.slots.length > 0 ? 1 : 0;
+      if (bHas !== aHas) {
+        return bHas - aHas; // Doctors with available slots FIRST
+      }
+      return b.slots.length - a.slots.length; // More slots first
+    });
+  }, [doctors, queries, targetDate, todayStr]);
+
+  if (doctors.length === 0) {
+    return (
+      <div className="p-4 bg-paper/40 border border-dashed border-cardboard rounded-sm text-center text-xs font-mono text-ink/60">
+        No other doctors currently listed in this specific area.
+      </div>
+    );
+  }
+
+  // Strictly show top 4 profiles so even with 100+ doctors the UI remains fast, compact, and uncluttered
+  const displayedDoctors = sortedDoctors.slice(0, 4);
+
+  return (
+    <div className="space-y-2.5 pt-1">
+      {displayedDoctors.map(({ doctor, slots, isLoading }) => (
+        <SuggestedDoctorCard
+          key={doctor.id}
+          doctor={doctor}
+          targetDate={targetDate}
+          slots={slots}
+          isLoading={isLoading}
+          onSelectDoctor={onSelectDoctor}
+          onSelectSlot={onSelectSlot}
+        />
+      ))}
+      {doctors.length > 4 && (
+        <div className="text-center pt-1 border-t border-dashed border-cardboard border-opacity-30">
+          <span className="font-mono text-[9px] text-ink/60 uppercase">
+            Showing top 4 specialists prioritized by availability
+          </span>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export const ConsultationsPage: React.FC = () => {
@@ -45,6 +369,12 @@ export const ConsultationsPage: React.FC = () => {
   const [selectedReviewDoctorName, setSelectedReviewDoctorName] = useState<string>('');
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
+  
+  // Platform Feature Flags
+  const isAltDoctorsEnabled = useFeatureFlag('consultations_suggest_alternative_doctors', true);
+  const isBookingEnabled = useFeatureFlag('consultations_booking', true);
+  const isGpsEnabled = useFeatureFlag('consultations_gps_locator', true);
+  const isReviewsEnabled = useFeatureFlag('consultations_reviews', true);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewSubmitError, setReviewSubmitError] = useState<string | null>(null);
   const [reviewSubmitSuccess, setReviewSubmitSuccess] = useState(false);
@@ -101,7 +431,7 @@ export const ConsultationsPage: React.FC = () => {
   const [searchLat, setSearchLat] = useState<string>('');
   const [searchLng, setSearchLng] = useState<string>('');
   const searchRadius = 10;
-  const [nearbyDocs, setNearbyDocs] = useState<any[]>([]);
+  const [_nearbyDocs, setNearbyDocs] = useState<any[]>([]);
   const [isSearchingNearby, setIsSearchingNearby] = useState(false);
   const [searchError, setSearchError] = useState('');
 
@@ -202,6 +532,43 @@ export const ConsultationsPage: React.FC = () => {
   };
 
   const availableSlots = getFilteredAvailableSlots();
+
+  const currentSelectedDoc = doctors.find((d: any) => d.id.toString() === selectedDoctorId) || 
+    allDoctors.find((d: any) => d.id.toString() === selectedDoctorId);
+  const currentDocName = currentSelectedDoc 
+    ? `Dr. ${currentSelectedDoc.user?.first_name || 'Specialist'} ${currentSelectedDoc.user?.last_name || ''}`.trim()
+    : 'Practitioner';
+
+  const getAlternativeDoctors = () => {
+    if (!currentSelectedDoc) return [];
+    const currentCity = currentSelectedDoc.clinic?.city?.toLowerCase()?.trim();
+    const currentSpec = currentSelectedDoc.specialization?.toLowerCase()?.trim();
+
+    // 1. Same city doctors (excluding currently selected doctor)
+    const sameCity = allDoctors.filter((d: any) => 
+      d.id.toString() !== selectedDoctorId &&
+      d.clinic?.city &&
+      d.clinic.city.toLowerCase().trim() === currentCity
+    );
+
+    // 2. Same specialization doctors (not already in sameCity)
+    const sameSpec = allDoctors.filter((d: any) => 
+      d.id.toString() !== selectedDoctorId &&
+      d.specialization &&
+      d.specialization.toLowerCase().trim() === currentSpec &&
+      !sameCity.some((sc: any) => sc.id === d.id)
+    );
+
+    // 3. Other verified doctors across platform
+    const others = allDoctors.filter((d: any) => 
+      d.id.toString() !== selectedDoctorId &&
+      !sameCity.some((sc: any) => sc.id === d.id) &&
+      !sameSpec.some((ss: any) => ss.id === d.id)
+    );
+
+    // Candidate pool limited to top 8 to check slots in parallel, UI displays strictly top 4
+    return [...sameCity, ...sameSpec, ...others].slice(0, 8);
+  };
 
   // Reset slot selection if doctor or date changes
   useEffect(() => {
@@ -739,20 +1106,13 @@ export const ConsultationsPage: React.FC = () => {
                       <div className="p-6 pl-8 space-y-4 flex-grow">
                         {/* Top Doctor Avatar & Info Header */}
                         <div className="flex items-start space-x-4">
-                          <div className="w-16 h-16 rounded-full bg-paper border-2 border-turmeric/60 overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
-                            {doctorImg ? (
-                              <img 
-                                src={doctorImg} 
-                                alt={doctorName} 
-                                className="w-full h-full object-cover"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <span className="font-display font-black text-2xl text-turmeric">
-                                {d.user?.first_name?.[0]?.toUpperCase() || 'D'}
-                              </span>
-                            )}
-                          </div>
+                          <DoctorAvatar
+                            src={doctorImg}
+                            name={doctorName}
+                            className="w-16 h-16"
+                            shape="circle"
+                            initialsClassName="font-display font-black text-2xl text-turmeric"
+                          />
                           
                           <div className="min-w-0 flex-1">
                             <span className="inline-block font-mono text-[9px] uppercase tracking-wider font-bold text-herb bg-herb/10 px-2 py-0.5 rounded-xs mb-1">
@@ -786,7 +1146,7 @@ export const ConsultationsPage: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-[8.5px] uppercase text-ink opacity-60 block font-bold">Consult Fee</span>
-                            <span className="font-bold text-herb">${parseFloat(d.consultation_fee).toFixed(2)}</span>
+                            <span className="font-bold text-herb">₹{parseFloat(d.consultation_fee).toFixed(2)}</span>
                           </div>
                         </div>
                       </div>
@@ -898,15 +1258,15 @@ export const ConsultationsPage: React.FC = () => {
                               <div>
                                 <span className="text-[9px] uppercase text-paprika font-bold block">Specialist</span>
                                 <div className="flex items-center space-x-2 mt-0.5">
-                                  <div className="w-6 h-6 rounded-full bg-paper border border-cardboard overflow-hidden flex items-center justify-center shrink-0">
-                                    {getDoctorAvatarUrl(consult.doctor) ? (
-                                      <img src={getDoctorAvatarUrl(consult.doctor)!} alt={docName} className="w-full h-full object-cover" />
-                                    ) : (
-                                      <span className="font-mono font-bold text-[9px] text-turmeric">Dr</span>
-                                    )}
+                                    <DoctorAvatar
+                                      src={getDoctorAvatarUrl(consult.doctor)}
+                                      name={docName}
+                                      className="w-6 h-6"
+                                      shape="circle"
+                                      initialsClassName="font-mono font-bold text-[9px] text-turmeric"
+                                    />
+                                    <span className="font-bold text-ink truncate">{docName}</span>
                                   </div>
-                                  <span className="font-bold text-ink truncate">{docName}</span>
-                                </div>
                               </div>
                             </div>
 
@@ -955,7 +1315,7 @@ export const ConsultationsPage: React.FC = () => {
                               </>
                             )}
 
-                            {consult.status.toUpperCase() === 'COMPLETED' && (
+                            {isReviewsEnabled && consult.status === 'COMPLETED' && (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1036,22 +1396,44 @@ export const ConsultationsPage: React.FC = () => {
 
         {/* 3. BOOKING SECTION */}
         {activeSection === 'book' && (
-          <div className="max-w-2xl mx-auto space-y-6 text-left animate-fade-in">
+          <div className={`mx-auto space-y-6 text-left animate-fade-in transition-all ${bookingStep === 3 ? 'max-w-5xl' : 'max-w-2xl'}`}>
             
-            {/* Stepper Progress Bar */}
-            <div className="grid grid-cols-4 gap-2 bg-paperLight border border-cardboard border-opacity-40 p-3 rounded-sm font-mono text-[9px] text-center shadow-xs">
-              <div className={`py-1.5 rounded-xs ${bookingStep >= 1 ? 'bg-herb/15 text-herb font-bold' : 'text-ink opacity-50'}`}>
-                1. PATIENT
-              </div>
-              <div className={`py-1.5 rounded-xs ${(bookingStep >= 2 || (isDirectBooking && selectedDoctorId)) ? 'bg-herb/15 text-herb font-bold' : 'text-ink opacity-50'}`}>
-                2. VET {isDirectBooking && selectedDoctorId ? '✓' : ''}
-              </div>
-              <div className={`py-1.5 rounded-xs ${bookingStep >= 3 ? 'bg-herb/15 text-herb font-bold' : 'text-ink opacity-50'}`}>
-                3. SLOT
-              </div>
-              <div className={`py-1.5 rounded-xs ${bookingStep >= 4 ? 'bg-herb/15 text-herb font-bold' : 'text-ink opacity-50'}`}>
-                4. REASON
-              </div>
+            {/* 5-Step Architectural Ledger Stepper */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:gap-2 bg-paperLight border border-cardboard border-opacity-40 p-2 sm:p-2.5 rounded-sm font-mono text-[9px] text-center shadow-xs">
+              {[
+                { step: 1, label: '1. PATIENT', complete: !!selectedPetId },
+                { step: 2, label: '2. SPECIALIST', complete: !!selectedDoctorId },
+                { step: 3, label: '3. SCHEDULE', complete: !!(targetDate && selectedSlot) },
+                { step: 4, label: '4. SYMPTOMS', complete: !!reason.trim() },
+                { step: 5, label: '5. CONFIRM & PAY', complete: false },
+              ].map((item) => {
+                const isCurrent = bookingStep === item.step;
+                const isPast = bookingStep > item.step;
+                const canClick = isPast || (item.step === 2 && isDirectBooking);
+
+                return (
+                  <button
+                    key={item.step}
+                    type="button"
+                    disabled={!canClick && !isCurrent}
+                    onClick={() => {
+                      if (canClick) {
+                        setBookingStep(item.step);
+                      }
+                    }}
+                    className={`py-2 px-1.5 rounded-xs transition-all flex items-center justify-center space-x-1 ${
+                      isCurrent 
+                        ? 'bg-turmeric text-ink font-bold shadow-2xs' 
+                        : isPast 
+                          ? 'bg-herb/15 text-herb font-bold hover:bg-herb/25 cursor-pointer' 
+                          : 'text-ink/40 cursor-default'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    {isPast && <CheckCircle2 className="w-2.5 h-2.5 text-herb shrink-0" />}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Main Form Wizard Box */}
@@ -1063,7 +1445,17 @@ export const ConsultationsPage: React.FC = () => {
                 </div>
               )}
 
-              {!pets || pets.length === 0 ? (
+              {!isBookingEnabled ? (
+                <div className="text-center py-8 space-y-4">
+                  <AlertCircle className="w-8 h-8 text-turmeric mx-auto stroke-1" />
+                  <div>
+                    <h4 className="font-display font-bold text-base text-ink">Online Bookings Paused</h4>
+                    <p className="font-body text-xs text-ink opacity-75 max-w-sm mx-auto mt-1">
+                      Online appointment bookings are currently paused by administrator. You can still explore verified veterinarians in the directory below.
+                    </p>
+                  </div>
+                </div>
+              ) : !pets || pets.length === 0 ? (
                 <div className="text-center py-8 space-y-4">
                   <AlertCircle className="w-8 h-8 text-turmeric mx-auto stroke-1" />
                   <div>
@@ -1086,10 +1478,10 @@ export const ConsultationsPage: React.FC = () => {
                   {bookingStep === 1 && (
                     <div className="space-y-4 animate-fade-in">
                       <div className="space-y-1">
-                        <Eyebrow label="STEP 1 OF 5" />
+                        <Eyebrow label="STEP 1 OF 5 // COMPANION IDENTIFIER" />
                         <h3 className="font-display font-black text-xl text-ink">Choose Companion Patient</h3>
                         <p className="font-body text-xs text-ink opacity-70">
-                          Select which pet this veterinary consultation is booked for:
+                          Select which pet this veterinary consultation dossier is scheduled for:
                         </p>
                       </div>
 
@@ -1103,13 +1495,13 @@ export const ConsultationsPage: React.FC = () => {
                         return (
                           <div className="p-3 bg-paper border border-herb/40 rounded-sm flex items-center justify-between shadow-xs">
                             <div className="flex items-center space-x-3 min-w-0">
-                              <div className="w-9 h-9 rounded-full bg-paperLight border border-cardboard border-opacity-40 overflow-hidden flex items-center justify-center shrink-0">
-                                {docImg ? (
-                                  <img src={docImg} alt={docName} className="w-full h-full object-cover" />
-                                ) : (
-                                  <span className="font-bold text-turmeric text-xs">{selectedDoc.user?.first_name?.[0]?.toUpperCase() || 'D'}</span>
-                                )}
-                              </div>
+                              <DoctorAvatar
+                                src={docImg}
+                                name={docName}
+                                className="w-9 h-9"
+                                shape="square"
+                                initialsClassName="font-bold text-turmeric text-xs"
+                              />
                               <div className="min-w-0">
                                 <div className="flex items-center space-x-1.5">
                                   <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide">Selected Specialist</span>
@@ -1151,24 +1543,45 @@ export const ConsultationsPage: React.FC = () => {
                               }}
                               className={`p-4 border text-left rounded-sm transition-all cursor-pointer flex items-center space-x-3.5 ${
                                 isSelected 
-                                  ? 'bg-paper border-turmeric ring-1 ring-turmeric shadow-xs' 
+                                  ? 'bg-paper border-herb ring-1 ring-herb/40 shadow-xs' 
                                   : 'bg-paperLight border-cardboard border-opacity-50 hover:border-turmeric'
                               }`}
                             >
-                              <div className="w-12 h-12 rounded-full bg-paper border border-cardboard overflow-hidden flex items-center justify-center shrink-0">
+                              <div className="w-12 h-12 rounded-sm bg-paper border border-cardboard overflow-hidden flex items-center justify-center shrink-0 shadow-2xs">
                                 {p.profile_image_url ? (
-                                  <img src={p.profile_image_url} alt={p.name} className="w-full h-full object-cover" />
+                                  <img 
+                                    src={p.profile_image_url} 
+                                    alt={p.name} 
+                                    referrerPolicy="no-referrer"
+                                    className="w-full h-full object-cover" 
+                                  />
                                 ) : (
                                   <span className="text-xl">🐾</span>
                                 )}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <span className="font-display font-bold text-ink block truncate">{p.name}</span>
+                                <div className="flex items-center space-x-1.5">
+                                  <span className="font-display font-bold text-ink block truncate">{p.name}</span>
+                                  {isSelected && (
+                                    <span className="font-mono text-[8px] uppercase font-bold text-herb bg-herb/15 px-1.5 py-0.2 rounded-xs border border-herb/30">
+                                      Selected
+                                    </span>
+                                  )}
+                                </div>
                                 <span className="font-mono text-[9px] uppercase tracking-wider text-paprika block truncate">
-                                  {p.species} • {p.breed || 'Mixed'}
+                                  {p.species} • {p.breed || 'Mixed Breed'}
                                 </span>
+                                {p.weight && (
+                                  <span className="font-mono text-[8.5px] text-ink/60 block">
+                                    Weight: {p.weight} kg
+                                  </span>
+                                )}
                               </div>
-                              {isSelected && <CheckCircle2 className="w-4 h-4 text-herb shrink-0" />}
+                              {isSelected ? (
+                                <CheckCircle2 className="w-5 h-5 text-herb shrink-0" />
+                              ) : (
+                                <span className="font-mono text-[9px] uppercase text-ink/40 font-bold">Select ➔</span>
+                              )}
                             </button>
                           );
                         })}
@@ -1180,258 +1593,415 @@ export const ConsultationsPage: React.FC = () => {
                   {bookingStep === 2 && (
                     <div className="space-y-4 animate-fade-in">
                       <div className="space-y-1">
-                        <Eyebrow label="STEP 2 OF 5" />
+                        <Eyebrow label="STEP 2 OF 5 // PRACTITIONER ROSTER" />
                         <h3 className="font-display font-black text-xl text-ink">Select Specialist</h3>
                         <p className="font-body text-xs text-ink opacity-70">
-                          Choose a certified veterinarian or use the GPS locator tool:
+                          Choose a certified practitioner or search by doctor name / specialization:
                         </p>
+                      </div>
+
+                      {/* Search Bar for Doctors */}
+                      <div className="flex gap-2 pt-1">
+                        <input
+                          type="text"
+                          placeholder="Search vet by name, specialty, or clinic city..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full px-3.5 py-2 border border-cardboard border-opacity-60 rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                        />
+                        {searchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            className="px-3 py-1.5 text-[10px] font-mono uppercase font-bold text-paprika border border-cardboard rounded-sm hover:bg-paper cursor-pointer shrink-0"
+                          >
+                            Clear
+                          </button>
+                        )}
                       </div>
 
                       <hr className="border-t border-dashed border-cardboard border-opacity-35" />
 
-                      {/* GPS Locator */}
-                      <div className="border border-cardboard border-dashed p-4 rounded-sm bg-paper/50 space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide flex items-center">
-                            <Compass className="w-3.5 h-3.5 mr-1.5 text-turmeric" />
-                            <span>GPS Clinic Locator</span>
+                      {/* GPS Locator Collapsible Tool (Feature Gated) */}
+                      {isGpsEnabled && (
+                        <details className="border border-cardboard border-dashed p-3 rounded-sm bg-paper/40 group">
+                        <summary className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide flex items-center justify-between cursor-pointer list-none">
+                          <span className="flex items-center space-x-1.5">
+                            <Compass className="w-3.5 h-3.5 text-turmeric" />
+                            <span>Optional: GPS & IP Nearby Clinic Filter</span>
                           </span>
-                        </div>
+                          <span className="text-ink/50 group-open:rotate-180 transition-transform">▼</span>
+                        </summary>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                          <input
-                            type="text"
-                            placeholder="Latitude (e.g. 13.0827)"
-                            value={searchLat}
-                            onChange={(e) => setSearchLat(e.target.value)}
-                            className="px-3 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink text-xs focus:outline-none focus:border-turmeric"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Longitude (e.g. 80.2707)"
-                            value={searchLng}
-                            onChange={(e) => setSearchLng(e.target.value)}
-                            className="px-3 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink text-xs focus:outline-none focus:border-turmeric"
-                          />
-                        </div>
-                        
-                        <div className="flex space-x-2">
-                          <button
-                            type="button"
-                            onClick={handleAutoLocate}
-                            className="w-1/3 border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center cursor-pointer"
-                          >
-                            GPS Detect
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleIpLocate}
-                            className="w-1/3 border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center cursor-pointer"
-                          >
-                            IP Detect
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleSearchNearby}
-                            disabled={isSearchingNearby}
-                            className="w-1/3 bg-turmeric text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center disabled:opacity-50 cursor-pointer"
-                          >
-                            {isSearchingNearby ? <Loader2 className="w-3 h-3 animate-spin" /> : <span>Search Nearby</span>}
-                          </button>
-                        </div>
-
-                        {searchError && (
-                          <div className="text-[10px] text-paprika bg-rose-50 p-2 rounded-sm font-body">
-                            {searchError}
+                        <div className="pt-3 space-y-2.5">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            <input
+                              type="text"
+                              placeholder="Latitude (e.g. 13.0827)"
+                              value={searchLat}
+                              onChange={(e) => setSearchLat(e.target.value)}
+                              className="px-3 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink text-xs focus:outline-none focus:border-turmeric"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Longitude (e.g. 80.2707)"
+                              value={searchLng}
+                              onChange={(e) => setSearchLng(e.target.value)}
+                              className="px-3 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink text-xs focus:outline-none focus:border-turmeric"
+                            />
                           </div>
-                        )}
-
-                        {nearbyDocs.length > 0 && (
-                          <div className="max-h-[160px] overflow-y-auto space-y-2 border-t border-cardboard border-dashed pt-2 pr-1 custom-scrollbar">
-                            {nearbyDocs.map((doc) => {
-                              const docImg = getDoctorAvatarUrl(doc);
-                              return (
-                                <div key={doc.id} className="flex justify-between items-center border border-cardboard border-opacity-40 p-2 bg-paperLight rounded-xs text-xs font-mono gap-2">
-                                  <div className="flex items-center space-x-2 min-w-0">
-                                    <div className="w-8 h-8 rounded-full bg-paper border border-cardboard overflow-hidden flex items-center justify-center shrink-0">
-                                      {docImg ? (
-                                        <img src={docImg} alt={doc.name} className="w-full h-full object-cover" />
-                                      ) : (
-                                        <span className="font-bold text-turmeric text-xs">{doc.name?.[0]?.toUpperCase() || 'D'}</span>
-                                      )}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <span className="font-bold text-ink block truncate">Dr. {doc.name}</span>
-                                      <span className="text-[9px] opacity-60 italic">{doc.distance_km.toFixed(1)} km away</span>
-                                    </div>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedDoctorId(doc.id.toString());
-                                      setBookingStep(3);
-                                    }}
-                                    className="bg-herb text-white px-2.5 py-1 text-[9px] uppercase font-bold rounded-sm cursor-pointer border-0 shrink-0"
-                                  >
-                                    Select
-                                  </button>
-                                </div>
-                              );
-                            })}
+                          
+                          <div className="flex space-x-2">
+                            <button
+                              type="button"
+                              onClick={handleAutoLocate}
+                              className="w-1/3 border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center cursor-pointer"
+                            >
+                              GPS Detect
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleIpLocate}
+                              className="w-1/3 border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center cursor-pointer"
+                            >
+                              IP Detect
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSearchNearby}
+                              disabled={isSearchingNearby}
+                              className="w-1/3 bg-turmeric text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center disabled:opacity-50 cursor-pointer"
+                            >
+                              {isSearchingNearby ? <Loader2 className="w-3 h-3 animate-spin" /> : <span>Search Nearby</span>}
+                            </button>
                           </div>
-                        )}
-                      </div>
+
+                          {searchError && (
+                            <div className="text-[10px] text-paprika bg-rose-50 p-2 rounded-sm font-body">
+                              {searchError}
+                            </div>
+                          )}
+                        </div>
+                      </details>
+                      )}
 
                       {/* Doctor Select Cards */}
-                      <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1 custom-scrollbar">
-                        {doctors.map((d: any) => {
-                          const isSelected = selectedDoctorId === d.id.toString();
-                          const doctorName = `Dr. ${d.user?.first_name || 'Specialist'} ${d.user?.last_name || ''}`.trim();
-                          const doctorImg = getDoctorAvatarUrl(d);
-                          
-                          return (
+                      <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
+                        {doctors.length === 0 ? (
+                          <div className="p-6 bg-paper/40 border border-dashed border-cardboard rounded-sm text-center font-mono text-xs text-ink/60 space-y-1">
+                            <span>No specialists found matching your search.</span>
                             <button
-                              key={d.id}
                               type="button"
-                              onClick={() => {
-                                setSelectedDoctorId(d.id.toString());
-                                setBookingStep(3);
-                              }}
-                              className={`w-full p-3 border text-left rounded-sm transition-all cursor-pointer flex justify-between items-center gap-3 ${
-                                isSelected 
-                                  ? 'bg-paper border-turmeric ring-1 ring-turmeric shadow-xs' 
-                                  : 'bg-paperLight border-cardboard border-opacity-50 hover:border-turmeric'
-                              }`}
+                              onClick={() => setSearchQuery('')}
+                              className="text-herb underline font-bold block mx-auto text-[10px] cursor-pointer"
                             >
-                              <div className="flex items-center space-x-3 min-w-0 pr-2">
-                                <div className="w-10 h-10 rounded-full bg-paper border border-cardboard border-opacity-40 overflow-hidden flex items-center justify-center shrink-0 shadow-xs">
-                                  {doctorImg ? (
-                                    <img src={doctorImg} alt={doctorName} className="w-full h-full object-cover" />
-                                  ) : (
-                                    <span className="font-display font-black text-sm text-turmeric">
-                                      {d.user?.first_name?.[0]?.toUpperCase() || 'D'}
+                              Clear search query
+                            </button>
+                          </div>
+                        ) : (
+                          doctors.map((d: any) => {
+                            const isSelected = selectedDoctorId === d.id.toString();
+                            const doctorName = `Dr. ${d.user?.first_name || 'Specialist'} ${d.user?.last_name || ''}`.trim();
+                            const doctorImg = getDoctorAvatarUrl(d);
+                            
+                            return (
+                              <button
+                                key={d.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDoctorId(d.id.toString());
+                                  setBookingStep(3);
+                                }}
+                                className={`w-full p-3.5 border text-left rounded-sm transition-all cursor-pointer flex justify-between items-center gap-3 ${
+                                  isSelected 
+                                    ? 'bg-paper border-herb ring-1 ring-herb/40 shadow-xs' 
+                                    : 'bg-paperLight border-cardboard border-opacity-50 hover:border-turmeric'
+                                }`}
+                              >
+                                <div className="flex items-center space-x-3 min-w-0 pr-2">
+                                  <DoctorAvatar
+                                    src={doctorImg}
+                                    name={doctorName}
+                                    className="w-12 h-12"
+                                    shape="square"
+                                    initialsClassName="font-display font-black text-sm text-turmeric"
+                                  />
+                                  <div className="min-w-0">
+                                    <div className="flex items-center space-x-1.5">
+                                      <span className="font-display font-bold text-xs sm:text-sm text-ink block truncate">{doctorName}</span>
+                                      {Number(d.average_rating) > 0 && (
+                                        <span className="font-mono text-[9px] text-amber-800 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded-xs inline-flex items-center space-x-0.5">
+                                          <Star className="w-2.5 h-2.5 text-amber-500 fill-amber-500" />
+                                          <span>{Number(d.average_rating).toFixed(1)}</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="font-mono text-[9px] uppercase tracking-wider text-paprika block truncate">
+                                      {d.specialization} • Exp: {d.experience_years} yrs • {d.clinic?.city || 'Chennai'}
                                     </span>
-                                  )}
+                                    {d.qualification && (
+                                      <span className="font-mono text-[8.5px] text-ink/60 block truncate">
+                                        {d.qualification}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="min-w-0">
-                                  <span className="font-display font-bold text-xs sm:text-sm text-ink block truncate">{doctorName}</span>
-                                  <span className="font-mono text-[9px] uppercase tracking-wider text-paprika block truncate">
-                                    {d.specialization} • Exp: {d.experience_years} yrs • {d.clinic?.city || 'Chennai'}
+                                <div className="text-right shrink-0">
+                                  <span className="font-mono text-xs font-bold text-herb bg-herb/10 border border-herb/30 px-2.5 py-1 rounded-sm block">
+                                    ₹{parseFloat(d.consultation_fee).toFixed(2)}
+                                  </span>
+                                  <span className="font-mono text-[8.5px] uppercase font-bold text-paprika mt-1 block">
+                                    Select Vet ➔
                                   </span>
                                 </div>
-                              </div>
-                              <span className="font-mono text-[10px] font-bold text-herb bg-herb/10 border border-herb/30 px-2.5 py-1 rounded-sm shrink-0">
-                                ${parseFloat(d.consultation_fee).toFixed(2)}
-                              </span>
-                            </button>
-                          );
-                        })}
+                              </button>
+                            );
+                          })
+                        )}
                       </div>
                     </div>
                   )}
 
-                  {/* STEP 3: Date & Slot Booking */}
+                  {/* STEP 3: Date & Slot Booking (HORIZONTAL WORKSPACE) */}
                   {bookingStep === 3 && (
-                    <div className="space-y-4 animate-fade-in">
-                      <div className="space-y-1">
-                        <Eyebrow label="STEP 3 OF 5" />
-                        <h3 className="font-display font-black text-xl text-ink">Select Date & Time</h3>
-                        <p className="font-body text-xs text-ink opacity-70">
-                          Pick an available time slot on your preferred consultation date:
-                        </p>
+                    <div className="space-y-5 animate-fade-in text-left">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-cardboard border-opacity-40 pb-3">
+                        <div>
+                          <Eyebrow label="STEP 3 OF 5 // CLINICAL SCHEDULE" />
+                          <h3 className="font-display font-black text-xl sm:text-2xl text-ink">
+                            Select Consultation Date & Time
+                          </h3>
+                        </div>
+                        <span className="font-mono text-[10px] text-herb uppercase font-bold bg-herb/10 border border-herb/30 px-2.5 py-1 rounded-sm self-start sm:self-auto">
+                          In-Person & Telehealth
+                        </span>
                       </div>
 
-                      {/* Selected Doctor Summary Card in Step 3 */}
-                      {(() => {
-                        const selectedDoc = doctors.find((d: any) => d.id.toString() === selectedDoctorId) || 
-                          allDoctors.find((d: any) => d.id.toString() === selectedDoctorId);
-                        if (!selectedDoc) return null;
-                        const docImg = getDoctorAvatarUrl(selectedDoc);
-                        const docName = `Dr. ${selectedDoc.user?.first_name || 'Specialist'} ${selectedDoc.user?.last_name || ''}`.trim();
-                        return (
-                          <div className="p-3 bg-paper border border-cardboard border-opacity-40 rounded-sm flex items-center justify-between">
-                            <div className="flex items-center space-x-3 min-w-0">
-                              <div className="w-10 h-10 rounded-full bg-paperLight border border-cardboard border-opacity-40 overflow-hidden flex items-center justify-center shrink-0">
-                                {docImg ? (
-                                  <img src={docImg} alt={docName} className="w-full h-full object-cover" />
-                                ) : (
-                                  <span className="font-bold text-turmeric text-sm">{selectedDoc.user?.first_name?.[0]?.toUpperCase() || 'D'}</span>
-                                )}
-                              </div>
-                              <div className="min-w-0">
-                                <span className="font-display font-bold text-xs text-ink block truncate">{docName}</span>
-                                <span className="font-mono text-[9px] text-paprika uppercase block truncate">
-                                  {selectedDoc.specialization} • ${parseFloat(selectedDoc.consultation_fee).toFixed(2)}
-                                </span>
-                              </div>
+                      {/* Top Horizontal Row: Selected Doctor (Left) + Consultation Date Input (Right) */}
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-paper p-3.5 sm:p-4 rounded-sm border border-cardboard border-opacity-60 shadow-2xs">
+                        {/* Doctor Info (Left 7 cols) */}
+                        <div className="md:col-span-7 flex items-center justify-between gap-3 pr-2">
+                          <div className="flex items-center space-x-3 min-w-0">
+                            <DoctorAvatar
+                              src={getDoctorAvatarUrl(currentSelectedDoc)}
+                              name={currentDocName}
+                              className="w-12 h-12"
+                              shape="square"
+                              initialsClassName="font-display font-black text-base text-turmeric"
+                            />
+                            <div className="min-w-0">
+                              <span className="font-mono text-[9px] uppercase font-bold text-herb block">Attending Practitioner</span>
+                              <span className="font-display font-bold text-sm sm:text-base text-ink block truncate">{currentDocName}</span>
+                              <span className="font-mono text-[10px] text-paprika uppercase block truncate">
+                                {currentSelectedDoc?.specialization} • ₹{parseFloat(currentSelectedDoc?.consultation_fee || '0').toFixed(2)}
+                              </span>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsDirectBooking(false);
-                                setBookingStep(2);
-                              }}
-                              className="font-mono text-[9px] uppercase font-bold text-herb hover:underline shrink-0 ml-2 cursor-pointer"
-                            >
-                              Change
-                            </button>
                           </div>
-                        );
-                      })()}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsDirectBooking(false);
+                              setBookingStep(2);
+                            }}
+                            className="font-mono text-[10px] uppercase font-bold text-herb hover:text-paprika underline underline-offset-2 shrink-0 cursor-pointer"
+                          >
+                            Change Doctor
+                          </button>
+                        </div>
 
-                      <hr className="border-t border-dashed border-cardboard border-opacity-35" />
-
-                      <div className="space-y-1.5 text-left">
-                        <label htmlFor="date" className="font-mono text-[10px] uppercase font-bold text-paprika block">
-                          Consultation Date:
-                        </label>
-                        <input
-                          type="date"
-                          id="date"
-                          value={targetDate}
-                          min={getTodayLocalDateString()}
-                          onChange={(e) => setTargetDate(e.target.value)}
-                          className="w-full px-3.5 py-2.5 border border-cardboard border-opacity-60 rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors cursor-pointer"
-                        />
+                        {/* Date Picker Input (Right 5 cols) */}
+                        <div className="md:col-span-5 md:border-l md:border-cardboard md:border-dashed md:border-opacity-40 md:pl-4 space-y-1">
+                          <label htmlFor="date" className="font-mono text-[10px] uppercase font-bold text-paprika flex items-center justify-between">
+                            <span>Consultation Date:</span>
+                            <span className="text-ink/60">{formatDisplayDate(targetDate)}</span>
+                          </label>
+                          <input
+                            type="date"
+                            id="date"
+                            value={targetDate}
+                            min={getTodayLocalDateString()}
+                            onChange={(e) => setTargetDate(e.target.value)}
+                            className="w-full px-3 py-2 border border-cardboard border-opacity-60 rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors cursor-pointer"
+                          />
+                        </div>
                       </div>
 
+                      {/* Main Slots / Recovery View */}
                       {targetDate && (
-                        <div className="space-y-2 text-left pt-2">
-                          <span className="font-mono text-[10px] uppercase font-bold text-paprika block">
-                            Available Time Slots:
-                          </span>
-                          
+                        <div className="space-y-4 pt-1">
                           {isSlotsLoading ? (
-                            <div className="text-center py-6">
-                              <Loader2 className="w-6 h-6 text-turmeric animate-spin mx-auto" />
-                              <span className="font-mono text-[10px] text-herb uppercase font-bold mt-1 block">Checking availability...</span>
+                            <div className="text-center py-10 bg-paper/30 border border-cardboard border-opacity-40 rounded-sm">
+                              <Loader2 className="w-7 h-7 text-turmeric animate-spin mx-auto" />
+                              <span className="font-mono text-xs text-herb uppercase font-bold mt-2 block">
+                                Checking appointment windows in RAM...
+                              </span>
                             </div>
                           ) : availableSlots.length === 0 ? (
-                            <div className="text-xs text-rose-800 bg-rose-50 border border-rose-200 p-3.5 rounded-sm text-center">
-                              No slots available on this date. Please pick another date.
+                            /* HORIZONTAL RECOVERY WORKSPACE (No Slots Available) */
+                            <div className="space-y-4 animate-fade-in">
+                              {/* Full-Width Notice Banner */}
+                              <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-sm text-xs text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="flex items-center space-x-2.5">
+                                  <AlertCircle className="w-5 h-5 text-paprika shrink-0" />
+                                  <div>
+                                    <span className="font-bold font-mono uppercase text-[11px] text-paprika block">
+                                      No Consultation Slots on {formatDisplayDate(targetDate)}
+                                    </span>
+                                    <span className="font-body text-xs text-ink/80">
+                                      All consultation windows for <strong>{currentDocName}</strong> are booked or closed on this date.
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="font-mono text-[10px] bg-paper px-2.5 py-1 rounded-sm border border-cardboard text-herb uppercase font-bold shrink-0 self-start sm:self-auto">
+                                  {isAltDoctorsEnabled ? '2 Options Side-by-Side Below ➔' : 'Upcoming Dates Below ➔'}
+                                </div>
+                              </div>
+
+                              {/* HORIZONTAL COLUMNS (Feature Gated) */}
+                              <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
+                                
+                                {/* LEFT HORIZONTAL BLOCK: Next Available Dates for This Doctor */}
+                                <div className={`${isAltDoctorsEnabled ? 'md:col-span-6' : 'md:col-span-12'} bg-paperLight border border-cardboard border-opacity-60 p-4 sm:p-5 rounded-sm shadow-xs space-y-4 relative overflow-hidden flex flex-col justify-between`}>
+                                  {/* Left dashed notebook spine */}
+                                  <div className="absolute top-0 bottom-0 left-2 border-l border-dashed border-cardboard border-opacity-35"></div>
+
+                                  <div className="pl-2.5 space-y-3">
+                                    <div className="flex items-center justify-between border-b border-cardboard border-opacity-40 pb-2.5">
+                                      <div>
+                                        <span className="font-mono text-[9px] uppercase font-bold text-paprika block">
+                                          OPTION 1 // SAME SPECIALIST
+                                        </span>
+                                        <h4 className="font-display font-black text-sm sm:text-base text-ink flex items-center gap-1.5 mt-0.5">
+                                          <CalendarIcon className="w-4 h-4 text-turmeric shrink-0" />
+                                          <span>Upcoming Dates for {currentDocName}</span>
+                                        </h4>
+                                      </div>
+                                      <span className="font-mono text-[9px] bg-paper border border-cardboard px-2 py-0.5 rounded-sm text-herb uppercase font-bold shrink-0">
+                                        6 Dates
+                                      </span>
+                                    </div>
+
+                                    <p className="font-body text-xs text-ink/75">
+                                      Want to consult with <strong>{currentDocName}</strong>? Tap an upcoming date to immediately load open slots:
+                                    </p>
+
+                                    {/* 6 Clean Date Selection Tiles */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                                      {getUpcomingAlternativeDates(targetDate, 6).map((alt) => (
+                                        <button
+                                          key={alt.dateStr}
+                                          type="button"
+                                          onClick={() => setTargetDate(alt.dateStr)}
+                                          className="p-2.5 border border-cardboard hover:border-turmeric hover:bg-paper rounded-sm text-left transition-all cursor-pointer group shadow-2xs hover:shadow-xs active:scale-98"
+                                        >
+                                          <span className="font-mono text-[9px] uppercase font-bold text-herb block group-hover:text-paprika transition-colors truncate">
+                                            {alt.label}
+                                          </span>
+                                          <span className="font-display font-black text-sm text-ink block mt-0.5">
+                                            {alt.formatted}
+                                          </span>
+                                          <span className="font-mono text-[9px] text-ink/45 group-hover:text-paprika mt-1 block">
+                                            Check Slots ➔
+                                          </span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* RIGHT HORIZONTAL BLOCK: Alternative Doctors in the Area Today (Feature Gated) */}
+                                {isAltDoctorsEnabled && (
+                                  <div className="md:col-span-6 bg-paperLight border border-cardboard border-opacity-60 p-4 sm:p-5 rounded-sm shadow-xs space-y-3 relative overflow-hidden flex flex-col justify-between">
+                                    {/* Left dashed notebook spine */}
+                                    <div className="absolute top-0 bottom-0 left-2 border-l border-dashed border-cardboard border-opacity-35"></div>
+
+                                    <div className="pl-2.5 space-y-3">
+                                      <div className="flex items-center justify-between border-b border-cardboard border-opacity-40 pb-2.5">
+                                        <div>
+                                          <span className="font-mono text-[9px] uppercase font-bold text-herb block">
+                                            OPTION 2 // SAME-DAY CARE
+                                          </span>
+                                          <h4 className="font-display font-black text-sm sm:text-base text-ink flex items-center gap-1.5 mt-0.5">
+                                            <Stethoscope className="w-4 h-4 text-paprika shrink-0" />
+                                            <span>Other Vets in {currentSelectedDoc?.clinic?.city || 'Your Area'}</span>
+                                          </h4>
+                                        </div>
+                                        <span className="font-mono text-[9px] bg-paper border border-cardboard px-2 py-0.5 rounded-sm text-paprika uppercase font-bold shrink-0">
+                                          Top 4 Vets
+                                        </span>
+                                      </div>
+
+                                    <p className="font-body text-xs text-ink/75">
+                                      Need an appointment on <strong>{formatDisplayDate(targetDate)}</strong>? Book another verified veterinarian:
+                                    </p>
+
+                                    {/* Suggested Doctors Stack */}
+                                    {(() => {
+                                      const altDoctors = getAlternativeDoctors();
+                                      if (altDoctors.length === 0) {
+                                        return (
+                                          <div className="p-4 bg-paper/40 border border-dashed border-cardboard rounded-sm text-center text-xs font-mono text-ink/60">
+                                            No other doctors currently listed in this specific area.
+                                          </div>
+                                        );
+                                      }
+                                      return (
+                                        <SuggestedDoctorsList
+                                          doctors={altDoctors}
+                                          targetDate={targetDate}
+                                          onSelectDoctor={(docId) => {
+                                            setSelectedDoctorId(docId.toString());
+                                            setSelectedSlot('');
+                                          }}
+                                          onSelectSlot={(docId, slot) => {
+                                            setSelectedDoctorId(docId.toString());
+                                            setSelectedSlot(slot);
+                                            setBookingStep(4);
+                                          }}
+                                        />
+                                      );
+                                    })()}
+                                  </div>
+                                </div>
+                              )}
+
+                              </div>
                             </div>
                           ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                              {availableSlots.map((slot: string) => {
-                                const isSelected = selectedSlot === slot;
-                                return (
-                                  <button
-                                    key={slot}
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedSlot(slot);
-                                      setBookingStep(4);
-                                    }}
-                                    className={`py-2 px-3 border text-center font-mono text-xs font-bold rounded-sm transition-all cursor-pointer ${
-                                      isSelected 
-                                        ? 'bg-herb text-white border-herb shadow-xs' 
-                                        : 'bg-paper border-cardboard border-opacity-60 text-ink hover:border-turmeric'
-                                    }`}
-                                  >
-                                    {slot}
-                                  </button>
-                                );
-                              })}
+                            /* HORIZONTAL SLOTS WORKSPACE (Slots Available) */
+                            <div className="bg-paperLight border border-cardboard border-opacity-60 p-5 sm:p-6 rounded-sm shadow-xs space-y-4">
+                              <div className="flex items-center justify-between border-b border-cardboard border-opacity-40 pb-2.5">
+                                <span className="font-mono text-xs uppercase font-bold text-paprika flex items-center space-x-1.5">
+                                  <Clock className="w-4 h-4 text-turmeric" />
+                                  <span>Available Time Slots ({availableSlots.length} Windows Open)</span>
+                                </span>
+                                <span className="font-mono text-[10px] text-herb font-bold uppercase bg-herb/10 border border-herb/30 px-2 py-0.5 rounded-sm">
+                                  Select to proceed
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
+                                {availableSlots.map((slot: string) => {
+                                  const isSelected = selectedSlot === slot;
+                                  return (
+                                    <button
+                                      key={slot}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedSlot(slot);
+                                        setBookingStep(4);
+                                      }}
+                                      className={`py-3 px-3 border text-center font-mono text-xs font-bold rounded-sm transition-all cursor-pointer shadow-2xs ${
+                                        isSelected 
+                                          ? 'bg-herb text-white border-herb shadow-xs scale-102' 
+                                          : 'bg-paper hover:bg-white border-cardboard border-opacity-60 text-ink hover:border-turmeric'
+                                      }`}
+                                    >
+                                      {slot}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1458,26 +2028,26 @@ export const ConsultationsPage: React.FC = () => {
                         const docImg = getDoctorAvatarUrl(selectedDoc);
                         const docName = `Dr. ${selectedDoc?.user?.first_name || 'Specialist'} ${selectedDoc?.user?.last_name || ''}`.trim();
                         return (
-                          <div className="grid grid-cols-2 gap-3 p-3 bg-paper border border-cardboard border-opacity-40 rounded-sm">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 bg-paper border border-cardboard border-opacity-40 rounded-sm">
                             <div className="flex items-center space-x-2.5 min-w-0">
-                              <div className="w-9 h-9 rounded-full bg-paperLight border border-cardboard border-opacity-40 overflow-hidden flex items-center justify-center shrink-0">
-                                {docImg ? (
-                                  <img src={docImg} alt="Doctor" className="w-full h-full object-cover" />
-                                ) : (
-                                  <span className="font-bold text-turmeric text-xs">Dr</span>
-                                )}
-                              </div>
+                              <DoctorAvatar
+                                src={docImg}
+                                name={docName}
+                                className="w-9 h-9"
+                                shape="square"
+                                initialsClassName="font-bold text-turmeric text-xs"
+                              />
                               <div className="min-w-0">
-                                <span className="font-mono text-[8px] uppercase text-herb font-bold block">Selected Vet</span>
+                                <span className="font-mono text-[8px] uppercase text-herb font-bold block">Specialist</span>
                                 <span className="font-display font-bold text-xs text-ink truncate block">
                                   {docName}
                                 </span>
                               </div>
                             </div>
                             <div className="flex items-center space-x-2.5 min-w-0">
-                              <div className="w-9 h-9 rounded-full bg-paperLight border border-cardboard border-opacity-40 overflow-hidden flex items-center justify-center shrink-0">
+                              <div className="w-9 h-9 rounded-sm bg-paperLight border border-cardboard border-opacity-40 overflow-hidden flex items-center justify-center shrink-0">
                                 {selectedPet?.profile_image_url ? (
-                                  <img src={selectedPet.profile_image_url} alt={selectedPet.name} className="w-full h-full object-cover" />
+                                  <img src={selectedPet.profile_image_url} alt={selectedPet.name} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
                                 ) : (
                                   <span className="text-sm">🐾</span>
                                 )}
@@ -1485,7 +2055,16 @@ export const ConsultationsPage: React.FC = () => {
                               <div className="min-w-0">
                                 <span className="font-mono text-[8px] uppercase text-paprika font-bold block">Patient</span>
                                 <span className="font-display font-bold text-xs text-ink truncate block">
-                                  {selectedPet?.name || 'Pet'}
+                                  {selectedPet?.name || 'Pet'} ({selectedPet?.species || 'Canine'})
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2.5 min-w-0 sm:border-l sm:border-cardboard sm:border-dashed sm:pl-2.5">
+                              <CalendarIcon className="w-5 h-5 text-turmeric shrink-0" />
+                              <div className="min-w-0">
+                                <span className="font-mono text-[8px] uppercase text-herb font-bold block">Schedule Window</span>
+                                <span className="font-mono font-bold text-xs text-ink truncate block">
+                                  {targetDate} • {selectedSlot}
                                 </span>
                               </div>
                             </div>
@@ -1494,6 +2073,36 @@ export const ConsultationsPage: React.FC = () => {
                       })()}
 
                       <hr className="border-t border-dashed border-cardboard border-opacity-35" />
+
+                      {/* Common Clinical Concern Quick-Chips */}
+                      <div className="space-y-1.5 text-left">
+                        <span className="font-mono text-[9px] uppercase font-bold text-paprika block">
+                          Tap Common Consultation Reason:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            '🐾 Routine Wellness & Diet Review',
+                            '🍗 Food Allergy & Skin Itch',
+                            '🤢 Digestion & Sensitive Stomach',
+                            '⚖️ Weight & Portion Planning',
+                            '🩹 Senior Mobility & Joint Support',
+                            '🩺 Post-Surgery Recovery Nutrition',
+                          ].map((chip) => (
+                            <button
+                              key={chip}
+                              type="button"
+                              onClick={() => setReason(chip)}
+                              className={`px-2.5 py-1 text-[10px] font-mono rounded-sm border transition-colors cursor-pointer ${
+                                reason === chip 
+                                  ? 'bg-herb text-white border-herb font-bold shadow-2xs' 
+                                  : 'bg-paper border-cardboard border-opacity-60 text-ink hover:border-turmeric hover:bg-turmeric/10'
+                              }`}
+                            >
+                              {chip}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
                       <div className="space-y-1.5 text-left">
                         <label htmlFor="reason" className="font-mono text-[10px] uppercase font-bold text-paprika block">
@@ -1512,7 +2121,7 @@ export const ConsultationsPage: React.FC = () => {
 
                       <div className="space-y-1.5 text-left">
                         <label htmlFor="notes" className="font-mono text-[10px] uppercase font-bold text-paprika block">
-                          Additional Context (optional):
+                          Additional Clinical Notes (optional):
                         </label>
                         <textarea
                           id="notes"
@@ -1524,12 +2133,21 @@ export const ConsultationsPage: React.FC = () => {
                         />
                       </div>
 
-                      <button
-                        type="submit"
-                        className="w-full bg-turmeric hover:bg-turmeric/90 text-ink font-mono text-[11px] uppercase py-3.5 font-bold rounded-sm tracking-wider transition-colors flex items-center justify-center space-x-2 cursor-pointer shadow-sm"
-                      >
-                        <span>Next: Review Invoice & Pay ➔</span>
-                      </button>
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setBookingStep(3)}
+                          className="w-1/3 border border-cardboard hover:bg-paper text-ink font-mono text-[10px] uppercase py-3 font-bold rounded-sm cursor-pointer"
+                        >
+                          ← Back to Slot
+                        </button>
+                        <button
+                          type="submit"
+                          className="w-2/3 bg-herb hover:bg-herb/90 text-white font-mono text-[10px] uppercase py-3 font-bold rounded-sm tracking-wider transition-colors flex items-center justify-center space-x-2 cursor-pointer shadow-sm"
+                        >
+                          <span>Review Invoice & Pay ➔</span>
+                        </button>
+                      </div>
                     </form>
                   )}
 
@@ -1537,10 +2155,10 @@ export const ConsultationsPage: React.FC = () => {
                   {bookingStep === 5 && (
                     <div className="space-y-5 animate-fade-in text-left">
                       <div className="space-y-1">
-                        <Eyebrow label="STEP 5 OF 5 — PAYMENT & INVOICE" />
+                        <Eyebrow label="STEP 5 OF 5 // PAYMENT & INVOICE" />
                         <h3 className="font-display font-black text-xl text-ink">Invoice & Secure Payment</h3>
                         <p className="font-body text-xs text-ink opacity-70">
-                          Review your consultation appointment invoice and complete payment to confirm your booking:
+                          Review your veterinary consultation appointment voucher and complete payment:
                         </p>
                       </div>
 
@@ -1561,13 +2179,13 @@ export const ConsultationsPage: React.FC = () => {
                             <div className="bg-paper p-4 border border-cardboard border-opacity-60 rounded-sm space-y-3 shadow-xs">
                               <div className="flex items-center justify-between border-b border-dashed border-cardboard border-opacity-40 pb-3">
                                 <div className="flex items-center space-x-3 min-w-0">
-                                  <div className="w-11 h-11 rounded-full bg-paperLight border-2 border-turmeric/60 overflow-hidden flex items-center justify-center shrink-0">
-                                    {docImg ? (
-                                      <img src={docImg} alt={docName} className="w-full h-full object-cover" />
-                                    ) : (
-                                      <span className="font-display font-black text-sm text-turmeric">Dr</span>
-                                    )}
-                                  </div>
+                                  <DoctorAvatar
+                                    src={docImg}
+                                    name={docName}
+                                    className="w-11 h-11"
+                                    shape="square"
+                                    initialsClassName="font-display font-black text-sm text-turmeric"
+                                  />
                                   <div className="min-w-0">
                                     <span className="font-display font-bold text-sm text-ink block truncate">{docName}</span>
                                     <span className="font-mono text-[9px] uppercase tracking-wider text-paprika block truncate">
@@ -1576,7 +2194,7 @@ export const ConsultationsPage: React.FC = () => {
                                   </div>
                                 </div>
                                 <span className="font-mono text-xs font-bold text-herb bg-herb/10 border border-herb/30 px-2.5 py-1 rounded-sm shrink-0">
-                                  ${fee.toFixed(2)}
+                                  ₹{fee.toFixed(2)}
                                 </span>
                               </div>
 
@@ -1598,23 +2216,23 @@ export const ConsultationsPage: React.FC = () => {
                               </div>
                             </div>
 
-                            {/* Itemized Payment Table */}
+                            {/* Itemized Payment Table in INR */}
                             <div className="bg-paperLight border border-cardboard border-opacity-50 rounded-sm p-4 space-y-2 font-mono text-xs">
                               <div className="flex justify-between items-center text-ink opacity-80">
                                 <span>Veterinary Clinical Consultation (30 mins)</span>
-                                <span>${fee.toFixed(2)}</span>
+                                <span>₹{fee.toFixed(2)}</span>
                               </div>
                               <div className="flex justify-between items-center text-ink opacity-80">
-                                <span>Encrypted Video Call & Digital Health File</span>
+                                <span>Encrypted Telehealth Video Call & Digital Health File</span>
                                 <span className="text-herb font-bold">FREE (Included)</span>
                               </div>
                               <div className="flex justify-between items-center text-ink opacity-80">
                                 <span>Platform Service & Compliance</span>
-                                <span className="text-herb font-bold">$0.00</span>
+                                <span className="text-herb font-bold">₹0.00</span>
                               </div>
                               <div className="border-t border-cardboard border-dashed pt-2 mt-2 flex justify-between items-center font-bold text-sm text-ink">
                                 <span className="uppercase text-paprika text-xs">Total Payable Amount:</span>
-                                <span className="text-herb text-base">${fee.toFixed(2)}</span>
+                                <span className="text-herb text-base">₹{fee.toFixed(2)}</span>
                               </div>
                             </div>
 
@@ -1629,28 +2247,37 @@ export const ConsultationsPage: React.FC = () => {
                               </div>
                             )}
 
-                            {/* Primary Pay Button */}
-                            <button
-                              type="button"
-                              onClick={handleInitiatePayment}
-                              disabled={isPaying}
-                              className="w-full bg-herb hover:bg-herb/90 text-white font-mono text-[11px] uppercase py-3.5 font-bold rounded-sm tracking-wider transition-colors flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50 shadow-sm"
-                            >
-                              {isPaying ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                                  <span>Connecting to Payment Gateway...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <CreditCard className="w-4 h-4 mr-1.5" />
-                                  <span>Pay ${fee.toFixed(2)} & Confirm Appointment 💳</span>
-                                </>
-                              )}
-                            </button>
+                            {/* Payment Actions */}
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setBookingStep(4)}
+                                className="w-1/3 border border-cardboard hover:bg-paper text-ink font-mono text-[10px] uppercase py-3.5 font-bold rounded-sm cursor-pointer"
+                              >
+                                ← Edit Notes
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleInitiatePayment}
+                                disabled={isPaying}
+                                className="w-2/3 bg-herb hover:bg-herb/90 text-white font-mono text-[11px] uppercase py-3.5 font-bold rounded-sm tracking-wider transition-colors flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50 shadow-sm"
+                              >
+                                {isPaying ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                    <span>Connecting to Gateway...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <CreditCard className="w-4 h-4 mr-1.5" />
+                                    <span>Pay ₹{fee.toFixed(2)} & Confirm Appointment 💳</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
 
                             <p className="text-center font-mono text-[9px] text-ink opacity-60 uppercase tracking-wide">
-                              🔒 256-Bit SSL Encrypted • Itemized receipt dispatched to your email automatically in the background
+                              🔒 256-Bit SSL Encrypted • Powered by Razorpay • Instant Digital Confirmation
                             </p>
                           </div>
                         );
@@ -1672,9 +2299,13 @@ export const ConsultationsPage: React.FC = () => {
                         }}
                         className="border border-cardboard border-opacity-60 hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 px-4 font-bold rounded-sm cursor-pointer"
                       >
-                        Back
+                        ← Previous Step
                       </button>
                     ) : <div />}
+
+                    <span className="font-mono text-[10px] text-ink/50 uppercase tracking-widest font-bold">
+                      Step {bookingStep} of 5
+                    </span>
 
                     {bookingStep < 4 && (
                       <button

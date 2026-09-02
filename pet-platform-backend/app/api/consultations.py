@@ -44,7 +44,7 @@ router = APIRouter(
 def get_consultation_payment_intent(
     intent_data: ConsultationPaymentIntentRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.DOCTOR)),
 ):
     try:
         return create_consultation_payment_intent(
@@ -68,7 +68,7 @@ def get_consultation_payment_intent(
 def book_consultation_paid(
     data: ConsultationBookWithPayment,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.DOCTOR)),
 ):
     try:
         return book_consultation_with_payment(
@@ -92,7 +92,7 @@ def book_consultation_paid(
 def book_consultation(
     create_data: ConsultationCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.DOCTOR)),
 ):
     try:
         return create_consultation(
@@ -117,7 +117,7 @@ def list_my_consultations(
     limit: int = Query(default=20, ge=1, le=100),
     status_filter: ConsultationStatus | None = Query(default=None, alias="status"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.DOCTOR)),
 ):
     return get_customer_consultations(
         db=db,
@@ -135,7 +135,7 @@ def list_my_consultations(
 def get_my_consultation_detail(
     consultation_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.DOCTOR)),
 ):
     from app.core.cache import cache
     cache_key = f"consultation:detail:{consultation_id}:user:{current_user.id}"
@@ -171,7 +171,7 @@ def get_my_consultation_detail(
 def join_my_consultation(
     consultation_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.DOCTOR)),
 ):
     consultation = get_consultation_by_id(db, consultation_id)
     if consultation is None or consultation.customer_id != current_user.id:
@@ -237,7 +237,7 @@ def join_my_consultation(
 def leave_my_consultation(
     consultation_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.DOCTOR)),
 ):
     consultation = get_consultation_by_id(db, consultation_id)
     if consultation is None or (consultation.customer_id != current_user.id and current_user.role != UserRole.ADMIN):
@@ -253,7 +253,7 @@ def leave_my_consultation(
 def get_my_consultation_audit(
     consultation_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.DOCTOR)),
 ):
     consultation = get_consultation_by_id(db, consultation_id)
     if consultation is None or (consultation.customer_id != current_user.id and current_user.role != UserRole.ADMIN):
@@ -272,7 +272,7 @@ def get_my_consultation_audit(
 def cancel_my_consultation(
     consultation_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN)),
+    current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.DOCTOR)),
 ):
     consultation = get_consultation_by_id(db, consultation_id)
     if consultation is None or consultation.customer_id != current_user.id:

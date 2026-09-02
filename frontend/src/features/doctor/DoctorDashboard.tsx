@@ -49,6 +49,7 @@ import {
   Video,
   ShieldCheck
 } from 'lucide-react';
+import { useFeatureFlag } from '../../hooks/useFeatureFlag';
 
 const DAYS_OF_WEEK = [
   { value: 'monday', label: 'Monday' },
@@ -82,6 +83,7 @@ export const DoctorDashboard: React.FC = () => {
   
   const [activeTab, setActiveTab] = useState<'consultations' | 'schedule' | 'profile' | 'verification'>('consultations');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
 
   // Form States - Availability
   const [availDay, setAvailDay] = useState('monday');
@@ -452,6 +454,26 @@ export const DoctorDashboard: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Global Feature Flag Advisory Banner if Disabled by Admin */}
+        {!isConsultationsEnabled && (
+          <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-sm text-xs text-amber-900 flex items-center justify-between gap-3 text-left">
+            <div className="flex items-center space-x-2.5">
+              <AlertTriangle className="w-5 h-5 text-paprika shrink-0" />
+              <div>
+                <span className="font-bold font-mono uppercase text-[11px] text-paprika block">
+                  Online Appointments Suspended by Platform Admin
+                </span>
+                <span className="font-body text-xs text-ink/80">
+                  New telehealth booking by pet parents is currently paused platform-wide. Your existing clinical records and schedule configurations remain preserved.
+                </span>
+              </div>
+            </div>
+            <span className="font-mono text-[9px] bg-paper px-2.5 py-1 rounded-sm border border-cardboard text-herb uppercase font-bold shrink-0">
+              Admin Restricted
+            </span>
+          </div>
+        )}
 
         {/* Navigation Tabs */}
         <div className="flex border-b border-cardboard border-opacity-35 mb-8 overflow-x-auto space-x-2 text-left font-mono text-xs uppercase tracking-wider font-bold custom-scrollbar">

@@ -13,6 +13,7 @@ import {
   X, 
   LogOut 
 } from 'lucide-react';
+import { useFeatureFlag } from '../hooks/useFeatureFlag';
 
 interface HeaderProps {
   activeTab?: 'shop' | 'pets' | 'consultations' | 'orders' | 'assistant' | 'profile' | 'admin' | 'doctor' | 'apply-doctor';
@@ -52,13 +53,17 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
     }
   };
 
+  const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
+  const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  const isShopEnabled = useFeatureFlag('shop_checkout', true);
+
   const navLinks = [
     { id: 'onboarding', label: 'Meal Planner 🥗', path: '/onboarding' },
-    { id: 'shop', label: 'Shop Recipes', path: '/shop' },
+    ...(isShopEnabled ? [{ id: 'shop', label: 'Shop Recipes', path: '/shop' }] : []),
     { id: 'pets', label: 'Know Your Pet', path: '/pets' },
-    { id: 'consultations', label: 'Vet Consults', path: '/consultations' },
+    ...(isConsultationsEnabled ? [{ id: 'consultations', label: 'Vet Consults', path: '/consultations' }] : []),
     { id: 'orders', label: 'My Orders', path: '/orders' },
-    { id: 'assistant', label: 'AI Assistant 🐾', path: '/assistant' },
+    ...(isChatbotEnabled ? [{ id: 'assistant', label: 'AI Assistant 🐾', path: '/assistant' }] : []),
   ];
 
   return (
@@ -184,18 +189,20 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
               </button>
             )}
 
-            <button 
-              onClick={() => onCartToggle?.()}
-              aria-label="Open cart drawer"
-              className="p-1.5 sm:p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 relative text-paper cursor-pointer"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              {totalCartQuantity > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-turmeric text-ink font-mono text-[9px] font-bold w-4 h-4 rounded-none flex items-center justify-center">
-                  {totalCartQuantity}
-                </span>
-              )}
-            </button>
+            {isShopEnabled && (
+              <button 
+                onClick={() => onCartToggle?.()}
+                aria-label="Open cart drawer"
+                className="p-1.5 sm:p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 relative text-paper cursor-pointer"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                {totalCartQuantity > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-turmeric text-ink font-mono text-[9px] font-bold w-4 h-4 rounded-none flex items-center justify-center">
+                    {totalCartQuantity}
+                  </span>
+                )}
+              </button>
+            )}
  
             {user ? (
               <button

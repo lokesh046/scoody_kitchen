@@ -9,6 +9,7 @@ import {
   Sparkles, X, MessageSquare, Send, Mic, MicOff, 
   Trash2, ShieldAlert, Loader2, Paperclip, User
 } from 'lucide-react';
+import { useFeatureFlag } from '../hooks/useFeatureFlag';
 
 interface Message {
   id: string;
@@ -79,6 +80,7 @@ const renderFormattedText = (rawText: string) => {
 };
 
 export const ChatbotWidget: React.FC = () => {
+  const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
   const { user, accessToken } = useAuthStore();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -413,6 +415,8 @@ export const ChatbotWidget: React.FC = () => {
     setSessionId(newSessionId);
     setMessages([]);
   };
+
+  if (!isChatbotEnabled) return null;
 
   return (
     <div className={`z-50 font-body transition-all duration-300 ${isOpen ? 'fixed bottom-6 right-6' : 'fixed top-1/2 right-0 -translate-y-1/2'}`}>
