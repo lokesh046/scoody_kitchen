@@ -11,7 +11,7 @@ import {
   ArrowLeft, 
   Clock, XCircle, Loader2, AlertCircle,
   Truck, Check, Star, Camera, Package, 
-  CheckCircle2, ShoppingBag, MapPin
+  CheckCircle2, ShoppingBag, MapPin, X
 } from 'lucide-react';
 
 const TRACKING_STEPS = [
@@ -469,264 +469,275 @@ export const OrdersPage: React.FC = () => {
 
       {/* Tracking Journey Modal */}
       {selectedTrackingOrderId !== null && (
-        <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-paperLight border border-cardboard rounded-sm shadow-xl max-w-lg w-full p-6 space-y-6 animate-fade-in relative overflow-hidden text-left">
-            <button 
-              onClick={() => setSelectedTrackingOrderId(null)}
-              className="absolute top-4 right-4 text-ink opacity-60 hover:opacity-100 font-bold cursor-pointer"
-            >
-              ✕
-            </button>
-
-            <div className="space-y-1">
-              <Eyebrow label="SOURCED RECIPE JOURNEY" />
-              <h3 className="font-display font-black text-xl text-ink">
-                Tracking Ledger #{selectedTrackingOrderId}
-              </h3>
+        <div className="fixed inset-0 bg-ink/50 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-paperLight border border-cardboard rounded-sm shadow-2xl max-w-lg w-full max-h-[90dvh] flex flex-col animate-fade-in relative text-left overflow-hidden">
+            {/* Sticky Mobile-Friendly Header */}
+            <div className="sticky top-0 z-20 bg-paperLight/95 backdrop-blur-xs border-b border-cardboard/40 px-4 sm:px-6 py-3.5 sm:py-4 flex items-start justify-between shrink-0">
+              <div className="space-y-0.5 pr-4">
+                <Eyebrow label="SOURCED RECIPE JOURNEY" />
+                <h3 className="font-display font-black text-lg sm:text-xl text-ink tracking-tight">
+                  Tracking Ledger #{selectedTrackingOrderId}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setSelectedTrackingOrderId(null)}
+                aria-label="Close tracking ledger"
+                className="w-8 h-8 rounded-full border border-cardboard/60 bg-paper hover:bg-cardboard/20 flex items-center justify-center text-ink opacity-70 hover:opacity-100 transition-all cursor-pointer shrink-0 active:scale-95 shadow-xs"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            {trackingLoading ? (
-              <div className="py-12 text-center space-y-3">
-                <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
-                <p className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold">
-                  Sourcing courier tracking ledger...
-                </p>
-              </div>
-            ) : trackingError || !trackingData ? (
-              <div className="py-6 text-center space-y-2">
-                <AlertCircle className="w-10 h-10 text-paprika mx-auto stroke-1" />
-                <p className="font-body text-xs text-ink opacity-80">
-                  Tracking records are currently being indexed by our logistics carrier.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {/* Fulfillment Timeline Header */}
-                {(() => {
-                  const activeStep = getActiveStepIndex(trackingData.order_status);
-                  const isCancelled = ['CANCELLED', 'DELIVERY_FAILED'].includes(trackingData.order_status.toUpperCase());
-                  return (
-                    <div className="w-full bg-paper p-5 border border-cardboard border-opacity-40 rounded-sm space-y-4">
-                      <div className="flex justify-between items-center pb-2 border-b border-cardboard border-dashed">
-                        <span className="font-mono text-[9px] uppercase tracking-wider font-bold text-ink">
-                          Fulfillment Stage
-                        </span>
-                        <span className={`font-mono text-[9px] font-bold px-2.5 py-0.5 border uppercase tracking-wider rounded-sm ${
-                          isCancelled 
-                            ? 'text-rose-800 bg-rose-50 border-rose-200' 
-                            : activeStep === 5
-                              ? 'text-emerald-800 bg-emerald-50 border-emerald-200'
-                              : 'text-amber-800 bg-amber-50 border-amber-200'
-                        }`}>
-                          {trackingData.order_status.replace('_', ' ')}
-                        </span>
-                      </div>
-
-                      {isCancelled ? (
-                        <div className="py-4 text-center space-y-2">
-                          <div className="text-3xl">❌</div>
-                          <h4 className="font-display font-bold text-sm text-paprika uppercase tracking-wide">This shipment has been cancelled</h4>
-                          <p className="font-body text-xs text-ink opacity-70">If you have any questions or require dietary assistance, please reach out to our team.</p>
-                        </div>
-                      ) : (
-                        <div className="relative pt-4 pb-2">
-                          {/* Progress Line */}
-                          <div className="absolute top-8 left-[5%] right-[5%] h-1 bg-cardboard/25 rounded-full z-0 hidden sm:block">
-                            <div 
-                              className="h-full bg-turmeric transition-all duration-700 ease-out rounded-full"
-                              style={{ width: `${(activeStep / (TRACKING_STEPS.length - 1)) * 100}%` }}
-                            />
-                          </div>
-
-                          {/* Steps (Desktop) */}
-                          <div className="relative justify-between z-10 hidden sm:flex">
-                            {TRACKING_STEPS.map((step, idx) => {
-                              const isCompleted = idx < activeStep || (activeStep === 5 && idx === 5);
-                              const isActive = idx === activeStep && activeStep !== 5;
-                              return (
-                                <div key={idx} className="flex flex-col items-center w-[15%] space-y-2">
-                                  <div 
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs border-2 transition-all ${
-                                      isActive 
-                                        ? 'bg-turmeric text-paper border-turmeric scale-110 shadow-sm animate-pulse'
-                                        : isCompleted
-                                          ? 'bg-ink text-paper border-ink'
-                                          : 'bg-paperLight text-cardboard border-cardboard border-opacity-40'
-                                    }`}
-                                  >
-                                    {isCompleted ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : step.icon}
-                                  </div>
-                                  <span className={`font-mono text-[8.5px] uppercase tracking-tight text-center font-bold ${
-                                    isActive ? 'text-turmeric' : isCompleted ? 'text-ink' : 'text-cardboard opacity-65'
-                                  }`}>
-                                    {step.label}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          {/* Steps (Mobile) */}
-                          <div className="flex flex-col space-y-3.5 sm:hidden pl-2">
-                            {TRACKING_STEPS.map((step, idx) => {
-                              const isCompleted = idx < activeStep || (activeStep === 5 && idx === 5);
-                              const isActive = idx === activeStep && activeStep !== 5;
-                              return (
-                                <div key={idx} className="flex items-center space-x-3">
-                                  <div 
-                                    className={`w-7 h-7 rounded-full flex items-center justify-center font-mono text-xs border-2 shrink-0 ${
-                                      isActive 
-                                        ? 'bg-turmeric text-paper border-turmeric'
-                                        : isCompleted
-                                          ? 'bg-ink text-paper border-ink'
-                                          : 'bg-paperLight text-cardboard border-cardboard border-opacity-40'
-                                    }`}
-                                  >
-                                    {isCompleted ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : step.icon}
-                                  </div>
-                                  <span className={`font-mono text-[10px] uppercase font-bold ${
-                                    isActive ? 'text-turmeric' : isCompleted ? 'text-ink font-semibold' : 'text-cardboard opacity-65'
-                                  }`}>
-                                    {step.label}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Courier & Dispatch details */}
-                {trackingData.shipment ? (
-                  <div className="p-4 border border-cardboard border-opacity-40 rounded-sm bg-paper space-y-3">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="font-mono text-[8px] uppercase tracking-wider text-herb font-bold block">
-                          CARRIER PARTNER
-                        </span>
-                        <div className="font-body text-xs text-ink font-bold flex items-center space-x-1 mt-0.5">
-                          <Truck className="w-3.5 h-3.5 text-turmeric" />
-                          <span className="uppercase">{trackingData.shipment.carrier}</span>
-                          <span className="text-[10px] font-normal text-cardboard">({trackingData.shipment.provider})</span>
-                        </div>
-                      </div>
-                      {trackingData.shipment.estimated_delivery && (
-                        <div className="text-right">
-                          <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">
-                            EST. DELIVERY
+            {/* Scrollable Content Body */}
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-5 custom-scrollbar flex-1">
+              {trackingLoading ? (
+                <div className="py-12 text-center space-y-3">
+                  <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold">
+                    Sourcing courier tracking ledger...
+                  </p>
+                </div>
+              ) : trackingError || !trackingData ? (
+                <div className="py-6 text-center space-y-2">
+                  <AlertCircle className="w-10 h-10 text-paprika mx-auto stroke-1" />
+                  <p className="font-body text-xs text-ink opacity-80">
+                    Tracking records are currently being indexed by our logistics carrier.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {/* Fulfillment Timeline Header */}
+                  {(() => {
+                    const activeStep = getActiveStepIndex(trackingData.order_status);
+                    const isCancelled = ['CANCELLED', 'DELIVERY_FAILED'].includes(trackingData.order_status.toUpperCase());
+                    return (
+                      <div className="w-full bg-paper p-4 sm:p-5 border border-cardboard border-opacity-40 rounded-sm space-y-4">
+                        <div className="flex justify-between items-center pb-2 border-b border-cardboard border-dashed">
+                          <span className="font-mono text-[9px] uppercase tracking-wider font-bold text-ink">
+                            Fulfillment Stage
                           </span>
-                          <div className="font-mono text-xs text-ink font-bold mt-0.5">
-                            {new Date(trackingData.shipment.estimated_delivery).toLocaleDateString()}
-                          </div>
+                          <span className={`font-mono text-[9px] font-bold px-2.5 py-0.5 border uppercase tracking-wider rounded-sm ${
+                            isCancelled 
+                              ? 'text-rose-800 bg-rose-50 border-rose-200' 
+                              : activeStep === 5
+                                ? 'text-emerald-800 bg-emerald-50 border-emerald-200'
+                                : 'text-amber-800 bg-amber-50 border-amber-200'
+                          }`}>
+                            {trackingData.order_status.replace('_', ' ')}
+                          </span>
                         </div>
-                      )}
-                    </div>
 
-                    <div className="flex justify-between items-center pt-2 border-t border-cardboard border-dashed">
-                      <div>
-                        <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">
-                          TRACKING ID
-                        </span>
-                        <span className="font-mono text-xs text-ink font-bold">{trackingData.shipment.tracking_number}</span>
-                      </div>
-                      <span className="font-mono text-[9px] font-bold border px-2 py-0.5 rounded-sm uppercase tracking-wider text-herb bg-emerald-50 border-emerald-200">
-                        {trackingData.shipment.status.replace('_', ' ')}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4 border border-cardboard border-dashed rounded-sm bg-paper flex items-center space-x-3">
-                    <Clock className="w-5 h-5 text-cardboard shrink-0" />
-                    <div>
-                      <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">
-                        COURIER DISPATCH
-                      </span>
-                      <p className="font-body text-xs text-ink opacity-75">
-                        Our kitchen team is packaging your order. Tracking details will update once scanned by the courier.
-                      </p>
-                    </div>
-                  </div>
-                )}
+                        {isCancelled ? (
+                          <div className="py-4 text-center space-y-2">
+                            <div className="text-3xl">❌</div>
+                            <h4 className="font-display font-bold text-sm text-paprika uppercase tracking-wide">This shipment has been cancelled</h4>
+                            <p className="font-body text-xs text-ink opacity-70">If you have any questions or require dietary assistance, please reach out to our team.</p>
+                          </div>
+                        ) : (
+                          <div className="relative pt-4 pb-2">
+                            {/* Progress Line */}
+                            <div className="absolute top-8 left-[5%] right-[5%] h-1 bg-cardboard/25 rounded-full z-0 hidden sm:block">
+                              <div 
+                                className="h-full bg-turmeric transition-all duration-700 ease-out rounded-full"
+                                style={{ width: `${(activeStep / (TRACKING_STEPS.length - 1)) * 100}%` }}
+                              />
+                            </div>
 
-                {/* Sourcing Timeline */}
-                <div className="space-y-3">
-                  <span className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold block">
-                    JOURNEY STATUS TIMELINE
-                  </span>
-                  
-                  {trackingData.timeline.length === 0 ? (
-                    <p className="font-body text-xs text-ink opacity-60 italic">No tracking entries recorded yet.</p>
-                  ) : (
-                    <div className="relative pl-6 border-l border-cardboard border-dashed space-y-4 ml-2 pt-1 pb-1">
-                      {trackingData.timeline.map((item, idx) => {
-                        const isLatest = idx === trackingData.timeline.length - 1;
-                        return (
-                          <div key={idx} className="relative text-xs">
-                            <span className={`absolute -left-[30px] top-1.5 w-2.5 h-2.5 rounded-full border border-cardboard ${
-                              isLatest ? 'bg-turmeric animate-pulse border-turmeric' : 'bg-paper'
-                            }`} />
-                            
-                            <div className="space-y-0.5">
-                              <div className="flex justify-between items-baseline">
-                                <span className={`font-mono font-bold uppercase tracking-wider text-[10px] ${
-                                  isLatest ? 'text-turmeric' : 'text-ink'
-                                }`}>
-                                  {item.status.replace('_', ' ')}
-                                </span>
-                                <span className="font-mono text-[9px] text-cardboard">
-                                  {new Date(item.timestamp).toLocaleString()}
-                                </span>
-                              </div>
-                              <p className="font-body text-ink opacity-80 text-xs">
-                                {item.description}
-                              </p>
+                            {/* Steps (Desktop) */}
+                            <div className="relative justify-between z-10 hidden sm:flex">
+                              {TRACKING_STEPS.map((step, idx) => {
+                                const isCompleted = idx < activeStep || (activeStep === 5 && idx === 5);
+                                const isActive = idx === activeStep && activeStep !== 5;
+                                return (
+                                  <div key={idx} className="flex flex-col items-center w-[15%] space-y-2">
+                                    <div 
+                                      className={`w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs border-2 transition-all ${
+                                        isActive 
+                                          ? 'bg-turmeric text-paper border-turmeric scale-110 shadow-sm animate-pulse'
+                                          : isCompleted
+                                            ? 'bg-ink text-paper border-ink'
+                                            : 'bg-paperLight text-cardboard border-cardboard border-opacity-40'
+                                      }`}
+                                    >
+                                      {isCompleted ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : step.icon}
+                                    </div>
+                                    <span className={`font-mono text-[8.5px] uppercase tracking-tight text-center font-bold ${
+                                      isActive ? 'text-turmeric' : isCompleted ? 'text-ink' : 'text-cardboard opacity-65'
+                                    }`}>
+                                      {step.label}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Steps (Mobile) */}
+                            <div className="flex flex-col space-y-3 sm:hidden pl-1">
+                              {TRACKING_STEPS.map((step, idx) => {
+                                const isCompleted = idx < activeStep || (activeStep === 5 && idx === 5);
+                                const isActive = idx === activeStep && activeStep !== 5;
+                                return (
+                                  <div key={idx} className="flex items-center space-x-3">
+                                    <div 
+                                      className={`w-7 h-7 rounded-full flex items-center justify-center font-mono text-xs border-2 shrink-0 ${
+                                        isActive 
+                                          ? 'bg-turmeric text-paper border-turmeric'
+                                          : isCompleted
+                                            ? 'bg-ink text-paper border-ink'
+                                            : 'bg-paperLight text-cardboard border-cardboard border-opacity-40'
+                                      }`}
+                                    >
+                                      {isCompleted ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : step.icon}
+                                    </div>
+                                    <span className={`font-mono text-[10px] uppercase font-bold ${
+                                      isActive ? 'text-turmeric' : isCompleted ? 'text-ink font-semibold' : 'text-cardboard opacity-65'
+                                    }`}>
+                                      {step.label}
+                                    </span>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
-                        );
-                      })}
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Courier & Dispatch details */}
+                  {trackingData.shipment ? (
+                    <div className="p-4 border border-cardboard border-opacity-40 rounded-sm bg-paper space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="font-mono text-[8px] uppercase tracking-wider text-herb font-bold block">
+                            CARRIER PARTNER
+                          </span>
+                          <div className="font-body text-xs text-ink font-bold flex items-center space-x-1 mt-0.5">
+                            <Truck className="w-3.5 h-3.5 text-turmeric" />
+                            <span className="uppercase">{trackingData.shipment.carrier}</span>
+                            <span className="text-[10px] font-normal text-cardboard">({trackingData.shipment.provider})</span>
+                          </div>
+                        </div>
+                        {trackingData.shipment.estimated_delivery && (
+                          <div className="text-right">
+                            <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">
+                              EST. DELIVERY
+                            </span>
+                            <div className="font-mono text-xs text-ink font-bold mt-0.5">
+                              {new Date(trackingData.shipment.estimated_delivery).toLocaleDateString()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex justify-between items-center pt-2 border-t border-cardboard border-dashed">
+                        <div>
+                          <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">
+                            TRACKING ID
+                          </span>
+                          <span className="font-mono text-xs text-ink font-bold">{trackingData.shipment.tracking_number}</span>
+                        </div>
+                        <span className="font-mono text-[9px] font-bold border px-2 py-0.5 rounded-sm uppercase tracking-wider text-herb bg-emerald-50 border-emerald-200">
+                          {trackingData.shipment.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 border border-cardboard border-dashed rounded-sm bg-paper flex items-center space-x-3">
+                      <Clock className="w-5 h-5 text-cardboard shrink-0" />
+                      <div>
+                        <span className="font-mono text-[8px] uppercase tracking-wider text-cardboard font-bold block">
+                          COURIER DISPATCH
+                        </span>
+                        <p className="font-body text-xs text-ink opacity-75">
+                          Our kitchen team is packaging your order. Tracking details will update once scanned by the courier.
+                        </p>
+                      </div>
                     </div>
                   )}
-                </div>
 
-                <button
-                  onClick={() => setSelectedTrackingOrderId(null)}
-                  className="w-full bg-paper border border-cardboard hover:bg-paperLight text-ink font-mono text-[9px] uppercase font-bold py-3 tracking-wider rounded-sm transition-colors cursor-pointer"
-                >
-                  Close Tracking Ledger
-                </button>
-              </div>
-            )}
+                  {/* Sourcing Timeline */}
+                  <div className="space-y-3">
+                    <span className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold block">
+                      JOURNEY STATUS TIMELINE
+                    </span>
+                    
+                    {trackingData.timeline.length === 0 ? (
+                      <p className="font-body text-xs text-ink opacity-60 italic">No tracking entries recorded yet.</p>
+                    ) : (
+                      <div className="relative pl-6 border-l border-cardboard border-dashed space-y-4 ml-2 pt-1 pb-1">
+                        {trackingData.timeline.map((item, idx) => {
+                          const isLatest = idx === trackingData.timeline.length - 1;
+                          return (
+                            <div key={idx} className="relative text-xs">
+                              <span className={`absolute -left-[30px] top-1.5 w-2.5 h-2.5 rounded-full border border-cardboard ${
+                                isLatest ? 'bg-turmeric animate-pulse border-turmeric' : 'bg-paper'
+                              }`} />
+                              
+                              <div className="space-y-0.5">
+                                <div className="flex justify-between items-baseline">
+                                  <span className={`font-mono font-bold uppercase tracking-wider text-[10px] ${
+                                    isLatest ? 'text-turmeric' : 'text-ink'
+                                  }`}>
+                                    {item.status.replace('_', ' ')}
+                                  </span>
+                                  <span className="font-mono text-[9px] text-cardboard">
+                                    {new Date(item.timestamp).toLocaleString()}
+                                  </span>
+                                </div>
+                                <p className="font-body text-ink opacity-80 text-xs">
+                                  {item.description}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-paperLight/95 border-t border-cardboard/30 p-3 sm:p-4 shrink-0">
+              <button
+                onClick={() => setSelectedTrackingOrderId(null)}
+                className="w-full bg-paper border border-cardboard hover:bg-paperLight text-ink font-mono text-[9px] uppercase font-bold py-2.5 sm:py-3 tracking-wider rounded-sm transition-colors cursor-pointer active:scale-98"
+              >
+                Close Tracking Ledger
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* Review Modal */}
       {reviewingOrder !== null && (
-        <div className="fixed inset-0 bg-ink bg-opacity-60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-paper border border-cardboard rounded-sm shadow-2xl max-w-lg w-full p-6 sm:p-8 space-y-6 relative overflow-y-auto max-h-[85vh] text-left">
-            <button 
-              onClick={() => setReviewingOrder(null)}
-              className="absolute top-4 right-4 text-ink opacity-60 hover:opacity-100 font-bold cursor-pointer"
-            >
-              ✕
-            </button>
-
-            <div className="space-y-1">
-              <Eyebrow label="DELIVERED RECIPE FEEDBACK" />
-              <h3 className="font-display font-black text-2xl text-ink">
-                Rate Sourced Formulations
-              </h3>
-              <p className="font-body text-xs text-ink opacity-70">
-                Share your companion's experience with the meals in Order #{reviewingOrder.id}.
-              </p>
+        <div className="fixed inset-0 bg-ink/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-paper border border-cardboard rounded-sm shadow-2xl max-w-lg w-full max-h-[90dvh] flex flex-col animate-fade-in relative text-left overflow-hidden">
+            {/* Sticky Header */}
+            <div className="sticky top-0 z-20 bg-paper/95 backdrop-blur-xs border-b border-cardboard/40 px-4 sm:px-6 py-3.5 sm:py-4 flex items-start justify-between shrink-0">
+              <div className="space-y-0.5 pr-4">
+                <Eyebrow label="DELIVERED RECIPE FEEDBACK" />
+                <h3 className="font-display font-black text-xl sm:text-2xl text-ink tracking-tight">
+                  Rate Sourced Formulations
+                </h3>
+                <p className="font-body text-xs text-ink opacity-70">
+                  Share your companion's experience with the meals in Order #{reviewingOrder.id}.
+                </p>
+              </div>
+              <button 
+                onClick={() => setReviewingOrder(null)}
+                aria-label="Close review modal"
+                className="w-8 h-8 rounded-full border border-cardboard/60 bg-paperLight hover:bg-cardboard/20 flex items-center justify-center text-ink opacity-70 hover:opacity-100 transition-all cursor-pointer shrink-0 mt-0.5 active:scale-95 shadow-xs"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <hr className="border-t border-dashed border-cardboard border-opacity-40" />
-
-            <div className="space-y-4">
+            {/* Scrollable Content */}
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-4 custom-scrollbar flex-1">
               {reviewingOrder.items?.map((item: any) => {
                 const isAlreadyReviewed = reviewedProductIds[item.product_id];
                 const isCurrentActive = activeReviewProductId === item.product_id;
@@ -749,149 +760,125 @@ export const OrdersPage: React.FC = () => {
                       </div>
 
                       {isAlreadyReviewed ? (
-                        <span className="bg-emerald-50 text-herb border border-herb/30 font-mono text-[9px] font-bold uppercase px-2.5 py-1 rounded-sm flex items-center space-x-1">
-                          <Check className="w-3 h-3 stroke-[3]" />
-                          <span>Reviewed</span>
+                        <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-sm border border-emerald-200">
+                          Reviewed ✓
                         </span>
                       ) : (
                         <button
                           type="button"
                           onClick={() => {
-                            setActiveReviewProductId(isCurrentActive ? null : item.product_id);
-                            setReviewSubmitError(null);
-                            setReviewSubmitSuccess(false);
-                            setReviewRating(5);
-                            setReviewTitle('');
-                            setReviewComment('');
-                            setReviewImage(null);
-                            setReviewImagePreview(null);
+                            if (isCurrentActive) {
+                              setActiveReviewProductId(null);
+                            } else {
+                              setActiveReviewProductId(item.product_id);
+                              setReviewRating(5);
+                              setReviewComment('');
+                              setReviewImage(null);
+                              setReviewImagePreview(null);
+                            }
                           }}
-                          className={`font-mono text-[9px] uppercase tracking-wider px-3 py-1.5 font-bold rounded-sm cursor-pointer transition-colors border ${
-                            isCurrentActive
-                              ? 'border-ink bg-ink text-paper'
-                              : 'border-cardboard bg-paper text-ink hover:bg-paperLight'
-                          }`}
+                          className="font-mono text-[9px] uppercase font-bold text-herb hover:underline bg-paper border border-cardboard px-2.5 py-1 rounded-sm cursor-pointer"
                         >
-                          {isCurrentActive ? 'Close Form' : 'Write Review'}
+                          {isCurrentActive ? 'Cancel' : 'Write Review'}
                         </button>
                       )}
                     </div>
 
-                    {/* Review Form for Product */}
-                    {isCurrentActive && !isAlreadyReviewed && (
-                      <form 
-                        onSubmit={(e) => handleRecipeReviewSubmit(e, item.product_id)} 
-                        className="space-y-3.5 pt-3.5 border-t border-cardboard border-dashed animate-fade-in"
-                      >
+                    {isCurrentActive && (
+                      <form onSubmit={(e) => handleRecipeReviewSubmit(e, item.product_id)} className="pt-3 border-t border-cardboard border-dashed space-y-3">
                         {reviewSubmitSuccess ? (
-                          <div className="py-4 text-center space-y-1">
-                            <span className="font-display font-bold text-sm text-herb block">
-                              Feedback Posted Successfully!
-                            </span>
-                            <span className="font-mono text-[9px] text-ink opacity-70 block">
-                              Thank you for supporting the #Scoobysfam community.
-                            </span>
+                          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-sm text-xs font-mono">
+                            Review submitted successfully! Thank you for your feedback.
                           </div>
                         ) : (
                           <>
-                            {/* Stars */}
-                            <div className="space-y-1">
-                              <span className="font-mono text-[9px] uppercase font-bold text-paprika block">Rating</span>
-                              <div className="flex space-x-1.5">
+                            {reviewSubmitError && (
+                              <div className="p-2 bg-rose-50 border border-rose-200 text-rose-800 rounded-sm text-xs">
+                                {reviewSubmitError}
+                              </div>
+                            )}
+
+                            <div>
+                              <span className="font-mono text-[9px] uppercase font-bold text-cardboard block mb-1">
+                                Rating (1-5 Stars)
+                              </span>
+                              <div className="flex space-x-1">
                                 {[1, 2, 3, 4, 5].map((star) => (
                                   <button
                                     key={star}
                                     type="button"
                                     onClick={() => setReviewRating(star)}
-                                    className="hover:scale-110 transition-transform cursor-pointer border-0 bg-transparent p-0"
+                                    className="p-1 hover:scale-110 transition-transform cursor-pointer"
                                   >
-                                    <Star
-                                      className={`w-6 h-6 ${
-                                        star <= reviewRating
-                                          ? 'fill-[#00b67a] text-[#00b67a]'
-                                          : 'text-cardboard opacity-40'
-                                      }`}
+                                    <Star 
+                                      className={`w-5 h-5 ${
+                                        star <= reviewRating 
+                                          ? 'fill-turmeric text-turmeric' 
+                                          : 'text-cardboard/40'
+                                      }`} 
                                     />
                                   </button>
                                 ))}
                               </div>
                             </div>
 
-                            {/* Title */}
-                            <div className="space-y-1">
-                              <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Review Headline</label>
-                              <input
-                                type="text"
-                                required
-                                value={reviewTitle}
-                                onChange={(e) => setReviewTitle(e.target.value)}
-                                placeholder="e.g. My dog loved the fresh chicken recipe!"
-                                className="w-full bg-paper border border-cardboard rounded-sm p-2.5 outline-none font-body text-xs focus:border-turmeric transition-colors"
-                              />
-                            </div>
-
-                            {/* Comments */}
-                            <div className="space-y-1">
-                              <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Review Description</label>
+                            <div>
+                              <label className="font-mono text-[9px] uppercase font-bold text-cardboard block mb-1">
+                                Companion's Feedback
+                              </label>
                               <textarea
-                                required
-                                rows={3}
                                 value={reviewComment}
                                 onChange={(e) => setReviewComment(e.target.value)}
-                                placeholder="Describe meal palatability, digestion, and energy levels..."
-                                className="w-full bg-paper border border-cardboard rounded-sm p-2.5 outline-none font-body text-xs resize-none focus:border-turmeric transition-colors"
+                                placeholder="How did your pet enjoy this freshly formulated recipe?"
+                                rows={3}
+                                className="w-full p-2.5 bg-paper border border-cardboard rounded-sm text-xs font-body text-ink focus:outline-hidden focus:border-turmeric resize-none"
                               />
                             </div>
 
-                            {/* Photo Upload */}
-                            <div className="space-y-1">
-                              <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Companion Photo (Optional)</label>
-                              <div className="border border-cardboard border-dashed bg-paper p-3 rounded-sm text-center cursor-pointer relative hover:border-turmeric transition-colors">
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handleImageChange}
-                                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                                />
-                                {reviewImagePreview ? (
-                                  <div className="flex flex-col items-center space-y-1.5">
-                                    <img
-                                      src={reviewImagePreview}
-                                      alt="Upload Preview"
-                                      className="w-14 h-14 object-cover border border-cardboard rounded-sm"
-                                    />
-                                    <span className="font-mono text-[8px] uppercase font-bold text-herb">
-                                      {reviewImage?.name} (Click to replace)
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <div className="flex flex-col items-center space-y-1 text-cardboard hover:text-ink">
-                                    <Camera className="w-5 h-5 stroke-1" />
-                                    <span className="font-mono text-[9px] uppercase font-bold">Attach Photo</span>
-                                  </div>
+                            <div>
+                              <span className="font-mono text-[9px] uppercase font-bold text-cardboard block mb-1">
+                                Add a Photo (Optional)
+                              </span>
+                              <div className="flex items-center space-x-3">
+                                <label className="flex items-center space-x-1.5 px-3 py-1.5 bg-paper border border-cardboard hover:bg-paperLight rounded-sm font-mono text-[9px] uppercase font-bold text-ink cursor-pointer">
+                                  <Camera className="w-3.5 h-3.5 text-turmeric" />
+                                  <span>Choose File</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageChange}
+                                    className="hidden"
+                                  />
+                                </label>
+                                {reviewImage && (
+                                  <span className="text-[10px] font-mono text-ink opacity-70 truncate max-w-[150px]">
+                                    {reviewImage.name}
+                                  </span>
                                 )}
                               </div>
+                              {reviewImagePreview && (
+                                <div className="mt-2 w-16 h-16 rounded-sm border border-cardboard overflow-hidden">
+                                  <img 
+                                    src={reviewImagePreview} 
+                                    alt="Preview" 
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              )}
                             </div>
 
-                            {reviewSubmitError && (
-                              <div className="text-xs text-rose-800 bg-rose-50 border border-rose-200 p-2 rounded-sm font-body">
-                                {reviewSubmitError}
-                              </div>
-                            )}
-
-                            {/* Submit Button */}
                             <div className="flex justify-end space-x-2 pt-2">
                               <button
                                 type="button"
                                 onClick={() => setActiveReviewProductId(null)}
-                                className="border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase font-bold px-3.5 py-2 rounded-sm cursor-pointer"
+                                className="px-3 py-1.5 border border-cardboard font-mono text-[9px] uppercase font-bold text-ink rounded-sm hover:bg-paper cursor-pointer"
                               >
                                 Cancel
                               </button>
                               <button
                                 type="submit"
                                 disabled={isSubmittingReview}
-                                className="bg-herb hover:bg-herb/90 text-white font-mono text-[9px] uppercase font-bold px-4 py-2 rounded-sm cursor-pointer shadow-xs disabled:opacity-50"
+                                className="bg-herb hover:bg-herb/90 text-white font-mono text-[9px] uppercase font-bold px-4 py-2 rounded-sm cursor-pointer shadow-xs disabled:opacity-50 active:scale-98"
                               >
                                 {isSubmittingReview ? 'Submitting...' : 'Post Recipe Review'}
                               </button>
@@ -905,12 +892,15 @@ export const OrdersPage: React.FC = () => {
               })}
             </div>
 
-            <button
-              onClick={() => setReviewingOrder(null)}
-              className="w-full bg-paper border border-cardboard hover:bg-paperLight text-ink font-mono text-[9px] uppercase font-bold py-2.5 tracking-wider rounded-sm transition-colors cursor-pointer"
-            >
-              Close Feedback Modal
-            </button>
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-paper/95 border-t border-cardboard/30 p-3 sm:p-4 shrink-0">
+              <button
+                onClick={() => setReviewingOrder(null)}
+                className="w-full bg-paper border border-cardboard hover:bg-paperLight text-ink font-mono text-[9px] uppercase font-bold py-2.5 tracking-wider rounded-sm transition-colors cursor-pointer active:scale-98"
+              >
+                Close Feedback Modal
+              </button>
+            </div>
           </div>
         </div>
       )}

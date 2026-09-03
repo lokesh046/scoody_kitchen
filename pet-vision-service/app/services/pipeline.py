@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 from app.schemas import ClassificationResponse, BreedMatch, CareInsights
 from app.services.imagenet_labels import PET_CLASSES
-from app.services.metadata import get_breed_care_insights
+from app.services.metadata import get_breed_care_insights, get_breed_heritage
 
 load_dotenv()
 
@@ -155,14 +155,19 @@ class PetVisionPipeline:
                         health_watch=care_data.get("health_watch", ["Coat shine", "Joint agility"]),
                     )
 
+                    primary_breed = data.get("primary_breed", "Companion")
+                    species = data.get("species", "Dog")
+                    heritage = get_breed_heritage(primary_breed, species)
+
                     return ClassificationResponse(
                         success=True,
                         is_pet=True,
-                        species=data.get("species", "Dog"),
-                        primary_breed=data.get("primary_breed", "Companion"),
+                        species=species,
+                        primary_breed=primary_breed,
                         confidence=float(data.get("confidence", 0.95)),
                         top_matches=matches,
                         care_insights=care,
+                        heritage=heritage,
                         processing_time_ms=elapsed_ms,
                     )
         except Exception as e:
@@ -234,6 +239,7 @@ class PetVisionPipeline:
         best_spec, best_breed, best_slug = PET_CLASSES[best_pet_idx]
         primary_confidence = matches[0].confidence if matches else 0.85
         care_insights = get_breed_care_insights(best_slug, best_spec)
+        heritage = get_breed_heritage(best_slug, best_spec)
 
         elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
@@ -245,6 +251,7 @@ class PetVisionPipeline:
             confidence=primary_confidence,
             top_matches=matches,
             care_insights=care_insights,
+            heritage=heritage,
             processing_time_ms=elapsed_ms,
         )
 

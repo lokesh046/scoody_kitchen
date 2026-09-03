@@ -15,6 +15,25 @@ class CareInsights(BaseModel):
     health_watch: list[str] = Field(default_factory=list)
 
 
+class SuperpowerSkills(BaseModel):
+    scent_radar: float = Field(..., description="Scent and tracking acuity (0-10)")
+    stamina_speed: float = Field(..., description="Stamina and athletic speed (0-10)")
+    cuddle_index: float = Field(..., description="Affection and lapdog cuddle affinity (0-10)")
+    watchdog_instinct: float = Field(..., description="Alertness and guarding instinct (0-10)")
+    swimming_affinity: float = Field(..., description="Water and swimming affinity (0-10)")
+
+
+class BreedHeritage(BaseModel):
+    origin_country: str
+    origin_flag: str
+    origin_era: str
+    historical_homeland: str
+    mutation_story: str
+    fun_facts: list[str] = Field(default_factory=list)
+    famous_icons: list[str] = Field(default_factory=list)
+    superpowers: SuperpowerSkills
+
+
 class ClassificationResponse(BaseModel):
     success: bool
     is_pet: bool
@@ -23,5 +42,6 @@ class ClassificationResponse(BaseModel):
     confidence: float | None = None
     top_matches: list[BreedMatch] = Field(default_factory=list)
     care_insights: CareInsights | None = None
+    heritage: BreedHeritage | None = None
     error_message: str | None = None
     processing_time_ms: float = 0.0

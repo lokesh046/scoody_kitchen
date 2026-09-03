@@ -197,13 +197,15 @@ export default function HomePage() {
                   Veterinary-audited small batch recipes, cooked to biological perfection.
                 </p>
               </div>
-              <button 
-                onClick={() => navigate('/shop')}
-                className="font-mono text-xs uppercase font-bold text-turmeric hover:text-ink transition-colors flex items-center space-x-1.5 cursor-pointer group"
-              >
-                <span>View Full Product Ledger</span>
-                <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
-              </button>
+              {isShopEnabled && (
+                <button 
+                  onClick={() => navigate('/shop')}
+                  className="font-mono text-xs uppercase font-bold text-turmeric hover:text-ink transition-colors flex items-center space-x-1.5 cursor-pointer group"
+                >
+                  <span>View Full Product Ledger</span>
+                  <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
+                </button>
+              )}
             </div>
 
             {productsLoading ? (

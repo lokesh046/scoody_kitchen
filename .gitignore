@@ -27,7 +27,7 @@ yarn-error.log*
 .env.production.local
 *.env
 
-# Temporary and office lock files
+# Temporary, scratch, and backup files
 .~lock.*#
 *~
 *.swp
@@ -35,9 +35,17 @@ yarn-error.log*
 *.bak
 .DS_Store
 Thumbs.db
+Unsaved Document*
+*.sql
+*.drawio
+*.drawio.html
+* (1).*
+*.csv
+client_questions.pdf
 
-# Untracked database scripts
+# Untracked database scripts & redundant compose
 pet-platform-backend/migrate_neon_db.py
+pet-platform-backend/docker-compose.yml
 
 # Large downloaded ML models
 chatbot-service/models/

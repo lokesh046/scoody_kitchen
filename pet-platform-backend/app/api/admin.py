@@ -179,9 +179,9 @@ def update_order_status_admin(
         )
 
 
-# ==================================================
+
 # ADMIN CLINIC MANAGEMENT
-# ==================================================
+
 
 from app.schemas.clinic import ClinicCreate, ClinicResponse, ClinicUpdate, PaginatedClinicResponse
 from app.services.clinic_service import (
@@ -263,9 +263,9 @@ def update_clinic_admin(
     return update_clinic(db, clinic, clinic_data)
 
 
-# ==================================================
+
 # ADMIN DOCTOR MANAGEMENT
-# ==================================================
+
 
 from app.schemas.doctor import DoctorCreate, DoctorCreateAdmin, DoctorResponse, DoctorUpdateAdmin, PaginatedDoctorResponse
 from app.services.doctor_service import (
