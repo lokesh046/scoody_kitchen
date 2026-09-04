@@ -28,5 +28,25 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    build: {
+      chunkSizeWarningLimit: 2500,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('three')) {
+                return 'three-vendor';
+              }
+              if (id.includes('lucide-react')) {
+                return 'icons';
+              }
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom') || id.includes('zustand') || id.includes('axios') || id.includes('@tanstack')) {
+                return 'vendor';
+              }
+            }
+          },
+        },
+      },
+    },
   };
 })
