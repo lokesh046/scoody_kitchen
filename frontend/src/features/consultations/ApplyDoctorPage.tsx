@@ -369,7 +369,7 @@ export default function ApplyDoctorPage() {
             100% { transform: scale(1); opacity: 1; }
           }
           .animate-scale-up {
-            animation: scaleUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            animation: scaleUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
           }
           @keyframes popIn {
             0% { transform: translateY(20px); opacity: 0; }

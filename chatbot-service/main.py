@@ -86,6 +86,8 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:8002",
         "http://127.0.0.1:8002",
+        "https://scoobys-kitchen.com",
+        "https://www.scoobys-kitchen.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],

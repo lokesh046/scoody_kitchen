@@ -638,7 +638,7 @@ export const ChatbotWidget: React.FC = () => {
         /* Floating collapsed vertical tab sticking to the right edge */
         <div className="relative flex items-center">
           {showPopMessage && (
-            <div className="absolute right-14 top-1/2 -translate-y-1/2 mr-2 bg-paperLight border border-cardboard px-3.5 py-2 rounded-xl shadow-xl flex items-center space-x-2 z-50 animate-bounce">
+            <div className="absolute right-14 top-1/2 -translate-y-1/2 mr-2 bg-paperLight border border-cardboard px-3.5 py-2 rounded-xl shadow-xl flex items-center space-x-2 z-50 animate-fade-in-up">
               <span className="font-body text-xs text-ink font-bold">Hi buddy! 🐾</span>
               <button 
                 type="button"
