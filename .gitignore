@@ -26,6 +26,8 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 *.env
+*service-account*.json
+firebase-service-account.json
 
 # Temporary, scratch, and backup files
 .~lock.*#
@@ -49,6 +51,10 @@ pet-platform-backend/docker-compose.yml
 
 # Large downloaded ML models
 chatbot-service/models/
+
+# Celery beat schedule files
+celerybeat-schedule*
+*.sqlite3
 
 .agent/
 .impeccable/

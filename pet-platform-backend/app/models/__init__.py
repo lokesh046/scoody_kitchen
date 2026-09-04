@@ -28,10 +28,13 @@ from app.models.idempotency_key import IdempotencyKey
 from app.models.notification import Notification
 from app.models.doctor_review import DoctorReview
 from app.models.product_review import ProductReview
+from app.models.coupon import Coupon, DiscountType
 from app.models.feature_flag import FeatureFlag
 
 
 __all__ = [
+    "Coupon",
+    "DiscountType",
     "FeatureFlag",
     "User",
     "RefreshToken",

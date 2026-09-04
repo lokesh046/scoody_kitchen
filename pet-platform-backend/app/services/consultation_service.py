@@ -21,7 +21,7 @@ from app.schemas.consultation import (
 # State Machine Transition Rules
 VALID_CONSULTATION_TRANSITIONS: dict[ConsultationStatus, set[ConsultationStatus]] = {
     ConsultationStatus.PENDING: {ConsultationStatus.CONFIRMED, ConsultationStatus.IN_PROGRESS, ConsultationStatus.CANCELLED},
-    ConsultationStatus.CONFIRMED: {ConsultationStatus.IN_PROGRESS, ConsultationStatus.CANCELLED},
+    ConsultationStatus.CONFIRMED: {ConsultationStatus.IN_PROGRESS, ConsultationStatus.COMPLETED, ConsultationStatus.CANCELLED},
     ConsultationStatus.IN_PROGRESS: {ConsultationStatus.COMPLETED, ConsultationStatus.CANCELLED},
     ConsultationStatus.COMPLETED: set(),
     ConsultationStatus.CANCELLED: set(),

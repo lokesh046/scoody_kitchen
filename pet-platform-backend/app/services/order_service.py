@@ -169,10 +169,27 @@ def create_order_from_cart(
             }
         )
 
+    applied_coupon_code = None
+    discount_amount = Decimal("0.00")
+    if checkout_data.coupon_code:
+        from app.services.coupon_service import validate_coupon_code
+        is_valid, coupon, disc, discounted_total, msg = validate_coupon_code(
+            db,
+            code=checkout_data.coupon_code,
+            order_amount=total_amount,
+        )
+        if not is_valid or coupon is None:
+            raise ValueError(msg)
+        applied_coupon_code = coupon.code
+        discount_amount = disc
+        total_amount = discounted_total
+
     order = Order(
         user_id=user_id,
         status=OrderStatus.PENDING,
         total_amount=total_amount,
+        coupon_code=applied_coupon_code,
+        discount_amount=discount_amount,
         shipping_address=checkout_data.shipping_address,
     )
 

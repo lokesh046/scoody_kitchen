@@ -112,6 +112,13 @@ def process_payment_success(
         for cart_item in list(cart.items):
             db.delete(cart_item)
 
+    if order.coupon_code:
+        try:
+            from app.services.coupon_service import increment_coupon_usage
+            increment_coupon_usage(db, order.coupon_code)
+        except Exception:
+            pass
+
     db.commit()
     db.refresh(payment)
 

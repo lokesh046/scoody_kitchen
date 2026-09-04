@@ -85,7 +85,7 @@ def send_magic_link_email(
     frontend_base = settings.FRONTEND_URL.rstrip("/")
     magic_link_url = f"{frontend_base}/auth/magic-link/verify?token={raw_token}"
 
-    subject = "🐾 Your Scooby's Kitchen Login Magic Link & Security Code"
+    subject = f"🐾 {otp_code} is your Scooby's Kitchen Login OTP & Link"
     
     content = f"""
         <h2 style="color: #362820; font-size: 18px; font-weight: 800; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: -0.3px;">
@@ -134,10 +134,14 @@ def send_magic_link_email(
         return True
 
     try:
+        sender_email = settings.EMAILS_FROM or settings.SMTP_USER
+        from_header = f"Scooby's Kitchen <{sender_email}>" if "<" not in (sender_email or "") else sender_email
+
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"] = settings.EMAILS_FROM or settings.SMTP_USER
+        msg["From"] = from_header
         msg["To"] = to_email
+        msg["Reply-To"] = sender_email
 
         msg.attach(MIMEText(f"Your Magic Link: {magic_link_url}\nOTP Code: {otp_code}", "plain"))
         msg.attach(MIMEText(html_content, "html"))
@@ -195,10 +199,14 @@ def send_doctor_verification_email(
         return True
 
     try:
+        sender_email = settings.EMAILS_FROM or settings.SMTP_USER
+        from_header = f"Scooby's Kitchen <{sender_email}>" if "<" not in (sender_email or "") else sender_email
+
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"] = settings.EMAILS_FROM or settings.SMTP_USER
+        msg["From"] = from_header
         msg["To"] = to_email
+        msg["Reply-To"] = sender_email
 
         msg.attach(MIMEText(f"Congratulations Dr. {first_name}! Your account has been verified and upgraded to a Doctor profile.", "plain"))
         msg.attach(MIMEText(html_content, "html"))
@@ -264,10 +272,14 @@ def send_order_update_email(
         return True
 
     try:
+        sender_email = settings.EMAILS_FROM or settings.SMTP_USER
+        from_header = f"Scooby's Kitchen <{sender_email}>" if "<" not in (sender_email or "") else sender_email
+
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"] = settings.EMAILS_FROM or settings.SMTP_USER
+        msg["From"] = from_header
         msg["To"] = to_email
+        msg["Reply-To"] = sender_email
 
         msg.attach(MIMEText(message, "plain"))
         msg.attach(MIMEText(html_content, "html"))
@@ -365,10 +377,14 @@ def send_consultation_invoice_email(
         return True
 
     try:
+        sender_email = settings.EMAILS_FROM or settings.SMTP_USER
+        from_header = f"Scooby's Kitchen <{sender_email}>" if "<" not in (sender_email or "") else sender_email
+
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"] = settings.EMAILS_FROM or settings.SMTP_USER
+        msg["From"] = from_header
         msg["To"] = to_email
+        msg["Reply-To"] = sender_email
 
         msg.attach(MIMEText(f"Consultation Booking #{consultation_id} Confirmed.\nDoctor: Dr. {doctor_name}\nPatient: {pet_name}\nAmount: ₹{amount_paid:.2f}\nTransaction: {payment_id}", "plain"))
         msg.attach(MIMEText(html_content, "html"))

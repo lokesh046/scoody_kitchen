@@ -58,8 +58,11 @@ class MCPClientManager:
         """Initialize the persistent MultiServerMCPClient connection."""
         from langchain_mcp_adapters.client import MultiServerMCPClient
         if not self.client:
+            url = self.server_url
+            if not url.endswith("/sse"):
+                url = f"{url.rstrip('/')}/sse"
             self.client = MultiServerMCPClient(
-                {"pet_tools": {"url": self.server_url, "transport": "sse"}}
+                {"pet_tools": {"url": url, "transport": "sse"}}
             )
             # Warm up connection or fetch initial tools
             try:

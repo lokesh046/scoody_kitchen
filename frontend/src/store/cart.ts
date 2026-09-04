@@ -7,21 +7,33 @@ import {
 } from '../api/cart';
 import type { CartItemResponse } from '../api/cart';
 
+export interface AppliedCoupon {
+  code: string;
+  discountType: 'PERCENTAGE' | 'FLAT';
+  discountValue: number;
+  discountAmount: number;
+  message?: string;
+}
+
 interface CartState {
   items: CartItemResponse[];
   totalAmount: number;
+  appliedCoupon: AppliedCoupon | null;
   isLoading: boolean;
   
   loadCart: () => Promise<void>;
   addItem: (productId: number, quantity: number, selectedWeight?: string) => Promise<void>;
   updateItem: (itemId: number, quantity: number) => Promise<void>;
   removeItem: (itemId: number) => Promise<void>;
+  applyCoupon: (coupon: AppliedCoupon) => void;
+  removeCoupon: () => void;
   clear: () => void;
 }
 
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   totalAmount: 0,
+  appliedCoupon: null,
   isLoading: false,
 
   loadCart: async () => {
@@ -118,5 +130,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  clear: () => set({ items: [], totalAmount: 0, isLoading: false })
+  applyCoupon: (coupon: AppliedCoupon) => set({ appliedCoupon: coupon }),
+  removeCoupon: () => set({ appliedCoupon: null }),
+  clear: () => set({ items: [], totalAmount: 0, appliedCoupon: null, isLoading: false })
 }));

@@ -416,7 +416,7 @@ export const ChatbotWidget: React.FC = () => {
     setMessages([]);
   };
 
-  if (!isChatbotEnabled) return null;
+  if (!isChatbotEnabled || !user) return null;
 
   return (
     <div className={`z-50 font-body transition-all duration-300 ${isOpen ? 'fixed bottom-6 right-6' : 'fixed top-1/2 right-0 -translate-y-1/2'}`}>

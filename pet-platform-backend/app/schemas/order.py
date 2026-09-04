@@ -13,6 +13,7 @@ class CheckoutRequest(BaseModel):
     )
     payment_method: str | None = None
     phone: str | None = None
+    coupon_code: str | None = None
 
 
 class OrderItemResponse(BaseModel):
@@ -36,6 +37,8 @@ class OrderResponse(BaseModel):
     user_id: int
     status: OrderStatus
     total_amount: Decimal
+    coupon_code: str | None = None
+    discount_amount: Decimal | None = None
     shipping_address: str
     created_at: datetime
     updated_at: datetime

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../store/cart';
-import { X, Trash2, Minus, Plus, ShoppingBag, ArrowRight } from 'lucide-react';
+import { validateCoupon } from '../api/coupons';
+import { X, Trash2, Minus, Plus, ShoppingBag, ArrowRight, Tag, AlertCircle, Loader2 } from 'lucide-react';
 import { Eyebrow } from './Eyebrow';
 
 interface CartDrawerProps {
@@ -11,7 +12,47 @@ interface CartDrawerProps {
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const { items, totalAmount, updateItem, removeItem, isLoading } = useCartStore();
+  const { 
+    items, 
+    totalAmount, 
+    updateItem, 
+    removeItem, 
+    isLoading,
+    appliedCoupon,
+    applyCoupon,
+    removeCoupon,
+  } = useCartStore();
+
+  const [couponCodeInput, setCouponCodeInput] = useState('');
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+
+  const handleApplyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!couponCodeInput.trim()) return;
+
+    setIsApplyingCoupon(true);
+    setCouponError(null);
+
+    try {
+      const res = await validateCoupon(couponCodeInput.trim(), totalAmount);
+      applyCoupon({
+        code: res.code,
+        discountType: res.discount_type,
+        discountValue: Number(res.discount_value),
+        discountAmount: Number(res.discount_amount),
+        message: res.message,
+      });
+      setCouponCodeInput('');
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || 'Invalid or expired coupon code.';
+      setCouponError(msg);
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  const finalPayableAmount = Math.max(0, totalAmount - (appliedCoupon?.discountAmount || 0));
 
   const handleCheckoutRedirect = () => {
     onClose();
@@ -38,7 +79,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
           {/* Panel Header */}
           <div className="p-6 border-b border-cardboard flex justify-between items-center bg-paperLight pl-8">
             <div className="text-left space-y-1">
-              <Eyebrow label="ACTIVE NUTRITION CAR" />
+              <Eyebrow label="ACTIVE NUTRITION CART" />
               <h3 className="font-display font-bold text-xl text-ink flex items-center space-x-1.5">
                 <ShoppingBag className="w-5 h-5 text-herb" />
                 <span>The Pantry Ledger</span>
@@ -55,18 +96,28 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
           {/* Scrollable Items List */}
           <div className="flex-grow overflow-y-auto p-6 space-y-4 pl-8">
             {items.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-20">
-                <ShoppingBag className="w-12 h-12 text-cardboard stroke-1" />
-                <p className="font-display font-bold text-base text-ink italic">Your Ledger is Empty</p>
-                <p className="font-body text-xs text-ink opacity-70 max-w-xs">
-                  Your pet's recipe journal is currently blank. Explore our nutritional small-batch catalog to add items.
-                </p>
-                <button
-                  onClick={onClose}
-                  className="mt-2 text-herb underline font-mono text-[10px] uppercase font-bold tracking-wider hover:text-ink transition-colors"
-                >
-                  Start Sourcing Recipes
-                </button>
+              <div className="h-full flex flex-col items-center justify-center text-center py-16 px-2">
+                <div className="w-full bg-paper bg-opacity-70 border-2 border-dashed border-cardboard rounded-2xl p-6 flex flex-col items-center justify-center space-y-4 shadow-sm">
+                  <div className="w-14 h-14 rounded-full bg-paperLight flex items-center justify-center border border-cardboard shadow-inner">
+                    <ShoppingBag className="w-6 h-6 text-turmeric stroke-2" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-display font-bold text-base text-ink">Your Ledger is Empty</p>
+                    <p className="font-body text-xs text-ink opacity-70 max-w-xs leading-relaxed">
+                      Your companion's recipe journal is currently blank. Explore our nutritional small-batch catalog to add fresh meals.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      onClose();
+                      navigate('/shop');
+                    }}
+                    className="w-full max-w-xs bg-turmeric hover:bg-amber-400 text-ink font-display font-black text-xs uppercase py-3.5 px-6 rounded-xl tracking-wider transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center space-x-2 border border-ink/10 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
+                  >
+                    <span>Start Sourcing Recipes</span>
+                    <ArrowRight className="w-4 h-4 text-ink" />
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
@@ -96,10 +147,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                         
                         <div className="flex justify-between items-center">
                           <span className="font-mono text-[10px] text-herb">
-                            ${parseFloat(item.price).toFixed(2)} / pack
+                            ₹{parseFloat(item.price).toFixed(2)} / pack
                           </span>
                           <span className="font-mono font-bold text-ink text-xs">
-                            ${parseFloat(item.subtotal).toFixed(2)}
+                            ₹{parseFloat(item.subtotal).toFixed(2)}
                           </span>
                         </div>
 
@@ -142,15 +193,91 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
             )}
           </div>
 
-          {/* Running Totals Block */}
+          {/* Running Totals & Coupon Block */}
           {items.length > 0 && (
             <div className="p-6 bg-paperLight border-t border-cardboard pl-8 space-y-4">
+              
+              {/* Promo Code Input & Status */}
+              <div className="space-y-2">
+                {appliedCoupon ? (
+                  <div className="bg-herb/10 border border-herb/30 rounded-sm p-2.5 flex items-center justify-between">
+                    <div className="flex items-center space-x-2 text-left min-w-0">
+                      <Tag className="w-4 h-4 text-herb shrink-0" />
+                      <div className="truncate">
+                        <span className="font-mono font-bold text-xs text-herb uppercase tracking-wider block truncate">
+                          {appliedCoupon.code} APPLIED
+                        </span>
+                        <span className="font-body text-[10px] text-ink opacity-70 block truncate">
+                          {appliedCoupon.discountType === 'PERCENTAGE' 
+                            ? `${appliedCoupon.discountValue}% discount savings`
+                            : `Flat ₹${appliedCoupon.discountValue} off`}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={removeCoupon}
+                      className="font-mono text-[10px] text-paprika hover:underline font-bold uppercase shrink-0 pl-2 cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleApplyCoupon} className="space-y-1">
+                    <div className="flex items-center space-x-1.5">
+                      <div className="relative flex-grow">
+                        <Tag className="w-3.5 h-3.5 text-cardboard absolute left-2.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={couponCodeInput}
+                          onChange={(e) => {
+                            setCouponCodeInput(e.target.value.toUpperCase());
+                            if (couponError) setCouponError(null);
+                          }}
+                          placeholder="PROMO CODE (e.g. PUPPY10)"
+                          className="w-full bg-paper border border-cardboard text-ink font-mono text-xs pl-8 pr-2 py-2 rounded-sm uppercase tracking-wider placeholder:normal-case placeholder:font-body placeholder:text-[10px] placeholder:opacity-50 focus:outline-none focus:border-herb"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={!couponCodeInput.trim() || isApplyingCoupon}
+                        className="bg-cardboard hover:bg-herb text-paperLight font-mono font-bold text-xs uppercase px-3 py-2 rounded-sm transition-colors disabled:opacity-40 flex items-center justify-center space-x-1 cursor-pointer"
+                      >
+                        {isApplyingCoupon ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <span>Apply</span>
+                        )}
+                      </button>
+                    </div>
+                    {couponError && (
+                      <p className="font-body text-[10px] text-paprika text-left flex items-center space-x-1 pt-0.5">
+                        <AlertCircle className="w-3 h-3 shrink-0" />
+                        <span>{couponError}</span>
+                      </p>
+                    )}
+                  </form>
+                )}
+              </div>
+
+              {/* Price Breakdown */}
               <div className="space-y-2 font-mono text-xs">
                 {/* Subtotal */}
                 <div className="flex justify-between items-center dotted-divider pb-1">
                   <span className="bg-paperLight pr-2 text-herb font-bold uppercase tracking-wider text-[10px]">SUBTOTAL</span>
-                  <span className="bg-paperLight pl-2 text-ink font-bold">${totalAmount.toFixed(2)}</span>
+                  <span className="bg-paperLight pl-2 text-ink font-bold">₹{totalAmount.toFixed(2)}</span>
                 </div>
+
+                {/* Coupon Discount if applied */}
+                {appliedCoupon && (
+                  <div className="flex justify-between items-center dotted-divider pb-1 text-herb">
+                    <span className="bg-paperLight pr-2 font-bold uppercase tracking-wider text-[10px] flex items-center space-x-1">
+                      <span>COUPON SAVINGS</span>
+                    </span>
+                    <span className="bg-paperLight pl-2 font-bold font-mono">
+                      - ₹{appliedCoupon.discountAmount.toFixed(2)}
+                    </span>
+                  </div>
+                )}
                 
                 {/* Shipping */}
                 <div className="flex justify-between items-center dotted-divider pb-1">
@@ -160,8 +287,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
 
                 {/* Grand Total */}
                 <div className="flex justify-between items-center pt-2">
-                  <span className="font-display text-xs font-bold text-ink uppercase tracking-wider">TOTAL INK DUE</span>
-                  <span className="font-mono font-bold text-turmeric text-lg">${totalAmount.toFixed(2)}</span>
+                  <span className="font-display text-xs font-bold text-ink uppercase tracking-wider">TOTAL DUE</span>
+                  <span className="font-mono font-bold text-turmeric text-lg">₹{finalPayableAmount.toFixed(2)}</span>
                 </div>
               </div>
 
@@ -184,3 +311,4 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     </div>
   );
 };
+

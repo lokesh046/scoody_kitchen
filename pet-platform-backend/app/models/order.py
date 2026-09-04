@@ -65,6 +65,18 @@ class Order(Base):
         nullable=False,
     )
 
+    coupon_code: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+        default=None,
+    )
+
+    discount_amount: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2),
+        nullable=False,
+        default=Decimal("0.00"),
+    )
+
     shipping_address: Mapped[str] = mapped_column(
         String(500),
         nullable=False,

@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { checkoutCart } from '../../api/orders';
 import type { OrderResponse } from '../../api/orders';
+import { validateCoupon } from '../../api/coupons';
 import { createPayment, simulatePaymentSuccess, simulatePaymentFailure, verifyRazorpayPayment } from '../../api/payments';
 import type { PaymentResponse } from '../../api/payments';
 import { loadRazorpaySDK } from '../../utils/razorpay';
@@ -16,7 +17,7 @@ import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
 import { 
   ArrowLeft, 
-  MapPin, ShieldCheck, Truck, Loader2, AlertCircle, ShoppingCart, Compass
+  MapPin, ShieldCheck, Truck, Loader2, AlertCircle, ShoppingCart, Compass, Tag
 } from 'lucide-react';
 
 const triggerCheckoutConfetti = () => {
@@ -151,7 +152,14 @@ const triggerCheckoutConfetti = () => {
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, accessToken, setAuth } = useAuthStore();
-  const { items: cartItems, totalAmount, clear: clearCart } = useCartStore();
+  const { 
+    items: cartItems, 
+    totalAmount, 
+    clear: clearCart,
+    appliedCoupon,
+    applyCoupon,
+    removeCoupon,
+  } = useCartStore();
   
   const [doorNo, setDoorNo] = useState('');
   const [street, setStreet] = useState('');
@@ -159,6 +167,37 @@ export const CheckoutPage: React.FC = () => {
   const [state, setState] = useState('');
   const [country, setCountry] = useState('');
   const [pincode, setPincode] = useState('');
+
+  const [checkoutCouponInput, setCheckoutCouponInput] = useState('');
+  const [checkoutCouponError, setCheckoutCouponError] = useState<string | null>(null);
+  const [isApplyingCheckoutCoupon, setIsApplyingCheckoutCoupon] = useState(false);
+
+  const handleApplyCheckoutCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!checkoutCouponInput.trim()) return;
+
+    setIsApplyingCheckoutCoupon(true);
+    setCheckoutCouponError(null);
+
+    try {
+      const res = await validateCoupon(checkoutCouponInput.trim(), totalAmount);
+      applyCoupon({
+        code: res.code,
+        discountType: res.discount_type,
+        discountValue: Number(res.discount_value),
+        discountAmount: Number(res.discount_amount),
+        message: res.message,
+      });
+      setCheckoutCouponInput('');
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || 'Invalid or expired coupon code.';
+      setCheckoutCouponError(msg);
+    } finally {
+      setIsApplyingCheckoutCoupon(false);
+    }
+  };
+
+  const finalCheckoutAmount = Math.max(0, totalAmount - (appliedCoupon?.discountAmount || 0));
   const formatPhoneForState = (rawPhone?: string | null) => {
     if (!rawPhone) return '';
     const clean = rawPhone.trim().replace(/[\s\-\(\)]/g, '');
@@ -631,7 +670,7 @@ export const CheckoutPage: React.FC = () => {
     console.log("Proceeding to checkoutCart API call...");
 
     try {
-      const order = await checkoutCart(combinedAddress, 'CARD', `+91${phone}`);
+      const order = await checkoutCart(combinedAddress, 'CARD', `+91${phone}`, appliedCoupon?.code);
       setPlacedOrder(order);
       if (order.razorpay_order_id) {
         setPaymentSession({
@@ -1281,14 +1320,78 @@ export const CheckoutPage: React.FC = () => {
                     <div className="max-w-[70%] text-left">
                       <span className="font-display font-bold text-ink block">{item.name}</span>
                       <span className="font-mono text-[10px] text-herb">
-                        Qty: {item.quantity} × ${parseFloat(item.price).toFixed(2)}
+                        Qty: {item.quantity} × ₹{parseFloat(item.price).toFixed(2)}
                       </span>
                     </div>
                     <span className="font-mono font-bold text-ink">
-                      ${parseFloat(item.subtotal).toFixed(2)}
+                      ₹{parseFloat(item.subtotal).toFixed(2)}
                     </span>
                   </div>
                 ))}
+              </div>
+
+              <hr className="border-t border-dashed border-cardboard" />
+
+              {/* Promo Code Input & Applied Badge */}
+              <div className="space-y-2">
+                {appliedCoupon ? (
+                  <div className="bg-herb/10 border border-herb/30 rounded-sm p-3 flex items-center justify-between">
+                    <div className="flex items-center space-x-2 text-left min-w-0">
+                      <Tag className="w-4 h-4 text-herb shrink-0" />
+                      <div className="truncate">
+                        <span className="font-mono font-bold text-xs text-herb uppercase tracking-wider block truncate">
+                          {appliedCoupon.code} APPLIED
+                        </span>
+                        <span className="font-body text-[10px] text-ink opacity-70 block truncate">
+                          {appliedCoupon.discountType === 'PERCENTAGE' 
+                            ? `${appliedCoupon.discountValue}% discount savings`
+                            : `Flat ₹${appliedCoupon.discountValue} off`}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={removeCoupon}
+                      className="font-mono text-[10px] text-paprika hover:underline font-bold uppercase shrink-0 pl-2 cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleApplyCheckoutCoupon} className="space-y-1">
+                    <div className="flex items-center space-x-1.5">
+                      <div className="relative flex-grow">
+                        <Tag className="w-3.5 h-3.5 text-cardboard absolute left-2.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={checkoutCouponInput}
+                          onChange={(e) => {
+                            setCheckoutCouponInput(e.target.value.toUpperCase());
+                            if (checkoutCouponError) setCheckoutCouponError(null);
+                          }}
+                          placeholder="PROMO CODE (e.g. PUPPY10)"
+                          className="w-full bg-paper border border-cardboard text-ink font-mono text-xs pl-8 pr-2 py-2 rounded-sm uppercase tracking-wider placeholder:normal-case placeholder:font-body placeholder:text-[10px] placeholder:opacity-50 focus:outline-none focus:border-herb"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={!checkoutCouponInput.trim() || isApplyingCheckoutCoupon}
+                        className="bg-cardboard hover:bg-herb text-paperLight font-mono font-bold text-xs uppercase px-3 py-2 rounded-sm transition-colors disabled:opacity-40 flex items-center justify-center space-x-1 cursor-pointer"
+                      >
+                        {isApplyingCheckoutCoupon ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <span>Apply</span>
+                        )}
+                      </button>
+                    </div>
+                    {checkoutCouponError && (
+                      <p className="font-body text-[10px] text-paprika text-left flex items-center space-x-1 pt-0.5">
+                        <AlertCircle className="w-3 h-3 shrink-0" />
+                        <span>{checkoutCouponError}</span>
+                      </p>
+                    )}
+                  </form>
+                )}
               </div>
 
               <hr className="border-t border-dashed border-cardboard" />
@@ -1298,8 +1401,20 @@ export const CheckoutPage: React.FC = () => {
                 {/* Subtotal */}
                 <div className="flex justify-between items-center dotted-divider pb-1">
                   <span className="bg-paperLight pr-2 text-herb font-bold uppercase tracking-wider text-[10px]">SUBTOTAL</span>
-                  <span className="bg-paperLight pl-2 text-ink font-bold">${totalAmount.toFixed(2)}</span>
+                  <span className="bg-paperLight pl-2 text-ink font-bold">₹{totalAmount.toFixed(2)}</span>
                 </div>
+
+                {/* Coupon Savings */}
+                {appliedCoupon && (
+                  <div className="flex justify-between items-center dotted-divider pb-1 text-herb">
+                    <span className="bg-paperLight pr-2 font-bold uppercase tracking-wider text-[10px] flex items-center space-x-1">
+                      <span>COUPON SAVINGS</span>
+                    </span>
+                    <span className="bg-paperLight pl-2 font-bold font-mono">
+                      - ₹{appliedCoupon.discountAmount.toFixed(2)}
+                    </span>
+                  </div>
+                )}
                 
                 {/* Shipping */}
                 <div className="flex justify-between items-center dotted-divider pb-1">
@@ -1309,8 +1424,8 @@ export const CheckoutPage: React.FC = () => {
 
                 {/* Grand Total */}
                 <div className="flex justify-between items-center pt-2">
-                  <span className="font-display text-xs font-bold text-ink uppercase tracking-wider">TOTAL INK DUE</span>
-                  <span className="font-mono font-bold text-turmeric text-lg">${totalAmount.toFixed(2)}</span>
+                  <span className="font-display text-xs font-bold text-ink uppercase tracking-wider">TOTAL DUE</span>
+                  <span className="font-mono font-bold text-turmeric text-lg">₹{finalCheckoutAmount.toFixed(2)}</span>
                 </div>
               </div>
 

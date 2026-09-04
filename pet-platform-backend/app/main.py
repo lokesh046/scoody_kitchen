@@ -37,6 +37,7 @@ from app.api.banner import router as banners_router
 from app.api.notification import router as notification_router
 from app.api.reviews import router as reviews_router
 from app.api.feature_flags import router as feature_flags_router
+from app.api.coupon import router as coupons_router
 
 from contextlib import asynccontextmanager
 from app.core.redis_listener import redis_notifications_listener
@@ -68,9 +69,10 @@ async def lifespan(app: FastAPI):
         if os.path.exists(creds_path):
             cred = credentials.Certificate(creds_path)
             firebase_admin.initialize_app(cred)
-            print("Successfully initialized Firebase Admin SDK.")
+            print("Successfully initialized Firebase Admin SDK with service account.")
         else:
-            print(f"Warning: Firebase credentials file not found at {creds_path}. Firebase Auth will not be available.")
+            firebase_admin.initialize_app(options={"projectId": "scooby-kitchen"})
+            print("Initialized Firebase Admin SDK with projectId options.")
     except Exception as e:
         print(f"Failed to initialize Firebase Admin SDK: {e}")
 
@@ -195,6 +197,7 @@ app.include_router(banners_router)
 app.include_router(notification_router)
 app.include_router(reviews_router)
 app.include_router(feature_flags_router)
+app.include_router(coupons_router)
 
 if settings.IMAGE_STORAGE_PROVIDER.lower() == "local":
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)

@@ -18,6 +18,8 @@ export interface OrderResponse {
   user_id: number;
   status: OrderStatus;
   total_amount: string; // Decimal returned as string
+  coupon_code?: string | null;
+  discount_amount?: string | null;
   shipping_address: string;
   user_phone?: string | null;
   user_email?: string | null;
@@ -29,11 +31,17 @@ export interface OrderResponse {
   razorpay_key_id?: string | null;
 }
 
-export const checkoutCart = async (shippingAddress: string, paymentMethod?: string, phone?: string): Promise<OrderResponse> => {
+export const checkoutCart = async (
+  shippingAddress: string, 
+  paymentMethod?: string, 
+  phone?: string,
+  couponCode?: string
+): Promise<OrderResponse> => {
   const response = await apiClient.post<OrderResponse>('/orders/checkout', {
     shipping_address: shippingAddress,
     payment_method: paymentMethod,
     phone: phone || undefined,
+    coupon_code: couponCode || undefined,
   });
   return response.data;
 };

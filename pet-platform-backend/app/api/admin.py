@@ -553,3 +553,86 @@ def export_doctors_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename=active_doctors_{datetime.now(timezone.utc).strftime('%Y%m%d')}.csv"}
     )
+
+
+# ---------------------------------------------------------
+# ADMIN COUPONS & DISCOUNT ENGINE
+# ---------------------------------------------------------
+
+from app.schemas.coupon import CouponCreate, CouponResponse, CouponUpdate
+from app.services.coupon_service import (
+    create_coupon,
+    delete_coupon,
+    get_all_coupons,
+    get_coupon_by_id,
+    update_coupon,
+)
+
+
+@router.get(
+    "/coupons",
+    response_model=list[CouponResponse],
+)
+def list_coupons_admin(
+    is_active_only: bool = False,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    return get_all_coupons(db, is_active_only=is_active_only)
+
+
+@router.post(
+    "/coupons",
+    response_model=CouponResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_coupon_admin(
+    data: CouponCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    try:
+        return create_coupon(db, data)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+
+
+@router.patch(
+    "/coupons/{coupon_id}",
+    response_model=CouponResponse,
+)
+def update_coupon_admin(
+    coupon_id: int,
+    data: CouponUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    coupon = get_coupon_by_id(db, coupon_id)
+    if coupon is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Coupon not found",
+        )
+    return update_coupon(db, coupon, data)
+
+
+@router.delete(
+    "/coupons/{coupon_id}",
+    status_code=status.HTTP_200_OK,
+)
+def delete_coupon_admin(
+    coupon_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(UserRole.ADMIN)),
+):
+    coupon = get_coupon_by_id(db, coupon_id)
+    if coupon is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Coupon not found",
+        )
+    delete_coupon(db, coupon)
+    return {"message": "Coupon deleted successfully", "coupon_id": coupon_id}
