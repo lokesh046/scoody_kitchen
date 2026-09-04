@@ -24,8 +24,10 @@ from tools.actions import (
 )
 
 
-# Create FastMCP server instance (listening on local loopback, port 8001)
-mcp = FastMCP("Pet Platform MCP Server", host="127.0.0.1", port=8001)
+# Create FastMCP server instance (listening on all interfaces inside container on port 8001)
+host = os.getenv("HOST", "0.0.0.0")
+port = int(os.getenv("PORT", "8001"))
+mcp = FastMCP("Pet Platform MCP Server", host=host, port=port)
 
 
 @mcp.tool()

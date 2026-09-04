@@ -7,8 +7,9 @@ sqlalchemy
 psycopg[binary]
 alembic
 
-pydantic
+pydantic[email]
 pydantic-settings
+email-validator
 
 python-dotenv
 
