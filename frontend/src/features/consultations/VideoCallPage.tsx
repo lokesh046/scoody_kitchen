@@ -339,6 +339,17 @@ export const VideoCallPage: React.FC = () => {
       }
     };
 
+    // Clean up any existing instance before mounting a new one
+    if (apiRef.current) {
+      try {
+        apiRef.current.executeCommand('hangup');
+        apiRef.current.dispose();
+      } catch (e) {
+        console.warn('Error disposing existing jitsi instance:', e);
+      }
+      apiRef.current = null;
+    }
+
     if (jitsiContainerRef.current) {
       jitsiContainerRef.current.innerHTML = '';
     }
@@ -401,26 +412,28 @@ export const VideoCallPage: React.FC = () => {
 
   // Clean up Jitsi API and send leave telemetry on component unmount / tab close
   useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (consultationId) {
-        leaveConsultation(consultationId, isDoctor).catch(() => {});
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+    const handleLeaveAndDispose = () => {
       if (consultationId) {
         leaveConsultation(consultationId, isDoctor).catch(() => {});
       }
       if (apiRef.current) {
         try {
+          apiRef.current.executeCommand('hangup');
           apiRef.current.dispose();
         } catch (e) {
-          console.warn('Error disposing jitsi api:', e);
+          console.warn('Error disposing jitsi api on unload:', e);
         }
         apiRef.current = null;
       }
+    };
+
+    window.addEventListener('beforeunload', handleLeaveAndDispose);
+    window.addEventListener('pagehide', handleLeaveAndDispose);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleLeaveAndDispose);
+      window.removeEventListener('pagehide', handleLeaveAndDispose);
+      handleLeaveAndDispose();
       isInitializedRef.current = false;
     };
   }, [consultationId, isDoctor]);
