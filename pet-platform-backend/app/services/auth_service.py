@@ -88,6 +88,7 @@ def request_magic_link(
 
     raw_token = secrets.token_urlsafe(32)
     otp_code = f"{random.randint(100000, 999999)}"
+    print(f"\n🔑 [AUTH LOGIN CODE] OTP for {clean_email}: {otp_code}\n", flush=True)
 
     magic_token = MagicLinkToken(
         user_id=user.id,

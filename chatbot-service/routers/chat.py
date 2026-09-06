@@ -20,7 +20,7 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 async def chat_endpoint(
     request_data: ChatRequest,
     req: Request,
-    current_user_id: int | None = Depends(get_current_chat_user),
+    current_user_id: int = Depends(get_current_chat_user),
 ) -> ChatResponse:
     """Execute multi-turn conversational AI chatbot powered by LangGraph, PII Redaction, & Safety Guardrails."""
     if not request_data.message.strip():
@@ -169,7 +169,7 @@ async def chat_endpoint(
 async def chat_stream_endpoint(
     request_data: ChatRequest,
     req: Request,
-    current_user_id: int | None = Depends(get_current_chat_user),
+    current_user_id: int = Depends(get_current_chat_user),
 ) -> StreamingResponse:
     """[SSE STREAMING] Real-time response token streaming powered by Server-Sent Events (SSE)."""
     if not request_data.message.strip():

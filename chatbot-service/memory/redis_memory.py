@@ -4,8 +4,7 @@ import json
 import os
 from typing import Any
 
-# TODO: [Edge Case #9] Add Redis Token-Bucket Rate Limiter & Per-User Token Cost Tracking Engine
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
 
 
 class RedisSessionMemory:
@@ -216,10 +215,16 @@ class RedisSessionMemory:
         session_key = f"pending_session_ticket:{session_id}"
         if self.redis_active:
             try:
-                return self.client.get(session_key)
+                val = self.client.get(session_key)
+                if isinstance(val, bytes):
+                    return val.decode("utf-8")
+                return val
             except Exception:
                 pass
-        return self._in_memory.get(session_key)
+        val = self._in_memory.get(session_key)
+        if isinstance(val, bytes):
+            return val.decode("utf-8")
+        return str(val) if val is not None else None
 
     def consume_pending_action(self, confirmation_id: str, session_id: str) -> None:
         """Mark the pending ticket as consumed by deleting it from Redis."""

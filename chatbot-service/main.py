@@ -69,6 +69,18 @@ async def lifespan(app: FastAPI):
         await mcp_client.initialize()
     except Exception as e:
         print(f"⚠️ [Startup Warning] Failed to warm up MCP client: {e}", flush=True)
+
+    # Warm up Prompt Guard model at startup so incoming chat requests don't freeze
+    try:
+        import asyncio
+        from utils.prompt_guard import _classifier, PROMPT_GUARD_ENABLED
+        if PROMPT_GUARD_ENABLED:
+            print("⏳ [Startup] Pre-warming Prompt Guard safety model...", flush=True)
+            await asyncio.to_thread(_classifier._ensure_loaded)
+            print("✅ [Startup] Prompt Guard model warmed up and ready.", flush=True)
+    except Exception as e:
+        print(f"⚠️ [Startup Warning] Failed to warm up Prompt Guard: {e}", flush=True)
+
     yield
 
 app = FastAPI(
@@ -86,6 +98,11 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:8002",
         "http://127.0.0.1:8002",
+        "http://localhost:8081",
+        "http://127.0.0.1:8081",
+        "http://192.168.1.6:3000",
+        "http://192.168.1.6:8002",
+        "http://192.168.1.6:8081",
         "https://scoobys-kitchen.com",
         "https://www.scoobys-kitchen.com",
     ],
@@ -105,12 +122,10 @@ app.include_router(image_router)
 if __name__ == "__main__":
     import uvicorn
 
-    # WEB_CONCURRENCY controls worker process count (default 4).
-    # Session/chat state lives in Redis, not in-process, so it's safe to
-    # scale this horizontally across workers.
+    # WEB_CONCURRENCY controls worker process count (default 1 for local dev to prevent redundant ML model loading).
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=int(os.getenv("PORT", "8002")),
-        workers=int(os.getenv("WEB_CONCURRENCY", "4")),
+        workers=int(os.getenv("WEB_CONCURRENCY", "1")),
     )

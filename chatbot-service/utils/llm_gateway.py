@@ -6,13 +6,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-try:
-    from langchain_community.chat_models import ChatLiteLLM  # type: ignore
-except ImportError:
-    try:
-        from langchain_community.chat_models.litellm import ChatLiteLLM  # type: ignore
-    except ImportError:
-        ChatLiteLLM = None
+ChatLiteLLM = None
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
@@ -102,23 +96,10 @@ class LiteLLMGateway:
         prompt_tokens: int,
         completion_tokens: int,
     ) -> float:
-        """Calculate exact USD API cost using litellm.completion_cost() or fallback formula."""
-        try:
-            import litellm
-            mock_response = {
-                "model": model,
-                "usage": {
-                    "prompt_tokens": prompt_tokens,
-                    "completion_tokens": completion_tokens,
-                    "total_tokens": prompt_tokens + completion_tokens,
-                },
-            }
-            cost = litellm.completion_cost(completion_response=mock_response)
-            return round(cost, 6)
-        except Exception:
-            cost_in = (prompt_tokens / 1_000_000) * 0.075
-            cost_out = (completion_tokens / 1_000_000) * 0.30
-            return round(cost_in + cost_out, 6)
+        """Calculate exact USD API cost using Gemini pricing formula."""
+        cost_in = (prompt_tokens / 1_000_000) * 0.075
+        cost_out = (completion_tokens / 1_000_000) * 0.30
+        return round(cost_in + cost_out, 6)
 
 
 litellm_gateway = LiteLLMGateway()

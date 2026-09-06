@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Search, PawPrint } from 'lucide-react';
+import { Search, PawPrint, X } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { fetchProducts, fetchCategories, fetchCategoryById } from '../../api/products';
@@ -21,12 +21,21 @@ export default function ShopPage() {
 
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   
   const [isCartOpen, setIsCartOpen] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
+  const { user } = useAuthStore();
 
-  const handleAddToCart = async (productId: number) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const handleAddToCart = useCallback(async (productId: number) => {
     if (!user) {
       navigate('/login');
       return;
@@ -36,25 +45,27 @@ export default function ShopPage() {
     } catch (err) {
       console.error('Failed to add item to cart:', err);
     }
-  };
+  }, [user, navigate, addItem]);
 
-  const { user } = useAuthStore();
-
-  // Queries
+  // Queries with optimized caching and debounced keys
   const { data: productsData, isLoading: productsLoading, error: productsError } = useQuery({
-    queryKey: ['products', search, selectedCategoryId],
-    queryFn: () => fetchProducts({ search, categoryId: selectedCategoryId || undefined }),
+    queryKey: ['products', debouncedSearch, selectedCategoryId],
+    queryFn: () => fetchProducts({ search: debouncedSearch || undefined, categoryId: selectedCategoryId || undefined }),
+    staleTime: 1000 * 60 * 2, // 2 minutes
+    placeholderData: (previousData) => previousData,
   });
 
   const { data: categories, isLoading: categoriesLoading } = useQuery({
     queryKey: ['categories'],
     queryFn: fetchCategories,
+    staleTime: 1000 * 60 * 10, // 10 minutes
   });
 
   const { data: categoryDetails } = useQuery({
     queryKey: ['categoryDetails', selectedCategoryId],
     queryFn: () => fetchCategoryById(selectedCategoryId!),
     enabled: selectedCategoryId !== null,
+    staleTime: 1000 * 60 * 10, // 10 minutes
   });
 
 
@@ -170,8 +181,18 @@ export default function ShopPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search recipes"
-              className="w-full pl-9 pr-4 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+              className="w-full pl-9 pr-8 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
             />
+            {search.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-cardboard hover:text-ink cursor-pointer p-0.5"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 

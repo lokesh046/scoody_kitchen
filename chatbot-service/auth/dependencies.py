@@ -2,8 +2,8 @@ import os
 import sys
 from fastapi import HTTPException, status, Request
 
-def validate_session_ownership(session_id: str, user_id: int | None) -> None:
-    """Validate that the session ID is owned by the authenticated user."""
+def validate_session_ownership(session_id: str, user_id: int) -> None:
+    """Validate that the session ID is strictly owned by the authenticated user."""
     # Allow 'test_' session IDs during unit tests to avoid breaking the test suite
     if "pytest" in sys.modules and session_id.startswith("test_"):
         return
@@ -14,9 +14,16 @@ def validate_session_ownership(session_id: str, user_id: int | None) -> None:
         )
 
 async def get_current_chat_user(request: Request) -> int:
-    """FastAPI Dependency: Authoritatively decodes & verifies JWT signature from HttpOnly cookies."""
+    """FastAPI Dependency: Authoritatively decodes & verifies JWT signature from HttpOnly cookies (web) or Bearer header (mobile)."""
     token = request.cookies.get("access_token")
     if not token:
+        auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1].strip()
+
+    if not token:
+        import logging
+        logging.getLogger(__name__).warning("[Auth] 401: No access token found in cookies or Authorization header.")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required. Please log in.",
@@ -27,6 +34,8 @@ async def get_current_chat_user(request: Request) -> int:
     from memory.redis_memory import session_memory
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
     if await session_memory.ais_token_blacklisted(token_hash):
+        import logging
+        logging.getLogger(__name__).warning("[Auth] 401: Token is blacklisted in Redis.")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has been revoked. Please log in again.",
@@ -51,10 +60,12 @@ async def get_current_chat_user(request: Request) -> int:
         )
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("[Auth] 401: JWT decode failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired authentication token signature.",
+            detail=f"Invalid or expired authentication token ({exc}).",
         )
 
 

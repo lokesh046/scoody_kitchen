@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status, File, UploadFile
 import jwt
 from jwt.exceptions import InvalidTokenError
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 import os
 from app.core.config import settings
@@ -16,6 +16,7 @@ from app.schemas.auth import (
     MagicLinkRequest,
     MagicLinkVerifyCode,
     MagicLinkVerifyToken,
+    RefreshTokenRequest,
     TokenResponse,
     UserRegister,
     UserResponse,
@@ -196,7 +197,13 @@ def logout(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # 1. Blacklist Access Token (from Cookie or Bearer Header)
     access_token = request.cookies.get("access_token")
+    if not access_token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            access_token = auth_header.split(" ")[1]
+
     if access_token:
         try:
             payload = jwt.decode(
@@ -214,6 +221,7 @@ def logout(
         except Exception:
             pass
 
+    # 2. Revoke Refresh Token in Database
     actual_token = refresh_token or request.cookies.get("refresh_token")
 
     if actual_token:
@@ -227,7 +235,16 @@ def logout(
         if stored_token:
             stored_token.revoked = True
             db.commit()
+    else:
+        # Revoke all active refresh tokens for this user on logout
+        db.execute(
+            update(RefreshToken)
+            .where(RefreshToken.user_id == current_user.id, RefreshToken.revoked.is_(False))
+            .values(revoked=True)
+        )
+        db.commit()
 
+    # 3. Clear Cookies
     response.delete_cookie(key="access_token", path="/")
     response.delete_cookie(key="refresh_token", path="/")
     return {"message": "User Logged Out Successfully"}
@@ -240,10 +257,15 @@ def logout(
 def refresh_token_endpoint(
     response: Response,
     request: Request,
+    body: RefreshTokenRequest | None = None,
     refresh_token: str | None = None,
     db: Session = Depends(get_db),
 ):
-    token_val = refresh_token or request.cookies.get("refresh_token")
+    token_val = (
+        (body.refresh_token if body and body.refresh_token else None)
+        or refresh_token
+        or request.cookies.get("refresh_token")
+    )
 
     if not token_val:
         raise HTTPException(
@@ -309,8 +331,10 @@ def refresh_token_endpoint(
     stored_token.revoked = True
     tokens = create_tokens(db, user)
     _set_auth_cookies(response, tokens)
-    tokens["user"] = user
-    return tokens
+    return TokenResponse(
+        **tokens,
+        user=UserResponse.model_validate(user),
+    )
 
 
 @router.get("/me", response_model=UserResponse)

@@ -9,7 +9,7 @@ interface RecipeCardProps {
   onAddToCart?: (productId: number) => Promise<void> | void;
 }
 
-export const RecipeCard: React.FC<RecipeCardProps> = ({ product, onAddToCart }) => {
+export const RecipeCard: React.FC<RecipeCardProps> = React.memo(({ product, onAddToCart }) => {
   const navigate = useNavigate();
   const ingredients = getIngredientsForProduct(product.id, product.name);
 
@@ -132,4 +132,6 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ product, onAddToCart }) 
       </div>
     </div>
   );
-};
+});
+
+RecipeCard.displayName = 'RecipeCard';

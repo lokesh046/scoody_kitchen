@@ -8,7 +8,7 @@ from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.outputs import LLMResult
 from utils.llm_gateway import LiteLLMGateway
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
 
 
 class LangChainTokenCostCallbackHandler(BaseCallbackHandler):

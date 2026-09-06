@@ -42,7 +42,6 @@ logger = logging.getLogger(__name__)
 # 22M is the default: ~75% lower latency/compute than the 86M model for a
 # small accuracy trade-off, which is the right call for a per-message input
 # filter that runs on every chat turn. Set PROMPT_GUARD_MODEL=meta-llama/Llama-Prompt-Guard-2-86M
-# to use the larger model if you want the extra accuracy and can afford the latency.
 PROMPT_GUARD_MODEL = os.getenv("PROMPT_GUARD_MODEL", "meta-llama/Llama-Prompt-Guard-2-22M")
 PROMPT_GUARD_ENABLED = os.getenv("PROMPT_GUARD_ENABLED", "true").lower() == "true"
 # Prompt Guard 2 outputs a "malicious" probability in [0, 1]; this is the

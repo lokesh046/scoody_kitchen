@@ -266,11 +266,11 @@ async def razorpay_webhook(
 
     event_type = event_data.get("event")
 
-    if event_type == "order.paid":
+    if event_type in ("order.paid", "payment.captured"):
         order_payload = event_data.get("payload", {}).get("order", {}).get("entity", {})
         payment_payload = event_data.get("payload", {}).get("payment", {}).get("entity", {})
 
-        razorpay_order_id = order_payload.get("id")
+        razorpay_order_id = order_payload.get("id") or payment_payload.get("order_id")
         razorpay_payment_id = payment_payload.get("id")
 
         if not razorpay_order_id:
@@ -293,7 +293,8 @@ async def razorpay_webhook(
             return {"status": "already_processed"}
 
         try:
-            payment.transaction_id = razorpay_payment_id
+            if razorpay_payment_id:
+                payment.transaction_id = razorpay_payment_id
             payment.razorpay_signature = signature or "webhook_verified"
 
             from app.services.payment_service import process_payment_success
@@ -305,5 +306,30 @@ async def razorpay_webhook(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to process webhook order capture: {str(exc)}",
             )
+
+    elif event_type == "payment.failed":
+        payment_payload = event_data.get("payload", {}).get("payment", {}).get("entity", {})
+        razorpay_order_id = payment_payload.get("order_id")
+        razorpay_payment_id = payment_payload.get("id")
+        error_desc = payment_payload.get("error_description") or "Payment failed at bank gateway"
+
+        if not razorpay_order_id:
+            return {"status": "ignored", "detail": "Missing razorpay_order_id"}
+
+        from sqlalchemy import select
+        from app.models.payment import Payment, PaymentStatus
+
+        payment = db.scalar(
+            select(Payment).where(Payment.razorpay_order_id == razorpay_order_id)
+        )
+
+        if payment and payment.status != PaymentStatus.SUCCESS:
+            payment.status = PaymentStatus.FAILED
+            if razorpay_payment_id:
+                payment.transaction_id = razorpay_payment_id
+            db.commit()
+            return {"status": "failure_recorded", "order_id": payment.order_id, "detail": error_desc}
+
+        return {"status": "ignored", "detail": "Payment already resolved or not found"}
 
     return {"status": "ignored", "event": event_type}
