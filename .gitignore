@@ -61,3 +61,13 @@ celerybeat-schedule*
 DESIGN.md
 PRODUCT.md
 frontend/.impeccable/
+
+# Local IDE & AI assistant files
+.agents/
+.claude/
+.logs/
+.stitch/
+.vscode/
+
+# Expo cache
+.expo/

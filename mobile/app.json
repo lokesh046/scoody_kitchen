@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Scooby's Kitchen",
+    "slug": "scooby-kitchen",
+    "scheme": "scoobykitchen",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/scooby-logo-512.png",
+    "splash": {
+      "image": "./assets/scooby-logo-512.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F9F6F0"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Scooby's Kitchen needs camera access so you can be seen during your video consultation with the veterinarian.",
+        "NSMicrophoneUsageDescription": "Scooby's Kitchen needs microphone access so you can speak during your video consultation with the veterinarian."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/scooby-logo-512.png",
+        "backgroundColor": "#F9F6F0"
+      },
+      "package": "com.scooby.kitchen",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-image",
+      "expo-font",
+      "expo-sharing"
+    ]
+  }
+}
