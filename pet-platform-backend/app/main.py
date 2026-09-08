@@ -246,3 +246,12 @@ def database_health(db:Session = Depends(get_db)):
         "result": result.scalar()
     }
 
+
+@app.get("/health/cache")
+def cache_health():
+    from app.core.cache import cache
+    return {
+        "status": "healthy" if cache.redis_active else "fallback_in_memory",
+        "stats": cache.get_stats(),
+    }
+

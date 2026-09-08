@@ -47,6 +47,8 @@ class RedisCacheManager:
         self.fallback = InMemoryTTLCache(default_ttl_seconds=default_ttl_seconds)
         self.redis_active = False
         self.client = None
+        self.hits = 0
+        self.misses = 0
         self._init_redis()
 
     def _init_redis(self) -> None:
@@ -61,30 +63,45 @@ class RedisCacheManager:
             self.redis_active = False
             logger.warning("Redis unavailable (%s) — falling back to InMemoryTTLCache.", exc)
 
+    def get_stats(self) -> dict[str, Any]:
+        total = self.hits + self.misses
+        ratio = round((self.hits / total) * 100, 2) if total > 0 else 0.0
+        return {
+            "hits": self.hits,
+            "misses": self.misses,
+            "total_queries": total,
+            "hit_ratio_percentage": ratio,
+            "redis_active": self.redis_active,
+        }
+
     def get(self, key: str) -> Any | None:
-        # Ignore security tokens and internal blacklist logs to keep stdout clean
+        # Ignore security tokens and internal blacklist logs to keep logs clean
         is_token_log = "blacklist" in key or "token" in key
         
         if self.redis_active and self.client:
             try:
                 raw_val = self.client.get(key)
                 if raw_val is not None:
+                    self.hits += 1
                     if not is_token_log:
-                        print(f"🐾 [CACHE HIT] (Redis) Key: {key}")
+                        logger.debug("🐾 [CACHE HIT] (Redis) Key: %s", key)
                     return json.loads(raw_val)
+                self.misses += 1
                 if not is_token_log:
-                    print(f"🐾 [CACHE MISS] (Redis) Key: {key}")
+                    logger.debug("🐾 [CACHE MISS] (Redis) Key: %s", key)
                 return None
             except Exception as exc:
                 logger.warning("Redis get error: %s — using fallback.", exc)
         
         fallback_val = self.fallback.get(key)
         if fallback_val is not None:
+            self.hits += 1
             if not is_token_log:
-                print(f"🐾 [CACHE HIT] (InMemory) Key: {key}")
+                logger.debug("🐾 [CACHE HIT] (InMemory) Key: %s", key)
         else:
+            self.misses += 1
             if not is_token_log:
-                print(f"🐾 [CACHE MISS] (InMemory) Key: {key}")
+                logger.debug("🐾 [CACHE MISS] (InMemory) Key: %s", key)
         return fallback_val
 
     def set(self, key: str, value: Any, ttl_seconds: int | None = None) -> None:
