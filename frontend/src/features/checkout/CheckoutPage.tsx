@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Map, MapMarker, MapControls, type MapRefHandle } from '../../components/ui/map';
-import { fetchIpLocation } from '../../api/geo';
+import { fetchIpLocation, reverseGeocode as apiReverseGeocode, lookupPincode as apiLookupPincode } from '../../api/geo';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { checkoutCart } from '../../api/orders';
@@ -308,10 +308,7 @@ export const CheckoutPage: React.FC = () => {
 
     const executeLookup = async () => {
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`
-        );
-        const data = await res.json();
+        const data = await apiReverseGeocode(lat, lon);
         if (data && data.address) {
           const addr = data.address;
           setDoorNo(addr.house_number || addr.building || '');
@@ -427,15 +424,7 @@ export const CheckoutPage: React.FC = () => {
     setErrorMessage('');
 
     try {
-      let url = `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(pincode)}&format=json&limit=1`;
-      
-      const activeCountryCode = getCountryCode(country) || detectedCountryCode || 'in';
-      if (activeCountryCode) {
-        url += `&countrycodes=${activeCountryCode}`;
-      }
-
-      const res = await fetch(url);
-      const data = await res.json();
+      const data = await apiLookupPincode(pincode);
       
       if (data && data.length > 0) {
         const result = data[0];
@@ -444,7 +433,8 @@ export const CheckoutPage: React.FC = () => {
         
         await reverseGeocode(lat, lon, true);
       } else {
-        setErrorMessage(`Pincode / Zip Code not found in selected country (${activeCountryCode.toUpperCase()}). Please enter details manually.`);
+        const activeCountryCode = getCountryCode(country) || detectedCountryCode || 'in';
+        setErrorMessage(`Pincode / Zip Code not found (${activeCountryCode.toUpperCase()}). Please enter details manually.`);
       }
     } catch (err) {
       console.error('Pincode lookup failed:', err);

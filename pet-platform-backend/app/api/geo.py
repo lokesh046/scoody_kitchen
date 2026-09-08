@@ -2,6 +2,8 @@ from fastapi import APIRouter, Request
 import httpx
 import logging
 
+from app.core.cache import cache
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
@@ -34,7 +36,7 @@ def is_local_or_private_ip(ip: str) -> bool:
 @router.get("/ip-locate")
 async def ip_locate(request: Request):
     """
-    Server-side IP Geolocation endpoint.
+    Server-side IP Geolocation endpoint with 24-hour Redis caching.
     Extracts the client's public IP address from proxy headers (Cloudflare, Nginx, ALB)
     and resolves geographic coordinates server-side to prevent ad-blocker issues and CORS errors.
     """
@@ -56,6 +58,11 @@ async def ip_locate(request: Request):
             "message": "Local development network detected. Using headquarters default.",
         }
 
+    cache_key = f"geo:ip:{client_ip}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     # Query external service securely from server
     try:
         async with httpx.AsyncClient(timeout=4.0) as client:
@@ -65,7 +72,7 @@ async def ip_locate(request: Request):
                 lat = data.get("latitude")
                 lon = data.get("longitude")
                 if lat is not None and lon is not None:
-                    return {
+                    result = {
                         "latitude": float(lat),
                         "longitude": float(lon),
                         "city": data.get("cityName") or data.get("city") or DEFAULT_LOCATION["city"],
@@ -74,6 +81,8 @@ async def ip_locate(request: Request):
                         "ip": client_ip,
                         "is_fallback": False,
                     }
+                    cache.set(cache_key, result, ttl_seconds=86400)
+                    return result
     except Exception as e:
         logger.warning("Server-side IP geolocation lookup failed for %s: %s", client_ip, e)
 
@@ -82,3 +91,63 @@ async def ip_locate(request: Request):
         "ip": client_ip,
         "message": "Lookup service unavailable. Using headquarters default.",
     }
+
+
+@router.get("/reverse")
+async def reverse_geocode(lat: float, lon: float):
+    """
+    Reverse geocoding with Redis coordinate clustering cache.
+    Coordinates rounded to 3 decimal places (~110m precision) share the exact same cached address.
+    """
+    rounded_lat = round(lat, 3)
+    rounded_lon = round(lon, 3)
+    cache_key = f"geo:rev:{rounded_lat}:{rounded_lon}"
+
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.get(
+                "https://nominatim.openstreetmap.org/reverse",
+                params={"lat": lat, "lon": lon, "format": "json"},
+                headers={"User-Agent": "ScoobyPetsPlatform/1.0 (support@scoobypets.com)"},
+            )
+            if res.status_code == 200:
+                data = res.json()
+                cache.set(cache_key, data, ttl_seconds=604800)  # 7-day TTL
+                return data
+    except Exception as e:
+        logger.warning("Reverse geocoding error for (%s, %s): %s", lat, lon, e)
+
+    return {"error": "Unable to resolve coordinates", "lat": lat, "lon": lon}
+
+
+@router.get("/pincode")
+async def pincode_lookup(code: str):
+    """
+    Pincode search with Redis caching.
+    """
+    clean_code = code.strip().upper()
+    cache_key = f"geo:pin:{clean_code}"
+
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={"postalcode": clean_code, "format": "json", "limit": 1},
+                headers={"User-Agent": "ScoobyPetsPlatform/1.0 (support@scoobypets.com)"},
+            )
+            if res.status_code == 200:
+                data = res.json()
+                cache.set(cache_key, data, ttl_seconds=604800)  # 7-day TTL
+                return data
+    except Exception as e:
+        logger.warning("Pincode lookup error for %s: %s", clean_code, e)
+
+    return []
