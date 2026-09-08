@@ -9,19 +9,20 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { useFonts, Outfit_700Bold, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
+import { Quicksand_400Regular, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
 import {
-  Package,
   Clock,
   MapPin,
   ChevronRight,
   UtensilsCrossed,
-  Truck,
   CheckCircle2,
+  XCircle,
   PackageOpen,
-  ArrowRight,
   ShieldCheck,
   KeyRound,
 } from 'lucide-react-native';
@@ -29,45 +30,13 @@ import { COLORS } from '../theme/colors';
 import { BrandMedallion } from '../components/BrandLogo';
 import { fetchMyOrders, Order } from '../api/orders';
 import { useAuthStore } from '../store/authStore';
+import { tabPrefetchCache } from '../services/tabPrefetch';
 import { useResponsive } from '../hooks/useResponsive';
 import ResponsiveContainer from '../components/ResponsiveContainer';
+import { isConfirmedAndPaid, isDelivered, isCancelled, getStatusBadgeStyle } from '../utils/orderStatus';
+import { LEDGER_MONO, FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_BODY_BOLD } from '../theme/typography';
 
-type FilterType = 'ALL' | 'CONFIRMED' | 'ACTIVE' | 'DELIVERED';
-
-const isConfirmedAndPaid = (status: string) => {
-  const s = (status || '').toUpperCase();
-  return s === 'PAID' || s === 'CONFIRMED';
-};
-
-const isDelivered = (status: string) => {
-  const s = (status || '').toUpperCase();
-  return s === 'DELIVERED' || s === 'COMPLETED';
-};
-
-const isOrderActive = (status: string) => {
-  const s = (status || '').toUpperCase();
-  return !isDelivered(status) && s !== 'CANCELLED' && s !== 'RETURNED';
-};
-
-const getStatusBadgeStyle = (status: string) => {
-  const s = (status || '').toUpperCase();
-  if (s === 'DELIVERED' || s === 'COMPLETED') {
-    return { bg: '#EDF5F0', text: COLORS.forestGreen, label: 'DELIVERED' };
-  }
-  if (s === 'SHIPPED' || s === 'DISPATCHED' || s === 'IN_TRANSIT' || s === 'OUT_FOR_DELIVERY') {
-    return { bg: '#EBF3FB', text: '#2563EB', label: 'OUT FOR DELIVERY' };
-  }
-  if (s === 'PREPARING' || s === 'PROCESSING' || s === 'PACKED') {
-    return { bg: '#FAF5EE', text: '#B45309', label: 'KITCHEN PREP' };
-  }
-  if (s === 'PAID' || s === 'CONFIRMED') {
-    return { bg: '#EDF5F0', text: COLORS.forestGreen, label: 'CONFIRMED & PAID' };
-  }
-  if (s === 'CANCELLED') {
-    return { bg: '#FEE2E2', text: '#DC2626', label: 'CANCELLED' };
-  }
-  return { bg: '#F3F4F6', text: COLORS.textMuted, label: s || 'PENDING' };
-};
+type FilterType = 'ALL' | 'CONFIRMED' | 'CANCELLED' | 'DELIVERED';
 
 interface OrderCardItemProps {
   order: Order;
@@ -168,15 +137,21 @@ const OrderCardItem = memo(function OrderCardItem({ order, onSelect }: OrderCard
 });
 
 export default function OrdersScreen({ navigation }: any) {
+  // Loads the brand faces once; Text using FONT_DISPLAY/FONT_BODY renders in
+  // the system font until this resolves, then re-renders automatically.
+  useFonts({ Outfit_700Bold, Outfit_600SemiBold, Quicksand_400Regular, Quicksand_700Bold });
   const { user, isGuest, logout } = useAuthStore();
   const { isTablet } = useResponsive();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Seeded from the app-boot prefetch (see services/tabPrefetch.ts) when
+  // available, so this screen's first paint can show real orders instead of
+  // an empty list + spinner while its own fetch is still in flight.
+  const [orders, setOrders] = useState<Order[]>(() => tabPrefetchCache.orders || []);
+  const [loading, setLoading] = useState(() => !tabPrefetchCache.orders);
   const [refreshing, setRefreshing] = useState(false);
   const [isAuthError, setIsAuthError] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('ALL');
 
-  const ordersLastFetchedRef = useRef(0);
+  const ordersLastFetchedRef = useRef(tabPrefetchCache.ordersFetchedAt || 0);
   const loadOrders = useCallback(
     async (force = false) => {
       if (!user || isGuest) {
@@ -229,25 +204,25 @@ export default function OrdersScreen({ navigation }: any) {
   }, [loadOrders]);
 
   // Single-pass computation for counts and filtered list
-  const { filteredOrders, confirmedCount, activeCount, deliveredCount } = useMemo(() => {
+  const { filteredOrders, confirmedCount, cancelledCount, deliveredCount } = useMemo(() => {
     let conf = 0;
-    let act = 0;
+    let cancel = 0;
     let del = 0;
     for (const o of orders) {
       if (isConfirmedAndPaid(o.status)) conf++;
-      if (isOrderActive(o.status)) act++;
+      if (isCancelled(o.status)) cancel++;
       if (isDelivered(o.status)) del++;
     }
     const filtered = orders.filter((o) => {
       if (selectedFilter === 'CONFIRMED') return isConfirmedAndPaid(o.status);
-      if (selectedFilter === 'ACTIVE') return isOrderActive(o.status);
+      if (selectedFilter === 'CANCELLED') return isCancelled(o.status);
       if (selectedFilter === 'DELIVERED') return isDelivered(o.status);
       return true;
     });
     return {
       filteredOrders: filtered,
       confirmedCount: conf,
-      activeCount: act,
+      cancelledCount: cancel,
       deliveredCount: del,
     };
   }, [orders, selectedFilter]);
@@ -268,7 +243,10 @@ export default function OrdersScreen({ navigation }: any) {
 
   const keyExtractor = useCallback((item: Order) => item.id.toString(), []);
 
-  const renderEmptyComponent = () => {
+  // Wrapped in useCallback so FlatList's ListEmptyComponent prop gets a
+  // stable reference across renders instead of a brand-new function every
+  // time — otherwise FlatList treats the empty-state subtree as changed.
+  const renderEmptyComponent = useCallback(() => {
     if (!user || isGuest || isAuthError) {
       return (
         <View style={styles.emptyStateContainer}>
@@ -298,7 +276,7 @@ export default function OrdersScreen({ navigation }: any) {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.forestGreen} />
-          <Text style={styles.loadingText}>Loading orders from backend ledger...</Text>
+          <Text style={styles.loadingText}>Loading your orders...</Text>
         </View>
       );
     }
@@ -311,8 +289,8 @@ export default function OrdersScreen({ navigation }: any) {
         <Text style={styles.emptyTitle}>
           {selectedFilter === 'ALL'
             ? 'No Orders Placed Yet'
-            : selectedFilter === 'ACTIVE'
-            ? 'No Active Orders in Progress'
+            : selectedFilter === 'CANCELLED'
+            ? 'No Cancelled Orders'
             : 'No Past Delivered Orders'}
         </Text>
         <Text style={styles.emptySub}>
@@ -327,7 +305,7 @@ export default function OrdersScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
     );
-  };
+  }, [user, isGuest, isAuthError, loading, selectedFilter, logout, navigation]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -352,6 +330,9 @@ export default function OrdersScreen({ navigation }: any) {
               style={styles.avatarBtn}
               onPress={() => navigation.navigate('Profile')}
               activeOpacity={0.85}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel="Open your profile"
             >
               {user?.profile_image_url ? (
                 <Image source={{ uri: user.profile_image_url }} style={styles.avatarImg} />
@@ -372,6 +353,10 @@ export default function OrdersScreen({ navigation }: any) {
             <TouchableOpacity
               style={[styles.filterChip, selectedFilter === 'ALL' && styles.filterChipActive]}
               onPress={() => setSelectedFilter('ALL')}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel={`All orders, ${orders.length}`}
+              accessibilityState={{ selected: selectedFilter === 'ALL' }}
             >
               <Text style={[styles.filterText, selectedFilter === 'ALL' && styles.filterTextActive]}>
                 All ({orders.length})
@@ -381,6 +366,10 @@ export default function OrdersScreen({ navigation }: any) {
             <TouchableOpacity
               style={[styles.filterChip, selectedFilter === 'CONFIRMED' && styles.filterChipActive]}
               onPress={() => setSelectedFilter('CONFIRMED')}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Confirmed and paid orders, ${confirmedCount}`}
+              accessibilityState={{ selected: selectedFilter === 'CONFIRMED' }}
             >
               <View style={styles.filterChipInner}>
                 <CheckCircle2 size={13} color={selectedFilter === 'CONFIRMED' ? '#FFFFFF' : COLORS.forestGreen} />
@@ -391,17 +380,28 @@ export default function OrdersScreen({ navigation }: any) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.filterChip, selectedFilter === 'ACTIVE' && styles.filterChipActive]}
-              onPress={() => setSelectedFilter('ACTIVE')}
+              style={[styles.filterChip, selectedFilter === 'CANCELLED' && styles.filterChipActive]}
+              onPress={() => setSelectedFilter('CANCELLED')}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Cancelled orders, ${cancelledCount}`}
+              accessibilityState={{ selected: selectedFilter === 'CANCELLED' }}
             >
-              <Text style={[styles.filterText, selectedFilter === 'ACTIVE' && styles.filterTextActive]}>
-                Active ({activeCount})
-              </Text>
+              <View style={styles.filterChipInner}>
+                <XCircle size={13} color={selectedFilter === 'CANCELLED' ? '#FFFFFF' : '#DC2626'} />
+                <Text style={[styles.filterText, selectedFilter === 'CANCELLED' && styles.filterTextActive]}>
+                  Cancelled ({cancelledCount})
+                </Text>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.filterChip, selectedFilter === 'DELIVERED' && styles.filterChipActive]}
               onPress={() => setSelectedFilter('DELIVERED')}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Delivered orders, ${deliveredCount}`}
+              accessibilityState={{ selected: selectedFilter === 'DELIVERED' }}
             >
               <Text style={[styles.filterText, selectedFilter === 'DELIVERED' && styles.filterTextActive]}>
                 Delivered ({deliveredCount})
@@ -425,7 +425,7 @@ export default function OrdersScreen({ navigation }: any) {
         initialNumToRender={5}
         maxToRenderPerBatch={5}
         windowSize={5}
-        removeClippedSubviews={true}
+        removeClippedSubviews={Platform.OS === 'android'}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.forestGreen]} />
         }
@@ -453,8 +453,8 @@ const styles = StyleSheet.create({
   },
   headerTextCol: { flex: 1, minWidth: 0 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  brandLabel: { fontSize: 10, fontWeight: '800', color: COLORS.brandGold, letterSpacing: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textCoffee },
+  brandLabel: { fontSize: 10, fontWeight: '800', color: COLORS.brandGold, letterSpacing: 1, fontFamily: FONT_BODY_BOLD },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textCoffee, fontFamily: FONT_DISPLAY },
   livePulseDot: {
     width: 6,
     height: 6,
@@ -562,6 +562,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: COLORS.textCoffee,
     textAlign: 'center',
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
   },
   emptySub: {
     fontSize: 13,
@@ -656,7 +657,7 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '700',
     color: COLORS.brandGold,
-    fontFamily: 'monospace',
+    fontFamily: LEDGER_MONO,
   },
   emptyItemsText: {
     fontSize: 12,
@@ -685,6 +686,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: COLORS.kraftBorder,
+    borderStyle: 'dashed',
   },
   totalLabel: {
     fontSize: 10,
@@ -696,7 +698,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: COLORS.textCoffee,
-    fontFamily: 'monospace',
+    fontFamily: LEDGER_MONO,
   },
   trackCta: {
     flexDirection: 'row',

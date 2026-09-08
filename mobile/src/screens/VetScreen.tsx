@@ -50,6 +50,7 @@ import ResponsiveContainer from '../components/ResponsiveContainer';
 import { useFeatureFlag } from '../hooks/useFeatureFlag';
 import { usePetStore } from '../store/petStore';
 import { useAuthStore } from '../store/authStore';
+import { tabPrefetchCache } from '../services/tabPrefetch';
 import {
   fetchDoctors,
   fetchDoctorSlots,
@@ -72,7 +73,7 @@ import {
 import RazorpayModal from '../components/RazorpayModal';
 
 type ActiveTab = 'QUEUE' | 'DOCTORS';
-type ConsultationFilter = 'ALL' | 'ACTIVE' | 'COMPLETED';
+type ConsultationFilter = 'ALL' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
 
 const QUICK_SYMPTOMS = [
   '🐾 Skin Itching & Allergies',
@@ -426,9 +427,12 @@ export default function VetScreen({ navigation, route }: any) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('QUEUE');
   const [consultationFilter, setConsultationFilter] = useState<ConsultationFilter>('ALL');
 
-  // Consultations State
-  const [consultations, setConsultations] = useState<Consultation[]>([]);
-  const [loadingConsultations, setLoadingConsultations] = useState(true);
+  // Consultations State — seeded from the app-boot prefetch (see
+  // services/tabPrefetch.ts) when available, so this screen's first paint
+  // can show the real queue instead of an empty list + spinner while its
+  // own fetch is still in flight.
+  const [consultations, setConsultations] = useState<Consultation[]>(() => tabPrefetchCache.consultations || []);
+  const [loadingConsultations, setLoadingConsultations] = useState(() => !tabPrefetchCache.consultations);
   const [joiningId, setJoiningId] = useState<number | null>(null);
 
   // Doctor Review Modal State
@@ -543,7 +547,10 @@ export default function VetScreen({ navigation, route }: any) {
     setIsFilterModalOpen(false);
   };
 
-  const resetAllFilters = () => {
+  // useCallback here matters beyond the usual: renderDoctorsEmpty below
+  // depends on this function, so an unstable resetAllFilters identity would
+  // silently defeat renderDoctorsEmpty's own memoization on every render.
+  const resetAllFilters = useCallback(() => {
     setSelectedSpecialization('ALL');
     setSelectedCity('ALL');
     setMaxPriceLimit(null);
@@ -552,7 +559,7 @@ export default function VetScreen({ navigation, route }: any) {
     setTempCity('ALL');
     setTempPriceLimit(null);
     setIsFilterModalOpen(false);
-  };
+  }, []);
 
   // Booking Modal State
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
@@ -631,7 +638,7 @@ export default function VetScreen({ navigation, route }: any) {
   }, []);
 
   // 2. Fetch User Consultations
-  const consultationsLastFetchedRef = useRef(0);
+  const consultationsLastFetchedRef = useRef(tabPrefetchCache.consultationsFetchedAt || 0);
   const loadConsultations = useCallback(
     async (force = false) => {
       if (!user || isGuest) {
@@ -854,11 +861,11 @@ export default function VetScreen({ navigation, route }: any) {
     };
   }, [selectedDoctor, selectedDateIndex, upcomingDays, isSlotInPast]);
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadConsultations(true);
     loadDoctorsAndPets();
-  };
+  }, [loadConsultations, loadDoctorsAndPets]);
 
   const formatTime12h = (time24: string) => {
     if (!time24) return 'Select a Slot';
@@ -1001,7 +1008,12 @@ export default function VetScreen({ navigation, route }: any) {
 
 
   // 5. Handle Live Video Call Join
-  const handleJoinVideoRoom = async (consultation: Consultation) => {
+  // useCallback matters here beyond the usual: this closes over `user`, and
+  // renderConsultationItem below doesn't list it as a dependency, so an
+  // unstable reference would have gone stale instead of just re-rendering —
+  // the card would keep calling whichever version of this existed the last
+  // time joiningId/isReviewsEnabled/vetCardWidth changed.
+  const handleJoinVideoRoom = useCallback(async (consultation: Consultation) => {
     try {
       setJoiningId(consultation.id);
       const joinData = await joinConsultation(consultation.id);
@@ -1034,10 +1046,10 @@ export default function VetScreen({ navigation, route }: any) {
     } finally {
       setJoiningId(null);
     }
-  };
+  }, [user, navigation]);
 
   // 6. Handle Cancellation
-  const handleCancelConsultation = (consultationId: number) => {
+  const handleCancelConsultation = useCallback((consultationId: number) => {
     Alert.alert(
       'Cancel Appointment',
       'Are you sure you want to cancel this veterinary appointment?',
@@ -1059,7 +1071,7 @@ export default function VetScreen({ navigation, route }: any) {
         },
       ]
     );
-  };
+  }, [loadConsultations]);
 
   // 6b. Handle Doctor Review Submission
   const handleOpenReviewModal = useCallback((consultationId: number) => {
@@ -1235,13 +1247,15 @@ export default function VetScreen({ navigation, route }: any) {
   };
 
   // Single-pass memoized computation of filtered consultations and counters
-  const { filteredConsultations, activeCount, completedCount } = useMemo(() => {
+  const { filteredConsultations, activeCount, completedCount, cancelledCount } = useMemo(() => {
     let act = 0;
     let comp = 0;
+    let cancel = 0;
     for (const c of consultations) {
       const s = (c.status || '').toLowerCase();
       if (s === 'confirmed' || s === 'in_progress' || s === 'pending') act++;
       if (s === 'completed') comp++;
+      if (s === 'cancelled') cancel++;
     }
     const filtered = consultations.filter((c) => {
       const s = (c.status || '').toLowerCase();
@@ -1251,9 +1265,12 @@ export default function VetScreen({ navigation, route }: any) {
       if (consultationFilter === 'COMPLETED') {
         return s === 'completed';
       }
+      if (consultationFilter === 'CANCELLED') {
+        return s === 'cancelled';
+      }
       return true;
     });
-    return { filteredConsultations: filtered, activeCount: act, completedCount: comp };
+    return { filteredConsultations: filtered, activeCount: act, completedCount: comp, cancelledCount: cancel };
   }, [consultations, consultationFilter]);
 
   const currentChosenDay = upcomingDays[selectedDateIndex];
@@ -1271,7 +1288,7 @@ export default function VetScreen({ navigation, route }: any) {
         cardWidth={vetCardWidth}
       />
     ),
-    [joiningId, isReviewsEnabled, vetCardWidth]
+    [joiningId, isReviewsEnabled, vetCardWidth, handleJoinVideoRoom, handleCancelConsultation, handleOpenReviewModal]
   );
 
   const keyExtractorConsultation = useCallback((item: Consultation) => String(item.id), []);
@@ -1294,6 +1311,8 @@ export default function VetScreen({ navigation, route }: any) {
         <Text style={styles.emptySub}>
           {consultationFilter === 'COMPLETED'
             ? 'You have no completed consultation records or past doctor notes yet.'
+            : consultationFilter === 'CANCELLED'
+            ? 'You have no cancelled appointments.'
             : 'You do not have any upcoming video appointments booked.'}
         </Text>
         <TouchableOpacity style={styles.bookNowBtn} onPress={() => setActiveTab('DOCTORS')}>
@@ -1422,7 +1441,11 @@ export default function VetScreen({ navigation, route }: any) {
       {/* 3. Tab-Specific Header (filter chips or search/filter bar) */}
       {activeTab === 'QUEUE' ? (
         <ResponsiveContainer style={styles.headerAreaContainer}>
-          <View style={styles.filterChipRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterChipRow}
+          >
             <TouchableOpacity
               style={[
                 styles.filterChip,
@@ -1473,7 +1496,24 @@ export default function VetScreen({ navigation, route }: any) {
                 Completed & Notes ({completedCount})
               </Text>
             </TouchableOpacity>
-          </View>
+
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                consultationFilter === 'CANCELLED' && styles.filterChipCancelledActive,
+              ]}
+              onPress={() => setConsultationFilter('CANCELLED')}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  consultationFilter === 'CANCELLED' && styles.filterChipTextActive,
+                ]}
+              >
+                Cancelled ({cancelledCount})
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
         </ResponsiveContainer>
       ) : (
         <ResponsiveContainer style={styles.headerAreaContainer}>
@@ -3096,7 +3136,7 @@ const styles = StyleSheet.create({
   headerAreaContainer: { paddingHorizontal: 16, paddingTop: 14 },
 
   // Filter Chips
-  filterChipRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
+  filterChipRow: { flexDirection: 'row', gap: 8, marginBottom: 4, paddingRight: 16 },
   filterChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -3108,6 +3148,12 @@ const styles = StyleSheet.create({
   filterChipActive: {
     backgroundColor: COLORS.forestGreen,
     borderColor: COLORS.forestGreen,
+  },
+  // Cancelled gets its own active tone (matching the CANCELLED status badge's
+  // red, not the generic forest-green every other active filter chip uses).
+  filterChipCancelledActive: {
+    backgroundColor: '#DC2626',
+    borderColor: '#DC2626',
   },
   filterChipText: { fontSize: 11, fontWeight: '700', color: COLORS.textCoffee },
   filterChipTextActive: { color: '#FFFFFF' },

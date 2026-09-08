@@ -56,6 +56,7 @@ import {
 import { uploadAvatarImage } from '../api/auth';
 import { useAuthStore } from '../store/authStore';
 import { usePetStore } from '../store/petStore';
+import { tabPrefetchCache } from '../services/tabPrefetch';
 import { BrandMedallion } from '../components/BrandLogo';
 import PetVisionModal from '../components/PetVisionModal';
 import { useResponsive } from '../hooks/useResponsive';
@@ -71,6 +72,11 @@ const FONT_DISPLAY = 'Outfit_700Bold';
 const FONT_DISPLAY_SEMIBOLD = 'Outfit_600SemiBold';
 const FONT_BODY = 'Quicksand_400Regular';
 const FONT_BODY_BOLD = 'Quicksand_700Bold';
+// Single muted slate tone for ledger-row icons — replaces the old per-row
+// color coding so the data rows read as calm and consistent, not decorated.
+// #5B6B7A over white is 5.48:1, clearing the 4.5:1 AA text floor
+// (the lighter #8B99A8 this was drafted from only hit 2.91:1).
+const ROW_ICON_COLOR = '#5B6B7A';
 
 // --- Pure Helper Functions Hoisted Outside Component ---
 
@@ -193,9 +199,6 @@ const CompanionLedgerCard = memo(function CompanionLedgerCard({
 
   return (
     <View style={styles.ledgerCard}>
-      {/* Left Dashed Notebook Spine */}
-      <View style={styles.spineLine} />
-
       <View style={styles.cardInnerContent}>
         {/* Top Header Row */}
         <View style={styles.cardHeaderRow}>
@@ -254,7 +257,7 @@ const CompanionLedgerCard = memo(function CompanionLedgerCard({
           {/* Species */}
           <View style={styles.ledgerRow}>
             <View style={styles.ledgerKeyGroup}>
-              <PawPrint size={14} color="#D09E6B" fill="#D09E6B" />
+              <PawPrint size={14} color={ROW_ICON_COLOR} />
               <Text style={styles.ledgerKeyText}>SPECIES</Text>
             </View>
             <Text style={styles.ledgerValText}>
@@ -265,7 +268,7 @@ const CompanionLedgerCard = memo(function CompanionLedgerCard({
           {/* Breed */}
           <View style={styles.ledgerRow}>
             <View style={styles.ledgerKeyGroup}>
-              <Award size={14} color="#D09E6B" />
+              <Award size={14} color={ROW_ICON_COLOR} />
               <Text style={styles.ledgerKeyText}>BREED</Text>
             </View>
             <Text style={[styles.ledgerValText, { maxWidth: '58%' }]} numberOfLines={1}>
@@ -276,7 +279,7 @@ const CompanionLedgerCard = memo(function CompanionLedgerCard({
           {/* Gender */}
           <View style={styles.ledgerRow}>
             <View style={styles.ledgerKeyGroup}>
-              <Heart size={14} color="#C25E48" />
+              <Heart size={14} color={ROW_ICON_COLOR} />
               <Text style={styles.ledgerKeyText}>GENDER</Text>
             </View>
             <Text style={styles.ledgerValText}>
@@ -287,7 +290,7 @@ const CompanionLedgerCard = memo(function CompanionLedgerCard({
           {/* Weight */}
           <View style={styles.ledgerRow}>
             <View style={styles.ledgerKeyGroup}>
-              <Scale size={14} color="#4C7C59" />
+              <Scale size={14} color={ROW_ICON_COLOR} />
               <Text style={styles.ledgerKeyText}>WEIGHT</Text>
             </View>
             <Text style={styles.ledgerValText}>{weightDisplay}</Text>
@@ -296,7 +299,7 @@ const CompanionLedgerCard = memo(function CompanionLedgerCard({
           {/* Birthday */}
           <View style={[styles.ledgerRow, styles.ledgerRowLast]}>
             <View style={styles.ledgerKeyGroup}>
-              <Cake size={14} color="#4C7C59" />
+              <Cake size={14} color={ROW_ICON_COLOR} />
               <Text style={styles.ledgerKeyText}>BIRTHDAY</Text>
             </View>
             <Text style={styles.ledgerValText}>{birthdayDisplay}</Text>
@@ -313,7 +316,7 @@ const CompanionLedgerCard = memo(function CompanionLedgerCard({
             accessibilityLabel={`Edit ${pet.name}'s profile`}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Edit3 size={13} color="#4C7C59" strokeWidth={2.2} />
+            <Edit3 size={13} color={COLORS.textCoffee} strokeWidth={2.2} />
             <Text style={styles.medicalFileBtnText}>EDIT PROFILE</Text>
           </TouchableOpacity>
         </View>
@@ -969,7 +972,10 @@ export default function PetsScreen({ navigation }: any) {
   const isPhotoUploadEnabled = useFeatureFlag('pets_photo_upload', true);
 
   const [selectedPetId, setSelectedPetId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  // If the app-boot prefetch already wrote pets into the shared store before
+  // this screen mounted, skip the spinner entirely instead of hiding
+  // already-available data behind one.
+  const [loading, setLoading] = useState(() => pets.length === 0);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -1001,7 +1007,11 @@ export default function PetsScreen({ navigation }: any) {
   // (preserving modalMode/petToEdit/typed fields) instead of starting fresh.
   const isResumingFromVisionRef = useRef(false);
 
-  const petsLastFetchedRef = useRef(0);
+  // Seeded from the app-boot prefetch (see services/tabPrefetch.ts) so this
+  // screen's mount-time fetch recognizes already-fresh data (already
+  // written into usePetStore by that prefetch) and skips a redundant,
+  // immediate refetch right after mount.
+  const petsLastFetchedRef = useRef(tabPrefetchCache.petsFetchedAt || 0);
   const loadPets = useCallback(
     async (force = false) => {
       if (!user && isGuest) {
@@ -1252,6 +1262,13 @@ export default function PetsScreen({ navigation }: any) {
       setIsModalVisible(true);
     }
   }, []);
+
+  // Stable references for PetDossierModal/PetWelcomeCelebration's onClose —
+  // both are memo()'d specifically so typing/animating inside them doesn't
+  // re-render the rest of this screen; an inline arrow here would hand them
+  // a new prop identity every render and quietly defeat that memoization.
+  const handleCloseDossierModal = useCallback(() => setIsModalVisible(false), []);
+  const handleDismissCelebration = useCallback(() => setCelebratingPet(null), []);
 
   const handleOpenAIConsult = useCallback(() => {
     if (!currentPet) return;
@@ -1513,7 +1530,7 @@ export default function PetsScreen({ navigation }: any) {
         sessionId={dossierSessionId}
         initialPet={petToEdit}
         initialVisionDetails={visionPrefill}
-        onClose={() => setIsModalVisible(false)}
+        onClose={handleCloseDossierModal}
         onSave={handleSavePetData}
         onOpenVision={handleOpenVisionFromModal}
       />
@@ -1526,7 +1543,7 @@ export default function PetsScreen({ navigation }: any) {
       />
 
       {/* Post-Registration Celebration */}
-      <PetWelcomeCelebration pet={celebratingPet} onDismiss={() => setCelebratingPet(null)} />
+      <PetWelcomeCelebration pet={celebratingPet} onDismiss={handleDismissCelebration} />
     </SafeAreaView>
   );
 }
@@ -1688,24 +1705,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E8DEC8',
     paddingVertical: 18,
-    paddingRight: 18,
-    paddingLeft: 22,
+    paddingHorizontal: 18,
     position: 'relative',
     shadowColor: COLORS.textCoffee,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
     shadowRadius: 6,
     elevation: 2,
-  },
-  spineLine: {
-    position: 'absolute',
-    top: 14,
-    bottom: 14,
-    left: 10,
-    width: 1,
-    borderLeftWidth: 1.2,
-    borderStyle: 'dashed',
-    borderLeftColor: '#E0D4C0',
   },
   cardInnerContent: {
     gap: 16,
@@ -1802,14 +1808,14 @@ const styles = StyleSheet.create({
   },
   ledgerKeyText: {
     fontSize: 11,
-    fontWeight: '800',
-    color: COLORS.forestGreen,
+    fontWeight: '600',
+    color: ROW_ICON_COLOR,
     letterSpacing: 0.8,
     fontFamily: LEDGER_MONO,
   },
   ledgerValText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontWeight: '600',
     color: COLORS.textCoffee,
     letterSpacing: 0.4,
     fontFamily: LEDGER_MONO,
@@ -1831,9 +1837,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAF5EE',
     borderWidth: 1,
     borderColor: '#E2D5BE',
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,

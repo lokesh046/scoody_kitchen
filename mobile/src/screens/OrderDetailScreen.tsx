@@ -13,6 +13,8 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFonts, Outfit_700Bold, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
+import { Quicksand_400Regular, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -20,21 +22,18 @@ import {
   ArrowLeft,
   Share2,
   CheckCircle2,
-  Clock,
   Truck,
   Home,
   MapPin,
-  CreditCard,
-  Package,
   UtensilsCrossed,
   ShieldCheck,
   AlertCircle,
-  Copy,
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
 import { fetchOrderById, fetchOrderTracking, Order, OrderItem, OrderTrackingResponse } from '../api/orders';
-import { useResponsive } from '../hooks/useResponsive';
 import ResponsiveContainer from '../components/ResponsiveContainer';
+import { getStatusBadgeStyle } from '../utils/orderStatus';
+import { LEDGER_MONO, FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_BODY_BOLD } from '../theme/typography';
 
 // Determine milestone step index (0-3) outside component
 const getStepIndex = (statusStr: string): number => {
@@ -94,14 +93,14 @@ function buildReceiptHtml(order: Order, formattedDate: string): string {
       .brand-row { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #3F5E4D; padding-bottom: 16px; margin-bottom: 20px; }
       .brand-name { font-size: 22px; font-weight: 800; color: #3F5E4D; letter-spacing: 0.5px; }
       .brand-tag { font-size: 11px; color: #6E6259; margin-top: 2px; }
-      .receipt-label { text-align: right; font-size: 11px; letter-spacing: 1px; color: #D09E6B; font-weight: 700; text-transform: uppercase; }
+      .receipt-label { text-align: right; font-size: 11px; letter-spacing: 1px; color: ${COLORS.brandGold}; font-weight: 700; text-transform: uppercase; }
       .order-id { font-size: 16px; font-weight: 800; text-align: right; }
       .status-row { display: flex; justify-content: space-between; align-items: center; background: #F9F6F0; border-radius: 10px; padding: 12px 16px; margin-bottom: 24px; }
       .status-pill { display: inline-block; background: #EDF5F0; color: #3F5E4D; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; padding: 4px 10px; border-radius: 12px; }
       .muted { color: #6E6259; font-size: 11px; }
-      .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: #D09E6B; font-weight: 800; margin: 22px 0 8px; }
+      .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: ${COLORS.brandGold}; font-weight: 800; margin: 22px 0 8px; }
       table { width: 100%; border-collapse: collapse; }
-      thead th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #D09E6B; border-bottom: 1px solid #E6DFD5; padding-bottom: 8px; }
+      thead th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: ${COLORS.brandGold}; border-bottom: 1px solid #E6DFD5; padding-bottom: 8px; }
       th.num, td.num { text-align: right; }
       tbody td { padding: 10px 0; border-bottom: 1px solid #F1ECE3; font-size: 13px; vertical-align: top; }
       .item-name { font-weight: 700; }
@@ -206,7 +205,9 @@ interface OrderDetailScreenProps {
 }
 
 export default function OrderDetailScreen({ route, navigation }: OrderDetailScreenProps) {
-  const { isTablet } = useResponsive();
+  // Loads the brand faces once; Text using FONT_DISPLAY/FONT_BODY renders in
+  // the system font until this resolves, then re-renders automatically.
+  useFonts({ Outfit_700Bold, Outfit_600SemiBold, Quicksand_400Regular, Quicksand_700Bold });
   const orderId = route?.params?.orderId;
 
   const [order, setOrder] = useState<Order | null>(null);
@@ -214,6 +215,7 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
 
   const loadOrderData = useCallback(async () => {
     try {
@@ -226,7 +228,7 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
       if (orderRes.status === 'fulfilled') {
         setOrder(orderRes.value);
       } else {
-        throw new Error('Could not load order details from database.');
+        throw new Error("We couldn't load this order. Please try again.");
       }
 
       if (trackingRes.status === 'fulfilled') {
@@ -234,7 +236,7 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
       }
     } catch (err: any) {
       console.log('Error loading order details:', err);
-      setError(err?.message || 'Failed to retrieve order from backend.');
+      setError(err?.message || "Something went wrong while loading this order. Please try again.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -245,10 +247,10 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
     loadOrderData();
   }, [loadOrderData]);
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadOrderData();
-  };
+  }, [loadOrderData]);
 
   const handleShareTextFallback = async () => {
     if (!order) return;
@@ -268,7 +270,8 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
   };
 
   const handleShareReceipt = async () => {
-    if (!order) return;
+    if (!order || isSharing) return;
+    setIsSharing(true);
     try {
       const canShareFile = await Sharing.isAvailableAsync();
       if (!canShareFile) {
@@ -307,12 +310,19 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
         await handleShareTextFallback();
       } catch (fallbackErr) {
         console.log('Error sharing receipt text fallback:', fallbackErr);
+        Alert.alert(
+          'Could not share receipt',
+          'Something went wrong while preparing your receipt. Please check your connection and try again.',
+        );
       }
+    } finally {
+      setIsSharing(false);
     }
   };
 
   const activeStatus = tracking?.order_status || order?.status || 'PAID';
   const currentStep = getStepIndex(activeStatus);
+  const statusBadge = useMemo(() => getStatusBadgeStyle(activeStatus), [activeStatus]);
 
   const formattedDate = useMemo(() => {
     if (!order) return '';
@@ -344,7 +354,13 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <ArrowLeft size={20} color={COLORS.textCoffee} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Order Details</Text>
@@ -354,7 +370,13 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
           <AlertCircle size={44} color="#C0392B" />
           <Text style={styles.errorTitle}>Order Not Found</Text>
           <Text style={styles.errorSub}>{error || 'Unable to retrieve order details.'}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={loadOrderData}>
+          <TouchableOpacity
+            style={styles.retryBtn}
+            onPress={loadOrderData}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading this order"
+          >
             <Text style={styles.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -367,15 +389,33 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
       {/* Top App Bar */}
       <ResponsiveContainer maxWidth={880}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <ArrowLeft size={20} color={COLORS.textCoffee} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={styles.headerBadge}>OFFICIAL ORDER LEDGER</Text>
             <Text style={styles.headerTitle}>Order #{order.id}</Text>
           </View>
-          <TouchableOpacity onPress={handleShareReceipt} style={styles.shareBtn}>
-            <Share2 size={18} color={COLORS.forestGreen} />
+          <TouchableOpacity
+            onPress={handleShareReceipt}
+            style={styles.shareBtn}
+            disabled={isSharing}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Share order receipt"
+            accessibilityState={{ disabled: isSharing, busy: isSharing }}
+          >
+            {isSharing ? (
+              <ActivityIndicator size="small" color={COLORS.forestGreen} />
+            ) : (
+              <Share2 size={18} color={COLORS.forestGreen} />
+            )}
           </TouchableOpacity>
         </View>
       </ResponsiveContainer>
@@ -391,9 +431,11 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
         {/* Status Highlight Banner */}
         <View style={styles.statusBanner}>
           <View style={styles.statusBannerLeft}>
-            <View style={styles.statusPill}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusPillText}>{activeStatus.toUpperCase()}</Text>
+            <View style={[styles.statusPill, { backgroundColor: statusBadge.bg }]}>
+              <View style={[styles.statusDot, { backgroundColor: statusBadge.text }]} />
+              <Text style={[styles.statusPillText, { color: statusBadge.text }]}>
+                {statusBadge.label}
+              </Text>
             </View>
             <Text style={styles.orderDateText}>{formattedDate}</Text>
           </View>
@@ -629,9 +671,22 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
 
         {/* Bottom Actions */}
         <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity style={styles.shareReceiptBtn} onPress={handleShareReceipt}>
-            <Share2 size={16} color="#FFFFFF" />
-            <Text style={styles.shareReceiptText}>Share Order Receipt</Text>
+          <TouchableOpacity
+            style={[styles.shareReceiptBtn, isSharing && styles.shareReceiptBtnDisabled]}
+            onPress={handleShareReceipt}
+            disabled={isSharing}
+            accessibilityRole="button"
+            accessibilityLabel="Share order receipt"
+            accessibilityState={{ disabled: isSharing, busy: isSharing }}
+          >
+            {isSharing ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Share2 size={16} color="#FFFFFF" />
+            )}
+            <Text style={styles.shareReceiptText}>
+              {isSharing ? 'Preparing Receipt…' : 'Share Order Receipt'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -670,11 +725,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1,
     color: COLORS.brandGold,
+    fontFamily: FONT_BODY_BOLD,
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: '800',
     color: COLORS.textCoffee,
+    fontFamily: FONT_DISPLAY,
   },
   shareBtn: {
     padding: 8,
@@ -710,6 +767,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: COLORS.textCoffee,
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
   },
   errorSub: {
     fontSize: 13,
@@ -744,7 +802,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#EDF5F0',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -754,12 +811,10 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.forestGreen,
   },
   statusPillText: {
     fontSize: 11,
     fontWeight: '800',
-    color: COLORS.forestGreen,
     letterSpacing: 0.5,
   },
   orderDateText: {
@@ -780,7 +835,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: COLORS.textCoffee,
-    fontFamily: 'monospace',
+    fontFamily: LEDGER_MONO,
   },
   card: {
     backgroundColor: COLORS.card,
@@ -796,6 +851,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     color: COLORS.brandGold,
     textTransform: 'uppercase',
+    fontFamily: LEDGER_MONO,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -856,17 +912,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: COLORS.brandGold,
-    fontFamily: 'monospace',
+    fontFamily: LEDGER_MONO,
   },
   confirmedValueTotal: {
     fontSize: 15,
     fontWeight: '800',
     color: COLORS.forestGreen,
-    fontFamily: 'monospace',
+    fontFamily: LEDGER_MONO,
   },
   confirmedDivider: {
-    height: 1,
-    backgroundColor: COLORS.kraftBorder,
+    height: 0,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.kraftBorder,
+    borderStyle: 'dashed',
     marginVertical: 2,
   },
   stepperContainer: {
@@ -922,7 +980,7 @@ const styles = StyleSheet.create({
   stepMeta: {
     fontSize: 10.5,
     color: COLORS.brandGold,
-    fontFamily: 'monospace',
+    fontFamily: LEDGER_MONO,
     marginTop: 3,
   },
   timelineRow: {
@@ -953,7 +1011,7 @@ const styles = StyleSheet.create({
   timelineTime: {
     fontSize: 10,
     color: COLORS.textLight,
-    fontFamily: 'monospace',
+    fontFamily: LEDGER_MONO,
   },
   infoRow: {
     flexDirection: 'row',
@@ -973,7 +1031,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: COLORS.forestGreen,
-    fontFamily: 'monospace',
+    fontFamily: LEDGER_MONO,
   },
   itemRow: {
     flexDirection: 'row',
@@ -982,6 +1040,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.canvas,
+    borderStyle: 'dashed',
   },
   itemImageContainer: {
     width: 44,
@@ -1017,7 +1076,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: COLORS.textCoffee,
-    fontFamily: 'monospace',
+    fontFamily: LEDGER_MONO,
   },
   addressRow: {
     flexDirection: 'row',
@@ -1033,7 +1092,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.textMuted,
     marginTop: 4,
-    fontFamily: 'monospace',
+    fontFamily: LEDGER_MONO,
   },
   billRow: {
     flexDirection: 'row',
@@ -1048,11 +1107,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textCoffee,
     fontWeight: '600',
-    fontFamily: 'monospace',
+    fontFamily: LEDGER_MONO,
   },
   divider: {
-    height: 1,
-    backgroundColor: COLORS.kraftBorder,
+    height: 0,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.kraftBorder,
+    borderStyle: 'dashed',
     marginVertical: 4,
   },
   totalRow: {
@@ -1069,7 +1130,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: COLORS.forestGreen,
-    fontFamily: 'monospace',
+    fontFamily: LEDGER_MONO,
   },
   paymentVerifiedBadge: {
     flexDirection: 'row',
@@ -1097,6 +1158,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.forestGreen,
     paddingVertical: 14,
     borderRadius: 12,
+  },
+  shareReceiptBtnDisabled: {
+    opacity: 0.6,
   },
   shareReceiptText: {
     color: '#FFFFFF',

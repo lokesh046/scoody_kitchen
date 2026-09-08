@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../api/client';
+import { resetTabPrefetch } from '../services/tabPrefetch';
 
 export interface UserProfile {
   id: number;
@@ -81,6 +82,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       delete apiClient.defaults.headers.common['Authorization'];
       await AsyncStorage.multiRemove(['@auth_token', '@auth_refresh_token', '@auth_user', '@auth_guest']);
       set({ user: null, accessToken: null, refreshToken: null, isGuest: false });
+      resetTabPrefetch();
     }
   },
   hydrateAuth: async () => {

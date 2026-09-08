@@ -14,12 +14,12 @@ import {
   Alert,
   Animated,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   Search,
-  Flame,
   ShieldCheck,
   Check,
   ShoppingBag,
@@ -44,6 +44,7 @@ import { Product, Category } from '../types';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import { fetchCategories, fetchProducts } from '../api/products';
+import { tabPrefetchCache } from '../services/tabPrefetch';
 import {
   fetchProductReviews,
   submitProductReview,
@@ -71,6 +72,26 @@ function formatPrice(price: number | string): string {
   return n.toFixed(2);
 }
 
+// DESIGN.md's "Torn Edge Signature": product photos are cut with a zigzag
+// bottom edge, like a page torn from a kitchen notebook. Drawn as a fixed
+// viewBox path and stretched to the card's actual width via preserveAspectRatio
+// "none", so it stays crisp at any column width without per-card layout math.
+const TORN_EDGE_VIEW_WIDTH = 100;
+const TORN_EDGE_VIEW_HEIGHT = 10;
+const TORN_EDGE_TEETH = 14;
+function buildTornEdgePath(): string {
+  const step = TORN_EDGE_VIEW_WIDTH / TORN_EDGE_TEETH;
+  let d = `M0,${TORN_EDGE_VIEW_HEIGHT}`;
+  for (let i = 0; i <= TORN_EDGE_TEETH; i++) {
+    const x = i * step;
+    const y = i % 2 === 0 ? 0 : TORN_EDGE_VIEW_HEIGHT;
+    d += ` L${x.toFixed(2)},${y}`;
+  }
+  d += ` L${TORN_EDGE_VIEW_WIDTH},${TORN_EDGE_VIEW_HEIGHT} Z`;
+  return d;
+}
+const TORN_EDGE_PATH = buildTornEdgePath();
+
 type StockBadgeInfo = { label: string; tone: 'in' | 'low' | 'out' } | null;
 
 // available_stock is untracked (null/undefined) for recipes without live inventory
@@ -92,6 +113,7 @@ interface RecipeCardItemProps {
   recipe: Product;
   inCartItem?: { id: number; quantity: number };
   isJustAdded: boolean;
+  isStepperUpdating: boolean;
   onSelectRecipe: (recipe: Product) => void;
   onAddToCart: (recipe: Product) => void;
   onUpdateQuantity: (cartId: number, quantity: number) => void;
@@ -102,6 +124,7 @@ const RecipeCardItem = memo(function RecipeCardItem({
   recipe,
   inCartItem,
   isJustAdded,
+  isStepperUpdating,
   onSelectRecipe,
   onAddToCart,
   onUpdateQuantity,
@@ -114,7 +137,6 @@ const RecipeCardItem = memo(function RecipeCardItem({
 
   const stockBadge = getStockBadge(recipe.available_stock, recipe.low_stock_threshold);
   const isOutOfStock = stockBadge?.tone === 'out';
-  const hasReviews = !!recipe.review_count && recipe.review_count > 0;
 
   const liftAnim = useRef(new Animated.Value(0)).current;
 
@@ -143,6 +165,18 @@ const RecipeCardItem = memo(function RecipeCardItem({
       >
         <Image source={{ uri: displayImage }} style={styles.recipeImage} />
         {isOutOfStock && <View style={styles.imageOutOfStockDim} />}
+
+        {/* Torn Edge Signature (DESIGN.md): a zigzag tear along the photo's
+            bottom edge, like a page pulled from Scooby's own kitchen journal. */}
+        <Svg
+          style={styles.tornEdge}
+          width="100%"
+          height={TORN_EDGE_VIEW_HEIGHT}
+          viewBox={`0 0 ${TORN_EDGE_VIEW_WIDTH} ${TORN_EDGE_VIEW_HEIGHT}`}
+          preserveAspectRatio="none"
+        >
+          <Path d={TORN_EDGE_PATH} fill={COLORS.card} />
+        </Svg>
 
         {stockBadge && (
           <View
@@ -175,31 +209,18 @@ const RecipeCardItem = memo(function RecipeCardItem({
         onPressOut={handlePressOut}
         activeOpacity={0.8}
       >
-        {hasReviews && (
-          <View style={styles.cardRatingRow}>
-            <Star size={12} color={COLORS.accentGold} fill={COLORS.accentGold} />
-            <Text style={styles.cardRatingScore}>{(recipe.average_rating ?? 0).toFixed(1)}</Text>
-            <Text style={styles.cardRatingReviews} numberOfLines={1}>({recipe.review_count})</Text>
-            <View style={styles.verifiedDot} />
-            <Text style={styles.verifiedText}>Verified</Text>
-          </View>
-        )}
-        <Text style={styles.recipeTitle} numberOfLines={1}>{recipe.name}</Text>
-        {recipe.description ? (
-          <Text style={styles.recipeDesc} numberOfLines={2}>
-            {recipe.description}
-          </Text>
-        ) : null}
+        <Text style={styles.recipeTitle} numberOfLines={2}>{recipe.name}</Text>
 
-        {/* Price & Add to Cart Bar */}
+        {/* Price row, then a full-width Add/stepper footer beneath it — the
+            two-column card is too narrow for price and action side by side. */}
+        <View style={styles.priceRow}>
+          <Text style={styles.priceText} numberOfLines={1}>₹{formatPrice(recipe.price)}</Text>
+          <Text style={styles.unitText} numberOfLines={1}>/ pouch</Text>
+        </View>
+
         <View style={styles.footerRow}>
-          <View style={styles.priceColumn}>
-            <Text style={styles.priceText} numberOfLines={1}>₹{formatPrice(recipe.price)}</Text>
-            <Text style={styles.unitText} numberOfLines={1}>per pouch</Text>
-          </View>
-
           {!isJustAdded && !isOutOfStock && inCartItem && inCartItem.quantity > 0 ? (
-            <View style={styles.cardStepperWrapper}>
+            <View style={[styles.cardStepperWrapper, isStepperUpdating && styles.cardStepperWrapperBusy]}>
               <TouchableOpacity
                 style={styles.cardStepperBtn}
                 onPress={() => {
@@ -209,19 +230,31 @@ const RecipeCardItem = memo(function RecipeCardItem({
                     onRemoveItem(inCartItem.id);
                   }
                 }}
+                disabled={isStepperUpdating}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 6 }}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Decrease quantity"
+                accessibilityState={{ disabled: isStepperUpdating, busy: isStepperUpdating }}
               >
                 <Minus size={12} color="#FFFFFF" strokeWidth={2.8} />
               </TouchableOpacity>
 
-              <Text style={styles.cardStepperQty}>{inCartItem.quantity}</Text>
+              {isStepperUpdating ? (
+                <ActivityIndicator size="small" color="#FFFFFF" style={styles.cardStepperQtyBusy} />
+              ) : (
+                <Text style={styles.cardStepperQty}>{inCartItem.quantity}</Text>
+              )}
 
               <TouchableOpacity
                 style={styles.cardStepperBtn}
                 onPress={() => onUpdateQuantity(inCartItem.id, inCartItem.quantity + 1)}
+                disabled={isStepperUpdating}
                 hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Increase quantity"
+                accessibilityState={{ disabled: isStepperUpdating, busy: isStepperUpdating }}
               >
                 <Plus size={12} color="#FFFFFF" strokeWidth={2.8} />
               </TouchableOpacity>
@@ -335,14 +368,19 @@ export default function KitchenScreen({ navigation, route }: any) {
   // Loads the brand faces once; Text using FONT_DISPLAY/FONT_BODY renders in the
   // system font until this resolves, then re-renders automatically — no gate needed.
   useFonts({ Outfit_700Bold, Outfit_600SemiBold, Quicksand_400Regular, Quicksand_700Bold });
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  // Seeded from the app-boot prefetch (see services/tabPrefetch.ts) when
+  // available, so this screen's first paint can show real recipes instead
+  // of an empty grid + spinner while its own fetch is still in flight. The
+  // mount effect below still fires its own fetch regardless, to pick up
+  // anything that changed since the prefetch ran.
+  const [categories, setCategories] = useState<Category[]>(() => tabPrefetchCache.shopCategories || []);
+  const [products, setProducts] = useState<Product[]>(() => tabPrefetchCache.shopProducts || []);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState<Product | null>(null);
   const [selectedWeight, setSelectedWeight] = useState<string>('500g');
   const [addedNotice, setAddedNotice] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !tabPrefetchCache.shopProducts);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [productReviews, setProductReviews] = useState<ProductReview[]>([]);
@@ -369,7 +407,7 @@ export default function KitchenScreen({ navigation, route }: any) {
   const { user } = useAuthStore();
   const searchTimeoutRef = useRef<any>(null);
 
-  const { isTablet, modalOverlayStyle, modalSheetContainerStyle } = useResponsive();
+  const { isTablet, productColumns, modalOverlayStyle, modalSheetContainerStyle } = useResponsive();
 
   // Cart Map for O(1) quantity check per card instead of O(N) .find
   const cartMap = useMemo(() => {
@@ -379,6 +417,13 @@ export default function KitchenScreen({ navigation, route }: any) {
     }
     return map;
   }, [items]);
+
+  // Cart item ids with a stepper +/- request in flight — a second tap on
+  // either button while one is still pending is ignored rather than firing
+  // a second overlapping update against a quantity the server hasn't
+  // confirmed yet (that race is what made rapid double-taps feel laggy or
+  // land on the wrong count).
+  const [pendingStepperIds, setPendingStepperIds] = useState<Set<number>>(new Set());
 
   // Memoized reviews breakdown calculation
   const reviewsSummary = useMemo(() => {
@@ -417,7 +462,7 @@ export default function KitchenScreen({ navigation, route }: any) {
         setProducts(prodsRes.items || []);
       } catch (err: any) {
         console.log('Error loading products from backend:', err);
-        setErrorMsg('Could not load products from the backend API.');
+        setErrorMsg('Could not load recipes right now. Please try again.');
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -670,17 +715,41 @@ export default function KitchenScreen({ navigation, route }: any) {
   }, []);
 
   const handleUpdateQuantity = useCallback(
-    (cartId: number, quantity: number) => {
-      updateQuantity(cartId, quantity);
+    async (cartId: number, quantity: number) => {
+      if (pendingStepperIds.has(cartId)) return;
+      setPendingStepperIds((prev) => new Set(prev).add(cartId));
+      try {
+        await updateQuantity(cartId, quantity);
+      } catch {
+        // Store already reverts optimistic state and records lastError.
+      } finally {
+        setPendingStepperIds((prev) => {
+          const next = new Set(prev);
+          next.delete(cartId);
+          return next;
+        });
+      }
     },
-    [updateQuantity]
+    [updateQuantity, pendingStepperIds]
   );
 
   const handleRemoveItem = useCallback(
-    (cartId: number) => {
-      removeItem(cartId);
+    async (cartId: number) => {
+      if (pendingStepperIds.has(cartId)) return;
+      setPendingStepperIds((prev) => new Set(prev).add(cartId));
+      try {
+        await removeItem(cartId);
+      } catch {
+        // Store already reverts optimistic state and records lastError.
+      } finally {
+        setPendingStepperIds((prev) => {
+          const next = new Set(prev);
+          next.delete(cartId);
+          return next;
+        });
+      }
     },
-    [removeItem]
+    [removeItem, pendingStepperIds]
   );
 
   const handleAddToCart = useCallback(
@@ -688,7 +757,7 @@ export default function KitchenScreen({ navigation, route }: any) {
       if (!user) {
         Alert.alert(
           'Pet Parent Sign In Required',
-          'Please sign in to add freshly cooked recipes to your database bowl ledger.',
+          'Please sign in to add freshly cooked recipes to your bowl.',
           [
             { text: 'Keep Browsing', style: 'cancel' },
             { text: 'Go to Account', onPress: () => navigation?.navigate('Profile') },
@@ -723,26 +792,30 @@ export default function KitchenScreen({ navigation, route }: any) {
       } catch (err: any) {
         setAddedNotice((current) => (current === product.id ? null : current));
         delete lastAddTapRef.current[product.id];
-        const msg = err.response?.data?.detail || 'Could not add recipe to server bowl.';
-        Alert.alert('Bowl Sync Error', msg);
+        const msg = err.response?.data?.detail || 'Something went wrong adding this recipe to your bowl. Please try again.';
+        Alert.alert('Could Not Add to Bowl', msg);
       }
     },
     [user, selectedWeight, addItem, navigation]
   );
 
   const renderRecipeItem = useCallback(
-    ({ item }: { item: Product }) => (
-      <RecipeCardItem
-        recipe={item}
-        inCartItem={cartMap.get(item.id)}
-        isJustAdded={addedNotice === item.id}
-        onSelectRecipe={handleSelectRecipe}
-        onAddToCart={handleAddToCart}
-        onUpdateQuantity={handleUpdateQuantity}
-        onRemoveItem={handleRemoveItem}
-      />
-    ),
-    [cartMap, addedNotice, handleSelectRecipe, handleAddToCart, handleUpdateQuantity, handleRemoveItem]
+    ({ item }: { item: Product }) => {
+      const inCartItem = cartMap.get(item.id);
+      return (
+        <RecipeCardItem
+          recipe={item}
+          inCartItem={inCartItem}
+          isJustAdded={addedNotice === item.id}
+          isStepperUpdating={!!inCartItem && pendingStepperIds.has(inCartItem.id)}
+          onSelectRecipe={handleSelectRecipe}
+          onAddToCart={handleAddToCart}
+          onUpdateQuantity={handleUpdateQuantity}
+          onRemoveItem={handleRemoveItem}
+        />
+      );
+    },
+    [cartMap, addedNotice, pendingStepperIds, handleSelectRecipe, handleAddToCart, handleUpdateQuantity, handleRemoveItem]
   );
 
   const keyExtractorRecipe = useCallback((item: Product) => String(item.id), []);
@@ -752,7 +825,7 @@ export default function KitchenScreen({ navigation, route }: any) {
       return (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={COLORS.forestGreen} />
-          <Text style={styles.loadingText}>Fetching recipes from backend...</Text>
+          <Text style={styles.loadingText}>Fetching fresh recipes...</Text>
         </View>
       );
     }
@@ -773,8 +846,8 @@ export default function KitchenScreen({ navigation, route }: any) {
         <Text style={styles.emptyTitle}>No Recipes Found</Text>
         <Text style={styles.emptySub}>
           {selectedCategoryId
-            ? 'No products found under this category in the database.'
-            : 'No products currently available in the backend catalogue.'}
+            ? 'No recipes found in this category yet.'
+            : 'No recipes available right now.'}
         </Text>
       </View>
     );
@@ -795,6 +868,9 @@ export default function KitchenScreen({ navigation, route }: any) {
             style={styles.iconCircleBtn}
             onPress={() => navigation.navigate('Orders')}
             activeOpacity={0.8}
+            hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+            accessibilityRole="button"
+            accessibilityLabel="View your orders"
           >
             <Package size={17} color={COLORS.textCoffee} strokeWidth={1.8} />
           </TouchableOpacity>
@@ -802,6 +878,9 @@ export default function KitchenScreen({ navigation, route }: any) {
             style={styles.avatarBtn}
             onPress={() => navigation.navigate('Profile')}
             activeOpacity={0.85}
+            hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+            accessibilityRole="button"
+            accessibilityLabel="Open your profile"
           >
             {user?.profile_image_url ? (
               <Image source={{ uri: user.profile_image_url }} style={styles.avatarImg} />
@@ -836,19 +915,23 @@ export default function KitchenScreen({ navigation, route }: any) {
           ) : null}
         </View>
 
-        {/* Backend Categories Carousel */}
+        {/* Category Tab-Spine — a row of ledger-style labeled tabs along one
+            continuous kraft-linen spine, not a generic filter-pill row. */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryScroll}
+          contentContainerStyle={styles.categorySpineRow}
           nestedScrollEnabled={true}
         >
           <TouchableOpacity
-            style={[styles.categoryPill, selectedCategoryId === null && styles.categoryPillActive]}
+            style={[styles.categoryTab, selectedCategoryId === null && styles.categoryTabActive]}
             onPress={() => setSelectedCategoryId(null)}
-            activeOpacity={0.8}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="All Recipes"
+            accessibilityState={{ selected: selectedCategoryId === null }}
           >
-            <Text style={[styles.categoryText, selectedCategoryId === null && styles.categoryTextActive]}>
+            <Text style={[styles.categoryTabText, selectedCategoryId === null && styles.categoryTabTextActive]}>
               All Recipes
             </Text>
           </TouchableOpacity>
@@ -858,11 +941,14 @@ export default function KitchenScreen({ navigation, route }: any) {
             return (
               <TouchableOpacity
                 key={cat.id}
-                style={[styles.categoryPill, isActive && styles.categoryPillActive]}
+                style={[styles.categoryTab, isActive && styles.categoryTabActive]}
                 onPress={() => setSelectedCategoryId(cat.id)}
-                activeOpacity={0.8}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={cat.name}
+                accessibilityState={{ selected: isActive }}
               >
-                <Text style={[styles.categoryText, isActive && styles.categoryTextActive]}>
+                <Text style={[styles.categoryTabText, isActive && styles.categoryTabTextActive]}>
                   {cat.name}
                 </Text>
               </TouchableOpacity>
@@ -871,16 +957,21 @@ export default function KitchenScreen({ navigation, route }: any) {
         </ScrollView>
       </ResponsiveContainer>
 
-      {/* Virtualized Recipe List — a single column of full-width rows, so no
-          card ever fights a floating FAB or a neighboring column for space */}
+      {/* Virtualized Recipe Grid — the Notebook Grid's two (or on wide
+          tablets, three) columns of torn-edge cards. `key` forces a remount
+          when productColumns changes (device rotation, window resize),
+          since FlatList doesn't support changing numColumns in place. */}
       <FlatList
+        key={`recipe-grid-${productColumns}`}
         data={loading || errorMsg ? [] : products}
         keyExtractor={keyExtractorRecipe}
         renderItem={renderRecipeItem}
         ListEmptyComponent={renderRecipeEmpty}
+        numColumns={productColumns}
+        columnWrapperStyle={styles.recipeRow}
         contentContainerStyle={[
           styles.scrollBody,
-          isTablet && { maxWidth: 720, width: '100%', alignSelf: 'center' },
+          isTablet && { maxWidth: 900, width: '100%', alignSelf: 'center' },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -908,6 +999,9 @@ export default function KitchenScreen({ navigation, route }: any) {
                   <TouchableOpacity
                     style={styles.closeBtn}
                     onPress={() => setSelectedRecipe(null)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Close recipe details"
                   >
                     <X size={20} color={COLORS.textCoffee} />
                   </TouchableOpacity>
@@ -1096,7 +1190,7 @@ export default function KitchenScreen({ navigation, route }: any) {
                 <View style={styles.modalFooter}>
                   <View>
                     <Text style={styles.modalPrice}>₹{selectedRecipe.price}</Text>
-                    <Text style={styles.modalWeightLabel}>{selectedWeight} Vacuum Sealed</Text>
+                    <Text style={styles.modalWeightLabel}>Same price for every portion size</Text>
                   </View>
 
                   <TouchableOpacity
@@ -1221,6 +1315,9 @@ export default function KitchenScreen({ navigation, route }: any) {
               <TouchableOpacity
                 style={styles.closeBtn}
                 onPress={() => setWriteReviewVisible(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close review form"
               >
                 <X size={18} color={COLORS.textCoffee} />
               </TouchableOpacity>
@@ -1255,6 +1352,10 @@ export default function KitchenScreen({ navigation, route }: any) {
                     style={styles.starSelectBtn}
                     onPress={() => setNewRating(s)}
                     activeOpacity={0.8}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Rate ${s} out of 5 stars`}
+                    accessibilityState={{ selected: s <= newRating }}
                   >
                     <Star
                       size={26}
@@ -1377,7 +1478,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarInitial: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
-  scrollBody: { paddingHorizontal: 20, paddingBottom: 30, gap: 14 },
+  scrollBody: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 30, gap: 14 },
+  recipeRow: { gap: 14 },
   headerAreaContainer: { paddingTop: 8 },
   searchWrapper: {
     flexDirection: 'row',
@@ -1393,25 +1495,32 @@ const styles = StyleSheet.create({
     borderColor: COLORS.kraftBorder,
   },
   searchInput: { flex: 1, fontSize: 13, color: COLORS.textCoffee, fontFamily: FONT_BODY },
-  categoryScroll: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14, gap: 7 },
-  categoryPill: {
-    paddingHorizontal: 12,
-    minHeight: 34,
-    justifyContent: 'center',
-    borderRadius: 17,
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.kraftBorder,
+  // The tab-spine: one continuous kraft-linen baseline runs the full width,
+  // and each tab's own 2px underline lights up ochre when selected — a
+  // labeled ledger spine, not a row of interchangeable filter pills.
+  categorySpineRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.kraftBorder,
   },
-  categoryPillActive: { backgroundColor: COLORS.forestGreen, borderColor: COLORS.forestGreen },
-  categoryText: {
-    fontSize: 10,
-    color: COLORS.brandGold,
+  categoryTab: {
+    paddingHorizontal: 10,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  categoryTabActive: { borderBottomColor: COLORS.brandGold },
+  categoryTabText: {
+    fontSize: 11,
+    color: COLORS.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     fontFamily: FONT_BODY_BOLD,
   },
-  categoryTextActive: { color: '#FFFFFF' },
+  categoryTabTextActive: { color: COLORS.brandGold },
   centerContainer: { alignItems: 'center', justifyContent: 'center', padding: 40, gap: 10 },
   loadingText: { fontSize: 13, color: COLORS.textMuted, marginTop: 8, fontFamily: FONT_BODY },
   emptyTitle: { fontSize: 16, color: COLORS.textCoffee, fontFamily: FONT_DISPLAY_SEMIBOLD },
@@ -1420,10 +1529,14 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 13, color: '#991B1B', textAlign: 'center', fontFamily: FONT_BODY },
   retryBtn: { backgroundColor: COLORS.forestGreen, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   retryBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 12 },
-  /* Floating Square Product Tile */
-  /* Product card: full-width image block on top, content block below — each
-     its own section — with a floating (elevated) ambient drop shadow. */
+  /* Notebook Grid Product Tile */
+  /* Product card: torn-edge photo block on top, content block below — each
+     its own section — with a floating (elevated) ambient drop shadow. Sits
+     in a two-column (wider on tablets) grid, so it shares its row via flex
+     rather than claiming the full FlatList width. */
   recipeCard: {
+    flex: 1,
+    minWidth: 0,
     backgroundColor: COLORS.card,
     borderRadius: 20,
     overflow: 'hidden',
@@ -1433,37 +1546,40 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 4,
   },
-  imageContainer: { width: '100%', aspectRatio: 1.7, position: 'relative' },
+  imageContainer: { width: '100%', aspectRatio: 1, position: 'relative' },
   recipeImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   imageOutOfStockDim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(249,246,240,0.6)' },
+  // The zigzag "torn page" strip sits flush against the photo's bottom edge,
+  // filled in the card's own background so it reads as a tear, not a stripe.
+  tornEdge: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   stockBadge: {
     position: 'absolute',
-    top: 12,
-    left: 12,
+    top: 10,
+    left: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
     backgroundColor: COLORS.forestGreen,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 20,
   },
   stockBadgeLow: { backgroundColor: COLORS.accentRed },
   stockBadgeOut: { backgroundColor: COLORS.textLight },
-  stockDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFFFF' },
-  stockBadgeText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF', fontFamily: FONT_BODY_BOLD },
+  stockDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#FFFFFF' },
+  stockBadgeText: { fontSize: 9, fontWeight: '800', color: '#FFFFFF', fontFamily: FONT_BODY_BOLD },
   categoryTag: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    maxWidth: '55%',
+    top: 10,
+    right: 10,
+    maxWidth: '60%',
     backgroundColor: COLORS.forestGreen,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 20,
   },
   categoryTagText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '800',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
@@ -1471,57 +1587,50 @@ const styles = StyleSheet.create({
     fontFamily: FONT_BODY_BOLD,
   },
 
-  cardContent: { padding: 18, paddingTop: 14, gap: 5 },
-  cardRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
-  cardRatingScore: { fontSize: 13, fontWeight: '800', color: COLORS.textCoffee },
-  cardRatingReviews: { fontSize: 12, color: COLORS.textMuted },
-  verifiedDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: COLORS.successGreen, marginLeft: 2 },
-  verifiedText: { fontSize: 12, fontWeight: '700', color: COLORS.successGreen },
-  recipeTitle: { fontSize: 18, color: COLORS.textCoffee, fontFamily: FONT_DISPLAY_SEMIBOLD },
-  recipeDesc: { fontSize: 13.5, color: COLORS.textMuted, lineHeight: 18, marginTop: 1, fontFamily: FONT_BODY },
+  cardContent: { padding: 12, paddingTop: 12, gap: 4 },
+  recipeTitle: { fontSize: 14.5, lineHeight: 18, color: COLORS.textCoffee, fontFamily: FONT_DISPLAY_SEMIBOLD },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
   footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    paddingTop: 12,
+    marginTop: 8,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: COLORS.kraftBorder,
   },
-  priceColumn: { gap: 1, flex: 1, minWidth: 0, marginRight: 10 },
-  priceText: { fontSize: 19, fontWeight: '800', color: COLORS.textCoffee, fontFamily: LEDGER_MONO },
-  unitText: { fontSize: 11, color: COLORS.textMuted, fontFamily: FONT_BODY },
+  priceText: { fontSize: 16, fontWeight: '800', color: COLORS.textCoffee, fontFamily: LEDGER_MONO },
+  unitText: { fontSize: 10.5, color: COLORS.textMuted, fontFamily: FONT_BODY },
   addBtn: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    height: 42,
-    paddingHorizontal: 16,
+    height: 40,
+    paddingHorizontal: 12,
     backgroundColor: COLORS.forestGreen,
-    borderRadius: 21,
+    borderRadius: 20,
   },
-  addBtnText: { fontSize: 13.5, fontWeight: '800', color: '#FFFFFF', fontFamily: FONT_BODY_BOLD },
+  addBtnText: { fontSize: 12.5, fontWeight: '800', color: '#FFFFFF', fontFamily: FONT_BODY_BOLD },
   addBtnSuccess: { backgroundColor: COLORS.successGreen },
   addBtnDisabled: { backgroundColor: COLORS.kraftBorder, paddingHorizontal: 12 },
-  addBtnDisabledText: { fontSize: 12, fontWeight: '800', color: COLORS.textMuted, fontFamily: FONT_BODY_BOLD },
+  addBtnDisabledText: { fontSize: 11.5, fontWeight: '800', color: COLORS.textMuted, fontFamily: FONT_BODY_BOLD },
 
   /* Recipe Card In-Place Quantity Stepper */
   cardStepperWrapper: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.forestGreen,
-    borderRadius: 21,
+    borderRadius: 20,
     paddingHorizontal: 5,
-    width: 108,
-    height: 42,
+    height: 40,
     shadowColor: COLORS.forestGreen,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 2,
   },
+  cardStepperWrapperBusy: { opacity: 0.6 },
   cardStepperBtn: {
     width: 28,
     height: 28,
@@ -1536,8 +1645,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     minWidth: 22,
     textAlign: 'center',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: LEDGER_MONO,
   },
+  cardStepperQtyBusy: { minWidth: 22 },
 
   /* Modal Details */
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
@@ -1556,11 +1666,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.kraftBorder,
   },
-  modalHeaderTitle: { fontSize: 16, fontWeight: '800', color: COLORS.textCoffee },
+  modalHeaderTitle: { fontSize: 16, fontWeight: '800', color: COLORS.textCoffee, fontFamily: FONT_DISPLAY },
   closeBtn: { padding: 4 },
   modalImage: { width: '100%', height: 180, resizeMode: 'cover' },
   modalBody: { padding: 20, gap: 14 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textCoffee },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textCoffee, fontFamily: FONT_DISPLAY },
   modalCategoryBadge: {
     fontSize: 12,
     fontWeight: '700',
@@ -1570,9 +1680,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     alignSelf: 'flex-start',
+    fontFamily: FONT_BODY_BOLD,
   },
-  modalDescription: { fontSize: 13, color: COLORS.textMuted, lineHeight: 19 },
-  sectionHeading: { fontSize: 14, fontWeight: '800', color: COLORS.textCoffee, marginTop: 6 },
+  modalDescription: { fontSize: 13, color: COLORS.textMuted, lineHeight: 19, fontFamily: FONT_BODY },
+  sectionHeading: { fontSize: 14, fontWeight: '800', color: COLORS.textCoffee, marginTop: 6, fontFamily: FONT_DISPLAY_SEMIBOLD },
   weightSelector: { flexDirection: 'row', gap: 10 },
   weightPill: {
     flex: 1,
@@ -1584,7 +1695,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.kraftBorder,
   },
   weightPillActive: { backgroundColor: COLORS.forestGreen, borderColor: COLORS.forestGreen },
-  weightText: { fontSize: 12, fontWeight: '700', color: COLORS.textCoffee },
+  weightText: { fontSize: 12, fontWeight: '700', color: COLORS.textCoffee, fontFamily: FONT_BODY_BOLD },
   weightTextActive: { color: '#FFFFFF' },
   modalFooter: {
     flexDirection: 'row',
@@ -1595,8 +1706,8 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.kraftBorder,
     backgroundColor: COLORS.card,
   },
-  modalPrice: { fontSize: 20, fontWeight: '800', color: COLORS.textCoffee },
-  modalWeightLabel: { fontSize: 11, color: COLORS.textMuted },
+  modalPrice: { fontSize: 20, fontWeight: '800', color: COLORS.textCoffee, fontFamily: LEDGER_MONO },
+  modalWeightLabel: { fontSize: 11, color: COLORS.textMuted, fontFamily: FONT_BODY },
   modalAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1606,7 +1717,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
   },
-  modalAddText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  modalAddText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF', fontFamily: FONT_BODY_BOLD },
 
   /* Customer Reviews Section in Recipe Modal */
   reviewsSectionHeader: {
@@ -1620,6 +1731,7 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     color: COLORS.textMuted,
     marginTop: 1,
+    fontFamily: FONT_BODY,
   },
   writeReviewTriggerBtn: {
     flexDirection: 'row',
@@ -1634,6 +1746,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: '#FFFFFF',
+    fontFamily: FONT_BODY_BOLD,
   },
 
   /* Reviews Summary & Star Breakdown Card */
@@ -1662,6 +1775,7 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: COLORS.textMuted,
     textAlign: 'center',
+    fontFamily: FONT_BODY,
   },
   summaryLeftCol: {
     flex: 1,
@@ -1681,11 +1795,13 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '900',
     color: COLORS.textCoffee,
+    fontFamily: LEDGER_MONO,
   },
   outOfFiveText: {
     fontSize: 10,
     fontWeight: '700',
     color: COLORS.textMuted,
+    fontFamily: FONT_BODY_BOLD,
   },
   summaryStarsRow: {
     flexDirection: 'row',
@@ -1700,6 +1816,7 @@ const styles = StyleSheet.create({
   basedOnText: {
     fontSize: 9.5,
     color: COLORS.textMuted,
+    fontFamily: FONT_BODY,
   },
   summaryBarsCol: {
     flex: 1.3,
@@ -1715,6 +1832,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.textCoffee,
     width: 18,
+    fontFamily: LEDGER_MONO,
   },
   breakdownTrack: {
     flex: 1,
@@ -1734,6 +1852,7 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     width: 16,
     textAlign: 'right',
+    fontFamily: LEDGER_MONO,
   },
 
   /* Product Reviews Cards Carousel (Matching Home & Screenshot) */
@@ -1785,6 +1904,7 @@ const styles = StyleSheet.create({
     fontSize: 8.5,
     fontWeight: '800',
     color: '#047857',
+    fontFamily: FONT_BODY_BOLD,
   },
   recipeReviewStarRow: {
     flexDirection: 'row',
@@ -1799,6 +1919,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 16,
     paddingHorizontal: 4,
+    fontFamily: FONT_BODY,
   },
   recipeReviewFooter: {
     borderTopWidth: 1,
@@ -1817,6 +1938,7 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '800',
     color: COLORS.textCoffee,
+    fontFamily: FONT_BODY_BOLD,
   },
   recipeReviewRecipeTag: {
     fontSize: 8.5,
@@ -1825,7 +1947,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     textTransform: 'uppercase',
     textAlign: 'center',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: LEDGER_MONO,
   },
 
   /* Recipe Review Detail Inspection Modal */
@@ -1899,6 +2021,7 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     fontWeight: '800',
     color: '#047857',
+    fontFamily: FONT_BODY_BOLD,
   },
   inspectModalAuthorBlock: {
     flexDirection: 'row',
@@ -1920,22 +2043,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
     color: '#92400E',
+    fontFamily: FONT_BODY_BOLD,
   },
   inspectAuthorName: {
     fontSize: 13,
     fontWeight: '800',
     color: COLORS.textCoffee,
+    fontFamily: FONT_BODY_BOLD,
   },
   inspectDateText: {
     fontSize: 10,
     color: COLORS.textMuted,
     marginTop: 1,
+    fontFamily: FONT_BODY,
   },
   inspectCommentText: {
     fontSize: 12,
     fontStyle: 'italic',
     color: COLORS.textCoffee,
     lineHeight: 18,
+    fontFamily: FONT_BODY,
   },
   inspectRecipeTagRow: {
     borderTopWidth: 1,
@@ -1967,6 +2094,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '900',
     color: COLORS.textCoffee,
+    fontFamily: FONT_DISPLAY,
   },
   inputLabel: {
     fontSize: 12,
@@ -1974,6 +2102,7 @@ const styles = StyleSheet.create({
     color: COLORS.textCoffee,
     marginBottom: 6,
     marginTop: 10,
+    fontFamily: FONT_BODY_BOLD,
   },
   ratingSelectorRow: {
     flexDirection: 'row',
@@ -1992,6 +2121,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 12.5,
     color: COLORS.textCoffee,
+    fontFamily: FONT_BODY,
   },
   formTextArea: {
     height: 90,
@@ -2013,6 +2143,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: COLORS.forestGreen,
+    fontFamily: FONT_BODY_BOLD,
   },
   reviewImagePreviewContainer: {
     position: 'relative',
@@ -2055,6 +2186,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: '#FFFFFF',
+    fontFamily: FONT_BODY_BOLD,
   },
   headerQuotaPill: {
     paddingHorizontal: 7,
@@ -2077,6 +2209,7 @@ const styles = StyleSheet.create({
   headerQuotaPillText: {
     fontSize: 9,
     fontWeight: '800',
+    fontFamily: FONT_BODY_BOLD,
   },
   headerQuotaTextAvailable: {
     color: '#00B67A',
@@ -2110,11 +2243,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     color: COLORS.textCoffee,
+    fontFamily: FONT_BODY_BOLD,
   },
   quotaBannerSub: {
     fontSize: 10,
     color: COLORS.textMuted,
     marginTop: 2,
+    fontFamily: FONT_BODY,
   },
   quotaBadgePill: {
     backgroundColor: '#00B67A',
@@ -2126,5 +2261,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     color: '#FFFFFF',
+    fontFamily: FONT_BODY_BOLD,
   },
 });

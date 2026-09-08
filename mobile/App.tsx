@@ -5,6 +5,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuthStore } from './src/store/authStore';
 import { useFeatureFlagStore } from './src/store/featureFlagStore';
+import { prefetchTabData } from './src/services/tabPrefetch';
 import AuthScreen from './src/screens/AuthScreen';
 import TabNavigator from './src/navigation/TabNavigator';
 import OrderDetailScreen from './src/screens/OrderDetailScreen';
@@ -22,6 +23,15 @@ export default function App() {
     hydrateAuth();
     fetchFlags();
   }, [hydrateAuth, fetchFlags]);
+
+  // Warm each bottom-tab's initial data as soon as we know who's using the
+  // app, so the first tap into Shop/Orders/Pets/Consult usually finds data
+  // already sitting in cache instead of starting its fetch at that moment.
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (!user && !isGuest) return;
+    prefetchTabData(!!user);
+  }, [isHydrated, user, isGuest]);
 
   if (!isHydrated) {
     return (
