@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Map, MapMarker, MapControls, type MapRefHandle } from '../../components/ui/map';
+import { fetchIpLocation } from '../../api/geo';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { checkoutCart } from '../../api/orders';
@@ -289,48 +290,71 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
-  const reverseGeocode = async (lat: number, lon: number, updateMap = true) => {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`
-      );
-      const data = await res.json();
-      if (data && data.address) {
-        const addr = data.address;
-        setDoorNo(addr.house_number || addr.building || '');
-        
-        // Build a complete street description incorporating road, district, and postcode
-        const streetParts = [
-          addr.road || addr.pedestrian || addr.suburb || addr.neighbourhood || '',
-          addr.city_district || '',
-          addr.postcode || ''
-        ].filter(Boolean);
-        
-        setStreet(streetParts.join(', '));
-        setCity(addr.city || addr.town || addr.village || addr.county || '');
-        setState(addr.state || addr.region || '');
-        setCountry(addr.country || '');
-        
-        if (addr.postcode) {
-          setPincode(addr.postcode);
-        }
+  const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-        if (addr.country_code) {
-          setDetectedCountryCode(addr.country_code.toLowerCase());
-        }
-
-        if (updateMap) {
-          updateMapMarker(lat, lon);
-        }
-        
-        // Display approximate location status warning
-        setErrorMessage('⚠️ Location auto-detection is approximate. Please verify and edit all address fields below.');
-      } else {
-        setErrorMessage('Could not resolve coordinates to a physical address. Please enter details manually.');
+  useEffect(() => {
+    return () => {
+      if (geocodeTimerRef.current) {
+        clearTimeout(geocodeTimerRef.current);
       }
-    } catch (err) {
-      console.error('Reverse geocoding failed:', err);
-      setErrorMessage('Failed to resolve address from coordinates.');
+    };
+  }, []);
+
+  const reverseGeocode = (lat: number, lon: number, updateMap = true, delay = 0) => {
+    if (geocodeTimerRef.current) {
+      clearTimeout(geocodeTimerRef.current);
+      geocodeTimerRef.current = null;
+    }
+
+    const executeLookup = async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`
+        );
+        const data = await res.json();
+        if (data && data.address) {
+          const addr = data.address;
+          setDoorNo(addr.house_number || addr.building || '');
+          
+          // Build a complete street description incorporating road, district, and postcode
+          const streetParts = [
+            addr.road || addr.pedestrian || addr.suburb || addr.neighbourhood || '',
+            addr.city_district || '',
+            addr.postcode || ''
+          ].filter(Boolean);
+          
+          setStreet(streetParts.join(', '));
+          setCity(addr.city || addr.town || addr.village || addr.county || '');
+          setState(addr.state || addr.region || '');
+          setCountry(addr.country || '');
+          
+          if (addr.postcode) {
+            setPincode(addr.postcode);
+          }
+
+          if (addr.country_code) {
+            setDetectedCountryCode(addr.country_code.toLowerCase());
+          }
+
+          if (updateMap) {
+            updateMapMarker(lat, lon);
+          }
+          
+          // Display approximate location status warning
+          setErrorMessage('⚠️ Location auto-detection is approximate. Please verify and edit all address fields below.');
+        } else {
+          setErrorMessage('Could not resolve coordinates to a physical address. Please enter details manually.');
+        }
+      } catch (err) {
+        console.error('Reverse geocoding failed:', err);
+        setErrorMessage('Failed to resolve address from coordinates.');
+      }
+    };
+
+    if (delay > 0) {
+      geocodeTimerRef.current = setTimeout(executeLookup, delay);
+    } else {
+      executeLookup();
     }
   };
 
@@ -340,12 +364,10 @@ export const CheckoutPage: React.FC = () => {
 
     const fallbackToIpGeocode = async () => {
       try {
-        const ipRes = await fetch('https://freeipapi.com/api/json');
-        if (!ipRes.ok) throw new Error('IP lookup returned error');
-        const ipData = await ipRes.json();
+        const ipData = await fetchIpLocation();
         
         if (ipData.latitude !== undefined && ipData.longitude !== undefined) {
-          await reverseGeocode(ipData.latitude, ipData.longitude, true);
+          reverseGeocode(ipData.latitude, ipData.longitude, true);
         } else {
           throw new Error('IP coordinates not found');
         }
@@ -436,13 +458,11 @@ export const CheckoutPage: React.FC = () => {
     setIsLocating(true);
     setErrorMessage('');
     try {
-      const ipRes = await fetch('https://freeipapi.com/api/json');
-      if (!ipRes.ok) throw new Error('IP lookup returned error');
-      const ipData = await ipRes.json();
+      const ipData = await fetchIpLocation();
       
       if (ipData.latitude !== undefined && ipData.longitude !== undefined) {
-        await reverseGeocode(ipData.latitude, ipData.longitude, true);
-        setErrorMessage('🌐 Located approximately via IP Geolocation.');
+        reverseGeocode(ipData.latitude, ipData.longitude, true);
+        setErrorMessage('🌐 Located approximately via secure IP Geolocation.');
       } else {
         throw new Error('IP coordinates not found');
       }
@@ -1197,9 +1217,9 @@ export const CheckoutPage: React.FC = () => {
                       center={[mapCoords.lng, mapCoords.lat]}
                       zoom={14}
                       className="w-full h-full min-h-[250px]"
-                      onClick={async (coords) => {
+                      onClick={(coords) => {
                         setMapCoords({ lat: coords.lat, lng: coords.lng });
-                        await reverseGeocode(coords.lat, coords.lng, false);
+                        reverseGeocode(coords.lat, coords.lng, false, 350);
                       }}
                     >
                       {/* Floating In-Map Controls with "Locate Me" */}
@@ -1209,9 +1229,9 @@ export const CheckoutPage: React.FC = () => {
                         showCompass={true}
                         showGeolocate={true}
                         isLocating={isLocating}
-                        onGeolocate={async (coords) => {
+                        onGeolocate={(coords) => {
                           setMapCoords({ lat: coords.latitude, lng: coords.longitude });
-                          await reverseGeocode(coords.latitude, coords.longitude, false);
+                          reverseGeocode(coords.latitude, coords.longitude, false, 0);
                         }}
                       />
 
@@ -1219,9 +1239,9 @@ export const CheckoutPage: React.FC = () => {
                       <MapMarker
                         position={[mapCoords.lng, mapCoords.lat]}
                         draggable={true}
-                        onDragEnd={async (coords) => {
+                        onDragEnd={(coords) => {
                           setMapCoords({ lat: coords.lat, lng: coords.lng });
-                          await reverseGeocode(coords.lat, coords.lng, false);
+                          reverseGeocode(coords.lat, coords.lng, false, 350);
                         }}
                       >
                         <div className="flex flex-col items-center cursor-grab active:cursor-grabbing -translate-y-1/2">

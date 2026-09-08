@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query';
 import { formatNaiveDateTime } from '../../utils/date';
 import { fetchMyPets, fetchPetHealthRecords } from '../../api/pets';
+import { fetchIpLocation } from '../../api/geo';
 import { useAuthStore } from '../../store/auth';
 import { 
   fetchDoctors, fetchDoctorSlots, 
@@ -605,9 +606,7 @@ export const ConsultationsPage: React.FC = () => {
 
     const fallbackToIp = async () => {
       try {
-        const res = await fetch('https://freeipapi.com/api/json');
-        if (!res.ok) throw new Error('IP geolocation API returned error status');
-        const data = await res.json();
+        const data = await fetchIpLocation();
         
         if (data.latitude !== undefined && data.longitude !== undefined) {
           setSearchLat(Number(data.latitude).toFixed(6));
@@ -642,14 +641,12 @@ export const ConsultationsPage: React.FC = () => {
   const handleIpLocate = async () => {
     setSearchError('');
     try {
-      const res = await fetch('https://freeipapi.com/api/json');
-      if (!res.ok) throw new Error('IP geolocation API returned error status');
-      const data = await res.json();
+      const data = await fetchIpLocation();
       
       if (data.latitude !== undefined && data.longitude !== undefined) {
         setSearchLat(Number(data.latitude).toFixed(6));
         setSearchLng(Number(data.longitude).toFixed(6));
-        setSearchError('🌐 Located approximately via IP Geolocation.');
+        setSearchError('🌐 Located approximately via secure IP Geolocation.');
       } else {
         throw new Error('Coordinates not found in IP payload');
       }

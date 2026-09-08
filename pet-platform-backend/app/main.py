@@ -38,6 +38,7 @@ from app.api.notification import router as notification_router
 from app.api.reviews import router as reviews_router
 from app.api.feature_flags import router as feature_flags_router
 from app.api.coupon import router as coupons_router
+from app.api.geo import router as geo_router
 
 from contextlib import asynccontextmanager
 from app.core.redis_listener import redis_notifications_listener
@@ -203,6 +204,7 @@ app.include_router(notification_router)
 app.include_router(reviews_router)
 app.include_router(feature_flags_router)
 app.include_router(coupons_router)
+app.include_router(geo_router)
 
 if settings.IMAGE_STORAGE_PROVIDER.lower() == "local":
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)

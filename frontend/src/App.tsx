@@ -1,29 +1,44 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { useAuthStore } from './store/auth';
 import { refreshToken } from './api/client';
 import { Loader2 } from 'lucide-react';
-import { AuthPage } from './features/auth/AuthPage';
-import { VerifyCallback } from './features/auth/VerifyCallback';
-import { ProductDetailPage } from './features/products/ProductDetailPage';
 import { useCartStore } from './store/cart';
 import { RequireAuth } from './components/RequireAuth';
-import { CheckoutPage } from './features/checkout/CheckoutPage';
-import { OrdersPage } from './features/orders/OrdersPage';
-import { PetsPage } from './features/pets/PetsPage';
-import { ConsultationsPage } from './features/consultations/ConsultationsPage';
-import { VideoCallPage } from './features/consultations/VideoCallPage';
-import { AssistantPage } from './features/chatbot/AssistantPage';
 import { ChatbotWidget } from './components/ChatbotWidget';
-import { AdminDashboard } from './features/admin/AdminDashboard';
-import { AdminDoctorsPage } from './features/admin/AdminDoctorsPage';
-import AdminOrdersPage from './features/admin/AdminOrdersPage';
-import { DoctorDashboard } from './features/doctor/DoctorDashboard';
-import { ProfilePage } from './features/profile/ProfilePage';
-import HomePage from './features/home/HomePage';
-import ShopPage from './features/shop/ShopPage';
-import ApplyDoctorPage from './features/consultations/ApplyDoctorPage';
-import { OnboardingPage } from './features/onboarding/OnboardingPage';
+
+// Route-level code splitting via React.lazy
+const HomePage = lazy(() => import('./features/home/HomePage'));
+const ShopPage = lazy(() => import('./features/shop/ShopPage'));
+const AuthPage = lazy(() => import('./features/auth/AuthPage').then((m) => ({ default: m.AuthPage })));
+const VerifyCallback = lazy(() => import('./features/auth/VerifyCallback').then((m) => ({ default: m.VerifyCallback })));
+const ProductDetailPage = lazy(() => import('./features/products/ProductDetailPage').then((m) => ({ default: m.ProductDetailPage })));
+const CheckoutPage = lazy(() => import('./features/checkout/CheckoutPage').then((m) => ({ default: m.CheckoutPage })));
+const OrdersPage = lazy(() => import('./features/orders/OrdersPage').then((m) => ({ default: m.OrdersPage })));
+const PetsPage = lazy(() => import('./features/pets/PetsPage').then((m) => ({ default: m.PetsPage })));
+const ConsultationsPage = lazy(() => import('./features/consultations/ConsultationsPage').then((m) => ({ default: m.ConsultationsPage })));
+const VideoCallPage = lazy(() => import('./features/consultations/VideoCallPage').then((m) => ({ default: m.VideoCallPage })));
+const AssistantPage = lazy(() => import('./features/chatbot/AssistantPage').then((m) => ({ default: m.AssistantPage })));
+const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
+const AdminDoctorsPage = lazy(() => import('./features/admin/AdminDoctorsPage').then((m) => ({ default: m.AdminDoctorsPage })));
+const AdminOrdersPage = lazy(() => import('./features/admin/AdminOrdersPage'));
+const DoctorDashboard = lazy(() => import('./features/doctor/DoctorDashboard').then((m) => ({ default: m.DoctorDashboard })));
+const ProfilePage = lazy(() => import('./features/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const ApplyDoctorPage = lazy(() => import('./features/consultations/ApplyDoctorPage'));
+const OnboardingPage = lazy(() => import('./features/onboarding/OnboardingPage').then((m) => ({ default: m.OnboardingPage })));
+
+function RouteLoadingFallback() {
+  return (
+    <div className="min-h-[60vh] bg-paper flex items-center justify-center">
+      <div className="text-center space-y-3">
+        <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
+        <p className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold">
+          Loading Scooby Kitchen... 🐾
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function AuthEventListener() {
   const navigate = useNavigate();
@@ -125,30 +140,32 @@ export default function App() {
         <SessionProvider>
           <AuthEventListener />
           <WebSocketNotificationListener />
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/shop" element={<ShopPage />} />
-            <Route path="/login" element={<AuthPage />} />
-            <Route path="/auth/verify" element={<VerifyCallback />} />
-            <Route path="/auth/magic-link/verify" element={<VerifyCallback />} />
-            <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
-            <Route path="/product/:id" element={<ProductDetailPage />} />
-            <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
-            <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
-            <Route path="/pets" element={<RequireAuth><PetsPage /></RequireAuth>} />
-            <Route path="/consultations" element={<RequireAuth><ConsultationsPage /></RequireAuth>} />
-            <Route path="/consultations/:id" element={<RequireAuth><ConsultationsPage /></RequireAuth>} />
-            <Route path="/consultations/:id/call" element={<RequireAuth><VideoCallPage /></RequireAuth>} />
-            <Route path="/consultations/room/:id" element={<RequireAuth><VideoCallPage /></RequireAuth>} />
-            <Route path="/apply-doctor" element={<RequireAuth><ApplyDoctorPage /></RequireAuth>} />
-            <Route path="/onboarding" element={<OnboardingPage />} />
-            <Route path="/assistant" element={<RequireAuth><AssistantPage /></RequireAuth>} />
-            <Route path="/admin" element={<RequireAuth adminOnly={true}><AdminDashboard /></RequireAuth>} />
-            <Route path="/admin/doctors" element={<RequireAuth adminOnly={true}><AdminDoctorsPage /></RequireAuth>} />
-            <Route path="/admin/orders" element={<RequireAuth adminOnly={true}><AdminOrdersPage /></RequireAuth>} />
-            <Route path="/doctor" element={<RequireAuth doctorOnly={true}><DoctorDashboard /></RequireAuth>} />
-            <Route path="/doctor/dashboard" element={<RequireAuth doctorOnly={true}><DoctorDashboard /></RequireAuth>} />
-          </Routes>
+          <Suspense fallback={<RouteLoadingFallback />}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/shop" element={<ShopPage />} />
+              <Route path="/login" element={<AuthPage />} />
+              <Route path="/auth/verify" element={<VerifyCallback />} />
+              <Route path="/auth/magic-link/verify" element={<VerifyCallback />} />
+              <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+              <Route path="/product/:id" element={<ProductDetailPage />} />
+              <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
+              <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
+              <Route path="/pets" element={<RequireAuth><PetsPage /></RequireAuth>} />
+              <Route path="/consultations" element={<RequireAuth><ConsultationsPage /></RequireAuth>} />
+              <Route path="/consultations/:id" element={<RequireAuth><ConsultationsPage /></RequireAuth>} />
+              <Route path="/consultations/:id/call" element={<RequireAuth><VideoCallPage /></RequireAuth>} />
+              <Route path="/consultations/room/:id" element={<RequireAuth><VideoCallPage /></RequireAuth>} />
+              <Route path="/apply-doctor" element={<RequireAuth><ApplyDoctorPage /></RequireAuth>} />
+              <Route path="/onboarding" element={<OnboardingPage />} />
+              <Route path="/assistant" element={<RequireAuth><AssistantPage /></RequireAuth>} />
+              <Route path="/admin" element={<RequireAuth adminOnly={true}><AdminDashboard /></RequireAuth>} />
+              <Route path="/admin/doctors" element={<RequireAuth adminOnly={true}><AdminDoctorsPage /></RequireAuth>} />
+              <Route path="/admin/orders" element={<RequireAuth adminOnly={true}><AdminOrdersPage /></RequireAuth>} />
+              <Route path="/doctor" element={<RequireAuth doctorOnly={true}><DoctorDashboard /></RequireAuth>} />
+              <Route path="/doctor/dashboard" element={<RequireAuth doctorOnly={true}><DoctorDashboard /></RequireAuth>} />
+            </Routes>
+          </Suspense>
           <ChatbotWidget />
         </SessionProvider>
       </BrowserRouter>

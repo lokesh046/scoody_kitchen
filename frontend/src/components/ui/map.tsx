@@ -18,6 +18,7 @@ import {
 } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Plus, Minus, Compass, Locate, Loader2 } from 'lucide-react';
+import { fetchIpLocation } from '../../api/geo';
 
 interface MapContextValue {
   map: MLMap | null;
@@ -310,8 +311,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
         (err) => {
           setInternalLocating(false);
           console.warn('In-map geolocate failed, attempting fallback...', err);
-          fetch('https://freeipapi.com/api/json')
-            .then((r) => r.json())
+          fetchIpLocation()
             .then((data) => {
               if (data.latitude && data.longitude) {
                 map?.flyTo({
