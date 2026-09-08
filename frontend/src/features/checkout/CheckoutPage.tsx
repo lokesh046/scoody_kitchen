@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import L from 'leaflet';
+import { Map, MapMarker, MapControls, type MapRefHandle } from '../../components/ui/map';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { checkoutCart } from '../../api/orders';
@@ -267,102 +267,25 @@ export const CheckoutPage: React.FC = () => {
     }
   }, [user]);
 
-  const mapRef = useRef<L.Map | null>(null);
-  const markerRef = useRef<L.Marker | null>(null);
+  const mapRef = useRef<MapRefHandle | null>(null);
+  const [mapCoords, setMapCoords] = useState<{ lat: number; lng: number }>({
+    lat: 13.0827,
+    lng: 80.2707,
+  });
 
   // Dynamic Razorpay Checkout SDK Script Injection
   useEffect(() => {
     loadRazorpaySDK();
   }, []);
 
-  // Dynamic Leaflet CSS Injection
-  useEffect(() => {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    link.id = 'leaflet-css';
-    document.head.appendChild(link);
-
-    return () => {
-      const existingLink = document.getElementById('leaflet-css');
-      if (existingLink) {
-        existingLink.remove();
-      }
-    };
-  }, []);
-
-  // Map Initialization via Callback Ref (Safe from hydration conditional rendering bugs)
-  const mapContainerRef = useCallback((node: HTMLDivElement | null) => {
-    if (node !== null) {
-      if (!mapRef.current) {
-        // Fix default marker icon issue in Leaflet + Vite
-        delete (L.Icon.Default.prototype as any)._getIconUrl;
-        L.Icon.Default.mergeOptions({
-          iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-          iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-          shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-        });
-
-        const initialLat = 13.0827;
-        const initialLng = 80.2707;
-
-        const map = L.map(node, {
-          zoomControl: true,
-          scrollWheelZoom: true,
-        }).setView([initialLat, initialLng], 13);
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
-
-        const marker = L.marker([initialLat, initialLng], {
-          draggable: true,
-        }).addTo(map);
-
-        // Listener on Pin drag
-        marker.on('dragend', async (e) => {
-          const { lat, lng } = e.target.getLatLng();
-          // Do not updateMap center on drag, just reverse-geocode to avoid jitter
-          await reverseGeocode(lat, lng, false);
-        });
-
-        // Listener on Map click to move pin
-        map.on('click', async (e) => {
-          const { lat, lng } = e.latlng;
-          marker.setLatLng([lat, lng]);
-          await reverseGeocode(lat, lng, false);
-        });
-
-        mapRef.current = map;
-        markerRef.current = marker;
-        
-        // Trigger tile size recalculation 250ms after element settles in layout
-        setTimeout(() => {
-          if (mapRef.current) {
-            mapRef.current.invalidateSize();
-          }
-        }, 250);
-      }
-    } else {
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-        markerRef.current = null;
-      }
-    }
-  }, []);
-
   const updateMapMarker = (lat: number, lng: number) => {
-    if (mapRef.current && markerRef.current) {
-      markerRef.current.setLatLng([lat, lng]);
-      mapRef.current.setView([lat, lng], 15);
-      
-      // Force leaflet window resize trigger to fix grey tiles container bug
-      setTimeout(() => {
-        if (mapRef.current) {
-          mapRef.current.invalidateSize();
-        }
-      }, 250);
+    setMapCoords({ lat, lng });
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [lng, lat],
+        zoom: 15,
+        duration: 1200,
+      });
     }
   };
 
@@ -1255,17 +1178,61 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Interactive Leaflet Map Container */}
+                {/* Interactive mapcn Map Container */}
                 <div className="space-y-1.5">
-                  <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
-                    📍 Verify Delivery Location (Drag pin or click map to refine):
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                      📍 Verify Delivery Location (Drag pin, click map, or use Locate Me):
+                    </label>
+                    <span className="font-mono text-[9px] text-ink opacity-60 hidden sm:inline">
+                      [{mapCoords.lat.toFixed(4)}, {mapCoords.lng.toFixed(4)}]
+                    </span>
+                  </div>
                   <div 
-                    id="checkout-map" 
-                    ref={mapContainerRef}
-                    className="h-56 w-full border-double border-4 border-cardboard rounded-none shadow-sm relative overflow-hidden bg-paper"
+                    className="h-64 w-full border-double border-4 border-cardboard rounded-none shadow-sm relative overflow-hidden bg-paper"
                     style={{ zIndex: 1 }}
-                  ></div>
+                  >
+                    <Map
+                      ref={mapRef}
+                      center={[mapCoords.lng, mapCoords.lat]}
+                      zoom={14}
+                      className="w-full h-full min-h-[250px]"
+                      onClick={async (coords) => {
+                        setMapCoords({ lat: coords.lat, lng: coords.lng });
+                        await reverseGeocode(coords.lat, coords.lng, false);
+                      }}
+                    >
+                      {/* Floating In-Map Controls with "Locate Me" */}
+                      <MapControls
+                        position="top-right"
+                        showZoom={true}
+                        showCompass={true}
+                        showGeolocate={true}
+                        isLocating={isLocating}
+                        onGeolocate={async (coords) => {
+                          setMapCoords({ lat: coords.latitude, lng: coords.longitude });
+                          await reverseGeocode(coords.latitude, coords.longitude, false);
+                        }}
+                      />
+
+                      {/* Custom Draggable Delivery Pin */}
+                      <MapMarker
+                        position={[mapCoords.lng, mapCoords.lat]}
+                        draggable={true}
+                        onDragEnd={async (coords) => {
+                          setMapCoords({ lat: coords.lat, lng: coords.lng });
+                          await reverseGeocode(coords.lat, coords.lng, false);
+                        }}
+                      >
+                        <div className="flex flex-col items-center cursor-grab active:cursor-grabbing -translate-y-1/2">
+                          <span className="bg-herb text-white font-mono text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap mb-0.5">
+                            Deliver Here 🐾
+                          </span>
+                          <MapPin className="w-7 h-7 text-herb fill-herb/20 drop-shadow-md" />
+                        </div>
+                      </MapMarker>
+                    </Map>
+                  </div>
                 </div>
 
                 {errorMessage && (
