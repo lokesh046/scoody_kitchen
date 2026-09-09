@@ -15,7 +15,7 @@ client = TestClient(app)
 
 import jwt
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "test_jwt_secret_key_123456789_long_key_for_sha256")
-admin_token = jwt.encode({"sub": "999", "role": "admin"}, JWT_SECRET_KEY, algorithm="HS256")
+admin_token = jwt.encode({"sub": "999", "role": "admin", "type": "access"}, JWT_SECRET_KEY, algorithm="HS256")
 ADMIN_COOKIES = {"access_token": admin_token}
 NON_ADMIN_COOKIES = {"access_token": "invalid_user_token"}
 
