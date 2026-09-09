@@ -7,7 +7,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "a9F8xK3mP2qR7vW0zY4bN8cL1dE6fG9hJ3kM5nP8rT1uV4wX7zY0aB3cD6eF9gH2")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not JWT_SECRET_KEY or not JWT_SECRET_KEY.strip():
+    raise RuntimeError(
+        "CRITICAL CONFIGURATION ERROR: 'JWT_SECRET_KEY' environment variable is not configured. "
+        "The Pet Vision Service refuses to start with an empty or insecure fallback key. "
+        "Please provide a secure 256-bit JWT secret in your environment or .env file."
+    )
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 
 
