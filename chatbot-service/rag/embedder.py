@@ -28,6 +28,9 @@ class EmbeddingGenerator:
                 self.embeddings_engine = GoogleGenerativeAIEmbeddings(
                     model="models/text-embedding-004",
                     google_api_key=GOOGLE_API_KEY,
+                    # Bound the embedding call so a stalled request fails fast
+                    # instead of hanging the RAG search indefinitely.
+                    request_options={"timeout": 10},
                 )
             except Exception:
                 pass

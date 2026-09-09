@@ -62,7 +62,17 @@ class MCPClientManager:
             if not url.endswith("/sse"):
                 url = f"{url.rstrip('/')}/sse"
             self.client = MultiServerMCPClient(
-                {"pet_tools": {"url": url, "transport": "sse"}}
+                {
+                    "pet_tools": {
+                        "url": url,
+                        "transport": "sse",
+                        # Bound both connection setup and per-event wait time —
+                        # without these, a stalled mcp-server hangs this call
+                        # indefinitely instead of failing fast.
+                        "timeout": 10.0,
+                        "sse_read_timeout": 30.0,
+                    }
+                }
             )
             # Warm up connection or fetch initial tools
             try:

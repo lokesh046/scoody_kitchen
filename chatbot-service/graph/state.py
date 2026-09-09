@@ -10,6 +10,7 @@ class AgentState(TypedDict):
     user_id: int | None
     context_found: bool
     sources: list[str]
+    products: list[dict[str, Any]]
     pending_action: str | None
     pending_action_args: dict[str, Any] | None
     requires_confirmation: bool

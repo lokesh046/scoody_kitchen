@@ -82,7 +82,15 @@ def test_commerce_agent_hitl_pending_context_preservation():
 
     headers = _make_auth_header(user_id=42)
 
-    cancel_result = {"status": "success", "order_id": 205, "order_status": "cancelled"}
+    # Real tool_cancel_order() always returns the {ok, data, error,
+    # request_id} envelope produced by backend_post()/_handle() — this
+    # mock must match that real contract, not a flattened shortcut.
+    cancel_result = {
+        "ok": True,
+        "data": {"order_id": 205, "status": "cancelled", "idempotency_key": "idem_test_205"},
+        "error": None,
+        "request_id": "req_test",
+    }
     with patch("tools.actions.tool_cancel_order", return_value=cancel_result):
 
         # 1. Turn 1: Customer asks to cancel order #205 -> HITL interrupt requests confirmation for order #205
@@ -116,16 +124,17 @@ def test_commerce_agent_hitl_pending_context_preservation():
 def test_commerce_agent_book_consultation_tool_route():
     sess_id = "test_book_sess_01"
 
+    # Real tool_book_consultation() always returns the {ok, data, error,
+    # request_id} envelope (see tools/actions.py) — match that real shape.
     booking_mock = {
-        "status": "success",
-        "message": "Consultation successfully booked.",
-        "consultation_id": 501,
-        "customer_id": 42,
-        "doctor_id": 5,
-        "pet_id": 2,
-        "scheduled_at": "2026-08-20 10:00:00+00:00",
-        "booking_status": "pending",
-        "idempotency_key": "idem_book_42_5_2",
+        "ok": True,
+        "data": {
+            "consultation_id": 501,
+            "status": "pending",
+            "idempotency_key": "idem_book_42_5_2",
+        },
+        "error": None,
+        "request_id": "req_test",
     }
 
     mock_book_func = MagicMock(return_value=booking_mock)

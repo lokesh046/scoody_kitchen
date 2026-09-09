@@ -17,7 +17,16 @@ class RedisSessionMemory:
 
         try:
             import redis
-            self.client = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+            # Without socket timeouts, a stalled/unreachable Redis leaves
+            # every call (get_history, save_message, ...) hanging with no
+            # ceiling — these bound both connecting and each individual
+            # command so a dead Redis fails fast instead of hanging requests.
+            self.client = redis.Redis.from_url(
+                REDIS_URL,
+                decode_responses=True,
+                socket_connect_timeout=3,
+                socket_timeout=3,
+            )
             self.client.ping()
             self.redis_active = True
         except Exception:

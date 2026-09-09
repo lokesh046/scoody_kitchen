@@ -10,18 +10,17 @@ socket.getaddrinfo = forced_ipv4_getaddrinfo
 import os
 import logging
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 # Enforce standard HTTP/REST transport globally to avoid gRPC IPv6 DNS hangs
 os.environ["GOOGLE_GENAI_USE_REST"] = "1"
 os.environ["GRPC_DNS_RESOLVER"] = "native"
 
 try:
-    import google.generativeai as genai  # type: ignore
-    genai.configure(transport="rest")
+    from google import genai  # type: ignore
 except ImportError:
     pass
-
-# Suppress noisy Google GenAI warnings from clattering logs
-logging.getLogger("google_genai").setLevel(logging.ERROR)
 
 
 
@@ -53,6 +52,17 @@ if os.path.exists(backend_env):
 if "ALLOW_MCP_FALLBACK" not in os.environ:
     os.environ["ALLOW_MCP_FALLBACK"] = "true"
 
+# LangSmith tracing activates purely from environment variables — LangChain's
+# own SDK checks these directly, so there's no code to wire up beyond making
+# sure a project name is set when tracing is on. Without this, every trace
+# would dump into a generic "default" project instead of being grouped
+# clearly. Accepts either the current (LANGSMITH_*) or legacy (LANGCHAIN_*)
+# names, since both are still honored.
+_tracing_enabled = os.environ.get("LANGSMITH_TRACING") or os.environ.get("LANGCHAIN_TRACING_V2")
+if _tracing_enabled and _tracing_enabled.lower() == "true":
+    if "LANGSMITH_PROJECT" not in os.environ and "LANGCHAIN_PROJECT" not in os.environ:
+        os.environ["LANGSMITH_PROJECT"] = "scooby-kitchen-chatbot"
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers.health import router as health_router
@@ -64,6 +74,19 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    tracing_on = os.environ.get("LANGSMITH_TRACING") or os.environ.get("LANGCHAIN_TRACING_V2")
+    has_key = bool(os.environ.get("LANGSMITH_API_KEY") or os.environ.get("LANGCHAIN_API_KEY"))
+    if tracing_on and tracing_on.lower() == "true" and has_key:
+        project = os.environ.get("LANGSMITH_PROJECT") or os.environ.get("LANGCHAIN_PROJECT")
+        print(f"✅ [Startup] LangSmith tracing enabled — project '{project}'.", flush=True)
+    else:
+        print(
+            "ℹ️  [Startup] LangSmith tracing is OFF. Set LANGSMITH_TRACING=true and "
+            "LANGSMITH_API_KEY in .env to see full request traces (which agent ran, "
+            "every tool call, every LLM call, with timing) instead of scattered print()s.",
+            flush=True,
+        )
+
     from mcp_client import mcp_client
     try:
         await mcp_client.initialize()
@@ -76,8 +99,9 @@ async def lifespan(app: FastAPI):
         from utils.prompt_guard import _classifier, PROMPT_GUARD_ENABLED
         if PROMPT_GUARD_ENABLED:
             print("⏳ [Startup] Pre-warming Prompt Guard safety model...", flush=True)
-            await asyncio.to_thread(_classifier._ensure_loaded)
-            print("✅ [Startup] Prompt Guard model warmed up and ready.", flush=True)
+            loaded = await asyncio.to_thread(_classifier._ensure_loaded)
+            if loaded:
+                print("✅ [Startup] Prompt Guard model warmed up and ready.", flush=True)
     except Exception as e:
         print(f"⚠️ [Startup Warning] Failed to warm up Prompt Guard: {e}", flush=True)
 

@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth';
 import { cancelOrder } from '../api/orders';
 import { cancelConsultation } from '../api/consultations';
-import { 
-  streamChat, postImageChat, postVoiceChat, clearChatSession, fetchChatbotHealth, fetchChatSessionHistory
+import {
+  streamChat, postImageChat, postVoiceChat, clearChatSession, fetchChatbotHealth, fetchChatSessionHistory,
 } from '../api/chatbot';
+import type { ChatProduct } from '../api/chatbot';
 import { 
   Sparkles, X, MessageSquare, Send, Mic, MicOff, 
   Trash2, ShieldAlert, Loader2, Paperclip, User
@@ -18,6 +20,7 @@ interface Message {
   isStreaming?: boolean;
   statusText?: string;
   sources?: string[];
+  products?: ChatProduct[];
   hasActionConfirmation?: {
     actionType: 'CANCEL_ORDER' | 'CANCEL_CONSULTATION';
     targetId: number;
@@ -82,6 +85,7 @@ const renderFormattedText = (rawText: string) => {
 export const ChatbotWidget: React.FC = () => {
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
   const { user, accessToken } = useAuthStore();
+  const navigate = useNavigate();
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -211,7 +215,8 @@ export const ChatbotWidget: React.FC = () => {
           id: Date.now().toString() + '_assistant',
           role: 'assistant',
           content: response.reply,
-          sources: response.sources
+          sources: response.sources,
+          products: response.products
         }]);
       } catch (err) {
         console.error('Image analysis failed:', err);
@@ -289,7 +294,10 @@ export const ChatbotWidget: React.FC = () => {
         setIsStreaming(false);
         setStatusText('');
       },
-      accessToken
+      accessToken,
+      (products) => {
+        setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, products } : m));
+      }
     );
   };
 
@@ -356,7 +364,8 @@ export const ChatbotWidget: React.FC = () => {
         id: Date.now().toString() + '_assistant',
         role: 'assistant',
         content: response.reply,
-        sources: response.sources
+        sources: response.sources,
+        products: response.products
       }]);
     } catch (err) {
       console.error('Audio transcription failed:', err);
@@ -530,6 +539,35 @@ export const ChatbotWidget: React.FC = () => {
                           <span key={idx} className="font-mono text-[9px] bg-paper px-1 py-0.2 border border-cardboard rounded-full text-ink opacity-80">
                             {s}
                           </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {msg.products && msg.products.length > 0 && (
+                      <div className="mt-2 pt-1.5 border-t border-cardboard border-dashed flex gap-2 overflow-x-auto">
+                        {msg.products.map((product) => (
+                          <button
+                            key={product.id}
+                            type="button"
+                            onClick={() => navigate(`/product/${product.id}`)}
+                            className="shrink-0 w-20 text-left border border-cardboard border-opacity-40 bg-paperLight rounded-lg p-1.5 hover:border-turmeric transition-colors"
+                          >
+                            {product.image_url ? (
+                              <img
+                                src={product.image_url}
+                                alt={product.name}
+                                className="w-full h-14 object-cover rounded-md bg-paper"
+                              />
+                            ) : (
+                              <div className="w-full h-14 rounded-md bg-paper" />
+                            )}
+                            <span className="block font-body text-[10px] font-bold text-ink mt-1 truncate">
+                              {product.name}
+                            </span>
+                            <span className="block font-mono text-[9px] font-bold text-herb">
+                              ₹{Number(product.price).toFixed(0)}
+                            </span>
+                          </button>
                         ))}
                       </div>
                     )}

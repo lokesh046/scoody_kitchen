@@ -1,7 +1,9 @@
 """Health Triage Agent Node - Evaluates pet health symptoms with emergency classification & disclaimers."""
 
+import asyncio
 import os
 from typing import Any
+from langchain_core.runnables import RunnableConfig
 from utils.llm_gateway import get_llm_with_fallback
 from rag.vector_store import vector_store
 
@@ -31,7 +33,7 @@ MEDICAL_DISCLAIMER = (
 )
 
 
-async def health_agent_node(state: dict[str, Any]) -> dict[str, Any]:
+async def health_agent_node(state: dict[str, Any], config: RunnableConfig | None = None) -> dict[str, Any]:
     """LangGraph node for pet health triage & symptom evaluation."""
     messages = state.get("messages", [])
     user_query = messages[-1]["content"] if messages else ""
@@ -52,12 +54,14 @@ async def health_agent_node(state: dict[str, Any]) -> dict[str, Any]:
         }
 
     # 2. Retrieve Grounding Docs from Vector Store (RAG)
-    docs = vector_store.search_knowledge(user_query, top_k=2)
+    # Offloaded to a thread — see knowledge_agent.py for why (this is the
+    # same synchronous, network-bound embed+Pinecone-query call).
+    docs = await asyncio.to_thread(vector_store.search_knowledge, user_query, top_k=2)
 
     # 3. Non-Emergency Health Guidance Synthesis via ChatLiteLLM
     if GEMINI_API_KEY:
         try:
-            llm = get_llm_with_fallback(model_name="gemini/gemini-3.1-flash-lite", temperature=0.2)
+            llm = get_llm_with_fallback(model_name="gemini/gemini-3.5-flash-lite", temperature=0.2)
             
             context_str = ""
             if docs:
@@ -70,8 +74,24 @@ async def health_agent_node(state: dict[str, Any]) -> dict[str, Any]:
                 f"{context_str}\n\n"
                 f"User Question: {user_query}"
             )
-            res = await llm.with_config({"tags": ["agent_response"]}).ainvoke(prompt)
-            base_reply = res.content if hasattr(res, "content") else str(res)
+            # Stream instead of a single blocking ainvoke() call so the graph's
+            # astream_events() picks up on_chat_model_stream events and the
+            # client sees tokens as they're generated, not one final dump.
+            # Merge in the ambient callbacks explicitly rather than relying
+            # on .with_config() to inherit them — verified it doesn't
+            # reliably propagate callbacks from the parent graph invocation.
+            stream_config = {"tags": ["agent_response"], "callbacks": (config or {}).get("callbacks")}
+            reply_parts: list[str] = []
+            async for chunk in llm.astream(prompt, config=stream_config):
+                # `.text` extracts plain text whether Gemini streams a plain
+                # string or (as it does today) a list of content blocks —
+                # `chunk.content` being a list here was silently crashing
+                # this join() on every call, falling back to a canned
+                # message instead of an actual written answer.
+                piece = chunk.text if hasattr(chunk, "text") else str(chunk)
+                if piece:
+                    reply_parts.append(piece)
+            base_reply = "".join(reply_parts)
         except Exception as e:
             print(f"❌ [Agent Exception] health_agent failed: {e}", flush=True)
             import traceback

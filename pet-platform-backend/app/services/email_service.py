@@ -146,15 +146,21 @@ def send_magic_link_email(
         msg.attach(MIMEText(f"Your Magic Link: {magic_link_url}\nOTP Code: {otp_code}", "plain"))
         msg.attach(MIMEText(html_content, "html"))
 
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
-            server.starttls()
-            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            server.send_message(msg)
+        def _send():
+            try:
+                with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+                    server.starttls()
+                    server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                    server.send_message(msg)
+                logger.info(f"Magic link email successfully sent to {to_email}")
+            except Exception as exc:
+                logger.error(f"Failed to send email to {to_email} via SMTP: {exc}")
 
-        logger.info(f"Magic link email successfully sent to {to_email}")
+        import threading
+        threading.Thread(target=_send, daemon=True).start()
         return True
     except Exception as exc:
-        logger.error(f"Failed to send email to {to_email} via SMTP: {exc}")
+        logger.error(f"Failed to prepare email for {to_email}: {exc}")
         return False
 
 
