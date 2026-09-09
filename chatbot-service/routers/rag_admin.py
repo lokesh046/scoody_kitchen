@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from auth.dependencies import require_admin_role
 from rag.pipeline import rag_pipeline
@@ -25,7 +26,11 @@ async def upload_knowledge_document(
     if not contents:
         raise HTTPException(status_code=400, detail="Uploaded file is empty (0 bytes).")
 
-    return rag_pipeline.ingest_uploaded_file(
+    # ingest_uploaded_file() does real synchronous work — parsing, chunking,
+    # embedding, and a Pinecone upsert — which would otherwise block the
+    # event loop for the whole upload. Offload it to a thread.
+    return await asyncio.to_thread(
+        rag_pipeline.ingest_uploaded_file,
         file=file,
         contents=contents,
         title=title,

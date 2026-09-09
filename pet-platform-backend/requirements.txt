@@ -25,3 +25,5 @@ firebase-admin
 slowapi
 celery>=5.3.0
 google-auth
+easypost>=9.0.0
+websockets>=13.0

@@ -3,11 +3,20 @@ import { useAuthStore } from '../store/auth';
 
 const CHATBOT_BASE_URL = import.meta.env.VITE_CHATBOT_BASE_URL || 'http://127.0.0.1:8002';
 
+export interface ChatProduct {
+  id: number;
+  name: string;
+  price: number;
+  image_url?: string | null;
+  in_stock?: boolean;
+}
+
 export interface ChatResponse {
   reply: string;
   status: string;
   session_id: string;
   sources: string[];
+  products?: ChatProduct[];
 }
 
 export const chatbotClient = axios.create({
@@ -87,7 +96,8 @@ export const streamChat = async (
   onSources: (sources: string[]) => void,
   onError: (error: string) => void,
   onDone: () => void,
-  token: string | null
+  token: string | null,
+  onProducts?: (products: ChatProduct[]) => void
 ) => {
   try {
     const response = await fetch(`${CHATBOT_BASE_URL}/chat/stream`, {
@@ -134,6 +144,8 @@ export const streamChat = async (
             onStatus(data.content);
           } else if (data.type === 'sources') {
             onSources(data.sources);
+          } else if (data.type === 'products') {
+            onProducts?.(data.products || []);
           } else if (data.type === 'error') {
             onError(data.detail);
           } else if (data.type === 'done') {

@@ -14,7 +14,7 @@ def route_intent(query: str) -> str:
 
     if GEMINI_API_KEY:
         try:
-            llm = get_llm_with_fallback(model_name="gemini/gemini-3.1-flash-lite", temperature=0.0)
+            llm = get_llm_with_fallback(model_name="gemini/gemini-3.5-flash-lite", temperature=0.0)
             prompt = (
                 "Classify the following customer query into exactly ONE of three category names:\n"
                 "1. 'health_agent' (for pet medical symptoms, illness, fever, bleeding, or health concerns)\n"

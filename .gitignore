@@ -61,3 +61,12 @@ celerybeat-schedule*
 DESIGN.md
 PRODUCT.md
 frontend/.impeccable/
+mobile/.expo/
+.agents/
+.claude/
+.logs/
+.stitch/
+.vscode/
+chatbot-service/design_review_screens/
+chatbot-service/ARCHITECTURE_REVIEW.html
+chatbot-service/Scooby-Chatbot-Architecture.pdf

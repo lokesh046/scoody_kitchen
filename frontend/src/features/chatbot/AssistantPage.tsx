@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth';
 import { cancelOrder } from '../../api/orders';
 import { cancelConsultation } from '../../api/consultations';
 import { CartDrawer } from '../../components/CartDrawer';
 import {
-  streamChat, postImageChat, postVoiceChat, clearChatSession, fetchChatbotHealth, fetchChatSessionHistory
+  streamChat, postImageChat, postVoiceChat, clearChatSession, fetchChatbotHealth, fetchChatSessionHistory,
 } from '../../api/chatbot';
+import type { ChatProduct } from '../../api/chatbot';
 import { Header } from '../../components/Header';
 import {
   PawPrint,
@@ -20,6 +22,7 @@ interface Message {
   isStreaming?: boolean;
   statusText?: string;
   sources?: string[];
+  products?: ChatProduct[];
   hasActionConfirmation?: {
     actionType: 'CANCEL_ORDER' | 'CANCEL_CONSULTATION';
     targetId: number;
@@ -83,6 +86,7 @@ const renderFormattedText = (rawText: string) => {
 
 export const AssistantPage: React.FC = () => {
   const { user, accessToken } = useAuthStore();
+  const navigate = useNavigate();
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Chat State
@@ -213,7 +217,8 @@ export const AssistantPage: React.FC = () => {
           id: Date.now().toString() + '_assistant',
           role: 'assistant',
           content: response.reply,
-          sources: response.sources
+          sources: response.sources,
+          products: response.products
         }]);
       } catch (err: any) {
         console.error('Image analysis failed:', err);
@@ -295,7 +300,10 @@ export const AssistantPage: React.FC = () => {
         setIsStreaming(false);
         setStatusText('');
       },
-      accessToken
+      accessToken,
+      (products) => {
+        setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, products } : m));
+      }
     );
   };
 
@@ -363,7 +371,8 @@ export const AssistantPage: React.FC = () => {
         id: Date.now().toString() + '_assistant',
         role: 'assistant',
         content: response.reply,
-        sources: response.sources
+        sources: response.sources,
+        products: response.products
       }]);
     } catch (err: any) {
       console.error('Audio transcription failed:', err);
@@ -599,6 +608,45 @@ export const AssistantPage: React.FC = () => {
                               <span key={idx} className="font-mono text-[9px] bg-paper px-2 py-0.5 border border-cardboard rounded-full text-ink opacity-80">
                                 {src}
                               </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tappable product suggestions */}
+                      {msg.products && msg.products.length > 0 && (
+                        <div className="mt-4 pt-3 border-t border-cardboard border-dashed">
+                          <div className="flex gap-3 overflow-x-auto pb-1">
+                            {msg.products.map((product) => (
+                              <button
+                                key={product.id}
+                                type="button"
+                                onClick={() => navigate(`/product/${product.id}`)}
+                                className="shrink-0 w-28 text-left border border-cardboard border-opacity-45 bg-paper rounded-sm p-2 hover:border-turmeric transition-colors"
+                              >
+                                {product.image_url ? (
+                                  <img
+                                    src={product.image_url}
+                                    alt={product.name}
+                                    className="w-full h-20 object-cover rounded-sm bg-paperLight"
+                                  />
+                                ) : (
+                                  <div className="w-full h-20 rounded-sm bg-paperLight flex items-center justify-center">
+                                    <PawPrint className="w-5 h-5 text-cardboard" />
+                                  </div>
+                                )}
+                                <span className="block font-body text-[11px] font-bold text-ink mt-1.5 truncate">
+                                  {product.name}
+                                </span>
+                                <span className="block font-mono text-[10px] font-bold text-herb">
+                                  ₹{Number(product.price).toFixed(0)}
+                                </span>
+                                {product.in_stock === false && (
+                                  <span className="block font-mono text-[9px] uppercase text-paprika font-bold">
+                                    Out of stock
+                                  </span>
+                                )}
+                              </button>
                             ))}
                           </div>
                         </div>

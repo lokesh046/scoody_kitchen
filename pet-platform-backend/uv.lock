@@ -488,6 +488,18 @@ wheels = [
 ]
 
 [[package]]
+name = "easypost"
+version = "10.7.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/16/66/700db63f8e49ba30ed2c5534a05f10a9d27d2f248c07ab19c6185e924622/easypost-10.7.0.tar.gz", hash = "sha256:5cfa4715f81163919e50993dacc3c17525265ee60a851894fb752b9395b525c3", size = 123639, upload-time = "2026-06-25T16:33:56.759Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1c/fc/18be7c0efcf7fd3f8cdc01085ec40240ed2ca31bd9c8c6775827932c405d/easypost-10.7.0-py3-none-any.whl", hash = "sha256:4f30115ce3c1aae6eab431f26726d3ecc89d607702d0bd4c0624f793244115fd", size = 264790, upload-time = "2026-06-25T16:33:55.097Z" },
+]
+
+[[package]]
 name = "email-validator"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -747,6 +759,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/db/03/dee41fe15a9657c60397c1f215622a1f146e174367bbbb67911b62ee0629/grpcio_status-1.83.1.tar.gz", hash = "sha256:c08c8d553d6ab96effae1d923839de22926f5a316a942f48a48040e047c517af", size = 13957, upload-time = "2026-08-28T07:12:25.893Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e7/34/b03ec688e5c8c6ce283ec8b214d9c171e97059eb55157465f6fd6db1562c/grpcio_status-1.83.1-py3-none-any.whl", hash = "sha256:2cd328ee62ef2b3eb957dd3b75db7dadcdbb76488fdc9ab3aba1ebfbbdc324a4", size = 14636, upload-time = "2026-08-28T07:12:15.982Z" },
+]
+
+[[package]]
+name = "gunicorn"
+version = "26.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d9/8a/e4ef6ee11701b6cd64702848415ffb69eeff85cb388a3c6c7fe86f22f3f8/gunicorn-26.2.0.tar.gz", hash = "sha256:62b864895d9ebff0b2f9867ba04fe811c93121596540830c9c916d0769668447", size = 787921, upload-time = "2026-08-24T15:05:59.3Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fe/85/7522a52e5e2f42faf1a129113ab63e548c42e103e9af395b7bfe65e403e2/gunicorn-26.2.0-py3-none-any.whl", hash = "sha256:bd249d0b3f7972f7432f0a6b6ff3b3ee2d129f70cd1ff6c09a9dd9e29a2b88e3", size = 228389, upload-time = "2026-08-24T15:05:57.67Z" },
 ]
 
 [[package]]
@@ -1042,9 +1063,12 @@ dependencies = [
     { name = "alembic" },
     { name = "celery" },
     { name = "cloudinary" },
+    { name = "easypost" },
+    { name = "email-validator" },
     { name = "fastapi" },
     { name = "firebase-admin" },
     { name = "google-auth" },
+    { name = "gunicorn" },
     { name = "httpx" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pwdlib", extra = ["argon2"] },
@@ -1060,6 +1084,7 @@ dependencies = [
     { name = "slowapi" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "websockets" },
 ]
 
 [package.metadata]
@@ -1067,9 +1092,12 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.19.1" },
     { name = "celery", specifier = ">=5.4.0" },
     { name = "cloudinary", specifier = ">=1.41.0" },
+    { name = "easypost", specifier = ">=9.0.0" },
+    { name = "email-validator", specifier = ">=2.0.0" },
     { name = "fastapi", specifier = ">=0.141.1" },
     { name = "firebase-admin", specifier = ">=7.5.0" },
     { name = "google-auth", specifier = ">=2.0.0" },
+    { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
     { name = "pwdlib", extras = ["argon2"], specifier = ">=0.3.0" },
@@ -1085,6 +1113,7 @@ requires-dist = [
     { name = "slowapi", specifier = ">=0.1.9" },
     { name = "sqlalchemy", specifier = ">=2.0.51" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.1" },
+    { name = "websockets", specifier = ">=13.0" },
 ]
 
 [[package]]
