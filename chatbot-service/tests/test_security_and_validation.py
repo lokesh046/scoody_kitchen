@@ -23,13 +23,34 @@ def _make_auth_header(user_id: int = 1) -> dict:
     client.cookies.clear()
     try:
         import jwt
-        token = jwt.encode({"sub": str(user_id), "role": "customer"}, JWT_SECRET_KEY, algorithm="HS256")
+        token = jwt.encode({"sub": str(user_id), "role": "customer", "type": "access"}, JWT_SECRET_KEY, algorithm="HS256")
     except Exception:
         header = base64.b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode()).decode().rstrip("=")
-        payload = base64.b64encode(json.dumps({"sub": str(user_id), "role": "customer"}).encode()).decode().rstrip("=")
+        payload = base64.b64encode(json.dumps({"sub": str(user_id), "role": "customer", "type": "access"}).encode()).decode().rstrip("=")
         token = f"{header}.{payload}.sig"
     client.cookies.set("access_token", token)
     return {}
+
+
+def test_token_type_confusion_rejection():
+    """Verify that tokens without type='access' (e.g. refresh or untyped tokens) are rejected."""
+    import jwt
+    client.cookies.clear()
+
+    # 1. Refresh Token used as Access Token -> Must be rejected with 401
+    refresh_token = jwt.encode({"sub": "1", "role": "customer", "type": "refresh"}, JWT_SECRET_KEY, algorithm="HS256")
+    client.cookies.set("access_token", refresh_token)
+    res_refresh = client.post("/chat", json={"message": "hello", "session_id": "u1_test"})
+    assert res_refresh.status_code == 401
+    assert "access token" in res_refresh.json().get("detail", "").lower()
+
+    # 2. Untyped Token (no type claim) -> Must be rejected with 401
+    untyped_token = jwt.encode({"sub": "1", "role": "customer"}, JWT_SECRET_KEY, algorithm="HS256")
+    client.cookies.set("access_token", untyped_token)
+    res_untyped = client.post("/chat", json={"message": "hello", "session_id": "u1_test"})
+    assert res_untyped.status_code == 401
+    assert "access token" in res_untyped.json().get("detail", "").lower()
+
 
 
 def test_image_validator_magic_bytes_and_size_checks():

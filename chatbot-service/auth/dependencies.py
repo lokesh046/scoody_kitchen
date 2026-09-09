@@ -51,6 +51,17 @@ async def get_current_chat_user(request: Request) -> int:
     try:
         import jwt
         payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+        
+        # Enforce strict Token Type Verification (Defense against Token Type Confusion)
+        token_type = payload.get("type")
+        if token_type != "access":
+            import logging
+            logging.getLogger(__name__).warning("[Auth] 401: Invalid token type '%s', expected 'access'.", token_type)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token type: Expected an access token.",
+            )
+
         sub = payload.get("sub") or payload.get("user_id")
         if sub is not None:
             return int(sub)
@@ -98,6 +109,15 @@ async def require_admin_role(request: Request) -> dict:
     try:
         import jwt
         payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+        
+        # Enforce strict Token Type Verification (Defense against Token Type Confusion)
+        token_type = payload.get("type")
+        if token_type != "access":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token type: Expected an access token.",
+            )
+
         role = payload.get("role", payload.get("user_role"))
         is_admin = payload.get("is_admin", False)
 
