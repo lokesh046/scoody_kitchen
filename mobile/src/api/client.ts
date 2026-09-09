@@ -1,22 +1,9 @@
 import axios from 'axios';
-import { Platform } from 'react-native';
-import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { resolveHost } from './resolveHost';
+import { getRefreshToken, setAccessToken, setRefreshToken, clearTokens } from '../services/secureTokenStorage';
 
-// Dynamically resolve the host machine IP from Metro bundler hostUri or LAN fallback
-const getBaseUrl = () => {
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const ip = hostUri.split(':')[0];
-    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
-      return `http://${ip}:8000`;
-    }
-  }
-  // Default to LAN IP (accessible by both emulator and physical devices on local network)
-  return 'http://192.168.1.6:8000';
-};
-
-export const BASE_URL = getBaseUrl();
+export const BASE_URL = resolveHost(8000, process.env.EXPO_PUBLIC_API_URL);
 console.log('[API Client] Active backend baseURL:', BASE_URL);
 
 const apiClient = axios.create({
@@ -24,7 +11,7 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 25000,
 });
 
 // Refresh token queue management
@@ -78,7 +65,7 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const storedRefreshToken = await AsyncStorage.getItem('@auth_refresh_token');
+        const storedRefreshToken = await getRefreshToken();
         if (!storedRefreshToken) {
           throw new Error('No refresh token available');
         }
@@ -106,9 +93,9 @@ apiClient.interceptors.response.use(
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
 
         // Persist fresh tokens
-        await AsyncStorage.setItem('@auth_token', access_token);
+        await setAccessToken(access_token);
         if (newRefreshToken) {
-          await AsyncStorage.setItem('@auth_refresh_token', newRefreshToken);
+          await setRefreshToken(newRefreshToken);
         }
 
         // Sync zustand authStore without circular dependency
@@ -134,7 +121,8 @@ apiClient.interceptors.response.use(
           const { useAuthStore } = require('../store/authStore');
           useAuthStore.getState().logout();
         } catch {
-          await AsyncStorage.multiRemove(['@auth_token', '@auth_refresh_token', '@auth_user', '@auth_guest']);
+          await clearTokens();
+          await AsyncStorage.multiRemove(['@auth_user', '@auth_guest']);
           delete apiClient.defaults.headers.common['Authorization'];
         }
 
@@ -150,7 +138,7 @@ apiClient.interceptors.response.use(
 
 export const refreshAuthTokenSilently = async (): Promise<string | null> => {
   try {
-    const storedRefreshToken = await AsyncStorage.getItem('@auth_refresh_token');
+    const storedRefreshToken = await getRefreshToken();
     if (!storedRefreshToken) return null;
     const res = await axios.post(
       `${BASE_URL}/auth/refresh`,
@@ -160,9 +148,9 @@ export const refreshAuthTokenSilently = async (): Promise<string | null> => {
     const { access_token, refresh_token: newRefreshToken } = res.data;
     if (access_token) {
       apiClient.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-      await AsyncStorage.setItem('@auth_token', access_token);
+      await setAccessToken(access_token);
       if (newRefreshToken) {
-        await AsyncStorage.setItem('@auth_refresh_token', newRefreshToken);
+        await setRefreshToken(newRefreshToken);
       }
       try {
         const { useAuthStore } = require('../store/authStore');

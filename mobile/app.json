@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "icon": "./assets/scooby-logo-512.png",
+    "icon": "./assets/icon-1024.png",
     "splash": {
       "image": "./assets/scooby-logo-512.png",
       "resizeMode": "contain",
@@ -21,7 +21,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/scooby-logo-512.png",
+        "foregroundImage": "./assets/icon-1024.png",
         "backgroundColor": "#F9F6F0"
       },
       "package": "com.scooby.kitchen",
@@ -35,7 +35,9 @@
     "plugins": [
       "expo-image",
       "expo-font",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-secure-store",
+      "@sentry/react-native"
     ]
   }
 }

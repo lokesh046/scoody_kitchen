@@ -18,7 +18,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: pet_platform_redis
-    command: redis-server --requirepass ${REDIS_PASSWORD:-scooby_secure_redis_pass_2026}
+    command: redis-server --requirepass ${REDIS_PASSWORD:-scooby_secure_redis_pass_2026} --maxmemory 512mb --maxmemory-policy allkeys-lru
     # Note: No public host port published to ensure zero direct external access
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-scooby_secure_redis_pass_2026}

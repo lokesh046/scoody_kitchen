@@ -190,6 +190,7 @@ def internal_search_products(
                 "price": float(p.price) if p.price is not None else 0.0,
                 "category_id": p.category_id,
                 "in_stock": getattr(p, "is_in_stock", True),
+                "image_url": p.image_url or (p.images[0].image_url if p.images else None),
             }
             for p in paginated["items"]
         ],

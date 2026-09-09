@@ -29,7 +29,7 @@ class PineconeVectorStoreManager:
         """Upsert vectors into Pinecone index."""
         if self.pinecone_active:
             try:
-                self.index.upsert(vectors=vectors_data)
+                self.index.upsert(vectors=vectors_data, timeout=10)
             except Exception:
                 pass
 
@@ -53,6 +53,7 @@ class PineconeVectorStoreManager:
                     vector=query_vector,
                     top_k=top_k,
                     include_metadata=True,
+                    timeout=8,
                 )
                 duration = (time.perf_counter() - start) * 1000.0
                 print(f"📊 [RAG Timer] Pinecone index query took {duration:.2f}ms", flush=True)
@@ -112,7 +113,7 @@ class PineconeVectorStoreManager:
     def delete_document(self, doc_id: str) -> dict[str, Any]:
         if self.pinecone_active:
             try:
-                self.index.delete(filter={"doc_id": doc_id})
+                self.index.delete(filter={"doc_id": doc_id}, timeout=10)
             except Exception:
                 pass
         self.in_memory_docs = [d for d in self.in_memory_docs if d.get("doc_id") != doc_id and d.get("id") != doc_id]

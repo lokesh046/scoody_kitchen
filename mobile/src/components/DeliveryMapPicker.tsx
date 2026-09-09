@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,7 @@ const PRESET_LOCATIONS = [
   { label: 'Mumbai', lat: 19.0760, lng: 72.8777 },
 ];
 
-export default function DeliveryMapPicker({
+const DeliveryMapPicker = memo(function DeliveryMapPicker({
   latitude,
   longitude,
   onLocationChange,
@@ -45,7 +45,12 @@ export default function DeliveryMapPicker({
     }
   }, [latitude, longitude]);
 
-  const leafletHtml = `
+  // Built once from the initial mount-time coordinates. Later position
+  // changes are pushed into the page via the updateCenter bridge above
+  // instead of rebuilding this string, so an unrelated parent re-render
+  // can't force the WebView to reload Leaflet from the CDN mid-session.
+  const leafletHtml = useMemo(
+    () => `
     <!DOCTYPE html>
     <html>
     <head>
@@ -105,7 +110,12 @@ export default function DeliveryMapPicker({
       </script>
     </body>
     </html>
-  `;
+  `,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  const mapSource = useMemo(() => ({ html: leafletHtml }), [leafletHtml]);
 
   const handleMessage = (event: any) => {
     try {
@@ -173,7 +183,7 @@ export default function DeliveryMapPicker({
         <WebView
           ref={webViewRef}
           originWhitelist={['*']}
-          source={{ html: leafletHtml }}
+          source={mapSource}
           style={styles.webView}
           onMessage={handleMessage}
           scrollEnabled={false}
@@ -183,7 +193,9 @@ export default function DeliveryMapPicker({
       </View>
     </View>
   );
-}
+});
+
+export default DeliveryMapPicker;
 
 const styles = StyleSheet.create({
   container: {

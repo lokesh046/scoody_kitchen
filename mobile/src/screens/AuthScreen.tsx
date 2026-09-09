@@ -144,10 +144,10 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
       setSuccessMsg(`6-digit verification code sent to ${cleanEmail}`);
       setStep('verify');
     } catch (err: any) {
-      console.log('Auth request error:', err.response?.data);
+      console.log('Auth request error:', err.response?.data || err.message);
       const detail =
         err.response?.data?.detail ||
-        'Failed to send code. Please check your backend connection.';
+        (err.message?.includes('timeout') ? 'Request timed out. Please try again.' : 'Failed to connect to backend.');
       setErrorMsg(detail);
     } finally {
       setLoading(false);

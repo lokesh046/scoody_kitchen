@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   TextInput,
   Dimensions,
   ActivityIndicator,
@@ -16,6 +15,7 @@ import {
   RefreshControl,
   Modal,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
@@ -26,23 +26,15 @@ import {
   SlidersHorizontal,
   Sparkles,
   ArrowRight,
-  Flame,
-  Leaf,
-  Shield,
   Heart,
   Star,
   Plus,
   Minus,
-  Check,
   Stethoscope,
-  BookOpen,
   Truck,
   PawPrint,
   Building2,
   ShieldCheck,
-  MessageSquare,
-  Circle,
-  Clock,
   Camera,
   Package,
   UtensilsCrossed,
@@ -51,6 +43,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
+import { FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { usePetStore } from '../store/petStore';
@@ -133,6 +126,11 @@ interface CoreService {
   target?: string;
 }
 
+// Each category is themed from one of DESIGN.md's four confirmed brand
+// hues (turmeric/ochre, navy, sage, and the existing accentRed alert
+// color) instead of unrelated generic amber/emerald/blue/red — Forest
+// Green is deliberately left out of this grid entirely, since the Canopy
+// Stamp Rule reserves it for real CTAs/warnings, not passive category tiles.
 const CORE_SERVICES: CoreService[] = [
   {
     id: 'kitchen',
@@ -140,11 +138,11 @@ const CORE_SERVICES: CoreService[] = [
     title: 'Fresh Kitchen',
     desc: 'Small-batch human-grade recipes cooked fresh daily at 4°C.',
     icon: UtensilsCrossed,
-    color: '#D97706',
-    bg: '#FFFBEB',
-    borderColor: '#FDE68A',
-    badgeBg: '#FEF3C7',
-    badgeColor: '#92400E',
+    color: COLORS.brandGold,
+    bg: '#F9F6F4',
+    borderColor: '#E3D6CA',
+    badgeBg: '#EEE6DD',
+    badgeColor: '#684521',
     actionType: 'navigate',
     target: 'Shop',
   },
@@ -154,11 +152,11 @@ const CORE_SERVICES: CoreService[] = [
     title: 'Vet Telehealth',
     desc: 'Certified holistic doctors online for video diet consultations.',
     icon: Stethoscope,
-    color: '#059669',
-    bg: '#ECFDF5',
-    borderColor: '#A7F3D0',
-    badgeBg: '#D1FAE5',
-    badgeColor: '#065F46',
+    color: COLORS.navy,
+    bg: COLORS.navyTintBg,
+    borderColor: COLORS.navyTintBorder,
+    badgeBg: COLORS.navyTintBadgeBg,
+    badgeColor: COLORS.navyTintText,
     actionType: 'navigate',
     target: 'Consult',
   },
@@ -168,11 +166,11 @@ const CORE_SERVICES: CoreService[] = [
     title: 'My Orders',
     desc: 'Real-time kitchen delivery tracking & 1-tap fast reordering.',
     icon: Package,
-    color: '#2563EB',
-    bg: '#EFF6FF',
-    borderColor: '#BFDBFE',
-    badgeBg: '#DBEAFE',
-    badgeColor: '#1E40AF',
+    color: COLORS.sageIcon,
+    bg: COLORS.sageTintBg,
+    borderColor: COLORS.sageTintBorder,
+    badgeBg: COLORS.sageTintBadgeBg,
+    badgeColor: COLORS.sageTintText,
     actionType: 'navigate',
     target: 'Orders',
   },
@@ -182,43 +180,13 @@ const CORE_SERVICES: CoreService[] = [
     title: 'Pet Health Diary',
     desc: 'Manage medical history, vaccination calendar & allergy flags.',
     icon: PawPrint,
-    color: '#DC2626',
-    bg: '#FEF2F2',
-    borderColor: '#FECACA',
-    badgeBg: '#FEE2E2',
-    badgeColor: '#991B1B',
+    color: COLORS.accentRed,
+    bg: '#F9F5F4',
+    borderColor: '#E2CECA',
+    badgeBg: '#EEE0DD',
+    badgeColor: '#672F22',
     actionType: 'navigate',
     target: 'Pets',
-  },
-];
-
-const FALLBACK_FAVORITES: Product[] = [
-  {
-    id: 101,
-    name: 'Slow-Cooked Turkey & Pumpkin',
-    description: 'Digestive comfort & gentle fiber balance',
-    price: 380,
-    is_active: true,
-    category_id: 1,
-    image_url: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 102,
-    name: 'Chamomile & Lamb Calming Chew',
-    description: 'Thunderstorm anxiety & restorative sleep blend',
-    price: 450,
-    is_active: true,
-    category_id: 1,
-    image_url: 'https://images.unsplash.com/photo-1548767797-d8c844163c4c?w=600&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 103,
-    name: 'Atlantic Salmon & Omega Glaze',
-    description: 'Joint flexibility & shiny coat nourishment',
-    price: 420,
-    is_active: true,
-    category_id: 1,
-    image_url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=600&auto=format&fit=crop&q=80',
   },
 ];
 
@@ -242,7 +210,7 @@ const BannerSlideItem = memo(function BannerSlideItem({
   return (
     <View style={[styles.bannerSlideWrapper, slideWidth ? { width: slideWidth } : null]}>
       <View style={[styles.bannerSlide, cardWidth ? { width: cardWidth } : null]}>
-        <Image source={{ uri: item.bgImage }} style={styles.bannerImage} fadeDuration={0} />
+        <Image source={{ uri: item.bgImage }} style={styles.bannerImage} />
         <LinearGradient
           colors={['transparent', 'rgba(20,14,8,0.12)', 'rgba(20,14,8,0.72)']}
           locations={[0, 0.45, 1]}
@@ -305,6 +273,8 @@ const ProductFavoriteCard = memo(function ProductFavoriteCard({
         style={styles.cardImageContainer}
         onPress={() => onSelectProduct(product.id)}
         activeOpacity={0.9}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${product.name}`}
       >
         <Image
           source={{
@@ -313,13 +283,12 @@ const ProductFavoriteCard = memo(function ProductFavoriteCard({
               'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=400&auto=format&fit=crop&q=75',
           }}
           style={styles.cardProductImage}
-          fadeDuration={0}
         />
 
         {/* Stock Badge — reflects the product's real available_stock, hidden when unknown */}
         {hasStockInfo && (
-          <View style={[styles.stockTag, isOutOfStock && { backgroundColor: '#FEE2E2' }]}>
-            <Text style={[styles.stockTagText, isOutOfStock && { color: '#B91C1C' }]}>
+          <View style={[styles.stockTag, isOutOfStock && styles.stockTagOut]}>
+            <Text style={[styles.stockTagText, isOutOfStock && styles.stockTagTextOut]}>
               {isOutOfStock ? 'OUT OF STOCK' : 'IN STOCK'}
             </Text>
           </View>
@@ -330,6 +299,9 @@ const ProductFavoriteCard = memo(function ProductFavoriteCard({
           style={styles.heartCircle}
           onPress={() => onToggleFavorite(product.id)}
           activeOpacity={0.8}
+          hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
+          accessibilityRole="button"
+          accessibilityLabel={isFav ? `Remove ${product.name} from favorites` : `Add ${product.name} to favorites`}
         >
           <Heart
             size={14}
@@ -345,7 +317,7 @@ const ProductFavoriteCard = memo(function ProductFavoriteCard({
           {/* Rating (only shown once the recipe has real reviews) */}
           {hasReviews && (
             <View style={styles.ratingRow}>
-              <Star size={13} color="#F59E0B" fill="#F59E0B" />
+              <Star size={13} color={COLORS.accentGold} fill={COLORS.accentGold} />
               <Text style={styles.ratingText}>
                 {(product.average_rating ?? 0).toFixed(1)}{' '}
                 <Text style={styles.reviewsCount}>
@@ -383,7 +355,9 @@ const ProductFavoriteCard = memo(function ProductFavoriteCard({
                     onRemoveItem(inCartItem.id);
                   }
                 }}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 4 }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel={inCartItem.quantity > 1 ? `Decrease quantity of ${product.name}` : `Remove ${product.name} from cart`}
               >
                 <Minus size={11} color="#FFFFFF" strokeWidth={2.6} />
               </TouchableOpacity>
@@ -393,7 +367,9 @@ const ProductFavoriteCard = memo(function ProductFavoriteCard({
               <TouchableOpacity
                 style={styles.stepperBtn}
                 onPress={() => onUpdateQuantity(inCartItem.id, inCartItem.quantity + 1)}
-                hitSlop={{ top: 6, bottom: 6, left: 4, right: 6 }}
+                hitSlop={{ top: 12, bottom: 12, left: 10, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Increase quantity of ${product.name}`}
               >
                 <Plus size={11} color="#FFFFFF" strokeWidth={2.6} />
               </TouchableOpacity>
@@ -441,7 +417,6 @@ const ReviewCardItem = memo(function ReviewCardItem({
         <Image
           source={{ uri: displayImage }}
           style={styles.reviewCardImg as any}
-          fadeDuration={0}
         />
         <View
           style={[
@@ -460,14 +435,14 @@ const ReviewCardItem = memo(function ReviewCardItem({
         </View>
       </View>
 
-      {/* Stars (#00B67A Emerald) */}
+      {/* Star rating (accentGold — same token as ProductFavoriteCard's stars) */}
       <View style={styles.reviewStarRow}>
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
             size={13}
-            color="#00B67A"
-            fill={star <= review.rating ? '#00B67A' : '#E5E7EB'}
+            color={COLORS.accentGold}
+            fill={star <= review.rating ? COLORS.accentGold : COLORS.kraftBorder}
           />
         ))}
       </View>
@@ -484,7 +459,7 @@ const ReviewCardItem = memo(function ReviewCardItem({
             {review.author_name}
           </Text>
           {review.is_verified_buyer && (
-            <CheckCircle2 size={13} color="#00B67A" />
+            <CheckCircle2 size={13} color={COLORS.sageIcon} />
           )}
         </View>
 
@@ -499,14 +474,14 @@ const ReviewCardItem = memo(function ReviewCardItem({
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
             {review.type === 'doctor' ? (
-              <Stethoscope size={11} color="#1D4ED8" />
+              <Stethoscope size={11} color={COLORS.navy} />
             ) : (
               <UtensilsCrossed size={11} color="#C27835" />
             )}
             <Text
               style={[
                 styles.reviewTargetItem,
-                review.type === 'doctor' && { color: '#1D4ED8' },
+                review.type === 'doctor' && { color: COLORS.navy },
               ]}
               numberOfLines={1}
             >
@@ -515,7 +490,7 @@ const ReviewCardItem = memo(function ReviewCardItem({
           </View>
           <ChevronRight
             size={12}
-            color={review.type === 'doctor' ? '#1D4ED8' : '#C27835'}
+            color={review.type === 'doctor' ? COLORS.navy : '#C27835'}
           />
         </TouchableOpacity>
       </View>
@@ -530,8 +505,12 @@ export default function HomeScreen({ navigation }: any) {
   const { items, addItem, updateQuantity, removeItem, getTotalItems } = useCartStore();
 
   const [banners, setBanners] = useState<HeroBanner[]>(HERO_BANNERS);
-  const [products, setProducts] = useState<Product[]>(FALLBACK_FAVORITES);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState<boolean>(true);
+  // True only when the very first load came back empty or failed — a later
+  // background refresh returning nothing doesn't retroactively invalidate
+  // real products we're already successfully showing.
+  const [productsLoadFailed, setProductsLoadFailed] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [activeBannerIndex, setActiveBannerIndex] = useState<number>(0);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -552,6 +531,31 @@ export default function HomeScreen({ navigation }: any) {
   const reviewAutoPlayTimerRef = useRef<any>(null);
   const reviewCurrentIndexRef = useRef<number>(0);
   const isReviewDraggingRef = useRef<boolean>(false);
+  // Gates the reviews carousel's autoplay: the hero banner already autoplays
+  // above the fold, so the reviews carousel — which the user hasn't
+  // scrolled to yet — shouldn't also be silently auto-advancing behind the
+  // scenes. It only starts once the section has actually entered view.
+  const [reviewsSectionSeen, setReviewsSectionSeen] = useState<boolean>(false);
+  const reviewsSectionYRef = useRef<number>(Infinity);
+
+  // Everything below the hero banner (sections 5-11: services grid, vision
+  // scanner, favorites, telehealth, reviews, badges, quick links, footer)
+  // mounts one tick after the initial frame instead of all at once — the
+  // first paint only has to produce what's actually visible above the fold.
+  const [belowFoldReady, setBelowFoldReady] = useState<boolean>(false);
+  useEffect(() => {
+    // InteractionManager is deprecated in this RN version in favor of
+    // requestIdleCallback — but it isn't guaranteed to exist in every RN/JS
+    // engine, so fall back to a same-effect setTimeout(0) where it's missing.
+    const ric: typeof requestIdleCallback | undefined = (globalThis as any).requestIdleCallback;
+    const cic: typeof cancelIdleCallback | undefined = (globalThis as any).cancelIdleCallback;
+    if (typeof ric === 'function') {
+      const id = ric(() => setBelowFoldReady(true));
+      return () => cic?.(id);
+    }
+    const timer = setTimeout(() => setBelowFoldReady(true), 0);
+    return () => clearTimeout(timer);
+  }, []);
   const toastTimerRef = useRef<any>(null);
 
   // Cart item Map for O(1) quantity check per card instead of O(N) .find
@@ -652,6 +656,9 @@ export default function HomeScreen({ navigation }: any) {
       // 2. Process Products
       if (productsRes.status === 'fulfilled' && productsRes.value?.items?.length) {
         setProducts(productsRes.value.items);
+        setProductsLoadFailed(false);
+      } else if (isFirstLoad) {
+        setProductsLoadFailed(true);
       }
 
       // 3. Process Reviews
@@ -668,6 +675,7 @@ export default function HomeScreen({ navigation }: any) {
       homeLastFetchedRef.current = Date.now();
     } catch (err) {
       console.log('[HomeScreen] Error in parallel loadHomeData:', err);
+      if (isFirstLoad) setProductsLoadFailed(true);
     } finally {
       setLoadingProducts(false);
       setRefreshing(false);
@@ -776,7 +784,8 @@ export default function HomeScreen({ navigation }: any) {
       filteredReviews.length <= 1 ||
       selectedReviewModal !== null ||
       !isFocused ||
-      reviewFilter !== 'all'
+      reviewFilter !== 'all' ||
+      !reviewsSectionSeen
     ) {
       if (reviewAutoPlayTimerRef.current) clearInterval(reviewAutoPlayTimerRef.current);
       return;
@@ -810,7 +819,7 @@ export default function HomeScreen({ navigation }: any) {
     return () => {
       if (reviewAutoPlayTimerRef.current) clearInterval(reviewAutoPlayTimerRef.current);
     };
-  }, [filteredReviews.length, selectedReviewModal, isFocused, reviewFilter]);
+  }, [filteredReviews.length, selectedReviewModal, isFocused, reviewFilter, reviewsSectionSeen]);
 
   const onReviewScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     // Filtered tabs render a plain, non-looped list — no wrap-around bookkeeping needed there.
@@ -1024,6 +1033,9 @@ export default function HomeScreen({ navigation }: any) {
             style={styles.iconCircleBtn}
             onPress={() => handleNavigateScreen('Shop')}
             activeOpacity={0.8}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            accessibilityRole="button"
+            accessibilityLabel="Search"
           >
             <Search size={18} color={COLORS.textCoffee} />
           </TouchableOpacity>
@@ -1032,6 +1044,9 @@ export default function HomeScreen({ navigation }: any) {
             style={styles.iconCircleBtn}
             onPress={() => handleNavigateScreen('Cart')}
             activeOpacity={0.8}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            accessibilityRole="button"
+            accessibilityLabel={totalCartCount > 0 ? `Cart, ${totalCartCount} item${totalCartCount === 1 ? '' : 's'}` : 'Cart'}
           >
             <ShoppingBag size={18} color={COLORS.textCoffee} />
             {totalCartCount > 0 && (
@@ -1045,6 +1060,9 @@ export default function HomeScreen({ navigation }: any) {
             style={styles.iconCircleBtn}
             onPress={() => setNotificationModalVisible(true)}
             activeOpacity={0.8}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            accessibilityRole="button"
+            accessibilityLabel={unreadNotificationsCount > 0 ? `Notifications, ${unreadNotificationsCount} unread` : 'Notifications'}
           >
             <Bell size={18} color={COLORS.textCoffee} />
             {unreadNotificationsCount > 0 ? (
@@ -1060,6 +1078,9 @@ export default function HomeScreen({ navigation }: any) {
             style={styles.avatarBtn}
             onPress={() => handleNavigateScreen('Profile')}
             activeOpacity={0.8}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            accessibilityRole="button"
+            accessibilityLabel="Profile"
           >
             {user?.profile_image_url ? (
               <Image source={{ uri: user.profile_image_url }} style={styles.avatarImg} />
@@ -1077,6 +1098,17 @@ export default function HomeScreen({ navigation }: any) {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        onScroll={(e) => {
+          if (reviewsSectionSeen) return;
+          const scrollY = e.nativeEvent.contentOffset.y;
+          const viewportBottom = scrollY + e.nativeEvent.layoutMeasurement.height;
+          // "Seen" once the section's top has scrolled into the lower
+          // two-thirds of the viewport, not only once fully on-screen.
+          if (viewportBottom >= reviewsSectionYRef.current + 80) {
+            setReviewsSectionSeen(true);
+          }
+        }}
+        scrollEventThrottle={100}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1111,13 +1143,18 @@ export default function HomeScreen({ navigation }: any) {
             placeholderTextColor={COLORS.textLight}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            onSubmitEditing={() => handleNavigateScreen('Shop')}
+            onSubmitEditing={() =>
+              handleNavigateScreen('Shop', searchQuery.trim() ? { searchQuery: searchQuery.trim() } : undefined)
+            }
             returnKeyType="search"
           />
           <TouchableOpacity
             style={styles.filterBtn}
             onPress={() => handleNavigateScreen('Shop')}
             activeOpacity={0.8}
+            hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+            accessibilityRole="button"
+            accessibilityLabel="Filter search results"
           >
             <SlidersHorizontal size={16} color={COLORS.textCoffee} />
           </TouchableOpacity>
@@ -1160,6 +1197,11 @@ export default function HomeScreen({ navigation }: any) {
           )}
         </View>
 
+        {/* Sections 5-11 stage in one tick after first paint — see
+            belowFoldReady above — rather than all mounting immediately
+            alongside the hero banner. */}
+        {belowFoldReady && (
+        <>
         {/* 5. Scooby Core Care & App Features Section */}
         <View style={styles.sectionHeaderRow}>
           <View>
@@ -1272,32 +1314,60 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.favoritesCarousel}
-          nestedScrollEnabled={true}
-        >
-          {products.map((product) => (
-            <ProductFavoriteCard
-              key={product.id}
-              product={product}
-              inCartItem={cartMap.get(product.id)}
-              isFav={favoriteHearts[product.id] ?? false}
-              onToggleFavorite={toggleFavorite}
-              onAddItem={handleAddToCart}
-              onUpdateQuantity={handleUpdateQuantity}
-              onRemoveItem={handleRemoveCartItem}
-              onSelectProduct={handleSelectProduct}
-            />
-          ))}
-        </ScrollView>
+        {loadingProducts ? (
+          <View style={styles.productsStateBox}>
+            <ActivityIndicator size="small" color={COLORS.forestGreen} />
+            <Text style={styles.productsStateText}>Loading today's recipes…</Text>
+          </View>
+        ) : productsLoadFailed ? (
+          <View style={styles.productsStateBox}>
+            <UtensilsCrossed size={26} color={COLORS.textLight} />
+            <Text style={styles.productsStateTitle}>Couldn't load today's menu</Text>
+            <Text style={styles.productsStateText}>Check your connection and try again.</Text>
+            <TouchableOpacity
+              style={styles.productsRetryBtn}
+              onPress={() => loadHomeData(true)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading recipes"
+            >
+              <Text style={styles.productsRetryText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        ) : products.length === 0 ? (
+          <View style={styles.productsStateBox}>
+            <UtensilsCrossed size={26} color={COLORS.textLight} />
+            <Text style={styles.productsStateTitle}>No recipes available right now</Text>
+            <Text style={styles.productsStateText}>Check back soon — the kitchen is always cooking up something new.</Text>
+          </View>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.favoritesCarousel}
+            nestedScrollEnabled={true}
+          >
+            {products.map((product) => (
+              <ProductFavoriteCard
+                key={product.id}
+                product={product}
+                inCartItem={cartMap.get(product.id)}
+                isFav={favoriteHearts[product.id] ?? false}
+                onToggleFavorite={toggleFavorite}
+                onAddItem={handleAddToCart}
+                onUpdateQuantity={handleUpdateQuantity}
+                onRemoveItem={handleRemoveCartItem}
+                onSelectProduct={handleSelectProduct}
+              />
+            ))}
+          </ScrollView>
+        )}
 
         {/* 7. Telehealth Apothecary Card (Dark Forest Green) */}
         <View style={styles.telehealthCard}>
           <View style={styles.telehealthHeaderRow}>
             <View style={styles.telehealthPill}>
-              <Stethoscope size={13} color="#A7F3D0" />
+              <Stethoscope size={13} color={COLORS.sageLight} />
               <Text style={styles.telehealthPillText}>TELEHEALTH APOTHECARY</Text>
             </View>
 
@@ -1326,7 +1396,11 @@ export default function HomeScreen({ navigation }: any) {
 
         {/* 8. Community Feedback Ledger (Dynamic Reviews Carousel) — only shown once real reviews exist */}
         {reviews.length > 0 && (
-          <>
+          <View
+            onLayout={(e) => {
+              reviewsSectionYRef.current = e.nativeEvent.layout.y;
+            }}
+          >
             <View style={styles.sectionHeaderRow}>
               <View>
                 <Text style={styles.sectionTitle}>Community Feedback Ledger</Text>
@@ -1346,6 +1420,9 @@ export default function HomeScreen({ navigation }: any) {
                 style={[styles.reviewFilterPill, reviewFilter === 'all' && styles.reviewFilterPillActive]}
                 onPress={() => setReviewFilter('all')}
                 activeOpacity={0.8}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: reviewFilter === 'all' }}
+                accessibilityLabel={`All reviews, ${reviews.length}`}
               >
                 <Text style={[styles.reviewFilterText, reviewFilter === 'all' && styles.reviewFilterTextActive]}>
                   All ({reviews.length})
@@ -1356,6 +1433,9 @@ export default function HomeScreen({ navigation }: any) {
                 style={[styles.reviewFilterPill, reviewFilter === 'product' && styles.reviewFilterPillActive]}
                 onPress={() => setReviewFilter('product')}
                 activeOpacity={0.8}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: reviewFilter === 'product' }}
+                accessibilityLabel={`Meal reviews, ${productReviewsCount}`}
               >
                 <Text style={[styles.reviewFilterText, reviewFilter === 'product' && styles.reviewFilterTextActive]}>
                   🐾 Meals ({productReviewsCount})
@@ -1366,6 +1446,9 @@ export default function HomeScreen({ navigation }: any) {
                 style={[styles.reviewFilterPill, reviewFilter === 'doctor' && styles.reviewFilterPillActive]}
                 onPress={() => setReviewFilter('doctor')}
                 activeOpacity={0.8}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: reviewFilter === 'doctor' }}
+                accessibilityLabel={`Vet reviews, ${doctorReviewsCount}`}
               >
                 <Text style={[styles.reviewFilterText, reviewFilter === 'doctor' && styles.reviewFilterTextActive]}>
                   🩺 Vets ({doctorReviewsCount})
@@ -1395,7 +1478,7 @@ export default function HomeScreen({ navigation }: any) {
               windowSize={3}
               removeClippedSubviews={Platform.OS === 'android'}
             />
-          </>
+          </View>
         )}
 
         {/* 9. 100% Human-Grade Standard Badge */}
@@ -1459,6 +1542,8 @@ export default function HomeScreen({ navigation }: any) {
             Clinical Veterinary License #SC-4891-PET
           </Text>
         </View>
+        </>
+        )}
         </ResponsiveContainer>
       </ScrollView>
 
@@ -1493,7 +1578,7 @@ export default function HomeScreen({ navigation }: any) {
           }}
         >
           <View style={styles.liveToastIconWrap}>
-            <Sparkles size={16} color="#00B67A" />
+            <Sparkles size={16} color={COLORS.sageIcon} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.liveToastTitle} numberOfLines={1}>
@@ -1505,7 +1590,9 @@ export default function HomeScreen({ navigation }: any) {
           </View>
           <TouchableOpacity
             onPress={() => setLiveToast(null)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss notification"
           >
             <X size={15} color="#8C7E74" />
           </TouchableOpacity>
@@ -1526,6 +1613,8 @@ export default function HomeScreen({ navigation }: any) {
                 style={styles.reviewModalClose}
                 onPress={() => setSelectedReviewModal(null)}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
               >
                 <X size={18} color={COLORS.textCoffee} />
               </TouchableOpacity>
@@ -1547,8 +1636,8 @@ export default function HomeScreen({ navigation }: any) {
                       <Star
                         key={star}
                         size={15}
-                        color="#00B67A"
-                        fill={star <= selectedReviewModal.rating ? '#00B67A' : '#E5E7EB'}
+                        color={COLORS.accentGold}
+                        fill={star <= selectedReviewModal.rating ? COLORS.accentGold : COLORS.kraftBorder}
                       />
                     ))}
                   </View>
@@ -1587,7 +1676,7 @@ export default function HomeScreen({ navigation }: any) {
                       </Text>
                       {selectedReviewModal.is_verified_buyer && (
                         <View style={styles.verifiedBuyerTag}>
-                          <CheckCircle2 size={11} color="#00B67A" />
+                          <CheckCircle2 size={11} color={COLORS.sageIcon} />
                           <Text style={styles.verifiedBuyerTagText}>Verified</Text>
                         </View>
                       )}
@@ -1629,14 +1718,14 @@ export default function HomeScreen({ navigation }: any) {
                         style={[
                           styles.reviewModalIconCircle,
                           selectedReviewModal.type === 'doctor'
-                            ? { backgroundColor: '#DBEAFE' }
-                            : { backgroundColor: '#E2ECE9' },
+                            ? { backgroundColor: COLORS.navyTintBadgeBg }
+                            : { backgroundColor: COLORS.sageTintBadgeBg },
                         ]}
                       >
                         {selectedReviewModal.type === 'doctor' ? (
-                          <Stethoscope size={15} color="#1D4ED8" />
+                          <Stethoscope size={15} color={COLORS.navy} />
                         ) : (
-                          <UtensilsCrossed size={15} color={COLORS.forestGreen} />
+                          <UtensilsCrossed size={15} color={COLORS.sageIcon} />
                         )}
                       </View>
                       <View style={{ flex: 1 }}>
@@ -1654,8 +1743,8 @@ export default function HomeScreen({ navigation }: any) {
                       style={[
                         styles.reviewModalArrowCircle,
                         selectedReviewModal.type === 'doctor'
-                          ? { backgroundColor: '#1D4ED8' }
-                          : { backgroundColor: COLORS.forestGreen },
+                          ? { backgroundColor: COLORS.navy }
+                          : { backgroundColor: COLORS.sageIcon },
                       ]}
                     >
                       <ChevronRight size={13} color="#FFFFFF" strokeWidth={2.5} />
@@ -1689,29 +1778,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: '#FAF7F2',
   },
-  brandGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  logoBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#EDE4D8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: COLORS.textCoffee,
-  },
-  brandSub: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    marginTop: 1,
-  },
   headerActionIcons: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1723,7 +1789,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#EFEBE4',
+    borderColor: COLORS.kraftBorder,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -1742,23 +1808,14 @@ const styles = StyleSheet.create({
   },
   cartBadgeText: {
     fontSize: 9,
-    fontWeight: '900',
+    fontFamily: LEDGER_MONO,
     color: '#FFFFFF',
-  },
-  bellDot: {
-    position: 'absolute',
-    top: 7,
-    right: 7,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#00B67A',
   },
   bellBadge: {
     position: 'absolute',
     top: -3,
     right: -3,
-    backgroundColor: '#00B67A',
+    backgroundColor: COLORS.sageIcon,
     minWidth: 16,
     height: 16,
     borderRadius: 8,
@@ -1770,7 +1827,7 @@ const styles = StyleSheet.create({
   },
   bellBadgeText: {
     fontSize: 9,
-    fontWeight: '900',
+    fontFamily: LEDGER_MONO,
     color: '#FFFFFF',
   },
   liveToastContainer: {
@@ -1786,7 +1843,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     borderWidth: 1.5,
-    borderColor: '#00B67A',
+    borderColor: COLORS.sageIcon,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -1797,17 +1854,18 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: COLORS.sageTintBadgeBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   liveToastTitle: {
     fontSize: 12.5,
-    fontWeight: '800',
-    color: '#2C1810',
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
+    color: COLORS.textCoffee,
   },
   liveToastMessage: {
     fontSize: 11,
+    fontFamily: FONT_BODY,
     color: '#715D52',
     marginTop: 1,
   },
@@ -1829,7 +1887,7 @@ const styles = StyleSheet.create({
   },
   avatarInitial: {
     fontSize: 14,
-    fontWeight: '800',
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
     color: '#FFFFFF',
   },
 
@@ -1854,7 +1912,7 @@ const styles = StyleSheet.create({
   },
   statusPillLeftText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontFamily: LEDGER_MONO,
     color: '#B45309',
     letterSpacing: 0.5,
   },
@@ -1875,7 +1933,7 @@ const styles = StyleSheet.create({
   },
   statusPillRightText: {
     fontSize: 10,
-    fontWeight: '700',
+    fontFamily: LEDGER_MONO,
     color: '#15803D',
   },
 
@@ -1889,13 +1947,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === 'ios' ? 12 : 8,
     borderWidth: 1,
-    borderColor: '#EFEBE4',
+    borderColor: COLORS.kraftBorder,
     marginBottom: 14,
     gap: 10,
   },
   searchInput: {
     flex: 1,
     fontSize: 13,
+    fontFamily: FONT_BODY,
     color: COLORS.textCoffee,
   },
   filterBtn: {
@@ -1919,7 +1978,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     justifyContent: 'flex-end',
     padding: 18,
-    backgroundColor: '#2C1810',
+    backgroundColor: COLORS.textCoffee,
   },
   bannerImage: {
     ...StyleSheet.absoluteFill,
@@ -1931,13 +1990,14 @@ const styles = StyleSheet.create({
   },
   bannerTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontFamily: FONT_DISPLAY,
     color: '#F5F1EA',
     lineHeight: 23,
   },
   bannerSub: {
     fontSize: 11,
-    color: '#E5E7EB',
+    fontFamily: FONT_BODY,
+    color: COLORS.kraftBorder,
     lineHeight: 15,
   },
   bannerCtaBtn: {
@@ -1953,7 +2013,7 @@ const styles = StyleSheet.create({
   },
   bannerCtaText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontFamily: FONT_BODY_BOLD,
     color: '#FFFFFF',
   },
   paginationDotsWrapper: {
@@ -1991,18 +2051,14 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '900',
-    color: COLORS.textCoffee,
+    fontFamily: FONT_DISPLAY,
+    color: COLORS.brandGold, // Ochre Hierarchy Rule — main section headings on the light canvas
   },
   sectionSubtitle: {
     fontSize: 11,
+    fontFamily: FONT_BODY,
     color: COLORS.textMuted,
     marginTop: 1,
-  },
-  viewAllLink: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.forestGreen,
   },
   platformBadge: {
     flexDirection: 'row',
@@ -2017,7 +2073,7 @@ const styles = StyleSheet.create({
   },
   platformBadgeText: {
     fontSize: 9.5,
-    fontWeight: '800',
+    fontFamily: LEDGER_MONO,
     color: '#92400E',
     letterSpacing: 0.5,
   },
@@ -2033,7 +2089,7 @@ const styles = StyleSheet.create({
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#2C1810',
+    shadowColor: COLORS.textCoffee,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.12,
     shadowRadius: 6,
@@ -2073,7 +2129,7 @@ const styles = StyleSheet.create({
   },
   visionSpotlightBadge: {
     fontSize: 9,
-    fontWeight: '800',
+    fontFamily: LEDGER_MONO,
     color: '#FDE68A',
     letterSpacing: 0.6,
   },
@@ -2085,18 +2141,18 @@ const styles = StyleSheet.create({
   },
   onnxMiniPillText: {
     fontSize: 8.5,
-    fontWeight: '800',
     color: '#86EFAC',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontFamily: LEDGER_MONO,
   },
   visionSpotlightTitle: {
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: FONT_DISPLAY,
     color: '#FFFFFF',
     letterSpacing: -0.2,
   },
   visionSpotlightDesc: {
     fontSize: 10.5,
+    fontFamily: FONT_BODY,
     color: '#D1D5DB',
     lineHeight: 14,
   },
@@ -2124,7 +2180,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     padding: 12,
     gap: 6,
-    shadowColor: '#2C1810',
+    shadowColor: COLORS.textCoffee,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
@@ -2154,16 +2210,17 @@ const styles = StyleSheet.create({
   },
   serviceMiniBadgeText: {
     fontSize: 8,
-    fontWeight: '800',
+    fontFamily: LEDGER_MONO,
     letterSpacing: 0.4,
   },
   serviceCardTitle: {
     fontSize: 12.5,
-    fontWeight: '900',
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
     color: COLORS.textCoffee,
   },
   serviceCardDesc: {
     fontSize: 10,
+    fontFamily: FONT_BODY,
     color: COLORS.textMuted,
     lineHeight: 13.5,
   },
@@ -2175,7 +2232,7 @@ const styles = StyleSheet.create({
   },
   serviceCardActionText: {
     fontSize: 10.5,
-    fontWeight: '800',
+    fontFamily: FONT_BODY_BOLD,
   },
 
   /* 6. Kitchen Favorites */
@@ -2190,9 +2247,46 @@ const styles = StyleSheet.create({
   },
   vetFormulatedText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontFamily: LEDGER_MONO,
     color: COLORS.forestGreen,
     letterSpacing: 0.4,
+  },
+  productsStateBox: {
+    marginHorizontal: 16,
+    marginBottom: 20,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    backgroundColor: COLORS.cardAlt,
+    borderWidth: 1,
+    borderColor: COLORS.kraftBorder,
+    alignItems: 'center',
+    gap: 4,
+  },
+  productsStateTitle: {
+    fontSize: 13,
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
+    color: COLORS.textCoffee,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  productsStateText: {
+    fontSize: 12,
+    fontFamily: FONT_BODY,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+  },
+  productsRetryBtn: {
+    marginTop: 10,
+    backgroundColor: COLORS.forestGreen,
+    paddingHorizontal: 20,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  productsRetryText: {
+    fontSize: 12.5,
+    fontFamily: FONT_BODY_BOLD,
+    color: '#FFFFFF',
   },
   favoritesCarousel: {
     paddingHorizontal: 16,
@@ -2206,7 +2300,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#EFEBE4',
+    borderColor: COLORS.kraftBorder,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -2228,16 +2322,22 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: '#D1FAE5',
+    backgroundColor: COLORS.sageTintBadgeBg, // Sage tint — DESIGN.md's sage is the documented "verified label" color, replacing generic Tailwind green
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
   },
+  stockTagOut: {
+    backgroundColor: '#EEE0DD', // accentRed tint — the existing brand "Urgent/Alert" color, not generic red
+  },
   stockTagText: {
     fontSize: 9,
-    fontWeight: '800',
-    color: '#065F46',
+    fontFamily: LEDGER_MONO,
+    color: COLORS.sageTintText,
     letterSpacing: 0.4,
+  },
+  stockTagTextOut: {
+    color: '#672F22',
   },
   heartCircle: {
     position: 'absolute',
@@ -2262,21 +2362,22 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontFamily: LEDGER_MONO,
     color: COLORS.textCoffee,
   },
   reviewsCount: {
     fontSize: 10,
-    fontWeight: '500',
+    fontFamily: LEDGER_MONO,
     color: COLORS.textMuted,
   },
   cardTitle: {
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
     color: COLORS.textCoffee,
   },
   cardSubtitle: {
     fontSize: 11,
+    fontFamily: FONT_BODY,
     color: COLORS.textMuted,
   },
   cardFooter: {
@@ -2290,26 +2391,26 @@ const styles = StyleSheet.create({
   },
   batchLabel: {
     fontSize: 9,
-    fontWeight: '600',
+    fontFamily: LEDGER_MONO,
     color: COLORS.textLight,
   },
   cardPrice: {
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: LEDGER_MONO,
     color: COLORS.textCoffee,
   },
   cardAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#8B5A2B',
+    backgroundColor: COLORS.ctaBrown,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
   cardAddText: {
     fontSize: 12,
-    fontWeight: '800',
+    fontFamily: FONT_BODY_BOLD,
     color: '#FFFFFF',
   },
   stepperContainer: {
@@ -2331,7 +2432,7 @@ const styles = StyleSheet.create({
   },
   stepperQty: {
     fontSize: 11,
-    fontWeight: '900',
+    fontFamily: LEDGER_MONO,
     color: '#FFFFFF',
     minWidth: 14,
     textAlign: 'center',
@@ -2339,7 +2440,7 @@ const styles = StyleSheet.create({
 
   /* 7. Telehealth Apothecary Card */
   telehealthCard: {
-    backgroundColor: '#274233',
+    backgroundColor: COLORS.forestDark,
     marginHorizontal: 16,
     borderRadius: 20,
     padding: 18,
@@ -2362,8 +2463,8 @@ const styles = StyleSheet.create({
   },
   telehealthPillText: {
     fontSize: 10,
-    fontWeight: '800',
-    color: '#A7F3D0',
+    fontFamily: LEDGER_MONO,
+    color: COLORS.sageLight,
     letterSpacing: 0.5,
   },
   sessionPriceBadge: {
@@ -2374,17 +2475,18 @@ const styles = StyleSheet.create({
   },
   sessionPriceText: {
     fontSize: 11,
-    fontWeight: '800',
+    fontFamily: LEDGER_MONO,
     color: '#78350F',
   },
   telehealthTitle: {
     fontSize: 17,
-    fontWeight: '900',
+    fontFamily: FONT_DISPLAY,
     color: '#FFFFFF',
     lineHeight: 22,
   },
   telehealthSubtitle: {
     fontSize: 12,
+    fontFamily: FONT_BODY,
     color: '#D1D5DB',
     lineHeight: 17,
   },
@@ -2393,14 +2495,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#8B5A2B',
+    backgroundColor: COLORS.ctaBrown,
     paddingVertical: 12,
     borderRadius: 12,
     marginTop: 4,
   },
   findVetBtnText: {
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: FONT_BODY_BOLD,
     color: '#FFFFFF',
   },
 
@@ -2409,14 +2511,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#00B67A',
+    backgroundColor: COLORS.sageIcon,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
   },
   trustpilotBadgeText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontFamily: LEDGER_MONO,
     color: '#FFFFFF',
   },
   reviewFilterRow: {
@@ -2431,7 +2533,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#FAF4EB',
     borderWidth: 1,
-    borderColor: '#EFEBE4',
+    borderColor: COLORS.kraftBorder,
   },
   reviewFilterPillActive: {
     backgroundColor: COLORS.forestGreen,
@@ -2439,7 +2541,7 @@ const styles = StyleSheet.create({
   },
   reviewFilterText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: LEDGER_MONO,
     color: COLORS.textMuted,
   },
   reviewFilterTextActive: {
@@ -2458,7 +2560,7 @@ const styles = StyleSheet.create({
     borderColor: '#EBE0D0',
     padding: 12,
     gap: 8,
-    shadowColor: '#2C1810',
+    shadowColor: COLORS.textCoffee,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 5,
@@ -2487,22 +2589,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   productTypeBadge: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#A7F3D0',
+    backgroundColor: COLORS.sageTintBadgeBg,
+    borderColor: COLORS.sageLight,
   },
   doctorTypeBadge: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
+    backgroundColor: COLORS.navyTintBg,
+    borderColor: COLORS.navyTintBorder,
   },
   reviewTypeBadgeText: {
     fontSize: 8.5,
-    fontWeight: '800',
+    fontFamily: LEDGER_MONO,
   },
   productTypeText: {
-    color: '#047857',
+    color: COLORS.sageTintText,
   },
   doctorTypeText: {
-    color: '#1D4ED8',
+    color: COLORS.navy,
   },
   reviewStarRow: {
     flexDirection: 'row',
@@ -2510,6 +2612,7 @@ const styles = StyleSheet.create({
   },
   reviewCommentSnippet: {
     fontSize: 11,
+    fontFamily: FONT_BODY,
     color: COLORS.textCoffee,
     fontStyle: 'italic',
     lineHeight: 15,
@@ -2527,12 +2630,12 @@ const styles = StyleSheet.create({
   },
   reviewAuthorName: {
     fontSize: 11.5,
-    fontWeight: '800',
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
     color: COLORS.textCoffee,
   },
   reviewTargetItem: {
     fontSize: 9.5,
-    fontWeight: '700',
+    fontFamily: LEDGER_MONO,
     color: '#C27835',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
@@ -2616,25 +2719,20 @@ const styles = StyleSheet.create({
   },
   reviewAuthorAvatarText: {
     fontSize: 14,
-    fontWeight: '900',
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
     color: '#92400E',
   },
   reviewModalAuthorName: {
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
     color: COLORS.textCoffee,
-  },
-  reviewModalItemName: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#C27835',
-    textTransform: 'uppercase',
   },
   reviewModalCommentScroll: {
     maxHeight: 120,
   },
   reviewModalCommentText: {
     fontSize: 12,
+    fontFamily: FONT_BODY,
     fontStyle: 'italic',
     color: COLORS.textCoffee,
     lineHeight: 18,
@@ -2649,20 +2747,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: COLORS.sageTintBadgeBg,
     paddingHorizontal: 6,
     paddingVertical: 1.5,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: COLORS.sageLight,
   },
   verifiedBuyerTagText: {
     fontSize: 9,
-    fontWeight: '800',
-    color: '#00B67A',
+    fontFamily: LEDGER_MONO,
+    color: COLORS.sageIcon,
   },
   reviewModalDateText: {
     fontSize: 10,
+    fontFamily: LEDGER_MONO,
     color: COLORS.textMuted,
     marginTop: 1,
   },
@@ -2674,7 +2773,7 @@ const styles = StyleSheet.create({
   },
   reviewModalLinkLabel: {
     fontSize: 9,
-    fontWeight: '800',
+    fontFamily: LEDGER_MONO,
     color: COLORS.textMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -2689,12 +2788,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   reviewModalLinkBtnProduct: {
-    backgroundColor: '#F3F8F5',
-    borderColor: '#C7E4D7',
+    backgroundColor: COLORS.sageTintBg,
+    borderColor: COLORS.sageTintBorder,
   },
   reviewModalLinkBtnDoctor: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
+    backgroundColor: COLORS.navyTintBg,
+    borderColor: COLORS.navyTintBorder,
   },
   reviewModalIconCircle: {
     width: 28,
@@ -2705,11 +2804,12 @@ const styles = StyleSheet.create({
   },
   reviewModalTargetTitle: {
     fontSize: 11.5,
-    fontWeight: '800',
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
     color: COLORS.textCoffee,
   },
   reviewModalTargetSubtitle: {
     fontSize: 9.5,
+    fontFamily: FONT_BODY,
     color: COLORS.textMuted,
     marginTop: 1,
   },
@@ -2742,11 +2842,12 @@ const styles = StyleSheet.create({
   },
   humanGradeTitle: {
     fontSize: 13,
-    fontWeight: '800',
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
     color: COLORS.textCoffee,
   },
   humanGradeSub: {
     fontSize: 11,
+    fontFamily: FONT_BODY,
     color: COLORS.textMuted,
     marginTop: 2,
   },
@@ -2771,7 +2872,7 @@ const styles = StyleSheet.create({
   },
   quickLinkText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: FONT_BODY_BOLD,
     color: COLORS.textCoffee,
   },
 
@@ -2784,14 +2885,14 @@ const styles = StyleSheet.create({
   },
   footerLoveText: {
     fontSize: 11,
-    fontWeight: '600',
     color: COLORS.textMuted,
     textAlign: 'center',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: FONT_BODY,
   },
   footerLicenseText: {
     fontSize: 10,
     color: COLORS.textLight,
     textAlign: 'center',
+    fontFamily: LEDGER_MONO,
   },
 });

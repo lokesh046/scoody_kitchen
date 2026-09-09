@@ -99,6 +99,14 @@ def get_product_details(
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
 ):
+    is_admin = current_user is not None and current_user.role == UserRole.ADMIN
+    cache_key = f"product:detail:{product_id}"
+
+    if not is_admin:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+
     product = get_product(
         db,
         product_id,
@@ -110,13 +118,17 @@ def get_product_details(
             detail="Product not found",
         )
 
-    if not product.is_active and (current_user is None or current_user.role != UserRole.ADMIN):
+    if not product.is_active and not is_admin:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product not found",
         )
 
-    return product
+    serialized = ProductResponse.model_validate(product).model_dump(mode="json")
+    if not is_admin and product.is_active:
+        cache.set(cache_key, serialized, ttl_seconds=300)
+
+    return serialized
 
 
 @router.post(
@@ -329,6 +341,7 @@ async def update_existing_product(
                 pass
 
         cache.clear_prefix("products:")
+        cache.delete(f"product:detail:{product_id}")
         return updated
 
     except Exception as exc:
@@ -381,6 +394,7 @@ def delete_existing_product(
         product,
     )
     cache.clear_prefix("products:")
+    cache.delete(f"product:detail:{product_id}")
     return deactivated
 
 
@@ -465,6 +479,7 @@ async def upload_product_gallery_images(
     db.commit()
     db.refresh(product)
     cache.clear_prefix("products:")
+    cache.delete(f"product:detail:{product_id}")
     return product
 
 
@@ -508,5 +523,6 @@ def delete_product_gallery_image(
     db.commit()
     db.refresh(product)
     cache.clear_prefix("products:")
+    cache.delete(f"product:detail:{product_id}")
     return product
 

@@ -61,13 +61,12 @@ celerybeat-schedule*
 DESIGN.md
 PRODUCT.md
 frontend/.impeccable/
-
-# Local IDE & AI assistant files
+mobile/.expo/
 .agents/
 .claude/
 .logs/
 .stitch/
 .vscode/
-
-# Expo cache
-.expo/
+chatbot-service/design_review_screens/
+chatbot-service/ARCHITECTURE_REVIEW.html
+chatbot-service/Scooby-Chatbot-Architecture.pdf

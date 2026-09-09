@@ -11,7 +11,12 @@ from graph.workflow import chatbot_graph
 from memory.redis_memory import session_memory
 from schemas.chat import ChatRequest, ChatResponse
 from utils.guardrails import redact_pii_text, validate_prompt_safety
-from utils.rate_limiter import enforce_rate_limit
+from utils.rate_limiter import (
+    LangChainTokenCostCallbackHandler,
+    enforce_rate_limit,
+    enforce_token_budget,
+    record_token_usage,
+)
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -31,12 +36,24 @@ async def chat_endpoint(
     start_total = time.perf_counter()
 
     # 1. Enforce Rate Limiting Guardrail
-    enforce_rate_limit(req, user_id=current_user_id)
+    # Both this and validate_prompt_safety below are synchronous, blocking
+    # calls (a Redis round-trip, and a real ~12ms local ML classification) —
+    # run directly inside an `async def` handler they'd freeze this
+    # process's single event loop for every other in-flight request during
+    # that window. asyncio.to_thread offloads them so the process stays
+    # responsive to everyone else while these run.
+    await asyncio.to_thread(enforce_rate_limit, req, user_id=current_user_id)
+
+    # 1b. Enforce Per-User Daily Token Budget (separate from request-count
+    # limiting above — a handful of requests that each generate huge
+    # responses can slip under a per-minute request cap while still
+    # costing real money; this catches that instead).
+    await asyncio.to_thread(enforce_token_budget, current_user_id)
 
     # 2. LangChain Prompt Safety & PII Redaction Pipeline
     start_safety = time.perf_counter()
     try:
-        sanitized_message = validate_prompt_safety(request_data.message)
+        sanitized_message = await asyncio.to_thread(validate_prompt_safety, request_data.message)
     except HTTPException as exc:
         if exc.status_code == 400 and "Security Violation" in exc.detail:
             warning_text = "🛡️ [Safety Notice] I'm sorry, but your message was flagged by our safety system as a potential instruction override or security concern. I cannot fulfill this request."
@@ -66,12 +83,18 @@ async def chat_endpoint(
         "user_id": current_user_id,
         "context_found": True,
         "sources": [],
+        "products": [],
     }
 
     try:
         start_graph = time.perf_counter()
-        final_state = await chatbot_graph.ainvoke(initial_state)
+        # Attached as a callback so it captures tokens from every LLM call
+        # made during this one message — router + whichever agent(s) ran,
+        # which can be 2-3 calls — not just the last one.
+        cost_handler = LangChainTokenCostCallbackHandler(session_id=request_data.session_id)
+        final_state = await chatbot_graph.ainvoke(initial_state, config={"callbacks": [cost_handler]})
         graph_duration = (time.perf_counter() - start_graph) * 1000.0
+        await asyncio.to_thread(record_token_usage, current_user_id, cost_handler.total_tokens)
 
         messages = final_state.get("messages", [])
         last_msg = None
@@ -110,6 +133,7 @@ async def chat_endpoint(
             raw_reply = "".join(text_parts).strip()
         bot_reply = redact_pii_text(raw_reply)
         sources = final_state.get("sources", [])
+        products = final_state.get("products", [])
 
         # Find tool calls in message list
         tools_used = []
@@ -154,6 +178,7 @@ async def chat_endpoint(
             status="success",
             session_id=request_data.session_id,
             sources=sources,
+            products=products,
         )
     except Exception as exc:
         if isinstance(exc, HTTPException):
@@ -179,10 +204,17 @@ async def chat_stream_endpoint(
     start_total = time.perf_counter()
 
     # 1. Enforce Rate Limiting & Safety Guardrails
-    enforce_rate_limit(req, user_id=current_user_id)
+    # See the same offload in chat_endpoint above — these are blocking sync
+    # calls that would otherwise freeze this process's event loop for every
+    # other concurrent request while they run.
+    await asyncio.to_thread(enforce_rate_limit, req, user_id=current_user_id)
+
+    # 1b. Enforce Per-User Daily Token Budget — same as chat_endpoint above.
+    await asyncio.to_thread(enforce_token_budget, current_user_id)
+
     start_safety = time.perf_counter()
     try:
-        sanitized_message = validate_prompt_safety(request_data.message)
+        sanitized_message = await asyncio.to_thread(validate_prompt_safety, request_data.message)
     except HTTPException as exc:
         if exc.status_code == 400 and "Security Violation" in exc.detail:
             async def graceful_safety_stream_generator():
@@ -210,26 +242,49 @@ async def chat_stream_endpoint(
         "user_id": current_user_id,
         "context_found": True,
         "sources": [],
+        "products": [],
     }
 
     async def sse_event_generator():
         accumulated_text = ""
         collected_sources = []
+        collected_products = []
         tools_used = []
         tool_start_times = {}
         node_start_times = {}
         final_state_output = None
         start_stream = time.perf_counter()
         ttft = 0.0
+        # Same cost-tracking callback as chat_endpoint — captures tokens
+        # from every LLM call made during this one message (router + agent).
+        cost_handler = LangChainTokenCostCallbackHandler(session_id=request_data.session_id)
 
         try:
-            async for event in chatbot_graph.astream_events(initial_state, version="v2"):
+            async for event in chatbot_graph.astream_events(
+                initial_state, version="v2", config={"callbacks": [cost_handler]}
+            ):
                 kind = event.get("event")
 
                 # 1. Native Real-Time LLM Token Emission
                 if kind == "on_chat_model_stream":
+                    # The router's classification call (supervisor.py) also
+                    # streams chat-model events — without this tag check,
+                    # its raw output (e.g. the literal word "commerce_agent")
+                    # would leak into the user-facing reply. Only the three
+                    # domain agents' final-answer calls are tagged
+                    # "agent_response" (see knowledge_agent.py,
+                    # health_agent.py, commerce_agent.py), so that's the
+                    # correct discriminator, not tag absence/presence alone.
+                    if "agent_response" not in (event.get("tags") or []):
+                        continue
                     chunk = event.get("data", {}).get("chunk")
-                    content = getattr(chunk, "content", None)
+                    # Gemini streams content as a list of content blocks
+                    # (e.g. [{'type': 'text', 'text': '...'}]), not a plain
+                    # string — `.text` is LangChain's built-in accessor that
+                    # extracts the plain text from either shape. Without
+                    # this, `isinstance(content, str)` below is always
+                    # False, so no token ever gets forwarded to the client.
+                    content = getattr(chunk, "text", None)
                     if content and isinstance(content, str):
                         if not accumulated_text:
                             ttft = (time.perf_counter() - start_stream) * 1000.0
@@ -285,7 +340,15 @@ async def chat_stream_endpoint(
                                 for s in output["sources"]:
                                     if s not in collected_sources:
                                         collected_sources.append(s)
-                        
+
+                            # Extract product cards (e.g. from a commerce_agent search_products call)
+                            if output.get("products"):
+                                known_ids = {p.get("id") for p in collected_products}
+                                for p in output["products"]:
+                                    if p.get("id") not in known_ids:
+                                        collected_products.append(p)
+                                        known_ids.add(p.get("id"))
+
                         # Fallback: if it's a child node chain that has sources
                         elif "sources" in output and output["sources"]:
                             for s in output["sources"]:
@@ -340,11 +403,22 @@ async def chat_stream_endpoint(
             # Always emit the collected sources to the client at the end of the stream
             yield f"data: {json.dumps({'type': 'sources', 'sources': collected_sources})}\n\n"
 
+            # Emit any product cards found so the client can render tappable
+            # product suggestions alongside the text reply.
+            if collected_products:
+                yield f"data: {json.dumps({'type': 'products', 'products': collected_products})}\n\n"
+
             # 5. Save turns into Redis session memory (30-min TTL)
             start_redis_save = time.perf_counter()
             await session_memory.asave_message(request_data.session_id, "user", sanitized_message)
             await session_memory.asave_message(request_data.session_id, "assistant", accumulated_text)
             redis_save_duration = (time.perf_counter() - start_redis_save) * 1000.0
+
+            # Record this message's total token cost against the user's
+            # daily budget (see enforce_token_budget at the top of this
+            # endpoint) — after the response already succeeded, so a
+            # failure here never affects what the user already received.
+            await asyncio.to_thread(record_token_usage, current_user_id, cost_handler.total_tokens)
 
             total_duration = (time.perf_counter() - start_total) * 1000.0
 

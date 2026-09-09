@@ -8,9 +8,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Image,
   Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useFonts, Outfit_700Bold, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
@@ -92,7 +92,7 @@ const OrderCardItem = memo(function OrderCardItem({ order, onSelect }: OrderCard
             <View key={item.id || idx} style={styles.itemRow}>
               <View style={styles.itemThumb}>
                 {item.image_url ? (
-                  <Image source={{ uri: item.image_url }} style={styles.itemThumbImg} fadeDuration={0} />
+                  <Image source={{ uri: item.image_url }} style={styles.itemThumbImg} />
                 ) : (
                   <UtensilsCrossed size={14} color={COLORS.brandGold} />
                 )}

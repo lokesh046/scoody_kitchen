@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import {
   ShoppingCart,
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAccessToken } from '../services/secureTokenStorage';
 import { COLORS } from '../theme/colors';
 import { useAuthStore } from '../store/authStore';
 import { usePetStore } from '../store/petStore';
@@ -38,7 +39,9 @@ import {
   fetchChatSessionHistory,
   clearChatSession,
   ChatMessage,
+  ChatProduct,
 } from '../api/chatbot';
+import { Image } from 'expo-image';
 
 const QUICK_PROMPTS = [
   '🫐 Can dogs eat blueberries?',
@@ -118,7 +121,7 @@ function TypingIndicator({ statusText }: { statusText?: string }) {
 }
 
 // Formatter to render markdown-like **bold** text and lists nicely
-function FormattedMessageText({ text, isUser }: { text: string; isUser: boolean }) {
+const FormattedMessageText = memo(function FormattedMessageText({ text, isUser }: { text: string; isUser: boolean }) {
   const paragraphs = text.split('\n');
 
   return (
@@ -167,7 +170,51 @@ function FormattedMessageText({ text, isUser }: { text: string; isUser: boolean 
       })}
     </View>
   );
-}
+});
+
+// Tappable product cards the commerce agent attaches to a reply (e.g.
+// "search products") so the user can jump straight to a product's detail
+// view in Kitchen instead of just reading its name/price in prose.
+const ProductSuggestionRow = memo(function ProductSuggestionRow({
+  products,
+  onSelectProduct,
+}: {
+  products: ChatProduct[];
+  onSelectProduct: (product: ChatProduct) => void;
+}) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.productRow}
+      contentContainerStyle={styles.productRowContent}
+    >
+      {products.map((product) => (
+        <TouchableOpacity
+          key={product.id}
+          style={styles.productCard}
+          activeOpacity={0.85}
+          onPress={() => onSelectProduct(product)}
+        >
+          {product.image_url ? (
+            <Image source={{ uri: product.image_url }} style={styles.productCardImage} />
+          ) : (
+            <View style={styles.productCardImageFallback}>
+              <ShoppingCart size={18} color={COLORS.brandGold} />
+            </View>
+          )}
+          <Text style={styles.productCardName} numberOfLines={1}>
+            {product.name}
+          </Text>
+          <Text style={styles.productCardPrice}>₹{Number(product.price).toFixed(0)}</Text>
+          {product.in_stock === false && (
+            <Text style={styles.productCardOutOfStock}>Out of stock</Text>
+          )}
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+});
 
 export default function ChatbotScreen({ navigation, route }: any) {
   const initialQuery: string | undefined = route?.params?.initialQuery;
@@ -185,6 +232,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
   const [stopStreamFn, setStopStreamFn] = useState<(() => void) | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleClose = () => {
     if (navigation?.canGoBack?.()) {
@@ -194,13 +242,27 @@ export default function ChatbotScreen({ navigation, route }: any) {
     }
   };
 
+  const handleSelectProduct = useCallback(
+    (product: ChatProduct) => {
+      // Matches the existing deep-link convention KitchenScreen already
+      // supports (see its `route.params.productId` effect), the same one
+      // HomeScreen uses when a review card links back to its product.
+      try {
+        navigation.navigate('MainTabs', { screen: 'Shop', params: { productId: product.id } });
+      } catch {
+        navigation.navigate('Shop', { productId: product.id });
+      }
+    },
+    [navigation]
+  );
+
   // Initialize or restore session on mount
   useEffect(() => {
     const initSession = async () => {
       if (!user?.id) {
         return;
       }
-      const token = await AsyncStorage.getItem('@auth_token');
+      const token = await getAccessToken();
       const sidKey = `@scooby_chat_session_u${user.id}`;
       let sid = await AsyncStorage.getItem(sidKey);
 
@@ -267,12 +329,25 @@ export default function ChatbotScreen({ navigation, route }: any) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // Auto-scroll to bottom on message updates
+  // Auto-scroll to bottom on message updates. Coalesces bursts of calls
+  // (e.g. one per streamed token) into a single pending scroll.
   const scrollToBottom = () => {
-    setTimeout(() => {
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    scrollTimeoutRef.current = setTimeout(() => {
+      scrollTimeoutRef.current = null;
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
   };
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleClearHistory = () => {
     Alert.alert(
@@ -284,7 +359,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
           text: 'Clear',
           style: 'destructive',
           onPress: async () => {
-            const token = await AsyncStorage.getItem('@auth_token');
+            const token = await getAccessToken();
             if (sessionId) {
               await clearChatSession(sessionId, token);
             }
@@ -345,32 +420,58 @@ export default function ChatbotScreen({ navigation, route }: any) {
     scrollToBottom();
 
     // Streaming response with progressive updates
-    let token = await AsyncStorage.getItem('@auth_token');
+    let token = await getAccessToken();
     if (!token) {
       token = await refreshAuthTokenSilently();
     }
 
     let accumulatedContent = '';
     let sourcesReceived: string[] = [];
+    let productsReceived: ChatProduct[] = [];
+
+    // Streamed tokens can arrive many times per second; coalesce them into
+    // one state update per flush interval instead of one per token, which
+    // otherwise forces a full re-render (and message-list re-diff) per token.
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    let flushScheduled = false;
+
+    const flushContent = () => {
+      flushScheduled = false;
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantPlaceholderId
+            ? {
+                ...msg,
+                content: accumulatedContent,
+                isStreaming: false,
+                statusText: undefined,
+              }
+            : msg
+        )
+      );
+      scrollToBottom();
+    };
+
+    const scheduleFlush = () => {
+      if (flushScheduled) return;
+      flushScheduled = true;
+      flushTimer = setTimeout(flushContent, 60);
+    };
+
+    const cancelPendingFlush = () => {
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+      flushScheduled = false;
+    };
 
     const cleanup = streamChatMessage(
       finalQuery,
       currentSid,
       (newToken) => {
         accumulatedContent += newToken;
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantPlaceholderId
-              ? {
-                  ...msg,
-                  content: accumulatedContent,
-                  isStreaming: false,
-                  statusText: undefined,
-                }
-              : msg
-          )
-        );
-        scrollToBottom();
+        scheduleFlush();
       },
       (status) => {
         setStreamingStatus(status);
@@ -393,6 +494,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
         );
       },
       (errorDetail) => {
+        cancelPendingFlush();
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantPlaceholderId
@@ -409,6 +511,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
         );
       },
       () => {
+        cancelPendingFlush();
         setIsSending(false);
         setStreamingStatus('');
         setStopStreamFn(null);
@@ -421,19 +524,31 @@ export default function ChatbotScreen({ navigation, route }: any) {
                   isStreaming: false,
                   statusText: undefined,
                   sources: sourcesReceived.length > 0 ? sourcesReceived : msg.sources,
+                  products: productsReceived.length > 0 ? productsReceived : msg.products,
                 }
               : msg
           )
         );
         scrollToBottom();
       },
-      token
+      token,
+      (products) => {
+        productsReceived = products;
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantPlaceholderId ? { ...msg, products } : msg
+          )
+        );
+      }
     );
 
-    setStopStreamFn(() => cleanup);
+    setStopStreamFn(() => () => {
+      cancelPendingFlush();
+      cleanup();
+    });
   };
 
-  const renderMessageItem = ({ item }: { item: ChatMessage }) => {
+  const renderMessageItem = useCallback(({ item }: { item: ChatMessage }) => {
     const isUser = item.role === 'user';
 
     // When assistant message is empty and still waiting for tokens
@@ -491,6 +606,11 @@ export default function ChatbotScreen({ navigation, route }: any) {
             </View>
           )}
 
+          {/* Tappable Product Suggestions */}
+          {!isUser && item.products && item.products.length > 0 && (
+            <ProductSuggestionRow products={item.products} onSelectProduct={handleSelectProduct} />
+          )}
+
           {/* Bubble Metadata (Timestamp) */}
           <View style={[styles.metaRow, isUser ? styles.userMetaRow : styles.assistantMetaRow]}>
             <Text style={[styles.timeText, isUser ? styles.userTimeText : styles.assistantTimeText]}>
@@ -500,7 +620,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
         </View>
       </View>
     );
-  };
+  }, [streamingStatus, handleSelectProduct]);
 
   return (
     <View style={styles.phoneContainer}>
@@ -1026,6 +1146,54 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     color: '#65574A',
     fontWeight: '600',
+  },
+  // Tappable Product Suggestion Cards
+  productRow: {
+    marginTop: 8,
+  },
+  productRowContent: {
+    gap: 8,
+    paddingRight: 4,
+  },
+  productCard: {
+    width: 104,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: '#EAE1D4',
+  },
+  productCardImage: {
+    width: '100%',
+    height: 72,
+    borderRadius: 7,
+    backgroundColor: '#F9F6F0',
+  },
+  productCardImageFallback: {
+    width: '100%',
+    height: 72,
+    borderRadius: 7,
+    backgroundColor: '#F9F6F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  productCardName: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#3A2E22',
+    marginTop: 5,
+  },
+  productCardPrice: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.forestGreen,
+    marginTop: 1,
+  },
+  productCardOutOfStock: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#B45309',
+    marginTop: 1,
   },
   // Timestamp & Checkmarks
   metaRow: {

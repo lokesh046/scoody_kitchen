@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../api/client';
 import { resetTabPrefetch } from '../services/tabPrefetch';
+import { getAccessToken, getRefreshToken, setAccessToken, setRefreshToken, clearTokens } from '../services/secureTokenStorage';
 
 export interface UserProfile {
   id: number;
@@ -41,25 +42,23 @@ export const useAuthStore = create<AuthState>((set) => ({
   setAuth: async (user, accessToken, refreshToken = null) => {
     if (accessToken) {
       apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-      await AsyncStorage.setItem('@auth_token', accessToken);
+      await setAccessToken(accessToken);
       if (refreshToken) {
-        await AsyncStorage.setItem('@auth_refresh_token', refreshToken);
+        await setRefreshToken(refreshToken);
       }
       if (user) {
         await AsyncStorage.setItem('@auth_user', JSON.stringify(user));
       }
     } else {
       delete apiClient.defaults.headers.common['Authorization'];
-      await AsyncStorage.multiRemove(['@auth_token', '@auth_refresh_token', '@auth_user']);
+      await clearTokens();
+      await AsyncStorage.removeItem('@auth_user');
     }
     set({ user, accessToken, refreshToken: refreshToken || null, isGuest: false });
   },
   setTokens: async (accessToken: string, refreshToken: string) => {
     apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-    await Promise.all([
-      AsyncStorage.setItem('@auth_token', accessToken),
-      AsyncStorage.setItem('@auth_refresh_token', refreshToken),
-    ]);
+    await Promise.all([setAccessToken(accessToken), setRefreshToken(refreshToken)]);
     set({ accessToken, refreshToken });
   },
   updateUser: async (user) => {
@@ -72,7 +71,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   logout: async () => {
     try {
-      const storedRefreshToken = await AsyncStorage.getItem('@auth_refresh_token');
+      const storedRefreshToken = await getRefreshToken();
       await apiClient.post('/auth/logout', null, {
         params: storedRefreshToken ? { refresh_token: storedRefreshToken } : undefined,
       });
@@ -80,7 +79,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Ignore network errors during logout
     } finally {
       delete apiClient.defaults.headers.common['Authorization'];
-      await AsyncStorage.multiRemove(['@auth_token', '@auth_refresh_token', '@auth_user', '@auth_guest']);
+      await clearTokens();
+      await AsyncStorage.multiRemove(['@auth_user', '@auth_guest']);
       set({ user: null, accessToken: null, refreshToken: null, isGuest: false });
       resetTabPrefetch();
     }
@@ -88,8 +88,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   hydrateAuth: async () => {
     try {
       const [token, refreshToken, userStr, guestStr] = await Promise.all([
-        AsyncStorage.getItem('@auth_token'),
-        AsyncStorage.getItem('@auth_refresh_token'),
+        getAccessToken(),
+        getRefreshToken(),
         AsyncStorage.getItem('@auth_user'),
         AsyncStorage.getItem('@auth_guest'),
       ]);

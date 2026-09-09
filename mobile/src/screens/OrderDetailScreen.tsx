@@ -9,9 +9,9 @@ import {
   RefreshControl,
   Share,
   Alert,
-  Image,
   Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFonts, Outfit_700Bold, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
 import { Quicksand_400Regular, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
@@ -180,8 +180,7 @@ const OrderItemRow = memo(function OrderItemRow({ item }: OrderItemRowProps) {
           <Image
             source={{ uri: item.image_url }}
             style={styles.itemImage}
-            resizeMode="cover"
-            fadeDuration={0}
+            contentFit="cover"
           />
         ) : (
           <UtensilsCrossed size={20} color={COLORS.brandGold} />

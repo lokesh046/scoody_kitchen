@@ -6,6 +6,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
     plugins: [react()],
+    optimizeDeps: {
+      exclude: ['maplibre-gl'],
+    },
     server: {
       port: 3000,
       allowedHosts: true,

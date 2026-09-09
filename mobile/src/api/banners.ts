@@ -1,4 +1,5 @@
 import apiClient from './client';
+import { withTtlCache } from './ttlCache';
 
 export interface Banner {
   id: number;
@@ -11,7 +12,11 @@ export interface Banner {
   created_at: string;
 }
 
+// Banners rarely change between admin updates — cache briefly so every
+// Home screen focus/mount doesn't refetch from scratch.
 export const fetchActiveBanners = async (): Promise<Banner[]> => {
-  const response = await apiClient.get<Banner[]>('/banners/');
-  return response.data;
+  return withTtlCache('banners:active', 5 * 60 * 1000, async () => {
+    const response = await apiClient.get<Banner[]>('/banners/');
+    return response.data;
+  });
 };

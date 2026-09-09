@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status, Form, File
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select, func
 
+from app.core.cache import cache
 from app.core.database import get_db
 from app.dependencies.auth import require_roles, get_current_user
 from app.models.enums import UserRole, ConsultationStatus
@@ -93,6 +94,8 @@ def create_doctor_review(
     db.add(review)
     db.commit()
     db.refresh(review)
+    cache.clear_prefix(f"reviews:doctor:{consultation.doctor_id}:")
+    cache.clear_prefix("reviews:recent:")
     return review
 
 
@@ -106,13 +109,25 @@ def get_doctor_reviews(
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
+    cache_key = f"reviews:doctor:{doctor_id}:{page}_{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     query = (
         select(DoctorReview)
         .options(joinedload(DoctorReview.customer))
         .where(DoctorReview.doctor_id == doctor_id)
         .order_by(DoctorReview.created_at.desc())
     )
-    return paginate_query(db, query, page=page, limit=limit)
+    result = paginate_query(db, query, page=page, limit=limit)
+    serialized_items = [
+        DoctorReviewResponse.model_validate(item).model_dump(mode="json")
+        for item in result.get("items", [])
+    ]
+    cached_data = {**result, "items": serialized_items}
+    cache.set(cache_key, cached_data, ttl_seconds=300)
+    return cached_data
 
 
 @router.post(
@@ -198,6 +213,8 @@ async def create_product_review(
 
     response = ProductReviewResponse.model_validate(review)
     response.is_verified_buyer = is_verified
+    cache.clear_prefix(f"reviews:product:{product_id}:")
+    cache.clear_prefix("reviews:recent:")
     return response
 
 
@@ -211,6 +228,11 @@ def get_product_reviews(
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
+    cache_key = f"reviews:product:{product_id}:{page}_{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     query = (
         select(ProductReview)
         .options(joinedload(ProductReview.user))
@@ -221,6 +243,7 @@ def get_product_reviews(
     reviews_list = paginated_data.get("items", [])
 
     if not reviews_list:
+        cache.set(cache_key, paginated_data, ttl_seconds=300)
         return paginated_data
 
     # Perform bulk lookup for verified buyers to avoid N+1 queries
@@ -242,9 +265,10 @@ def get_product_reviews(
     for r in reviews_list:
         resp = ProductReviewResponse.model_validate(r)
         resp.is_verified_buyer = r.user_id in verified_user_ids
-        items_response.append(resp)
+        items_response.append(resp.model_dump(mode="json"))
 
     paginated_data["items"] = items_response
+    cache.set(cache_key, paginated_data, ttl_seconds=300)
     return paginated_data
 
 
@@ -301,6 +325,11 @@ def get_recent_reviews(
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
+    cache_key = f"reviews:recent:{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     from app.models.doctor import Doctor
     # 1. Fetch recent product reviews
     product_reviews = db.scalars(
@@ -367,7 +396,9 @@ def get_recent_reviews(
 
     # Sort unified list by created_at desc
     unified.sort(key=lambda x: x["created_at"] or "", reverse=True)
-    return {"reviews": unified[:limit]}
+    result = {"reviews": unified[:limit]}
+    cache.set(cache_key, result, ttl_seconds=300)
+    return result
 
 
 @router.delete(
@@ -385,8 +416,11 @@ def delete_product_review(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Product review not found",
         )
+    p_id = review.product_id
     db.delete(review)
     db.commit()
+    cache.clear_prefix(f"reviews:product:{p_id}:")
+    cache.clear_prefix("reviews:recent:")
     return None
 
 
@@ -405,6 +439,9 @@ def delete_doctor_review(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Doctor review not found",
         )
+    d_id = review.doctor_id
     db.delete(review)
     db.commit()
+    cache.clear_prefix(f"reviews:doctor:{d_id}:")
+    cache.clear_prefix("reviews:recent:")
     return None

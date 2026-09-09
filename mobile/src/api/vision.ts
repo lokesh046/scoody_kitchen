@@ -1,7 +1,7 @@
 import axios from 'axios';
-import Constants from 'expo-constants';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../store/authStore';
+import { resolveHost } from './resolveHost';
+import { getAccessToken } from '../services/secureTokenStorage';
 
 export interface BreedMatch {
   breed: string;
@@ -49,19 +49,10 @@ export interface ClassificationResponse {
   processing_time_ms: number;
 }
 
-export const getVisionBaseUrl = (): string => {
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const ip = hostUri.split(':')[0];
-    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
-      return `http://${ip}:8003`;
-    }
-  }
-  return 'http://192.168.1.6:8003';
-};
+export const getVisionBaseUrl = (): string => resolveHost(8003, process.env.EXPO_PUBLIC_VISION_URL);
 
 export async function classifyPetPhoto(imageUri: string): Promise<ClassificationResponse> {
-  const token = useAuthStore.getState().accessToken || (await AsyncStorage.getItem('@auth_token'));
+  const token = useAuthStore.getState().accessToken || (await getAccessToken());
   if (!token) {
     throw new Error('Please log in to your account to use the AI Pet Vision Scanner.');
   }

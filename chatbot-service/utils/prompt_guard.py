@@ -93,14 +93,19 @@ class _PromptGuardClassifier:
             self._load_attempted = True
 
             try:
+                from dotenv import load_dotenv
+                load_dotenv()
+
                 from transformers import pipeline  # noqa: local import, optional dependency
 
+                token = os.getenv("HF_TOKEN") or os.getenv("HUGGING_FACE_HUB_TOKEN")
                 self._pipeline = pipeline(
                     "text-classification",
                     model=PROMPT_GUARD_MODEL,
                     truncation=True,
                     max_length=PROMPT_GUARD_MAX_TOKENS,
                     device=PROMPT_GUARD_DEVICE,
+                    token=token,
                 )
                 logger.info("Loaded Prompt Guard model: %s", PROMPT_GUARD_MODEL)
                 return True

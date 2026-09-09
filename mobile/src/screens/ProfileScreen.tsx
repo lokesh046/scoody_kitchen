@@ -8,12 +8,12 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
-  Image,
   Modal,
   TextInput,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -93,7 +93,6 @@ const ProfileHeroCard = memo(function ProfileHeroCard({
           <Image
             source={{ uri: user.profile_image_url }}
             style={styles.avatarImage}
-            fadeDuration={0}
           />
         ) : (
           <View style={styles.avatarCircle}>
@@ -541,7 +540,6 @@ const EditProfileModal = memo(function EditProfileModal({
                   <Image
                     source={{ uri: avatarUri }}
                     style={styles.avatarEditPreview}
-                    fadeDuration={0}
                   />
                 ) : (
                   <View

@@ -1,9 +1,14 @@
 import apiClient from './client';
 import { Product, Category } from '../types';
+import { withTtlCache } from './ttlCache';
 
+// Categories rarely change and are fetched both by tab-prefetch on app start
+// and by KitchenScreen on every mount/focus — cache to avoid the duplicate call.
 export const fetchCategories = async (): Promise<Category[]> => {
-  const response = await apiClient.get('/categories');
-  return response.data;
+  return withTtlCache('products:categories', 5 * 60 * 1000, async () => {
+    const response = await apiClient.get('/categories');
+    return response.data;
+  });
 };
 
 export const fetchProducts = async (params?: {

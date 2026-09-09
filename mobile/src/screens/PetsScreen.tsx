@@ -11,11 +11,11 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
-  Image,
   KeyboardAvoidingView,
   Animated,
   AccessibilityInfo,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -145,7 +145,6 @@ const CompanionSelectorTab = memo(function CompanionSelectorTab({
           <Image
             source={{ uri: pet.profile_image_url }}
             style={styles.petSelectorThumb}
-            fadeDuration={0}
           />
         ) : (
           <View style={[styles.petSelectorThumbFallback, isSelected && styles.petSelectorThumbActive]}>
@@ -209,7 +208,6 @@ const CompanionLedgerCard = memo(function CompanionLedgerCard({
                 <Image
                   source={{ uri: pet.profile_image_url }}
                   style={styles.avatarImg}
-                  fadeDuration={0}
                 />
               ) : (
                 <View style={styles.avatarFallback}>
@@ -648,7 +646,7 @@ const PetDossierModal = memo(function PetDossierModal({
             <View style={styles.photoPickerSection}>
               <View style={styles.photoPreviewWrapper}>
                 {imageUri ? (
-                  <Image source={{ uri: imageUri }} style={styles.photoPreviewImage} fadeDuration={0} />
+                  <Image source={{ uri: imageUri }} style={styles.photoPreviewImage} />
                 ) : (
                   <View style={styles.photoPlaceholderCircle}>
                     <PawPrint size={32} color={COLORS.brandGold} fill={COLORS.brandGold} />

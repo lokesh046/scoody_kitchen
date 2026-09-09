@@ -487,6 +487,13 @@ export default function KitchenScreen({ navigation, route }: any) {
     }, [user, loadCart])
   );
 
+  // Land pre-filled if navigated here from the Home screen's search bar
+  useEffect(() => {
+    if (route?.params?.searchQuery) {
+      setSearchQuery(route.params.searchQuery);
+    }
+  }, [route?.params?.searchQuery]);
+
   // Deep-link auto-select product recipe modal if navigated with productId
   useEffect(() => {
     if (route?.params?.productId && products.length > 0) {

@@ -5,13 +5,13 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  Image,
   ScrollView,
   Animated,
   ActivityIndicator,
   Alert,
   Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Sparkles,
@@ -210,7 +210,7 @@ export default function PetVisionModal({
           <View style={styles.viewfinderContainer}>
             {selectedImageUri ? (
               <View style={styles.imageWrapper}>
-                <Image source={{ uri: selectedImageUri }} style={styles.previewImage} fadeDuration={0} />
+                <Image source={{ uri: selectedImageUri }} style={styles.previewImage} />
                 {isScanning && (
                   <>
                     <View style={styles.scanOverlayMask} />

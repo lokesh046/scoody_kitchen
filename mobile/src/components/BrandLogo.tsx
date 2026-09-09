@@ -2,7 +2,6 @@ import React, { memo } from 'react';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   ViewStyle,
   ImageStyle,
@@ -10,6 +9,7 @@ import {
   Platform,
   TouchableOpacity,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { COLORS } from '../theme/colors';
 
 // Local asset reference for the authentic Scooby Mascot Logo
@@ -50,8 +50,7 @@ export const BrandMedallion = memo(function BrandMedallion({
     <Image
       source={SCOOBY_LOGO_IMG}
       style={[{ width, height }, style]}
-      resizeMode="contain"
-      fadeDuration={0}
+      contentFit="contain"
     />
   );
 

@@ -1,20 +1,19 @@
 import axios from 'axios';
-import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { refreshAuthTokenSilently } from './client';
+import { resolveHost } from './resolveHost';
 
-export const getChatbotBaseUrl = (): string => {
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const ip = hostUri.split(':')[0];
-    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
-      return `http://${ip}:8002`;
-    }
-  }
-  return 'http://192.168.1.6:8002';
-};
+export const getChatbotBaseUrl = (): string => resolveHost(8002, process.env.EXPO_PUBLIC_CHATBOT_URL);
 
 const CHATBOT_URL = getChatbotBaseUrl();
+
+export interface ChatProduct {
+  id: number;
+  name: string;
+  price: number;
+  image_url?: string | null;
+  in_stock?: boolean;
+}
 
 export interface ChatMessage {
   id: string;
@@ -23,6 +22,7 @@ export interface ChatMessage {
   timestamp: string;
   statusText?: string;
   sources?: string[];
+  products?: ChatProduct[];
   isStreaming?: boolean;
 }
 
@@ -31,6 +31,7 @@ export interface ChatResponse {
   status: string;
   session_id: string;
   sources?: string[];
+  products?: ChatProduct[];
 }
 
 export interface HistoricalMessage {
@@ -68,7 +69,8 @@ export const streamChatMessage = (
   onSources: (sources: string[]) => void,
   onError: (err: string) => void,
   onDone: () => void,
-  token?: string | null
+  token?: string | null,
+  onProducts?: (products: ChatProduct[]) => void
 ): (() => void) => {
   const xhr = new XMLHttpRequest();
   let isDone = false;
@@ -111,6 +113,8 @@ export const streamChatMessage = (
             onStatus(data.content);
           } else if (data.type === 'sources') {
             onSources(data.sources);
+          } else if (data.type === 'products') {
+            onProducts?.(data.products || []);
           } else if (data.type === 'error') {
             onError(data.detail || 'Streaming error');
           } else if (data.type === 'done') {
@@ -163,6 +167,9 @@ export const streamChatMessage = (
       const res = await sendChatMessage(message, sessionId, activeToken);
       if (res.sources && res.sources.length > 0) {
         onSources(res.sources);
+      }
+      if (res.products && res.products.length > 0) {
+        onProducts?.(res.products);
       }
       onToken(res.reply);
       onDone();

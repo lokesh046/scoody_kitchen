@@ -7,7 +7,7 @@ langchain-text-splitters>=0.3.0
 langchain-google-genai>=2.0.0
 mcp>=1.2.0,<2.0.0
 langchain-mcp-adapters>=0.1.0,<0.2.0
-pinecone-client>=5.0.0
+pinecone>=6.0.0
 langchain-pinecone>=0.2.0
 litellm>=1.40.0
 PyJWT>=2.8.0
@@ -19,4 +19,7 @@ pypdf>=5.0.0
 python-docx>=1.1.0
 torch
 transformers
+google-genai>=1.0.0
+python-dotenv>=1.0.0
+pytest>=8.0.0
 

@@ -3,6 +3,8 @@ import { StatusBar, View, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useFonts } from 'expo-font';
+import { Sentry } from './src/services/sentry';
 import { useAuthStore } from './src/store/authStore';
 import { useFeatureFlagStore } from './src/store/featureFlagStore';
 import { prefetchTabData } from './src/services/tabPrefetch';
@@ -12,12 +14,14 @@ import OrderDetailScreen from './src/screens/OrderDetailScreen';
 import ChatbotScreen from './src/screens/ChatbotScreen';
 import VideoCallScreen from './src/screens/VideoCallScreen';
 import { COLORS } from './src/theme/colors';
+import { FONT_ASSETS } from './src/theme/typography';
 
 const Stack = createNativeStackNavigator();
 
-export default function App() {
+function App() {
   const { user, isGuest, isHydrated, hydrateAuth } = useAuthStore();
   const fetchFlags = useFeatureFlagStore((state) => state.fetchFlags);
+  const [fontsLoaded] = useFonts(FONT_ASSETS);
 
   useEffect(() => {
     hydrateAuth();
@@ -33,7 +37,10 @@ export default function App() {
     prefetchTabData(!!user);
   }, [isHydrated, user, isGuest]);
 
-  if (!isHydrated) {
+  // Hold the same loading screen until both auth AND the brand fonts are
+  // ready — rendering before fonts load would flash every screen in the OS
+  // system font, then reflow once Outfit/Quicksand/IBM Plex Mono swap in.
+  if (!isHydrated || !fontsLoaded) {
     return (
       <SafeAreaProvider>
         <View style={{ flex: 1, backgroundColor: COLORS.canvas, alignItems: 'center', justifyContent: 'center' }}>
@@ -75,3 +82,5 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+export default Sentry.wrap(App);
