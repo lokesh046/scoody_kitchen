@@ -9,7 +9,7 @@ from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.payment import Payment, PaymentStatus
 from app.services.inventory_service import finalize_stock, release_stock
-from app.services.order_service import validate_order_status_transition, change_order_status
+from app.services.order_service import cancel_order, validate_order_status_transition, change_order_status
 
 def create_payment(
     db: Session,
@@ -136,26 +136,9 @@ def process_payment_failure(
         )
 
     order = payment.order
-    validate_order_status_transition(order.status, OrderStatus.CANCELLED)
-
-    order_items = list(
-        db.scalars(
-            select(OrderItem).where(
-                OrderItem.order_id == order.id
-            )
-        ).all()
-    )
-
-    for order_item in order_items:
-        release_stock(
-            db,
-            order_item.product_id,
-            order_item.quantity,
-        )
+    cancel_order(db, order)
 
     payment.status = PaymentStatus.FAILED
-
-    change_order_status(db, order, OrderStatus.CANCELLED, "Payment verification failed or timed out")
 
     db.commit()
     db.refresh(payment)
