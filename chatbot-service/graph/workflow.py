@@ -1,5 +1,7 @@
 """LangGraph Workflow Compilation for Chatbot Service."""
 
+import time
+
 from langgraph.graph import END, StateGraph
 from graph.state import AgentState
 from agents.knowledge_agent import knowledge_agent_node
@@ -12,7 +14,15 @@ def router_node(state: dict) -> str:
     """Multi-agent intent router via Supervisor classification engine."""
     messages = state.get("messages", [])
     query = messages[-1]["content"] if messages else ""
-    return route_intent(query)
+    # This is a full extra Gemini call made on every single message before
+    # any agent runs — without its own timer it's invisible, silently
+    # folded into the router's overall "LangGraph Workflow" total alongside
+    # the agent's own work.
+    start = time.perf_counter()
+    intent = route_intent(query)
+    duration = (time.perf_counter() - start) * 1000.0
+    print(f"📊 [Router Timer] Intent classification → '{intent}' took {duration:.2f}ms", flush=True)
+    return intent
 
 
 def build_chatbot_graph():

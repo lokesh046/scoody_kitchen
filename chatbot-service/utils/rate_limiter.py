@@ -23,7 +23,7 @@ DAILY_TOKEN_LIMIT = int(os.getenv("DAILY_TOKEN_LIMIT", "50000"))
 class LangChainTokenCostCallbackHandler(BaseCallbackHandler):
     """Custom LangChain CallbackHandler to track token usage and LiteLLM cost metrics per request."""
 
-    def __init__(self, session_id: str = "default", model_name: str = "gemini/gemini-3.5-flash-lite"):
+    def __init__(self, session_id: str = "default", model_name: str = "gemini/gemini-3.1-flash-lite"):
         super().__init__()
         self.session_id = session_id
         self.model_name = model_name

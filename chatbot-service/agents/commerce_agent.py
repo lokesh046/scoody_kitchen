@@ -1,8 +1,10 @@
 """Commerce ReAct Agent Node powered by ChatLiteLLM native tool binding & HITL confirmation interrupts."""
 
+import asyncio
 import json
 import os
 import re
+import time
 from typing import Any
 from langchain_core.runnables import RunnableConfig
 from mcp_client import mcp_client
@@ -436,7 +438,7 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
     # 4. Native ChatLiteLLM Tool Binding Execution Loop
     if GEMINI_API_KEY and mcp_tools:
         try:
-            llm = get_llm_with_fallback(model_name="gemini/gemini-3.5-flash-lite", temperature=0.1)
+            llm = get_llm_with_fallback(model_name="gemini/gemini-3.1-flash-lite", temperature=0.1)
             
             def bind_tools_to_runnable(runnable, tools):
                 if hasattr(runnable, "runnable") and hasattr(runnable, "fallbacks"):
@@ -471,7 +473,7 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
                 collected_products: list[dict[str, Any]] = []
 
                 # ReAct Execution Loop (max 5 steps to resolve multi-step tool calls)
-                for _ in range(5):
+                for step in range(5):
                     # Stream instead of a single blocking ainvoke() call so the
                     # graph's astream_events() picks up on_chat_model_stream
                     # events and the client sees the final answer's tokens as
@@ -487,8 +489,11 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
                     # tracker was silently missing every commerce_agent call).
                     stream_config = {"tags": ["agent_response"], "callbacks": (config or {}).get("callbacks")}
                     ai_msg = None
+                    llm_start = time.perf_counter()
                     async for chunk in llm_with_tools.astream(messages_input, config=stream_config):
                         ai_msg = chunk if ai_msg is None else ai_msg + chunk
+                    llm_duration = (time.perf_counter() - llm_start) * 1000.0
+                    print(f"📊 [Commerce LLM Timer] ReAct step {step + 1} Gemini call took {llm_duration:.2f}ms", flush=True)
 
                     if ai_msg is None:
                         reply = "Sorry, I didn't get a response from the AI service. Please try again."
@@ -520,102 +525,142 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
                     # Track the tool calls we made
                     messages_input.append(ai_msg)
 
-                    # Execute all tools requested in this step
+                    # First pass: classify every requested call before
+                    # executing anything. A single step's tool_calls can
+                    # legitimately contain more than one independent read
+                    # (e.g. "check my orders and available slots" in one
+                    # turn) — those don't depend on each other's results and
+                    # are safe to run concurrently below. But if ANY call in
+                    # the batch is state-changing, we must not run any reads
+                    # first (the old sequential code sometimes did, then
+                    # discarded their results anyway when it hit the
+                    # confirmation gate and returned) — go straight to the
+                    # HITL confirmation gate on the first one found instead.
+                    unknown_calls = []
+                    state_changing_call = None
+                    safe_calls = []
                     for call in ai_msg.tool_calls:
                         t_name = call.get("name")
-                        t_args = call.get("args") or {}
                         if t_name not in tools_by_name:
-                            # If a tool_call's name doesn't match anything we
-                            # know (renamed/hallucinated tool, naming
-                            # mismatch), it MUST still get a response here.
-                            # Gemini 3.5+ rejects the next request outright
-                            # ("does not support model prefilling... final
-                            # turn must be a user message or a function
-                            # response") if a tool_call from the assistant's
-                            # last turn is left unanswered — this used to be
-                            # silently ignored, leaving the conversation in
-                            # exactly that broken state.
-                            messages_input.append(ToolMessage(
-                                content=f"Error: tool '{t_name}' is not available.",
-                                tool_call_id=call.get("id", ""),
-                            ))
+                            unknown_calls.append(call)
                             continue
-                        if t_name in tools_by_name:
-                            # SAFETY GATE: state-changing tools must go through HITL confirmation
-                            clean_t_name = t_name.split("__")[-1]
-                            normalized_t_name = clean_t_name.replace("tool_", "")
-                            if normalized_t_name in STATE_CHANGING_TOOLS or clean_t_name in STATE_CHANGING_TOOLS or t_name in STATE_CHANGING_TOOLS:
-                                confirm_args = _default_pending_args(normalized_t_name, t_args)
-                                confirm_args.pop("session_user_id", None)
-                                confirm_args.pop("mcp_call_token", None)
+                        clean_t_name = t_name.split("__")[-1]
+                        normalized_t_name = clean_t_name.replace("tool_", "")
+                        if normalized_t_name in STATE_CHANGING_TOOLS or clean_t_name in STATE_CHANGING_TOOLS or t_name in STATE_CHANGING_TOOLS:
+                            state_changing_call = call
+                            break
+                        safe_calls.append(call)
 
-                                if normalized_t_name == "book_consultation":
-                                    sched_str = confirm_args.get("scheduled_at_iso")
-                                    if not sched_str:
-                                        reply = "The appointment date and time are required before booking."
-                                        return {
-                                            "messages": [{"role": "assistant", "content": reply}],
-                                            "pending_action": None,
-                                            "pending_action_args": None,
-                                        }
-                                    try:
-                                        dt = datetime.fromisoformat(sched_str.replace("Z", "+00:00"))
-                                        if dt.tzinfo is None:
-                                            dt = dt.replace(tzinfo=timezone.utc)
-                                        else:
-                                            dt = dt.astimezone(timezone.utc)
+                    for call in unknown_calls:
+                        # If a tool_call's name doesn't match anything we
+                        # know (renamed/hallucinated tool, naming
+                        # mismatch), it MUST still get a response here.
+                        # Gemini 3.5+ rejects the next request outright
+                        # ("does not support model prefilling... final
+                        # turn must be a user message or a function
+                        # response") if a tool_call from the assistant's
+                        # last turn is left unanswered — this used to be
+                        # silently ignored, leaving the conversation in
+                        # exactly that broken state.
+                        messages_input.append(ToolMessage(
+                            content=f"Error: tool '{call.get('name')}' is not available.",
+                            tool_call_id=call.get("id", ""),
+                        ))
 
-                                        if dt <= datetime.now(timezone.utc):
-                                            reply = "To book a consultation, the appointment date and time must be in the future, not in the past."
-                                            return {
-                                                "messages": [{"role": "assistant", "content": reply}],
-                                                "pending_action": None,
-                                                "pending_action_args": None,
-                                            }
-                                    except (ValueError, TypeError):
-                                        reply = "I couldn't understand the appointment date and time. Please provide a valid appointment date and time."
-                                        return {
-                                            "messages": [{"role": "assistant", "content": reply}],
-                                            "pending_action": None,
-                                            "pending_action_args": None,
-                                        }
+                    if state_changing_call is not None:
+                        # SAFETY GATE: state-changing tools must go through HITL confirmation.
+                        # Every path below returns, so no reads ever execute
+                        # once a state-changing call is present in the batch.
+                        call = state_changing_call
+                        t_name = call.get("name")
+                        t_args = call.get("args") or {}
+                        clean_t_name = t_name.split("__")[-1]
+                        normalized_t_name = clean_t_name.replace("tool_", "")
+                        confirm_args = _default_pending_args(normalized_t_name, t_args)
+                        confirm_args.pop("session_user_id", None)
+                        confirm_args.pop("mcp_call_token", None)
 
-                                confirmation_id = None
-                                if session_id:
-                                    confirmation_id = await session_memory.acreate_pending_action(
-                                        user_id=session_user_id,
-                                        session_id=session_id,
-                                        action=t_name,
-                                        args=confirm_args
-                                    )
-                                reply = _confirmation_prompt(normalized_t_name, confirm_args, confirmation_id)
+                        if normalized_t_name == "book_consultation":
+                            sched_str = confirm_args.get("scheduled_at_iso")
+                            if not sched_str:
+                                reply = "The appointment date and time are required before booking."
                                 return {
                                     "messages": [{"role": "assistant", "content": reply}],
-                                    "requires_confirmation": True,
-                                    "pending_action": t_name,
-                                    "pending_action_args": confirm_args,
+                                    "pending_action": None,
+                                    "pending_action_args": None,
                                 }
-
-                            # For read or approved write tools: inject mcp_call_token on-demand
-                            if "mcp_call_token" in tools_by_name[t_name].args:
-                                t_args["mcp_call_token"] = mint_mcp_call_token(session_user_id)
-                                t_args.pop("session_user_id", None)
-                            elif "session_user_id" in tools_by_name[t_name].args:
-                                t_args["session_user_id"] = session_user_id
-
                             try:
-                                tool_res = await execute_tool(tools_by_name[t_name], t_args)
-                            except PermissionError as pe:
-                                reply = f"This action requires confirmation. Please reply 'yes' to proceed. Details: {pe}"
+                                dt = datetime.fromisoformat(sched_str.replace("Z", "+00:00"))
+                                if dt.tzinfo is None:
+                                    dt = dt.replace(tzinfo=timezone.utc)
+                                else:
+                                    dt = dt.astimezone(timezone.utc)
+
+                                if dt <= datetime.now(timezone.utc):
+                                    reply = "To book a consultation, the appointment date and time must be in the future, not in the past."
+                                    return {
+                                        "messages": [{"role": "assistant", "content": reply}],
+                                        "pending_action": None,
+                                        "pending_action_args": None,
+                                    }
+                            except (ValueError, TypeError):
+                                reply = "I couldn't understand the appointment date and time. Please provide a valid appointment date and time."
                                 return {
                                     "messages": [{"role": "assistant", "content": reply}],
+                                    "pending_action": None,
+                                    "pending_action_args": None,
                                 }
 
-                            if normalized_t_name == "search_products":
-                                collected_products.extend(_extract_products(tool_res))
+                        confirmation_id = None
+                        if session_id:
+                            confirmation_id = await session_memory.acreate_pending_action(
+                                user_id=session_user_id,
+                                session_id=session_id,
+                                action=t_name,
+                                args=confirm_args
+                            )
+                        reply = _confirmation_prompt(normalized_t_name, confirm_args, confirmation_id)
+                        return {
+                            "messages": [{"role": "assistant", "content": reply}],
+                            "requires_confirmation": True,
+                            "pending_action": t_name,
+                            "pending_action_args": confirm_args,
+                        }
 
-                            sanitized_res = redact_pii_text(str(tool_res))
-                            messages_input.append(ToolMessage(content=sanitized_res, tool_call_id=call.get("id", "")))
+                    # No state-changing call in this batch: every remaining
+                    # call is an independent read (or a pre-approved write),
+                    # safe to execute concurrently instead of one at a time —
+                    # e.g. "check my orders and available slots" arrives as
+                    # two tool_calls in the same step that don't depend on
+                    # each other's results.
+                    async def _run_safe_call(call: dict[str, Any]) -> tuple[dict[str, Any], Any, PermissionError | None]:
+                        t_name = call.get("name")
+                        t_args = dict(call.get("args") or {})
+                        if "mcp_call_token" in tools_by_name[t_name].args:
+                            t_args["mcp_call_token"] = mint_mcp_call_token(session_user_id)
+                            t_args.pop("session_user_id", None)
+                        elif "session_user_id" in tools_by_name[t_name].args:
+                            t_args["session_user_id"] = session_user_id
+                        try:
+                            tool_res = await execute_tool(tools_by_name[t_name], t_args)
+                            return call, tool_res, None
+                        except PermissionError as pe:
+                            return call, None, pe
+
+                    for call, tool_res, perm_error in await asyncio.gather(*(_run_safe_call(c) for c in safe_calls)):
+                        if perm_error is not None:
+                            reply = f"This action requires confirmation. Please reply 'yes' to proceed. Details: {perm_error}"
+                            return {
+                                "messages": [{"role": "assistant", "content": reply}],
+                            }
+
+                        t_name = call.get("name")
+                        normalized_t_name = t_name.split("__")[-1].replace("tool_", "")
+                        if normalized_t_name == "search_products":
+                            collected_products.extend(_extract_products(tool_res))
+
+                        sanitized_res = redact_pii_text(str(tool_res))
+                        messages_input.append(ToolMessage(content=sanitized_res, tool_call_id=call.get("id", "")))
 
                 reply = "I completed the background tasks but couldn't formulate a final summary. How else can I help?"
                 return {
@@ -626,6 +671,21 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
             print(f"❌ [Commerce Agent Exception] Tool calling loop failed: {e}", flush=True)
             import traceback
             traceback.print_exc()
+            # This used to fall straight through into the legacy
+            # keyword-matching blocks below (meant for quick regex-detected
+            # actions, not for "the LLM itself failed"), which either
+            # produced an unrelated response if the query happened to match
+            # one of those patterns, or landed on the generic catch-all at
+            # the bottom of this function with no sign anything went wrong.
+            # A real Gemini-side outage (e.g. a 504 DEADLINE_EXCEEDED that
+            # took out both the primary and fallback model) should tell the
+            # user plainly that the AI service is degraded and to retry,
+            # not silently hand them a confusing, unrelated reply.
+            reply = (
+                "I'm having trouble reaching the AI service right now — it may be "
+                "temporarily overloaded. Please try again in a moment."
+            )
+            return {"messages": messages + [{"role": "assistant", "content": reply}]}
 
     # Fallback State-changing Action HITL Confirmation Triggering
     if "cancel" in query_lower and ("order" in query_lower or "cancellation" in query_lower):

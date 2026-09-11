@@ -76,9 +76,12 @@ class MCPClientManager:
             )
             # Warm up connection or fetch initial tools
             try:
+                start = time.perf_counter()
                 self._cached_tools = await self.client.get_tools()
+                duration = (time.perf_counter() - start) * 1000.0
                 self._cached_at = time.monotonic()
                 logger.info("Persistent MCP Client initialized successfully with %d tools.", len(self._cached_tools))
+                print(f"📊 [MCP Timer] Initial tool list fetch (SSE handshake + list) took {duration:.2f}ms", flush=True)
             except Exception as e:
                 logger.error("Failed to connect to MCP server on startup: %s", e)
                 # Keep client structure but let it retry on get_mcp_tools calls
@@ -94,6 +97,9 @@ class MCPClientManager:
             and (now - self._cached_at) < MCP_TOOLS_CACHE_TTL_SECONDS
         )
         if cache_is_fresh and self._cached_tools is not None:
+            # Cache hit is effectively free — logged so a slow request can
+            # be confirmed as NOT coming from this layer, not just assumed.
+            print("📊 [MCP Timer] Tool list served from cache (0ms, no network call)", flush=True)
             return self._cached_tools
 
         # Ensure client is initialized
@@ -103,7 +109,10 @@ class MCPClientManager:
         try:
             if not self.client:
                 raise RuntimeError("MCP client not initialized.")
+            start = time.perf_counter()
             tools = await self.client.get_tools()
+            duration = (time.perf_counter() - start) * 1000.0
+            print(f"📊 [MCP Timer] Tool list cache MISS — live SSE fetch took {duration:.2f}ms", flush=True)
             self._cached_tools = tools
             self._cached_at = now
             return tools
@@ -165,6 +174,26 @@ class MCPClientManager:
                             """Cancel a consultation booking."""
                             return func(session_user_id, consultation_id, idempotency_key)
                         return cancel_consultation
+                    elif name == "get_my_orders":
+                        # A mocked tool_get_my_orders (e.g. in a test that
+                        # patches it directly rather than mocking the HTTP
+                        # layer) reaches here via the same fresh `from
+                        # tools.orders import ...` this function does — a
+                        # bare Mock has no clean signature for
+                        # StructuredTool.from_function() to introspect,
+                        # which previously made the whole fallback tool
+                        # list construction below raise and silently
+                        # collapse to [] (empty), taking every other tool
+                        # down with it.
+                        def get_my_orders(session_user_id: int, limit: int = 10) -> Any:
+                            """Get all past and current orders for the logged-in customer."""
+                            return func(session_user_id, limit)
+                        return get_my_orders
+                    elif name == "get_order_status":
+                        def get_order_status(session_user_id: int, order_id: int) -> Any:
+                            """Get the current status, items, and details for an order."""
+                            return func(session_user_id, order_id)
+                        return get_order_status
                 return func
 
             return [

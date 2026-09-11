@@ -35,9 +35,13 @@ def test_rag_admin_unauthorized_rejection():
     assert res_bad_auth.status_code in [401, 403]
 
 
+_uploaded_doc_id: str | None = None
+
+
 def test_upload_text_file_rag_ingestion_with_admin_auth():
+    global _uploaded_doc_id
     content = b"Scooby Kitchen Special Dog Training Guide: Always use positive reinforcement when teaching your dog new commands like sit, stay, and recall."
-    
+
     response = client.post(
         "/rag/upload",
         cookies=ADMIN_COOKIES,
@@ -49,6 +53,13 @@ def test_upload_text_file_rag_ingestion_with_admin_auth():
     assert data["status"] == "success"
     assert data["title"] == "Dog Training Guide"
     assert data["chunks_indexed"] >= 1
+    # Remember exactly which document this test created, so the delete
+    # test below can clean up only this one — never an arbitrary "first"
+    # document. Deleting docs[0] used to delete whatever real production
+    # document happened to be first in the index (the actual Return &
+    # Refund Policy seed doc), silently corrupting the live knowledge base
+    # every time this test suite ran outside of a fully isolated test index.
+    _uploaded_doc_id = data["doc_id"]
 
     # Query public chatbot for training advice
     chat_res = client.post(
@@ -69,8 +80,10 @@ def test_list_and_delete_documents_with_admin_auth():
     assert isinstance(docs, list)
     assert len(docs) > 0
 
-    # 2. Delete doc as Admin
-    target_id = docs[0]["doc_id"]
-    del_res = client.delete(f"/rag/documents/{target_id}", cookies=ADMIN_COOKIES)
+    # 2. Delete ONLY the document the upload test above created — never an
+    # arbitrary docs[0], which could be real production/seed data.
+    assert _uploaded_doc_id is not None, "upload test must run first and set _uploaded_doc_id"
+    assert any(d["doc_id"] == _uploaded_doc_id for d in docs), "uploaded doc missing from list"
+    del_res = client.delete(f"/rag/documents/{_uploaded_doc_id}", cookies=ADMIN_COOKIES)
     assert del_res.status_code == 200
     assert del_res.json()["status"] == "success"

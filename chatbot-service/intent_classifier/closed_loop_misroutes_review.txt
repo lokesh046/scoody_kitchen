@@ -1,0 +1,19 @@
+# 6 routing mismatches found -- review before adding to training_data.py
+
+# expected=health_agent got=knowledge_agent
+i found sores on my cats neck, not sure what
+
+# expected=health_agent got=knowledge_agent
+she's had bloody diarrhea for 2 days now
+
+# expected=commerce_agent got=knowledge_agent
+can you help find a recipe for allergies?
+
+# expected=commerce_agent got=health_agent
+my dog needs a doc visit
+
+# expected=commerce_agent got=knowledge_agent
+pet food out of stock?
+
+# expected=commerce_agent got=knowledge_agent
+how do i set up my account?
