@@ -26,6 +26,7 @@ class OrderItemResponse(BaseModel):
     selected_weight: str | None = None
     product_name: str | None = None
     price: Decimal | None = None
+    is_released: bool = False
 
     model_config = {
         "from_attributes": True

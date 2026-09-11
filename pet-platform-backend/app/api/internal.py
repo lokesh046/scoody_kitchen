@@ -13,7 +13,7 @@ purely for container-to-container traffic on the internal Docker network.
 """
 
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 import json
@@ -122,47 +122,63 @@ def internal_cancel_order(
     idempotency_key: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    if idempotency_key:
-        stmt = select(IdempotencyKey).where(
-            IdempotencyKey.user_id == acting_user_id,
-            IdempotencyKey.key == idempotency_key
-        )
-        existing = db.scalar(stmt)
-        if existing:
-            return json.loads(existing.response)
-
     order = get_order_by_id(db, order_id)
     if order is None:
         raise HTTPException(status_code=404, detail=f"Order #{order_id} not found.")
     if order.user_id != acting_user_id:
         raise HTTPException(status_code=403, detail="This order does not belong to the acting user.")
 
-    try:
-        cancelled = service_cancel_order(db, order)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-
-    status_val = cancelled.status.value if hasattr(cancelled.status, "value") else str(cancelled.status)
-    response_data = {"order_id": cancelled.id, "status": status_val}
-
+    claimed_key: IdempotencyKey | None = None
     if idempotency_key:
         try:
             with db.begin_nested():
-                db.add(IdempotencyKey(
+                claimed_key = IdempotencyKey(
                     key=idempotency_key,
                     user_id=acting_user_id,
-                    response=json.dumps(response_data)
-                ))
-            db.commit()
+                    response="PENDING",
+                )
+                db.add(claimed_key)
+                db.flush()
         except IntegrityError:
-            db.rollback()
+            # Key already exists: either completed in the past or currently running in parallel
             stmt = select(IdempotencyKey).where(
                 IdempotencyKey.user_id == acting_user_id,
                 IdempotencyKey.key == idempotency_key
             )
             existing = db.scalar(stmt)
             if existing:
+                if existing.response == "PENDING":
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="Cancellation request is currently being processed for this order."
+                    )
                 return json.loads(existing.response)
+
+    try:
+        cancelled = service_cancel_order(db, order)
+    except ValueError as exc:
+        if claimed_key:
+            try:
+                db.delete(claimed_key)
+                db.commit()
+            except Exception:
+                db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception:
+        if claimed_key:
+            try:
+                db.delete(claimed_key)
+                db.commit()
+            except Exception:
+                db.rollback()
+        raise
+
+    status_val = cancelled.status.value if hasattr(cancelled.status, "value") else str(cancelled.status)
+    response_data = {"order_id": cancelled.id, "status": status_val}
+
+    if claimed_key:
+        claimed_key.response = json.dumps(response_data)
+        db.commit()
 
     return response_data
 
