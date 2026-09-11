@@ -42,6 +42,7 @@ async def chat_endpoint(
     # process's single event loop for every other in-flight request during
     # that window. asyncio.to_thread offloads them so the process stays
     # responsive to everyone else while these run.
+    start_rate_limit = time.perf_counter()
     await asyncio.to_thread(enforce_rate_limit, req, user_id=current_user_id)
 
     # 1b. Enforce Per-User Daily Token Budget (separate from request-count
@@ -49,6 +50,7 @@ async def chat_endpoint(
     # responses can slip under a per-minute request cap while still
     # costing real money; this catches that instead).
     await asyncio.to_thread(enforce_token_budget, current_user_id)
+    rate_limit_duration = (time.perf_counter() - start_rate_limit) * 1000.0
 
     # 2. LangChain Prompt Safety & PII Redaction Pipeline
     start_safety = time.perf_counter()
@@ -166,6 +168,7 @@ async def chat_endpoint(
               f"Response Length: {len(bot_reply)} chars\n"
               f"----------------------------------------\n"
               f"[Performance Metrics]\n"
+              f"Rate Limit + Budget: {rate_limit_duration:.2f}ms\n"
               f"Safety Validation : {safety_duration:.2f}ms\n"
               f"Redis History Load: {redis_load_duration:.2f}ms\n"
               f"LangGraph Workflow: {graph_duration:.2f}ms\n"
@@ -207,10 +210,12 @@ async def chat_stream_endpoint(
     # See the same offload in chat_endpoint above — these are blocking sync
     # calls that would otherwise freeze this process's event loop for every
     # other concurrent request while they run.
+    start_rate_limit = time.perf_counter()
     await asyncio.to_thread(enforce_rate_limit, req, user_id=current_user_id)
 
     # 1b. Enforce Per-User Daily Token Budget — same as chat_endpoint above.
     await asyncio.to_thread(enforce_token_budget, current_user_id)
+    rate_limit_duration = (time.perf_counter() - start_rate_limit) * 1000.0
 
     start_safety = time.perf_counter()
     try:
@@ -252,6 +257,7 @@ async def chat_stream_endpoint(
         tools_used = []
         tool_start_times = {}
         node_start_times = {}
+        active_node_spans = {}
         final_state_output = None
         start_stream = time.perf_counter()
         ttft = 0.0
@@ -314,16 +320,28 @@ async def chat_stream_endpoint(
 
                 elif kind == "on_chain_start":
                     name = event.get("name")
-                    if name in ["knowledge_agent", "commerce_agent", "health_agent", "router_node"]:
+                    # A single LangGraph node execution fires on_chain_start
+                    # multiple times under the same `name` -- once for the
+                    # graph's own node wrapper, again for the LLM chain's
+                    # with_fallbacks() wrapper, etc. Only latch the FIRST
+                    # (outermost) occurrence per name per request; nested
+                    # start events for a name already tracked are ignored,
+                    # so only one matching on_chain_end gets logged below
+                    # instead of the node appearing to run several times.
+                    if name in ["knowledge_agent", "commerce_agent", "health_agent", "router_node"] and name not in active_node_spans:
                         event_id = event.get("id", "")
+                        active_node_spans[name] = event_id
                         node_start_times[event_id] = (name, time.perf_counter())
 
                 # 3. Capture Node Output Sources & Final Responses
                 elif kind == "on_chain_end":
                     event_id = event.get("id", "")
-                    # Log Agent Node Durations
+                    # Log Agent Node Durations -- only for the outermost
+                    # span latched above; inner nested on_chain_end events
+                    # for the same node have no entry here and are skipped.
                     if event_id in node_start_times:
-                        node_name, start_time = node_start_times[event_id]
+                        node_name, start_time = node_start_times.pop(event_id)
+                        active_node_spans.pop(node_name, None)
                         duration = (time.perf_counter() - start_time) * 1000.0
                         print(f"📊 [Agent Timer] Agent node '{node_name}' completed in {duration:.2f}ms", flush=True)
 
@@ -431,6 +449,7 @@ async def chat_stream_endpoint(
                   f"Response Length: {len(accumulated_text)} chars\n"
                   f"----------------------------------------\n"
                   f"[Performance Metrics]\n"
+                  f"Rate Limit + Budget: {rate_limit_duration:.2f}ms\n"
                   f"Safety Validation : {safety_duration:.2f}ms\n"
                   f"Redis History Load: {redis_load_duration:.2f}ms\n"
                   f"Time to First Tok : {ttft:.2f}ms\n"

@@ -91,7 +91,32 @@ def test_commerce_agent_hitl_pending_context_preservation():
         "error": None,
         "request_id": "req_test",
     }
-    with patch("tools.actions.tool_cancel_order", return_value=cancel_result):
+    # The model's tool choice for "cancel order #205" is non-deterministic —
+    # it sometimes calls tool_cancel_order directly, but sometimes verifies
+    # the order exists first via tool_get_my_orders or tool_get_order_status.
+    # Only mocking the final action tool meant those alternate (equally
+    # reasonable) paths fell through to the REAL, unmocked backend call,
+    # which is not something a unit test should depend on. Mock every tool
+    # this flow could plausibly reach, matching each one's real envelope
+    # contract, so the test is deterministic regardless of the model's
+    # actual reasoning path.
+    my_orders_result = {
+        "ok": True,
+        "data": {"orders": [{"order_id": 205, "status": "processing", "total_amount": 49.99}]},
+        "error": None,
+        "request_id": "req_test_orders",
+    }
+    order_status_result = {
+        "ok": True,
+        "data": {"order_id": 205, "status": "processing", "total_amount": 49.99},
+        "error": None,
+        "request_id": "req_test_status",
+    }
+    with (
+        patch("tools.actions.tool_cancel_order", return_value=cancel_result),
+        patch("tools.orders.tool_get_my_orders", return_value=my_orders_result),
+        patch("tools.orders.tool_get_order_status", return_value=order_status_result),
+    ):
 
         # 1. Turn 1: Customer asks to cancel order #205 -> HITL interrupt requests confirmation for order #205
         res1 = client.post(

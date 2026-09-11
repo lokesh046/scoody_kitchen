@@ -1,0 +1,79 @@
+
+# ===== health_agent (22 candidates) =====
+i think my cat is vomiting up hairballs every day
+my poor dog is limping really bad after playing fetch yesterday
+my cat wont eat her food for the last 24 hrs is this normal
+i'm freaking out my dog is shaking and trembling nonstop
+my dog has these huge red bumps on her skin near her collar
+i think my dog has conjunctivitis what can i do
+my cat has been having accidents in the house for a week now
+i just noticed my dog's paw is all swollen and red
+my poor cat has been hiding in the closet for days wont come out
+my dog is eating grass and vomiting up a yellow foam
+my cat has these weird dark spots on her fur what is it
+i'm worried about my dog's rapid breathing is that an issue
+my cat's eyes are really runny and tearing up constantly
+my dog's skin is all itchy and scabby and i dont know why
+my cat wont drink water and is just laying around all day
+my dog's ear is all red and inflamed what should i do
+i think my cat has a fungal infection on her paw
+my dog is having trouble walking and keeping his balance
+my cat's coat is getting really dull and matted up
+my poor dog is whining and whimpering nonstop for no reason
+my cat has been having these weird dreams and waking up
+my dog's stool is all bloody and i'm freaking out
+
+# ===== commerce_agent (25 candidates) =====
+I have a vet appointment on Wednesday and I need to book a delivery of food for my pet
+Can I get a status update on my order 12345
+I want to add a new pet to my account what do I need to do
+I'm trying to cancel my subscription but it won't let me
+Where is my pet's vaccination record
+I need to change my vet's contact information
+I'm having trouble logging in to my account can you help
+I want to order a product but it's not showing up in the search results
+Can you please remind me of my pet's appointment time on Thursday
+I received the wrong product in my last delivery
+I'm trying to book a vet appointment but I keep getting an error message
+I want to change my pet's name on the profile
+My pet is allergic to a certain ingredient can I get a list of products that are safe
+I need to reorder food for my pet but I don't have the order number
+I'm having trouble accessing the doctor's schedule online
+I want to cancel my vet appointment for tomorrow
+Can you please expedite my order I need it for tomorrow
+I'm trying to add a new doctor to my account but it won't let me
+I want to know when the new product will be in stock
+I need to update my payment method but the system won't let me
+I'm trying to book an appointment with a specific doctor but they're not available
+Can you please look up my pet's vaccination record
+I want to change my delivery address but it's not showing up in the system
+I'm having trouble accessing the app on my phone
+I need to book a vet appointment for my new pet but I don't have the correct information on file
+
+# ===== knowledge_agent (26 candidates) =====
+I have a dog with food allergies can you tell me what ingredients are used in your puppy food
+I am looking for pet food that is grain free and hypoallergenic for my cat
+I'm looking for advice on transitioning my dog to a new food what is the best method
+I need to know the refund policy for unopened bags of pet food
+Can you please provide a list of ingredients for each of your dog food formulas
+I want to start a subscription with your company but I need to know how to cancel
+I am concerned about the safety of your shipping process can you explain how you handle temperature control
+I have a cat with kidney disease what type of food is best for her to eat
+Do you have any articles on healthy diet transitions for dogs
+I am looking for pet food that is sustainable and eco-friendly
+I need to know the expiration date of the pet food I purchased
+I am not satisfied with the service I received from your company I would like to speak with a customer service representative
+Can you provide a link to your pet care articles on healthy diet transitions for cats
+I have a dog with a sensitive stomach can you recommend a food that is gentle on the digestive system
+I want to start a pet food subscription but I need to know if I can pause or skip a month
+I am concerned about the safety of your pet food what kind of testing do you do
+I am looking for pet food that is made in the USA and uses only natural ingredients
+I need to know the return policy for opened bags of pet food
+I want to cancel my subscription but I'm not sure how to do it
+Can you provide a list of the most common pet allergies and how to treat them
+I have a cat that is prone to hairballs what type of food can I feed her to help prevent this
+I am looking for pet food that is high in protein and low in carbohydrates
+I want to know more about your company's commitment to sustainability and eco-friendliness
+I need to know the shelf life of your pet food and how to store it properly
+I am not sure what type of food to feed my new puppy can you provide some recommendations
+I am looking for pet food that is specifically designed for senior dogs

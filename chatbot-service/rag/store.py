@@ -5,13 +5,27 @@ from typing import Any
 from rag.seed_knowledge import SEED_DOCUMENTS
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "scooby-knowledge")
+# scooby-knowledge-local (384-dim) holds vectors from the local
+# all-MiniLM-L6-v2 embedder (see rag/embedder.py) — a different vector
+# space than the original scooby-knowledge index (1024-dim,
+# multilingual-e5-large), which is why this is a separate index rather
+# than a swap within the same one. The original index is untouched.
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "scooby-knowledge-local")
 
 
 class PineconeVectorStoreManager:
     """Interface to Pinecone Vector DB with score thresholding & local fallback."""
 
-    def __init__(self, score_threshold: float = 0.65):
+    # 0.65 was calibrated for the old multilingual-e5-large embeddings and
+    # does not transfer to all-MiniLM-L6-v2 (see rag/embedder.py) — cosine
+    # similarity ranges are model-specific, not a universal scale. Measured
+    # directly against the real 4-document knowledge base: genuinely
+    # correct top matches scored 0.41-0.62, while a deliberately unrelated
+    # query scored negative across every document. 0.35 sits comfortably
+    # below every observed correct match and well above the unrelated-query
+    # scores — recalibrate again if the knowledge base grows enough to
+    # reveal it needs adjusting.
+    def __init__(self, score_threshold: float = 0.35):
         self.score_threshold = score_threshold
         self.pinecone_active = False
         self.in_memory_docs: list[dict[str, Any]] = list(SEED_DOCUMENTS)

@@ -1,3 +1,4 @@
+import time
 from enum import Enum
 from typing import Any
 import inspect
@@ -48,9 +49,20 @@ async def execute_tool(tool_fn: Any, args: dict[str, Any], context: dict[str, An
         )
         
     # Safely invoke the tool
+    # This is the single choke point every agent routes MCP tool calls
+    # through, so it's the most reliable place to time the real network
+    # round-trip to pet-platform-mcp-server — independent of whether the
+    # graph's astream_events() on_tool_start/on_tool_end tracer events
+    # actually fire for a manually-invoked (non-ToolNode) call like this.
+    start = time.perf_counter()
     if hasattr(tool_fn, "ainvoke"):
         res = tool_fn.ainvoke(args)
         if inspect.isawaitable(res):
-            return await res
-        return res
-    return tool_fn.invoke(args)
+            result = await res
+        else:
+            result = res
+    else:
+        result = tool_fn.invoke(args)
+    duration = (time.perf_counter() - start) * 1000.0
+    print(f"📊 [MCP Tool Timer] '{tool_name}' ({risk.value}) executed in {duration:.2f}ms", flush=True)
+    return result

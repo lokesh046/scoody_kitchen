@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+import time
 from typing import Any
 from langchain_core.runnables import RunnableConfig
 from utils.llm_gateway import get_llm_with_fallback
@@ -56,12 +57,15 @@ async def health_agent_node(state: dict[str, Any], config: RunnableConfig | None
     # 2. Retrieve Grounding Docs from Vector Store (RAG)
     # Offloaded to a thread — see knowledge_agent.py for why (this is the
     # same synchronous, network-bound embed+Pinecone-query call).
+    start_rag = time.perf_counter()
     docs = await asyncio.to_thread(vector_store.search_knowledge, user_query, top_k=2)
+    rag_duration = (time.perf_counter() - start_rag) * 1000.0
+    print(f"📊 [Health Timer] RAG retrieval (embed + Pinecone + thread dispatch) took {rag_duration:.2f}ms", flush=True)
 
     # 3. Non-Emergency Health Guidance Synthesis via ChatLiteLLM
     if GEMINI_API_KEY:
         try:
-            llm = get_llm_with_fallback(model_name="gemini/gemini-3.5-flash-lite", temperature=0.2)
+            llm = get_llm_with_fallback(model_name="gemini/gemini-3.1-flash-lite", temperature=0.2)
             
             context_str = ""
             if docs:
@@ -82,6 +86,7 @@ async def health_agent_node(state: dict[str, Any], config: RunnableConfig | None
             # reliably propagate callbacks from the parent graph invocation.
             stream_config = {"tags": ["agent_response"], "callbacks": (config or {}).get("callbacks")}
             reply_parts: list[str] = []
+            start_llm = time.perf_counter()
             async for chunk in llm.astream(prompt, config=stream_config):
                 # `.text` extracts plain text whether Gemini streams a plain
                 # string or (as it does today) a list of content blocks —
@@ -91,6 +96,8 @@ async def health_agent_node(state: dict[str, Any], config: RunnableConfig | None
                 piece = chunk.text if hasattr(chunk, "text") else str(chunk)
                 if piece:
                     reply_parts.append(piece)
+            llm_duration = (time.perf_counter() - start_llm) * 1000.0
+            print(f"📊 [Health Timer] Gemini generation call took {llm_duration:.2f}ms", flush=True)
             base_reply = "".join(reply_parts)
         except Exception as e:
             print(f"❌ [Agent Exception] health_agent failed: {e}", flush=True)
