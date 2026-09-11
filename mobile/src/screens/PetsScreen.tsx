@@ -208,6 +208,7 @@ const CompanionLedgerCard = memo(function CompanionLedgerCard({
                 <Image
                   source={{ uri: pet.profile_image_url }}
                   style={styles.avatarImg}
+                  contentFit="cover"
                 />
               ) : (
                 <View style={styles.avatarFallback}>
@@ -1278,18 +1279,44 @@ export default function PetsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Header */}
+      {/* Header — a real avatar cluster of the registered companions
+          replaces the eyebrow label, so this reads as an actual roster
+          for these specific pets rather than a generic section label. */}
       <View style={styles.header}>
         <View style={styles.headerLeftGroup}>
           <BrandMedallion size="sm" />
           <View style={styles.headerTextCol}>
-            <View style={styles.brandRow}>
-              <View style={styles.livePulseDot} />
-              <Text style={styles.brandLabel}>CANINE LEDGER</Text>
-            </View>
             <Text style={styles.headerTitle} numberOfLines={1}>
               Companion Registry
             </Text>
+            {pets.length > 0 && (
+              <View style={styles.rosterRow}>
+                <View style={styles.rosterStack}>
+                  {pets.slice(0, 3).map((p, idx) => (
+                    <View
+                      key={p.id}
+                      style={[
+                        styles.rosterAvatarWrap,
+                        { marginLeft: idx === 0 ? 0 : -10, zIndex: 3 - idx },
+                      ]}
+                    >
+                      {p.profile_image_url ? (
+                        <Image
+                          source={{ uri: p.profile_image_url }}
+                          style={styles.rosterAvatarImg}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <View style={styles.rosterAvatarFallback}>
+                          <PawPrint size={10} color={COLORS.brandGold} />
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                </View>
+                <Text style={styles.rosterCountText}>{pets.length} Registered</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -1564,14 +1591,41 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   headerTextCol: { flex: 1, minWidth: 0 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  brandLabel: { fontSize: 10, fontWeight: '800', color: COLORS.brandGold, letterSpacing: 1, fontFamily: FONT_BODY_BOLD },
   headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textCoffee, fontFamily: FONT_DISPLAY },
-  livePulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
+  // A real avatar cluster of the registered companions, not a decorative
+  // count pill — the roster's own faces are the header's identity here.
+  rosterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  rosterStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  rosterAvatarWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: '#FAF7F2',
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+  },
+  rosterAvatarImg: { width: '100%', height: '100%' },
+  rosterAvatarFallback: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FAF0DE',
+  },
+  rosterCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: LEDGER_MONO,
+    color: COLORS.textMuted,
   },
   addPetBtn: {
     width: 44,
@@ -1737,7 +1791,6 @@ const styles = StyleSheet.create({
   avatarImg: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
   },
   avatarFallback: {
     flex: 1,

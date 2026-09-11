@@ -26,4 +26,7 @@ export const COLORS = {
   sageTintBorder: '#D3D9D6',
   sageTintBadgeBg: '#E3E8E5',
   sageTintText: '#3C4D45',
+  accentRedTintBg: '#FBF4F2',     // Light accentRed card/surface tint (e.g. error banners) — replaces raw Tailwind-style red hex like #FEE2E2
+  accentRedTintBorder: '#F0D7D1',
+  accentRedTintText: '#7E3D2F',   // Darkened accentRed for text-on-tint use — 7.4:1 against accentRedTintBg
 };

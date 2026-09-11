@@ -16,6 +16,7 @@ import { X, Video, AlertCircle, FileText, Stethoscope, Clock } from 'lucide-reac
 import { COLORS } from '../theme/colors';
 import { leaveConsultation } from '../api/consultations';
 import { fetchPetHealthRecords, HealthRecord } from '../api/pets';
+import { useResponsive } from '../hooks/useResponsive';
 
 interface VideoCallRouteParams {
   consultationId?: number;
@@ -28,6 +29,12 @@ interface VideoCallRouteParams {
 export default function VideoCallScreen({ navigation, route }: any) {
   const { consultationId, roomUrl, allowedHost, petId, petName }: VideoCallRouteParams =
     route?.params || {};
+  const { isTablet, width } = useResponsive();
+  // Caps the health-history panel to a comfortable width on tablet instead
+  // of a bottom sheet stretched edge-to-edge — the video call stays visible
+  // (and interactive) on both sides rather than being fully obscured.
+  const historyPanelMaxWidth = 480;
+  const historyPanelSideInset = isTablet ? Math.max(0, (width - historyPanelMaxWidth) / 2) : 0;
   const hasSentLeaveTelemetry = useRef(false);
   const [loadError, setLoadError] = useState(false);
   const [permissionsReady, setPermissionsReady] = useState(Platform.OS !== 'android');
@@ -194,7 +201,12 @@ export default function VideoCallScreen({ navigation, route }: any) {
 
       {/* Pet Health History Panel — an overlay, not a separate screen, so the call stays connected underneath */}
       {showHistory && (
-        <View style={styles.historyPanel}>
+        <View
+          style={[
+            styles.historyPanel,
+            { left: historyPanelSideInset, right: historyPanelSideInset },
+          ]}
+        >
           <View style={styles.historyHeader}>
             <View style={styles.historyHeaderTitleRow}>
               <Stethoscope size={16} color={COLORS.forestGreen} />
@@ -346,6 +358,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#D4E2D8',
     textAlign: 'center',
+    // Caps the reading measure on tablets instead of stretching this
+    // sentence across the full window width.
+    maxWidth: 420,
     lineHeight: 19,
   },
   errorBackBtn: {

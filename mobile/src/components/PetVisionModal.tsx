@@ -210,7 +210,7 @@ export default function PetVisionModal({
           <View style={styles.viewfinderContainer}>
             {selectedImageUri ? (
               <View style={styles.imageWrapper}>
-                <Image source={{ uri: selectedImageUri }} style={styles.previewImage} />
+                <Image source={{ uri: selectedImageUri }} style={styles.previewImage} contentFit="cover" />
                 {isScanning && (
                   <>
                     <View style={styles.scanOverlayMask} />
@@ -607,7 +607,6 @@ const styles = StyleSheet.create({
   previewImage: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
   },
   scanOverlayMask: {
     ...StyleSheet.absoluteFill,

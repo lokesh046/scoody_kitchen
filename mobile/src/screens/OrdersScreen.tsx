@@ -34,16 +34,17 @@ import { tabPrefetchCache } from '../services/tabPrefetch';
 import { useResponsive } from '../hooks/useResponsive';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import { isConfirmedAndPaid, isDelivered, isCancelled, getStatusBadgeStyle } from '../utils/orderStatus';
-import { LEDGER_MONO, FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_BODY_BOLD } from '../theme/typography';
+import { LEDGER_MONO, FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD } from '../theme/typography';
 
 type FilterType = 'ALL' | 'CONFIRMED' | 'CANCELLED' | 'DELIVERED';
 
 interface OrderCardItemProps {
   order: Order;
   onSelect: (orderId: number) => void;
+  cardWidth?: any;
 }
 
-const OrderCardItem = memo(function OrderCardItem({ order, onSelect }: OrderCardItemProps) {
+const OrderCardItem = memo(function OrderCardItem({ order, onSelect, cardWidth }: OrderCardItemProps) {
   const badge = getStatusBadgeStyle(order.status);
   const dateStr = useMemo(() => {
     try {
@@ -65,7 +66,7 @@ const OrderCardItem = memo(function OrderCardItem({ order, onSelect }: OrderCard
 
   return (
     <TouchableOpacity
-      style={styles.orderCard}
+      style={[styles.orderCard, { width: cardWidth }]}
       onPress={handlePress}
       activeOpacity={0.8}
     >
@@ -141,7 +142,11 @@ export default function OrdersScreen({ navigation }: any) {
   // the system font until this resolves, then re-renders automatically.
   useFonts({ Outfit_700Bold, Outfit_600SemiBold, Quicksand_400Regular, Quicksand_700Bold });
   const { user, isGuest, logout } = useAuthStore();
-  const { isTablet } = useResponsive();
+  const { isTablet, contentWidth } = useResponsive();
+  // Matches VetScreen's exact grid pattern — a single stretched column on
+  // tablet wastes width and spreads each card's content thin; two columns
+  // makes real use of the space instead of just scaling the phone layout.
+  const orderCardWidth = isTablet ? (Math.min(contentWidth, 1040) - 40 - 14) / 2 : '100%';
   // Seeded from the app-boot prefetch (see services/tabPrefetch.ts) when
   // available, so this screen's first paint can show real orders instead of
   // an empty list + spinner while its own fetch is still in flight.
@@ -236,9 +241,9 @@ export default function OrdersScreen({ navigation }: any) {
 
   const renderOrderItem = useCallback(
     ({ item }: { item: Order }) => (
-      <OrderCardItem order={item} onSelect={handleOpenOrderDetail} />
+      <OrderCardItem order={item} onSelect={handleOpenOrderDetail} cardWidth={orderCardWidth} />
     ),
-    [handleOpenOrderDetail]
+    [handleOpenOrderDetail, orderCardWidth]
   );
 
   const keyExtractor = useCallback((item: Order) => item.id.toString(), []);
@@ -314,17 +319,16 @@ export default function OrdersScreen({ navigation }: any) {
         <View style={styles.header}>
           <View style={styles.headerLeftGroup}>
             <BrandMedallion size="sm" />
-            <View style={styles.headerTextCol}>
-              <View style={styles.brandRow}>
-                <View style={styles.livePulseDot} />
-                <Text style={styles.brandLabel}>OFFICIAL PURCHASES</Text>
-              </View>
-              <Text style={styles.headerTitle} numberOfLines={1}>Orders Ledger</Text>
-            </View>
+            <Text style={styles.headerTitle} numberOfLines={1}>Orders Ledger</Text>
           </View>
           <View style={styles.headerActionIcons}>
-            <View style={styles.countBadge}>
-              <Text style={styles.countBadgeText}>{orders.length} Total</Text>
+            {/* A ledger tally stamp — a real entry count in a dashed,
+                ticket-stub frame — instead of a plain rounded count pill,
+                so this reads as "Orders Ledger" specifically rather than
+                any generic list-count badge. */}
+            <View style={styles.tallyStamp}>
+              <Text style={styles.tallyStampCount}>{orders.length}</Text>
+              <Text style={styles.tallyStampLabel}>ENTRIES</Text>
             </View>
             <TouchableOpacity
               style={styles.avatarBtn}
@@ -413,13 +417,16 @@ export default function OrdersScreen({ navigation }: any) {
 
       {/* Virtualized Orders FlatList */}
       <FlatList
+        key={isTablet ? 'orders-grid' : 'orders-list'}
         data={loading || !user || isGuest || isAuthError ? [] : filteredOrders}
         keyExtractor={keyExtractor}
         renderItem={renderOrderItem}
+        numColumns={isTablet ? 2 : 1}
+        columnWrapperStyle={isTablet ? styles.ordersGridRow : undefined}
         ListEmptyComponent={renderEmptyComponent}
         contentContainerStyle={[
           styles.scrollBody,
-          isTablet && { maxWidth: 880, width: '100%', alignSelf: 'center' },
+          isTablet && { maxWidth: 1040, width: '100%', alignSelf: 'center' },
         ]}
         showsVerticalScrollIndicator={false}
         initialNumToRender={5}
@@ -451,33 +458,37 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  headerTextCol: { flex: 1, minWidth: 0 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  brandLabel: { fontSize: 10, fontWeight: '800', color: COLORS.brandGold, letterSpacing: 1, fontFamily: FONT_BODY_BOLD },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textCoffee, fontFamily: FONT_DISPLAY },
-  livePulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
-  },
+  headerTitle: { fontSize: 19, fontWeight: '800', color: COLORS.textCoffee, fontFamily: FONT_DISPLAY, flexShrink: 1 },
   headerActionIcons: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  countBadge: {
+  // A dashed ticket-stub frame reads as a torn-off tally stamp, not a
+  // generic rounded count pill — a shape unique to the ledger concept.
+  tallyStamp: {
+    alignItems: 'center',
     backgroundColor: '#FAF5EE',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
     borderColor: COLORS.kraftBorder,
   },
-  countBadgeText: {
-    fontSize: 11,
+  tallyStampCount: {
+    fontSize: 15,
+    lineHeight: 17,
+    fontFamily: LEDGER_MONO,
     fontWeight: '700',
     color: COLORS.textCoffee,
+  },
+  tallyStampLabel: {
+    fontSize: 7.5,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    color: COLORS.textLight,
+    marginTop: 1,
   },
   avatarBtn: { marginLeft: 0 },
   avatarImg: { width: 36, height: 36, borderRadius: 18 },
@@ -593,6 +604,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.kraftBorder,
     gap: 10,
   },
+  ordersGridRow: { gap: 14 },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

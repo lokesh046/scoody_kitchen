@@ -30,7 +30,6 @@ import { verifyPhoneWithToken } from '../api/auth';
 import { validateCoupon, CouponValidateResponse } from '../api/coupons';
 import RazorpayModal from '../components/RazorpayModal';
 import { PhoneVerificationModal } from '../components/PhoneVerificationModal';
-import { useResponsive } from '../hooks/useResponsive';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import { CartStep } from './cart/CartStep';
 import { AddressStep } from './cart/AddressStep';
@@ -55,7 +54,6 @@ export default function CartScreen({ navigation }: any) {
   } = useCartStore();
 
   const { user, updateUser } = useAuthStore();
-  const { isTablet } = useResponsive();
 
   // Structured Address States
   const [doorNo, setDoorNo] = useState('');

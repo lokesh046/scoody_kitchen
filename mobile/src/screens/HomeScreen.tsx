@@ -14,10 +14,13 @@ import {
   Platform,
   RefreshControl,
   Modal,
+  Animated,
+  Easing,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import {
   Search,
@@ -31,9 +34,7 @@ import {
   Plus,
   Minus,
   Stethoscope,
-  Truck,
   PawPrint,
-  Building2,
   ShieldCheck,
   Camera,
   Package,
@@ -210,7 +211,7 @@ const BannerSlideItem = memo(function BannerSlideItem({
   return (
     <View style={[styles.bannerSlideWrapper, slideWidth ? { width: slideWidth } : null]}>
       <View style={[styles.bannerSlide, cardWidth ? { width: cardWidth } : null]}>
-        <Image source={{ uri: item.bgImage }} style={styles.bannerImage} />
+        <Image source={{ uri: item.bgImage }} style={styles.bannerImage} contentFit="cover" />
         <LinearGradient
           colors={['transparent', 'rgba(20,14,8,0.12)', 'rgba(20,14,8,0.72)']}
           locations={[0, 0.45, 1]}
@@ -283,6 +284,7 @@ const ProductFavoriteCard = memo(function ProductFavoriteCard({
               'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=400&auto=format&fit=crop&q=75',
           }}
           style={styles.cardProductImage}
+          contentFit="cover"
         />
 
         {/* Stock Badge — reflects the product's real available_stock, hidden when unknown */}
@@ -305,8 +307,8 @@ const ProductFavoriteCard = memo(function ProductFavoriteCard({
         >
           <Heart
             size={14}
-            color={isFav ? '#E11D48' : COLORS.textCoffee}
-            fill={isFav ? '#E11D48' : 'none'}
+            color={isFav ? COLORS.accentRed : COLORS.textCoffee}
+            fill={isFav ? COLORS.accentRed : 'none'}
           />
         </TouchableOpacity>
       </TouchableOpacity>
@@ -338,8 +340,12 @@ const ProductFavoriteCard = memo(function ProductFavoriteCard({
 
         {/* Batch & Price + Add Button */}
         <View style={styles.cardFooter}>
-          <View>
-            {product.sku && <Text style={styles.batchLabel}>SKU: {product.sku}</Text>}
+          <View style={styles.cardFooterLeft}>
+            {product.sku && (
+              <Text style={styles.batchLabel} numberOfLines={1}>
+                SKU: {product.sku}
+              </Text>
+            )}
             <Text style={styles.cardPrice}>₹{product.price}</Text>
           </View>
 
@@ -417,6 +423,7 @@ const ReviewCardItem = memo(function ReviewCardItem({
         <Image
           source={{ uri: displayImage }}
           style={styles.reviewCardImg as any}
+          contentFit="cover"
         />
         <View
           style={[
@@ -558,6 +565,33 @@ export default function HomeScreen({ navigation }: any) {
   }, []);
   const toastTimerRef = useRef<any>(null);
 
+  // The AI Vision spotlight card communicates "this scans your pet" through
+  // a camera-viewfinder motif (corner brackets + this sweeping line) instead
+  // of a paragraph of copy — one authored motion moment, not a decorative
+  // loop, so it stays a single continuous animation rather than restarting
+  // visibly on every re-render.
+  const scanLineAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanLineAnim, {
+          toValue: 1,
+          duration: 1800,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(scanLineAnim, {
+          toValue: 0,
+          duration: 1800,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [scanLineAnim]);
+
   // Cart item Map for O(1) quantity check per card instead of O(N) .find
   const cartMap = useMemo(() => {
     const map = new Map<number, { id: number; quantity: number }>();
@@ -599,14 +633,12 @@ export default function HomeScreen({ navigation }: any) {
   const primaryPet = pets.length > 0 ? pets[0] : null;
 
   const { width: windowWidth, isTablet, contentWidth } = useResponsive();
-  const carouselWidth = isTablet ? Math.min(windowWidth, 980) : windowWidth;
+  // ResponsiveContainer adds 24px of padding on each side on tablet, so the
+  // carousel's real visible width is the container's content width minus that
+  // padding, not the raw screen width — otherwise slides render wider than
+  // the space they have and the right edge gets clipped.
+  const carouselWidth = isTablet ? contentWidth - 48 : windowWidth;
   const bannerCardWidth = isTablet ? carouselWidth - 48 : windowWidth - 32;
-  const serviceCardWidth = isTablet
-    ? (Math.min(contentWidth, 1040) - 32 - 12 * 3) / 4
-    : (windowWidth - 32 - 12) / 2;
-  const quickLinkWidth = isTablet
-    ? (Math.min(contentWidth, 1040) - 32 - 10 * 3) / 4
-    : (windowWidth - 42) / 2;
 
   const homeLastFetchedRef = useRef(0);
 
@@ -1216,30 +1248,49 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Feature Spotlight: AI Pet Vision Scanner (ONNX Port 8003) */}
+        {/* Feature Spotlight: AI Pet Vision Scanner. Reads through a
+            camera-viewfinder motif (corner brackets + a sweeping scan line)
+            instead of an eyebrow label, an internal port/runtime badge, and
+            a description sentence — the design communicates "this scans
+            your pet," not the words around it. */}
         <TouchableOpacity
           style={styles.visionSpotlightCard}
           onPress={() => setPetVisionVisible(true)}
           activeOpacity={0.88}
+          accessibilityRole="button"
+          accessibilityLabel="Scan & Diagnose: open the AI pet vision scanner"
         >
-          <View style={styles.visionSpotlightLeft}>
+          <View style={styles.visionScanFrame}>
+            <View style={[styles.scanCorner, styles.scanCornerTL]} />
+            <View style={[styles.scanCorner, styles.scanCornerTR]} />
+            <View style={[styles.scanCorner, styles.scanCornerBL]} />
+            <View style={[styles.scanCorner, styles.scanCornerBR]} />
             <View style={styles.visionCameraIconWrapper}>
-              <Camera size={22} color="#FFFFFF" />
+              <Camera size={20} color="#FFFFFF" />
               <View style={styles.visionPulseDot} />
             </View>
+            {/* Drawn after (on top of) the lens circle so the line visibly
+                sweeps across it — placing it underneath left it fully
+                hidden behind the opaque circle for its whole travel range,
+                caught only by sampling several live frames, not a single
+                screenshot. */}
+            <Animated.View
+              style={[
+                styles.scanLine,
+                {
+                  opacity: scanLineAnim.interpolate({ inputRange: [0, 0.15, 0.85, 1], outputRange: [0, 1, 1, 0] }),
+                  transform: [
+                    {
+                      translateY: scanLineAnim.interpolate({ inputRange: [0, 1], outputRange: [-16, 16] }),
+                    },
+                  ],
+                },
+              ]}
+            />
           </View>
 
           <View style={styles.visionSpotlightCenter}>
-            <View style={styles.visionSpotlightBadgeRow}>
-              <Text style={styles.visionSpotlightBadge}>AI PET VISION SCANNER</Text>
-              <View style={styles.onnxMiniPill}>
-                <Text style={styles.onnxMiniPillText}>8003 • ONNX</Text>
-              </View>
-            </View>
-            <Text style={styles.visionSpotlightTitle}>Scan Pet & Diagnose Diet</Text>
-            <Text style={styles.visionSpotlightDesc} numberOfLines={2}>
-              Instant breed recognition, body condition score & personalized nutrition blueprint.
-            </Text>
+            <Text style={styles.visionSpotlightTitle}>Scan & Diagnose</Text>
           </View>
 
           <View style={styles.visionScanArrowBtn}>
@@ -1247,20 +1298,20 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </TouchableOpacity>
 
-        {/* 2x2 Interactive Services Grid */}
-        <View style={styles.servicesGrid}>
+        {/* Core Services — Ledger Index. Each service is a full-width tab
+            row (not a same-size icon+heading+text tile) so the description
+            always has room to wrap in full instead of being clipped by a
+            narrow grid column; the colored index tab riffs on DESIGN.md's
+            own notebook Spine Motif rather than a generic accent border. */}
+        <View style={styles.serviceLedger}>
           {CORE_SERVICES.map((srv) => {
             const IconComp = srv.icon;
             return (
               <TouchableOpacity
                 key={srv.id}
                 style={[
-                  styles.serviceCard,
-                  {
-                    width: serviceCardWidth,
-                    backgroundColor: srv.bg,
-                    borderColor: srv.borderColor,
-                  },
+                  styles.serviceLedgerRow,
+                  { backgroundColor: srv.bg, borderColor: srv.borderColor },
                 ]}
                 onPress={() => {
                   if (srv.actionType === 'navigate' && srv.target) {
@@ -1272,28 +1323,29 @@ export default function HomeScreen({ navigation }: any) {
                   }
                 }}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={`${srv.title}: ${srv.desc}`}
               >
-                <View style={styles.serviceCardTop}>
-                  <View style={[styles.serviceIconWrap, { backgroundColor: '#FFFFFF' }]}>
-                    <IconComp size={18} color={srv.color} strokeWidth={2.2} />
-                  </View>
-                  <View style={[styles.serviceMiniBadge, { backgroundColor: srv.badgeBg }]}>
-                    <Text style={[styles.serviceMiniBadgeText, { color: srv.badgeColor }]}>
-                      {srv.badge}
-                    </Text>
-                  </View>
+                <View style={[styles.serviceLedgerTab, { backgroundColor: srv.color }]} />
+
+                <View style={[styles.serviceLedgerIconWrap, { borderColor: srv.color }]}>
+                  <IconComp size={19} color={srv.color} strokeWidth={2.2} />
                 </View>
 
-                <Text style={styles.serviceCardTitle}>{srv.title}</Text>
-                <Text style={styles.serviceCardDesc} numberOfLines={2}>
-                  {srv.desc}
-                </Text>
+                <View style={styles.serviceLedgerBody}>
+                  <View style={styles.serviceLedgerTitleRow}>
+                    <Text style={styles.serviceLedgerTitle}>{srv.title}</Text>
+                    <View style={[styles.serviceMiniBadge, { backgroundColor: srv.badgeBg }]}>
+                      <Text style={[styles.serviceMiniBadgeText, { color: srv.badgeColor }]}>
+                        {srv.badge}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.serviceLedgerDesc}>{srv.desc}</Text>
+                </View>
 
-                <View style={styles.serviceCardFooter}>
-                  <Text style={[styles.serviceCardActionText, { color: srv.color }]}>
-                    Explore
-                  </Text>
-                  <ChevronRight size={13} color={srv.color} strokeWidth={2.5} />
+                <View style={[styles.serviceLedgerArrow, { backgroundColor: srv.color }]}>
+                  <ArrowRight size={15} color="#FFFFFF" strokeWidth={2.4} />
                 </View>
               </TouchableOpacity>
             );
@@ -1304,9 +1356,6 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.sectionHeaderRow}>
           <View>
             <Text style={styles.sectionTitle}>Signature Recipes</Text>
-            <Text style={styles.sectionSubtitle}>
-              Prepared fresh at 4:00 AM & snap-chilled
-            </Text>
           </View>
           <View style={styles.vetFormulatedBadge}>
             <Heart size={12} color={COLORS.forestGreen} />
@@ -1363,25 +1412,38 @@ export default function HomeScreen({ navigation }: any) {
           </ScrollView>
         )}
 
-        {/* 7. Telehealth Apothecary Card (Dark Forest Green) */}
+        {/* 7. Vet Consultation Card (Dark Forest Green). "Telehealth
+            Apothecary" wasn't the right name for what this is — it's a vet
+            consultation booking, so the badge says that plainly. The price
+            pill is gone (rates vary by doctor and aren't fixed at ₹499), and
+            the pulse-line glyph that replaces it in that slot says
+            "clinical" through the design instead of another label. Copy
+            trimmed to what a glance actually needs. */}
         <View style={styles.telehealthCard}>
           <View style={styles.telehealthHeaderRow}>
             <View style={styles.telehealthPill}>
               <Stethoscope size={13} color={COLORS.sageLight} />
-              <Text style={styles.telehealthPillText}>TELEHEALTH APOTHECARY</Text>
+              <Text style={styles.telehealthPillText}>VET CONSULTATION</Text>
             </View>
 
-            <View style={styles.sessionPriceBadge}>
-              <Text style={styles.sessionPriceText}>₹499 / session</Text>
-            </View>
+            <Svg width={52} height={20} viewBox="0 0 130 40" accessibilityElementsHidden importantForAccessibility="no">
+              <Path
+                d="M0,20 L28,20 L36,4 L46,36 L54,20 L102,20 L110,4 L120,36 L130,20"
+                stroke="rgba(255,255,255,0.3)"
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+              />
+            </Svg>
           </View>
 
           <Text style={styles.telehealthTitle}>
-            Need expert clinical advice for diet or symptoms?
+            Need expert vet advice?
           </Text>
 
           <Text style={styles.telehealthSubtitle}>
-            Certified holistic veterinarians ready in minutes for food allergies, digestion, and tailored recovery meals.
+            Certified vets, ready in minutes.
           </Text>
 
           <TouchableOpacity
@@ -1390,7 +1452,7 @@ export default function HomeScreen({ navigation }: any) {
             activeOpacity={0.88}
           >
             <Stethoscope size={16} color="#FFFFFF" />
-            <Text style={styles.findVetBtnText}>Find a Veterinarian</Text>
+            <Text style={styles.findVetBtnText}>Find a Vet</Text>
           </TouchableOpacity>
         </View>
 
@@ -1494,46 +1556,13 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* 10. 4 Quick Links Grid */}
-        <View style={styles.quickLinksGrid}>
-          <TouchableOpacity
-            style={[styles.quickLinkItem, { width: quickLinkWidth }]}
-            onPress={() => handleNavigateScreen('OrdersTab')}
-            activeOpacity={0.8}
-          >
-            <Truck size={17} color={COLORS.textCoffee} />
-            <Text style={styles.quickLinkText}>Track Order</Text>
-          </TouchableOpacity>
+        {/* Quick Links grid removed — it routed to the exact same four
+            screens (Orders/Pets/Consult/Shop) as the Core Services ledger
+            shown earlier in this same scroll, under different icons and
+            copy, forcing a re-evaluation of choices already made above with
+            zero new information. See critique 2026-09-10. */}
 
-          <TouchableOpacity
-            style={[styles.quickLinkItem, { width: quickLinkWidth }]}
-            onPress={() => handleNavigateScreen('Pets')}
-            activeOpacity={0.8}
-          >
-            <PawPrint size={17} color={COLORS.textCoffee} />
-            <Text style={styles.quickLinkText}>My Pets</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.quickLinkItem, { width: quickLinkWidth }]}
-            onPress={() => handleNavigateScreen('Consult')}
-            activeOpacity={0.8}
-          >
-            <Building2 size={17} color={COLORS.textCoffee} />
-            <Text style={styles.quickLinkText}>Vet Partners</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.quickLinkItem, { width: quickLinkWidth }]}
-            onPress={() => handleNavigateScreen('Shop')}
-            activeOpacity={0.8}
-          >
-            <ShieldCheck size={17} color={COLORS.textCoffee} />
-            <Text style={styles.quickLinkText}>Safety & QA</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* 11. Footer Brand Signature */}
+        {/* 10. Footer Brand Signature */}
         <View style={styles.footerSignature}>
           <Text style={styles.footerLoveText}>
             Scooby Kitchen • Batched with Love in Bangalore & Portland
@@ -1626,6 +1655,7 @@ export default function HomeScreen({ navigation }: any) {
                     DEFAULT_DOG_IMAGES[0],
                 }}
                 style={styles.reviewModalImage}
+                contentFit="cover"
               />
 
               <View style={styles.reviewModalBody}>
@@ -1929,12 +1959,12 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: '#16A34A',
+    backgroundColor: COLORS.forestGreen,
   },
   statusPillRightText: {
     fontSize: 10,
     fontFamily: LEDGER_MONO,
-    color: '#15803D',
+    color: COLORS.sageIcon,
   },
 
   /* 3. Search Bar */
@@ -1982,7 +2012,6 @@ const styles = StyleSheet.create({
   },
   bannerImage: {
     ...StyleSheet.absoluteFill,
-    resizeMode: 'cover',
   },
   bannerContent: {
     gap: 8,
@@ -2078,14 +2107,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  /* Feature Spotlight: AI Pet Vision Scanner */
+  /* Feature Spotlight: AI Pet Vision Scanner — a camera-viewfinder motif
+     (corner brackets + sweeping scan line) carries the "this scans your
+     pet" meaning instead of an eyebrow label and a description sentence.
+     Background aligned to COLORS.forestDark so this and telehealthCard
+     share one dark-surface identity instead of two ad-hoc browns. */
   visionSpotlightCard: {
     marginHorizontal: 16,
     marginBottom: 14,
-    backgroundColor: '#23160F',
+    backgroundColor: COLORS.forestDark,
     borderRadius: 18,
     borderWidth: 1.5,
-    borderColor: '#3D2619',
+    borderColor: 'rgba(255,255,255,0.08)',
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -2095,13 +2128,37 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
-  visionSpotlightLeft: {
-    marginRight: 12,
+  visionScanFrame: {
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+    // Rectangular clip only (no radius) — a rounded frame would cut the
+    // crisp viewfinder corner brackets into curves at their outer tips.
+    overflow: 'hidden',
+  },
+  scanCorner: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    borderColor: COLORS.brandGold,
+  },
+  scanCornerTL: { top: 0, left: 0, borderTopWidth: 2, borderLeftWidth: 2, borderTopLeftRadius: 6 },
+  scanCornerTR: { top: 0, right: 0, borderTopWidth: 2, borderRightWidth: 2, borderTopRightRadius: 6 },
+  scanCornerBL: { bottom: 0, left: 0, borderBottomWidth: 2, borderLeftWidth: 2, borderBottomLeftRadius: 6 },
+  scanCornerBR: { bottom: 0, right: 0, borderBottomWidth: 2, borderRightWidth: 2, borderBottomRightRadius: 6 },
+  scanLine: {
+    position: 'absolute',
+    width: 40,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: COLORS.brandGold,
   },
   visionCameraIconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: COLORS.forestGreen,
     alignItems: 'center',
     justifyContent: 'center',
@@ -2109,52 +2166,23 @@ const styles = StyleSheet.create({
   },
   visionPulseDot: {
     position: 'absolute',
-    top: 2,
-    right: 2,
+    top: 1,
+    right: 1,
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#4ADE80',
     borderWidth: 1.5,
-    borderColor: '#23160F',
+    borderColor: COLORS.forestDark,
   },
   visionSpotlightCenter: {
     flex: 1,
-    gap: 3,
-  },
-  visionSpotlightBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  visionSpotlightBadge: {
-    fontSize: 9,
-    fontFamily: LEDGER_MONO,
-    color: '#FDE68A',
-    letterSpacing: 0.6,
-  },
-  onnxMiniPill: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: 5,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-  },
-  onnxMiniPillText: {
-    fontSize: 8.5,
-    color: '#86EFAC',
-    fontFamily: LEDGER_MONO,
   },
   visionSpotlightTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: FONT_DISPLAY,
     color: '#FFFFFF',
     letterSpacing: -0.2,
-  },
-  visionSpotlightDesc: {
-    fontSize: 10.5,
-    fontFamily: FONT_BODY,
-    color: '#D1D5DB',
-    lineHeight: 14,
   },
   visionScanArrowBtn: {
     width: 32,
@@ -2166,42 +2194,71 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
 
-  /* 2x2 Services Grid */
-  servicesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  /* Core Services — Ledger Index (full-width tab rows, not a tile grid) */
+  serviceLedger: {
     paddingHorizontal: 16,
-    gap: 12,
     marginBottom: 22,
+    gap: 10,
   },
-  serviceCard: {
-    width: (SCREEN_WIDTH - 32 - 12) / 2,
+  serviceLedgerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
     borderRadius: 16,
     borderWidth: 1.5,
-    padding: 12,
-    gap: 6,
+    gap: 12,
     shadowColor: COLORS.textCoffee,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
     elevation: 2,
   },
-  serviceCardTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  // A die-cut index tab riffing on DESIGN.md's notebook Spine Motif —
+  // poking out past the card's own left edge like a filing divider,
+  // instead of a flat inline accent border.
+  serviceLedgerTab: {
+    position: 'absolute',
+    left: -8,
+    top: '50%',
+    marginTop: -15,
+    width: 16,
+    height: 30,
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+    borderTopRightRadius: 3,
+    borderBottomRightRadius: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: -1, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    elevation: 3,
   },
-  serviceIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  serviceLedgerIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    elevation: 1,
+    flexShrink: 0,
+  },
+  serviceLedgerBody: {
+    flex: 1,
+    gap: 3,
+  },
+  serviceLedgerTitleRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 7,
+  },
+  serviceLedgerTitle: {
+    fontSize: 14,
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
+    color: COLORS.textCoffee,
   },
   serviceMiniBadge: {
     paddingHorizontal: 6,
@@ -2213,26 +2270,19 @@ const styles = StyleSheet.create({
     fontFamily: LEDGER_MONO,
     letterSpacing: 0.4,
   },
-  serviceCardTitle: {
-    fontSize: 12.5,
-    fontFamily: FONT_DISPLAY_SEMIBOLD,
-    color: COLORS.textCoffee,
-  },
-  serviceCardDesc: {
-    fontSize: 10,
+  serviceLedgerDesc: {
+    fontSize: 11.5,
     fontFamily: FONT_BODY,
     color: COLORS.textMuted,
-    lineHeight: 13.5,
+    lineHeight: 16,
   },
-  serviceCardFooter: {
-    flexDirection: 'row',
+  serviceLedgerArrow: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
-    gap: 2,
-    marginTop: 2,
-  },
-  serviceCardActionText: {
-    fontSize: 10.5,
-    fontFamily: FONT_BODY_BOLD,
+    justifyContent: 'center',
+    flexShrink: 0,
   },
 
   /* 6. Kitchen Favorites */
@@ -2316,7 +2366,6 @@ const styles = StyleSheet.create({
   cardProductImage: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
   },
   stockTag: {
     position: 'absolute',
@@ -2389,6 +2438,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F3EFE9',
   },
+  // Lets the SKU/price block shrink and truncate instead of forcing the
+  // row wider than the card — without this, a long SKU pushed the Add
+  // button/stepper past the card's own right edge.
+  cardFooterLeft: {
+    flex: 1,
+    marginRight: 8,
+  },
   batchLabel: {
     fontSize: 9,
     fontFamily: LEDGER_MONO,
@@ -2407,6 +2463,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
+    flexShrink: 0,
   },
   cardAddText: {
     fontSize: 12,
@@ -2421,6 +2478,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 3,
     gap: 6,
+    flexShrink: 0,
   },
   stepperBtn: {
     width: 20,
@@ -2442,9 +2500,11 @@ const styles = StyleSheet.create({
   telehealthCard: {
     backgroundColor: COLORS.forestDark,
     marginHorizontal: 16,
-    borderRadius: 20,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.08)',
     padding: 18,
-    gap: 12,
+    gap: 10,
     marginBottom: 24,
   },
   telehealthHeaderRow: {
@@ -2467,28 +2527,17 @@ const styles = StyleSheet.create({
     color: COLORS.sageLight,
     letterSpacing: 0.5,
   },
-  sessionPriceBadge: {
-    backgroundColor: '#FDE68A',
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  sessionPriceText: {
-    fontSize: 11,
-    fontFamily: LEDGER_MONO,
-    color: '#78350F',
-  },
   telehealthTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontFamily: FONT_DISPLAY,
     color: '#FFFFFF',
-    lineHeight: 22,
+    lineHeight: 23,
+    letterSpacing: -0.2,
   },
   telehealthSubtitle: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontFamily: FONT_BODY,
     color: '#D1D5DB',
-    lineHeight: 17,
   },
   findVetBtn: {
     flexDirection: 'row',
@@ -2577,7 +2626,6 @@ const styles = StyleSheet.create({
   reviewCardImg: {
     width: '100%',
     height: 140,
-    resizeMode: 'cover',
   },
   reviewTypeBadge: {
     position: 'absolute',
@@ -2689,7 +2737,6 @@ const styles = StyleSheet.create({
   reviewModalImage: {
     width: '100%',
     height: 200,
-    resizeMode: 'cover',
     backgroundColor: '#F5EFE6',
   },
   reviewModalBody: {
@@ -2852,31 +2899,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  /* 10. 4 Quick Links Grid */
-  quickLinksGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    gap: 10,
-    marginBottom: 24,
-  },
-  quickLinkItem: {
-    width: (SCREEN_WIDTH - 42) / 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FAF0E8',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-  },
-  quickLinkText: {
-    fontSize: 12,
-    fontFamily: FONT_BODY_BOLD,
-    color: COLORS.textCoffee,
-  },
-
-  /* 11. Footer */
+  /* 10. Footer */
   footerSignature: {
     alignItems: 'center',
     paddingHorizontal: 20,

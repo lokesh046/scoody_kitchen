@@ -26,6 +26,7 @@ import {
   KeyRound,
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
+import { FONT_DISPLAY_SEMIBOLD, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
 import { useAuthStore } from '../store/authStore';
 import { BrandMedallion } from '../components/BrandLogo';
 import apiClient from '../api/client';
@@ -211,12 +212,24 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
             {/* Top Brand Header */}
           <View style={styles.topNav}>
             {step === 'verify' ? (
-              <TouchableOpacity style={styles.backBtn} onPress={() => setStep('input')}>
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={() => setStep('input')}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel="Change email address"
+              >
                 <ArrowLeft size={18} color={COLORS.textCoffee} />
                 <Text style={styles.backBtnText}>Change Email</Text>
               </TouchableOpacity>
             ) : onCancel ? (
-              <TouchableOpacity style={styles.backBtn} onPress={onCancel}>
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={onCancel}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close sign-in screen"
+              >
                 <ArrowLeft size={18} color={COLORS.textCoffee} />
                 <Text style={styles.backBtnText}>Close</Text>
               </TouchableOpacity>
@@ -225,7 +238,6 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
             )}
 
             <View style={styles.brandPill}>
-              <BrandMedallion size="xs" />
               <Text style={styles.brandPillText}>Scooby's Kitchen</Text>
             </View>
           </View>
@@ -233,7 +245,6 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
           {/* Hero Branding Section */}
           <View style={styles.heroSection}>
             <BrandMedallion size="xl" style={{ marginBottom: 14 }} />
-            <Text style={styles.heroTitle}>Honest Pet Cooking</Text>
             <Text style={styles.heroSub}>
               Fresh human-grade canine nutrition & veterinary telemedicine platform.
             </Text>
@@ -251,6 +262,10 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
                       setMode('signin');
                       setErrorMsg('');
                     }}
+                    hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                    accessibilityRole="tab"
+                    accessibilityLabel="Sign in with an existing account"
+                    accessibilityState={{ selected: mode === 'signin' }}
                   >
                     <Text
                       style={[styles.tabText, mode === 'signin' && styles.tabTextActive]}
@@ -265,6 +280,10 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
                       setMode('register');
                       setErrorMsg('');
                     }}
+                    hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                    accessibilityRole="tab"
+                    accessibilityLabel="Create a new account"
+                    accessibilityState={{ selected: mode === 'register' }}
                   >
                     <Text
                       style={[styles.tabText, mode === 'register' && styles.tabTextActive]}
@@ -338,6 +357,9 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
                     onPress={handleSendCode}
                     disabled={isBusy}
                     activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel={mode === 'signin' ? 'Send magic code' : 'Create account and send verification code'}
+                    accessibilityState={{ disabled: isBusy, busy: loading }}
                   >
                     {loading ? (
                       <ActivityIndicator color={COLORS.textWhite} size="small" />
@@ -365,6 +387,9 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
                   onPress={() => promptAsync()}
                   disabled={!request || isBusy}
                   activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="Continue with Google"
+                  accessibilityState={{ disabled: !request || isBusy, busy: googleLoading }}
                 >
                   {googleLoading ? (
                     <ActivityIndicator size="small" color="#4285F4" />
@@ -424,6 +449,9 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
                   onPress={handleVerifyCode}
                   disabled={loading}
                   activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="Verify code and unlock app"
+                  accessibilityState={{ disabled: loading, busy: loading }}
                 >
                   {loading ? (
                     <ActivityIndicator color={COLORS.textWhite} size="small" />
@@ -439,6 +467,10 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
                   style={styles.resendBtn}
                   onPress={handleSendCode}
                   disabled={loading}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Resend verification code"
+                  accessibilityState={{ disabled: loading }}
                 >
                   <Text style={styles.resendBtnText}>Didn't receive code? Resend</Text>
                 </TouchableOpacity>
@@ -452,6 +484,9 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
                 continueAsGuest();
                 if (onSuccess) onSuccess();
               }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Skip sign-in and explore the menu as a guest"
             >
               <Text style={styles.guestLinkText}>Skip & Explore Menu as Guest ➔</Text>
             </TouchableOpacity>
@@ -487,7 +522,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 8,
   },
-  backBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.textCoffee },
+  backBtnText: { fontSize: 12, fontFamily: FONT_BODY_BOLD, color: COLORS.textCoffee },
   brandPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -499,21 +534,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 20,
   },
-  brandPillText: { fontSize: 11, fontWeight: '700', color: COLORS.brandGold },
+  brandPillText: { fontSize: 11, fontFamily: FONT_BODY_BOLD, color: COLORS.brandGold },
   heroSection: { alignItems: 'center', marginBottom: 20 },
-  logoCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: '#FAF4EB',
-    borderWidth: 1.5,
-    borderColor: COLORS.brandGold,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  heroTitle: { fontSize: 24, fontWeight: '800', color: COLORS.textCoffee, marginBottom: 6 },
-  heroSub: { fontSize: 12, color: COLORS.textMuted, textAlign: 'center', lineHeight: 18, maxWidth: 300 },
+  heroSub: { fontSize: 12, fontFamily: FONT_BODY, color: COLORS.textMuted, textAlign: 'center', lineHeight: 18, maxWidth: 300 },
   authCard: {
     backgroundColor: COLORS.card,
     borderRadius: 20,
@@ -535,11 +558,11 @@ const styles = StyleSheet.create({
   },
   tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
   tabBtnActive: { backgroundColor: COLORS.card },
-  tabText: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
-  tabTextActive: { color: COLORS.forestGreen, fontWeight: '700' },
+  tabText: { fontSize: 12, fontFamily: FONT_BODY, color: COLORS.textMuted },
+  tabTextActive: { color: COLORS.forestGreen, fontFamily: FONT_BODY_BOLD },
   formContainer: { gap: 12 },
   inputGroup: { gap: 6 },
-  inputLabel: { fontSize: 11, fontWeight: '700', color: COLORS.textCoffee },
+  inputLabel: { fontSize: 11, fontFamily: FONT_BODY_BOLD, color: COLORS.textCoffee },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -551,12 +574,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: Platform.OS === 'ios' ? 12 : 8,
   },
-  textInput: { flex: 1, fontSize: 13, color: COLORS.textCoffee, fontWeight: '500' },
+  textInput: { flex: 1, fontSize: 13, fontFamily: FONT_BODY, color: COLORS.textCoffee },
+  // The verification code is exactly the kind of raw, precise data
+  // DESIGN.md's Ledger Monospace Rule calls for — the app's own IBM Plex
+  // Mono token, not a platform-default Courier/monospace fallback.
   monoInput: {
     fontSize: 18,
-    fontWeight: '800',
     letterSpacing: 8,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontFamily: LEDGER_MONO,
     color: COLORS.forestGreen,
   },
   submitBtn: {
@@ -570,7 +595,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   submitBtnDisabled: { opacity: 0.7 },
-  submitBtnText: { color: COLORS.textWhite, fontSize: 13, fontWeight: '700' },
+  submitBtnText: { color: COLORS.textWhite, fontSize: 13, fontFamily: FONT_BODY_BOLD },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -578,13 +603,13 @@ const styles = StyleSheet.create({
     marginVertical: 18,
   },
   dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.kraftBorder },
-  dividerText: { fontSize: 9, fontWeight: '800', color: COLORS.textLight, letterSpacing: 0.5 },
+  dividerText: { fontSize: 9, fontFamily: FONT_BODY_BOLD, color: COLORS.textLight, letterSpacing: 0.5 },
   googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.card,
     borderWidth: 1.5,
     borderColor: COLORS.kraftBorder,
     paddingVertical: 12,
@@ -600,44 +625,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  googleBtnText: { fontSize: 13, fontWeight: '700', color: COLORS.textCoffee },
+  googleBtnText: { fontSize: 13, fontFamily: FONT_BODY_BOLD, color: COLORS.textCoffee },
   verifyHeader: { alignItems: 'center', marginBottom: 12 },
   keyIconCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FAF4EB',
+    backgroundColor: COLORS.cardAlt,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
   },
-  verifyTitle: { fontSize: 16, fontWeight: '800', color: COLORS.textCoffee },
-  verifySub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  verifyTitle: { fontSize: 16, fontFamily: FONT_DISPLAY_SEMIBOLD, color: COLORS.textCoffee },
+  verifySub: { fontSize: 12, fontFamily: FONT_BODY, color: COLORS.textMuted, marginTop: 2 },
   resendBtn: { alignItems: 'center', paddingVertical: 8 },
-  resendBtnText: { fontSize: 11, color: COLORS.brandGold, fontWeight: '600' },
+  resendBtnText: { fontSize: 11, fontFamily: FONT_BODY_BOLD, color: COLORS.brandGold },
   guestLinkBtn: { alignItems: 'center', marginTop: 18, paddingVertical: 6 },
-  guestLinkText: { fontSize: 12, fontWeight: '700', color: COLORS.forestGreen },
+  guestLinkText: { fontSize: 12, fontFamily: FONT_BODY_BOLD, color: COLORS.forestGreen },
+  // DESIGN.md: "Don't use standard red/green/yellow warning colors" —
+  // these were raw Tailwind hex; now the app's own accentRed/sage tints.
   errorBox: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: COLORS.accentRedTintBg,
     borderWidth: 1,
-    borderColor: '#FCA5A5',
+    borderColor: COLORS.accentRedTintBorder,
     padding: 10,
     borderRadius: 8,
     marginBottom: 12,
   },
-  errorText: { fontSize: 11, color: '#991B1B', fontWeight: '600' },
+  errorText: { fontSize: 11, color: COLORS.accentRedTintText, fontFamily: FONT_BODY_BOLD },
   successBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#EDF5F0',
+    backgroundColor: COLORS.sageTintBg,
     borderWidth: 1,
-    borderColor: '#86EFAC',
+    borderColor: COLORS.sageTintBorder,
     padding: 10,
     borderRadius: 8,
     marginBottom: 12,
   },
-  successText: { fontSize: 11, color: COLORS.forestGreen, fontWeight: '700' },
+  successText: { fontSize: 11, color: COLORS.forestGreen, fontFamily: FONT_BODY_BOLD },
   trustRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -645,5 +672,5 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 24,
   },
-  trustText: { fontSize: 10, color: COLORS.textMuted },
+  trustText: { fontSize: 10, fontFamily: FONT_BODY, color: COLORS.textMuted },
 });

@@ -1304,22 +1304,23 @@ export default function VetScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* 1. Header */}
+      {/* 1. Header — a presence ring on the brand mark signals "the
+          practice is staffed" directly, instead of a separate eyebrow
+          line; the right-side chip shows the real specialist count
+          instead of a decorative "Available" claim. */}
       <View style={styles.header}>
         <View style={styles.headerLeftGroup}>
-          <BrandMedallion size="sm" />
-          <View style={styles.headerTextCol}>
-            <View style={styles.brandRow}>
-              <View style={styles.livePulseDot} />
-              <Text style={styles.brandLabel}>TELEMEDICINE & NUTRITION</Text>
-            </View>
-            <Text style={styles.headerTitle} numberOfLines={1}>Vet Consultations</Text>
+          <View style={styles.medallionPresenceWrap}>
+            <BrandMedallion size="sm" />
+            <View style={styles.presenceRing} />
           </View>
+          <Text style={styles.headerTitle} numberOfLines={1}>Vet Consultations</Text>
         </View>
 
-        <View style={styles.liveBadge}>
-          <View style={styles.onlineDot} />
-          <Text style={styles.liveBadgeText}>Specialists Available</Text>
+        <View style={styles.specialistStatChip}>
+          <Stethoscope size={13} color={COLORS.sageIcon} strokeWidth={2.3} />
+          <Text style={styles.specialistStatCount}>{allDoctors.length}</Text>
+          <Text style={styles.specialistStatLabel}>online</Text>
         </View>
       </View>
 

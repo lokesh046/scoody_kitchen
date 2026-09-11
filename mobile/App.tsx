@@ -4,7 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useFonts } from 'expo-font';
-import { Sentry } from './src/services/sentry';
+import { Sentry, isSentryEnabled } from './src/services/sentry';
 import { useAuthStore } from './src/store/authStore';
 import { useFeatureFlagStore } from './src/store/featureFlagStore';
 import { prefetchTabData } from './src/services/tabPrefetch';
@@ -83,4 +83,9 @@ function App() {
   );
 }
 
-export default Sentry.wrap(App);
+// sentry.ts skips Sentry.init() entirely when no DSN is configured (e.g.
+// local dev), but Sentry.wrap() used to run unconditionally here regardless
+// — wrapping the app in a profiler that tries to report an app-start span
+// to a client that was never initialized, which is exactly the "Sentry.wrap
+// was called before Sentry.init" warning on every single app start.
+export default isSentryEnabled ? Sentry.wrap(App) : App;

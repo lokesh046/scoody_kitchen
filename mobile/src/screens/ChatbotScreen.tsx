@@ -33,6 +33,7 @@ import { useAuthStore } from '../store/authStore';
 import { usePetStore } from '../store/petStore';
 import { useCartStore } from '../store/cartStore';
 import { BrandMedallion } from '../components/BrandLogo';
+import { useResponsive } from '../hooks/useResponsive';
 import { refreshAuthTokenSilently } from '../api/client';
 import {
   streamChatMessage,
@@ -231,6 +232,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
   const [streamingStatus, setStreamingStatus] = useState<string>('');
   const [stopStreamFn, setStopStreamFn] = useState<(() => void) | null>(null);
 
+  const { isTablet } = useResponsive();
   const flatListRef = useRef<FlatList>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -718,7 +720,12 @@ export default function ChatbotScreen({ navigation, route }: any) {
               </View>
             </View>
           ) : (
-            <>
+            // On a tablet, a full-width chat canvas stretches message bubbles
+            // to 700+dp — a stretched phone layout, not a tablet one. Capping
+            // and centering the conversation column (the same shape WhatsApp/
+            // Messages use on iPad) keeps bubbles at a comfortable reading
+            // width instead of just scaling the phone layout wider.
+            <View style={[styles.flexFill, isTablet && styles.tabletContentColumn]}>
               {/* Active Pet Context Banner */}
               {activePet && (
                 <View style={styles.petContextBanner}>
@@ -825,7 +832,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
                   )}
                 </TouchableOpacity>
               </View>
-            </>
+            </View>
           )}
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -843,6 +850,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#1F3A2B',
   },
   flexFill: { flex: 1 },
+  // Caps the conversation column on tablets instead of stretching message
+  // bubbles across the full window width — the header above stays full-bleed.
+  tabletContentColumn: {
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
+  },
   // WhatsApp Header
   header: {
     backgroundColor: '#1F3A2B',
@@ -1362,6 +1376,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
     width: '100%',
+    // Caps the card on tablets instead of stretching a centered prompt
+    // edge-to-edge across the full window width.
+    maxWidth: 420,
   },
   authLockIcon: {
     width: 64,

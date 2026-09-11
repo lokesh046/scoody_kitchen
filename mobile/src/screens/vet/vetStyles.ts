@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { COLORS } from '../../theme/colors';
+import { LEDGER_MONO } from '../../theme/typography';
 
 export const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FAF7F2' },
@@ -21,32 +22,51 @@ export const styles = StyleSheet.create({
     minWidth: 0,
   },
   headerTextCol: { flex: 1, minWidth: 0 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  brandLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: COLORS.brandGold,
-    letterSpacing: 0.8,
-  },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: '800',
     color: COLORS.textCoffee,
-    marginTop: 2,
+    flexShrink: 1,
   },
-  liveBadge: {
+  // Presence ring on the brand mark itself — "the practice is staffed
+  // right now" reads directly off the logo, like an online-status dot on
+  // a profile picture, instead of a separate text line.
+  medallionPresenceWrap: {
+    position: 'relative',
+  },
+  presenceRing: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: COLORS.successGreen,
+    borderWidth: 2,
+    borderColor: '#FAF7F2',
+  },
+  specialistStatChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     backgroundColor: '#EDF5F0',
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#C3E6CB',
   },
-  onlineDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#2E7D32' },
-  liveBadgeText: { fontSize: 11, fontWeight: '700', color: COLORS.forestGreen },
+  specialistStatCount: {
+    fontSize: 13,
+    fontFamily: LEDGER_MONO,
+    fontWeight: '700',
+    color: COLORS.textCoffee,
+  },
+  specialistStatLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.forestGreen,
+  },
 
   // Top Segmented Switcher
   segmentContainer: {

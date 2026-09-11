@@ -163,7 +163,7 @@ const RecipeCardItem = memo(function RecipeCardItem({
         onPressOut={handlePressOut}
         style={styles.imageContainer}
       >
-        <Image source={{ uri: displayImage }} style={styles.recipeImage} />
+        <Image source={{ uri: displayImage }} style={styles.recipeImage} contentFit="cover" />
         {isOutOfStock && <View style={styles.imageOutOfStockDim} />}
 
         {/* Torn Edge Signature (DESIGN.md): a zigzag tear along the photo's
@@ -325,7 +325,7 @@ const RecipeReviewCard = memo(function RecipeReviewCard({
     >
       {/* Top Image with Badge */}
       <View style={styles.recipeReviewImgWrap}>
-        <Image source={{ uri: displayImg }} style={styles.recipeReviewImg as any} />
+        <Image source={{ uri: displayImg }} style={styles.recipeReviewImg as any} contentFit="cover" />
         <View style={styles.recipeReviewBadge}>
           <Text style={styles.recipeReviewBadgeText}>🐾 Verified Meal</Text>
         </View>
@@ -1024,6 +1024,7 @@ export default function KitchenScreen({ navigation, route }: any) {
                           : 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=600&auto=format&fit=crop&q=80'),
                     }}
                     style={styles.modalImage}
+                    contentFit="cover"
                   />
 
                   <View
@@ -1243,6 +1244,7 @@ export default function KitchenScreen({ navigation, route }: any) {
                     DEFAULT_DOG_IMAGES[0],
                 }}
                 style={styles.inspectModalImage as any}
+                contentFit="cover"
               />
 
               <View style={styles.inspectModalBody}>
@@ -1397,7 +1399,7 @@ export default function KitchenScreen({ navigation, route }: any) {
               <Text style={styles.inputLabel}>Photo Attachment (Optional)</Text>
               {newReviewImage ? (
                 <View style={styles.reviewImagePreviewContainer}>
-                  <Image source={{ uri: newReviewImage }} style={styles.reviewImagePreview as any} />
+                  <Image source={{ uri: newReviewImage }} style={styles.reviewImagePreview as any} contentFit="cover" />
                   <TouchableOpacity
                     style={styles.reviewImageRemoveBtn}
                     onPress={() => setNewReviewImage(null)}
@@ -1554,7 +1556,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   imageContainer: { width: '100%', aspectRatio: 1, position: 'relative' },
-  recipeImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  recipeImage: { width: '100%', height: '100%' },
   imageOutOfStockDim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(249,246,240,0.6)' },
   // The zigzag "torn page" strip sits flush against the photo's bottom edge,
   // filled in the card's own background so it reads as a tear, not a stripe.
@@ -1675,7 +1677,7 @@ const styles = StyleSheet.create({
   },
   modalHeaderTitle: { fontSize: 16, fontWeight: '800', color: COLORS.textCoffee, fontFamily: FONT_DISPLAY },
   closeBtn: { padding: 4 },
-  modalImage: { width: '100%', height: 180, resizeMode: 'cover' },
+  modalImage: { width: '100%', height: 180 },
   modalBody: { padding: 20, gap: 14 },
   modalTitle: { fontSize: 20, fontWeight: '800', color: COLORS.textCoffee, fontFamily: FONT_DISPLAY },
   modalCategoryBadge: {
@@ -1894,7 +1896,6 @@ const styles = StyleSheet.create({
   recipeReviewImg: {
     width: '100%',
     height: 155,
-    resizeMode: 'cover',
   },
   recipeReviewBadge: {
     position: 'absolute',
@@ -1998,7 +1999,6 @@ const styles = StyleSheet.create({
   inspectModalImage: {
     width: '100%',
     height: 200,
-    resizeMode: 'cover',
     backgroundColor: '#F5EFE6',
   },
   inspectModalBody: {
@@ -2165,7 +2165,6 @@ const styles = StyleSheet.create({
   reviewImagePreview: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
   },
   reviewImageRemoveBtn: {
     position: 'absolute',

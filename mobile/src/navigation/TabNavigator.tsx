@@ -189,8 +189,9 @@ export default function TabNavigator() {
         />
       </Tab.Navigator>
 
-      {/* Persistent Scooby AI Floating Tab */}
-      {isChatbotEnabled && <ScoobyAIFAB />}
+      {/* Persistent Scooby AI Floating Button — bottom-left, mirroring
+          FloatingCartBadge's bottom-right anchoring so the two never collide. */}
+      {isChatbotEnabled && <ScoobyAIFAB bottomOffset={tabBarHeight + 16} />}
 
       {/* Floating Cart Badge with Count (Only shows when not in Cart and cart has items) */}
       <FloatingCartBadge
