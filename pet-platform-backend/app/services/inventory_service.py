@@ -1,5 +1,8 @@
+import logging
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 
 from app.models.inventory import Inventory
@@ -172,10 +175,12 @@ def release_stock(
     db: Session,
     product_id: int,
     quantity: int,
+    clamp_drift: bool = False,
 ) -> Inventory:
     """
     Acquires row lock, validates reserved stock availability, and decrements reserved_quantity.
     Raises ValueError if attempting to release more than currently reserved or on invalid input.
+    If clamp_drift=True, self-heals historical drift by clamping reserved_quantity to 0 instead of crashing.
     """
     if quantity <= 0:
         raise ValueError("Quantity to release must be greater than 0")
@@ -185,6 +190,14 @@ def release_stock(
         raise ValueError(f"Inventory not found for product {product_id}")
 
     if inventory.reserved_quantity < quantity:
+        if clamp_drift:
+            logger.warning(
+                "Historical stock drift detected for product %s: attempted to release %s units, "
+                "but only %s currently reserved. Clamping reserved_quantity to 0.",
+                product_id, quantity, inventory.reserved_quantity
+            )
+            inventory.reserved_quantity = 0
+            return inventory
         raise ValueError(
             f"Cannot release {quantity} reserved stock for product {product_id}. "
             f"Currently reserved: {inventory.reserved_quantity}"
@@ -192,6 +205,8 @@ def release_stock(
 
     inventory.reserved_quantity -= quantity
     return inventory
+
+
 
 
 def finalize_stock(

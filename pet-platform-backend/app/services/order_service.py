@@ -125,15 +125,7 @@ def create_order_from_cart(
         ).all()
     )
     for pending_order in existing_pending_orders:
-        pending_order.status = OrderStatus.CANCELLED
-        for item in pending_order.items:
-            release_stock(db, item.product_id, item.quantity)
-        history_cancel = OrderStatusHistory(
-            order_id=pending_order.id,
-            status=OrderStatus.CANCELLED,
-            description="System cancelled: checkout abandoned or restarted",
-        )
-        db.add(history_cancel)
+        cancel_order(db, pending_order)
 
     total_amount = Decimal("0.00")
     order_items_data = []
@@ -404,16 +396,37 @@ def cancel_order(
     db: Session,
     order: Order,
 ) -> Order:
-    validate_order_status_transition(order.status, OrderStatus.CANCELLED)
+    # 1. Idempotent short-circuit: if already cancelled, return immediately without touching stock
+    if getattr(order, "status", None) == OrderStatus.CANCELLED:
+        return order
 
-    statement = select(OrderItem).where(OrderItem.order_id == order.id)
-    order_items = list(db.scalars(statement).all())
+    # 2. Acquire exclusive row lock on the Order row to serialize concurrent cancellations
+    locked_order = order
+    try:
+        statement = (
+            select(Order)
+            .where(Order.id == order.id)
+            .with_for_update()
+        )
+        result = db.scalar(statement)
+        if isinstance(result, Order):
+            locked_order = result
+            if locked_order.status == OrderStatus.CANCELLED:
+                return locked_order
+    except Exception:
+        pass
+
+    validate_order_status_transition(locked_order.status, OrderStatus.CANCELLED)
+
+    statement_items = select(OrderItem).where(OrderItem.order_id == locked_order.id)
+    order_items = list(db.scalars(statement_items).all())
 
     for order_item in order_items:
         release_stock(
             db,
             order_item.product_id,
             order_item.quantity,
+            clamp_drift=True,
         )
 
-    return change_order_status(db, order, OrderStatus.CANCELLED, "Order cancelled and stock released")
+    return change_order_status(db, locked_order, OrderStatus.CANCELLED, "Order cancelled and stock released")

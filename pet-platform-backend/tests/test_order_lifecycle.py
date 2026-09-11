@@ -157,3 +157,42 @@ def test_cancel_shipped_order_rejected():
     with pytest.raises(ValueError) as exc_info:
         cancel_order(db, order)
     assert "Invalid order status transition" in str(exc_info.value)
+
+
+def test_cancel_order_idempotent_duplicate_call_does_not_double_release():
+    db = MagicMock()
+    order = Order(id=1, user_id=1, status=OrderStatus.PENDING)
+    inv = Inventory(product_id=10, stock_quantity=20, reserved_quantity=5)
+
+    db.scalars.return_value.all.return_value = [
+        OrderItem(id=1, order_id=1, product_id=10, quantity=5)
+    ]
+    db.scalar.return_value = inv
+
+    # First call: successfully cancels and releases 5 units (5 -> 0)
+    res_order = cancel_order(db, order)
+    assert res_order.status == OrderStatus.CANCELLED
+    assert inv.reserved_quantity == 0
+
+    # Second duplicate call (retry): must return the cancelled order without releasing again!
+    res_order_retry = cancel_order(db, res_order)
+    assert res_order_retry.status == OrderStatus.CANCELLED
+    assert inv.reserved_quantity == 0  # Did not subtract below 0!
+
+
+def test_cancel_order_self_heals_drifted_stock():
+    db = MagicMock()
+    order = Order(id=1, user_id=1, status=OrderStatus.PENDING)
+    # Drift scenario: order thinks it reserved 5, but reserved_quantity was previously corrupted to 4
+    inv = Inventory(product_id=10, stock_quantity=20, reserved_quantity=4)
+
+    db.scalars.return_value.all.return_value = [
+        OrderItem(id=1, order_id=1, product_id=10, quantity=5)
+    ]
+    db.scalar.return_value = inv
+
+    # Must succeed and clamp to 0 instead of crashing with ValueError!
+    res_order = cancel_order(db, order)
+    assert res_order.status == OrderStatus.CANCELLED
+    assert inv.reserved_quantity == 0
+
