@@ -422,11 +422,13 @@ def cancel_order(
     order_items = list(db.scalars(statement_items).all())
 
     for order_item in order_items:
-        release_stock(
-            db,
-            order_item.product_id,
-            order_item.quantity,
-            clamp_drift=True,
-        )
+        if not getattr(order_item, "is_released", False):
+            release_stock(
+                db,
+                order_item.product_id,
+                order_item.quantity,
+                clamp_drift=True,
+            )
+            order_item.is_released = True
 
     return change_order_status(db, locked_order, OrderStatus.CANCELLED, "Order cancelled and stock released")

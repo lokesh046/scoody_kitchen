@@ -196,3 +196,20 @@ def test_cancel_order_self_heals_drifted_stock():
     assert res_order.status == OrderStatus.CANCELLED
     assert inv.reserved_quantity == 0
 
+
+def test_cancel_order_item_is_released_flag_prevents_duplicate_release():
+    db = MagicMock()
+    order = Order(id=1, user_id=1, status=OrderStatus.PENDING)
+    inv = Inventory(product_id=10, stock_quantity=20, reserved_quantity=10)
+
+    # Item has already been released (e.g. from an earlier partial or recovered run)
+    item = OrderItem(id=1, order_id=1, product_id=10, quantity=5, is_released=True)
+    db.scalars.return_value.all.return_value = [item]
+    db.scalar.return_value = inv
+
+    res_order = cancel_order(db, order)
+    assert res_order.status == OrderStatus.CANCELLED
+    # Reserved quantity remains untouched at 10 because item.is_released was already True!
+    assert inv.reserved_quantity == 10
+
+
