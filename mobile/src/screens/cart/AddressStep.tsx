@@ -57,7 +57,13 @@ export const AddressStep = memo(function AddressStep({
   return (
     <>
       {/* Back to Step 1 Button */}
-      <TouchableOpacity style={styles.stepBackBtn} onPress={onBack} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.stepBackBtn}
+        onPress={onBack}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Back to bowl items"
+      >
         <ArrowLeft size={16} color={COLORS.forestGreen} />
         <Text style={styles.stepBackText}>Back to Bowl Items</Text>
       </TouchableOpacity>
@@ -174,7 +180,13 @@ export const AddressStep = memo(function AddressStep({
             style={styles.phoneInputFlex}
           />
           {!user?.is_phone_verified && (
-            <TouchableOpacity style={styles.verifyPhoneBtn} onPress={onVerifyPhone} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.verifyPhoneBtn}
+              onPress={onVerifyPhone}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Verify phone via SMS"
+            >
               <Text style={styles.verifyPhoneBtnText}>Verify via SMS</Text>
             </TouchableOpacity>
           )}
@@ -194,6 +206,8 @@ export const AddressStep = memo(function AddressStep({
             style={styles.primaryStepBtn}
             onPress={onProceedToPayment}
             activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel="Proceed to payment"
           >
             <Text style={styles.primaryStepBtnText}>Proceed to Payment</Text>
             <ArrowRight size={18} color="#FFFFFF" strokeWidth={2.4} />

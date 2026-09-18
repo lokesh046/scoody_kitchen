@@ -10,27 +10,35 @@ insert_query = """
 INSERT INTO banners (title, subtitle, image_url, link_url, display_order, is_active)
 VALUES
 (
-    'Welcome to Scooby''s Kitchen',
-    'Human-grade, small-batch recipes cooked for active pet health. Sourced with 100% transparent ingredients.',
-    'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&q=80&w=1200',
+    'Hearth & Hound: Small-Batch Canine Nutrition',
+    'Wholesome Chicken & Sweet Potato recipes hand-crafted with human-grade ingredients and zero rendering byproducts.',
+    'https://res.cloudinary.com/utnenyxi/image/upload/v1788521361/scooby_kitchen/zfmzprttuoojru2qleeh.jpg',
     '/shop',
     1,
     TRUE
 ),
 (
     'Honest Ingredients. Zero Filler.',
-    'Every single recipe batch contains zero corn, wheat, soy, or rendering byproducts. Certified by pet nutritionists.',
-    'https://images.unsplash.com/photo-1589924691106-07a3c22a12e7?auto=format&fit=crop&q=80&w=1200',
+    'Every single recipe batch contains zero corn, wheat, soy, or synthetic preservatives. Tested by clinical pet nutritionists.',
+    'https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg',
     '/shop',
     2,
     TRUE
 ),
 (
-    'Veterinary Audited Diets',
-    'Schedule online consultations and log active nutritional diagnostics directly with certified pet doctors.',
-    'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&q=80&w=1200',
-    '/consultations',
+    'Farm-To-Bowl Fresh Holistic Meals',
+    'Real whole-food chicken and farm-fresh sweet potatoes slow-cooked daily to nurture mind, body, and vitality.',
+    'https://res.cloudinary.com/utnenyxi/image/upload/v1788521315/scooby_kitchen/nji85annhntaovsycm9q.jpg',
+    '/shop',
     3,
+    TRUE
+),
+(
+    'Raptor: High-Protein All-Meat Diet',
+    'Pure primal nutrition engineered for athletic endurance, lean muscle development, and digestive resilience.',
+    'https://res.cloudinary.com/utnenyxi/image/upload/v1788521296/scooby_kitchen/fcw2fhniavnni3qracok.jpg',
+    '/shop',
+    4,
     TRUE
 );
 """

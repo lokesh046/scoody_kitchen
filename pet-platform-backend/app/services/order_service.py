@@ -144,6 +144,7 @@ def create_order_from_cart(
             db,
             product.id,
             cart_item.quantity,
+            selected_weight=cart_item.selected_weight,
         )
 
         unit_price = get_product_price(product, cart_item.selected_weight)
@@ -428,6 +429,7 @@ def cancel_order(
                 order_item.product_id,
                 order_item.quantity,
                 clamp_drift=True,
+                selected_weight=order_item.selected_weight,
             )
             order_item.is_released = True
 

@@ -93,17 +93,28 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"⚠️ [Startup Warning] Failed to warm up MCP client: {e}", flush=True)
 
-    # Warm up Prompt Guard model at startup so incoming chat requests don't freeze
+    # Prompt Guard (and the RAG embedding model) now run on the shared
+    # ml-inference-service rather than loading in this process — there's
+    # nothing local left to warm up here, just confirm that service is
+    # reachable and has the model loaded, so a startup misconfiguration
+    # (service down, HF_TOKEN missing there) is visible in these logs
+    # instead of only surfacing as a silent per-request fallback later.
     try:
         import asyncio
-        from utils.prompt_guard import _classifier, PROMPT_GUARD_ENABLED
+        from utils.prompt_guard import is_prompt_guard_available, PROMPT_GUARD_ENABLED
         if PROMPT_GUARD_ENABLED:
-            print("⏳ [Startup] Pre-warming Prompt Guard safety model...", flush=True)
-            loaded = await asyncio.to_thread(_classifier._ensure_loaded)
-            if loaded:
-                print("✅ [Startup] Prompt Guard model warmed up and ready.", flush=True)
+            print("⏳ [Startup] Checking Prompt Guard on ml-inference-service...", flush=True)
+            available = await asyncio.to_thread(is_prompt_guard_available)
+            if available:
+                print("✅ [Startup] Prompt Guard model ready on ml-inference-service.", flush=True)
+            else:
+                print(
+                    "⚠️ [Startup] Prompt Guard unavailable on ml-inference-service — "
+                    "falling back to regex-only injection detection.",
+                    flush=True,
+                )
     except Exception as e:
-        print(f"⚠️ [Startup Warning] Failed to warm up Prompt Guard: {e}", flush=True)
+        print(f"⚠️ [Startup Warning] Failed to reach ml-inference-service: {e}", flush=True)
 
     yield
 

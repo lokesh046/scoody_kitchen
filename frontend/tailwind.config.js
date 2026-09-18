@@ -19,7 +19,7 @@ export default {
       fontFamily: {
         display: ['Outfit', 'sans-serif'],
         body: ['Quicksand', 'sans-serif'],
-        mono: ['IBM Plex Mono', 'monospace'],
+        mono: ['Courier Prime', 'monospace'],
       },
       borderRadius: {
         'sm': '12px',            // Soft rounded buttons/inputs

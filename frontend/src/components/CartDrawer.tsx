@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../store/cart';
 import { validateCoupon } from '../api/coupons';
 import { X, Trash2, Minus, Plus, ShoppingBag, ArrowRight, Tag, AlertCircle, Loader2 } from 'lucide-react';
-import { Eyebrow } from './Eyebrow';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -21,11 +20,25 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
     appliedCoupon,
     applyCoupon,
     removeCoupon,
+    loadCart,
   } = useCartStore();
+
+  useEffect(() => {
+    if (isOpen) {
+      loadCart();
+    }
+  }, [isOpen, loadCart]);
 
   const [couponCodeInput, setCouponCodeInput] = useState('');
   const [couponError, setCouponError] = useState<string | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+
+  const hasStockError = items.some((item) => {
+    const s = item.available_stock;
+    return typeof s === 'number' && (s === 0 || item.quantity > s);
+  });
+
+  const totalPacksCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +68,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
   const finalPayableAmount = Math.max(0, totalAmount - (appliedCoupon?.discountAmount || 0));
 
   const handleCheckoutRedirect = () => {
+    if (hasStockError) return;
     onClose();
     navigate('/checkout');
   };
@@ -79,15 +93,25 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
           {/* Panel Header */}
           <div className="p-6 border-b border-cardboard flex justify-between items-center bg-paperLight pl-8">
             <div className="text-left space-y-1">
-              <Eyebrow label="ACTIVE NUTRITION CART" />
-              <h3 className="font-display font-bold text-xl text-ink flex items-center space-x-1.5">
-                <ShoppingBag className="w-5 h-5 text-herb" />
-                <span>The Pantry Ledger</span>
-              </h3>
+              <div className="flex items-center space-x-2">
+                <h3 className="font-display font-bold text-xl text-ink flex items-center space-x-2">
+                  <ShoppingBag className="w-5 h-5 text-herb" />
+                  <span>The Pantry Ledger</span>
+                </h3>
+                {items.length > 0 && (
+                  <span className="font-mono text-[10px] font-bold text-herb bg-herb/10 border border-herb/30 px-2 py-0.5 rounded-full">
+                    {totalPacksCount} {totalPacksCount === 1 ? 'pack' : 'packs'}
+                  </span>
+                )}
+              </div>
+              <p className="font-body text-xs text-ink opacity-60">
+                Veterinary active batch reservations
+              </p>
             </div>
             <button 
               onClick={onClose}
-              className="p-1 hover:bg-paper rounded-full text-ink opacity-70 hover:opacity-100 transition-colors"
+              className="p-1.5 hover:bg-paper rounded-full text-ink opacity-70 hover:opacity-100 transition-colors cursor-pointer"
+              aria-label="Close cart drawer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -120,32 +144,82 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 {items.map((item) => {
                   const fallbackImageUrl = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="70" viewBox="0 0 100 70"><rect width="100" height="70" fill="%23FAF6EC"/><path d="M 0,10 L 100,10 M 0,20 L 100,20 M 0,30 L 100,30 M 0,40 L 100,40 M 0,50 L 100,50 M 0,60 L 100,60" stroke="%23C9BB9C" stroke-width="0.5" stroke-dasharray="2,2"/><text x="50%" y="50%" font-family="monospace" font-size="8" fill="%234B6B3A" dominant-baseline="middle" text-anchor="middle">RECIPE</text></svg>';
                   const imageSrc = item.image_url || fallbackImageUrl;
 
+                  const stock = item.available_stock;
+                  const hasStockInfo = typeof stock === 'number';
+                  const isOutOfStock = hasStockInfo && stock === 0;
+                  const exceedsStock = hasStockInfo && item.quantity > stock;
+                  const isMaxStockReached = hasStockInfo && item.quantity >= stock;
+                  const isLowStock = hasStockInfo && stock > 0 && stock <= 3;
+
                   return (
                     <div 
                       key={item.id}
-                      className="border border-cardboard rounded-sm p-4 bg-paperLight bg-opacity-40 flex items-start space-x-3 text-left relative"
+                      className={`border rounded-sm p-4 bg-paperLight bg-opacity-80 flex items-start space-x-3 text-left relative transition-all duration-200 ${
+                        isOutOfStock || exceedsStock 
+                          ? 'border-red-300 bg-red-50/30' 
+                          : 'border-cardboard hover:border-turmeric/50'
+                      }`}
                     >
                       {/* Mini Thumbnail */}
-                      <div className="w-16 h-16 shrink-0 border border-cardboard bg-paper rounded-sm overflow-hidden aspect-square">
+                      <div className="w-16 h-16 shrink-0 border border-cardboard bg-paper rounded-sm overflow-hidden aspect-square relative">
                         <img 
                           src={imageSrc} 
                           alt={item.name} 
                           className="w-full h-full object-cover"
                         />
+                        {isOutOfStock && (
+                          <div className="absolute inset-0 bg-ink/60 backdrop-blur-[1px] flex items-center justify-center">
+                            <span className="text-[8px] font-mono font-bold text-paper uppercase tracking-wider text-center px-1">
+                              Sold Out
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Info Area */}
-                      <div className="flex-grow space-y-1.5 min-w-0 pr-6">
-                        <h4 className="font-display font-bold text-sm text-ink truncate">
-                          {item.name} {item.selected_weight && <span className="text-[10px] text-herb font-mono ml-1 font-bold">({item.selected_weight})</span>}
-                        </h4>
+                      <div className="flex-grow space-y-2 min-w-0 pr-6">
+                        <div>
+                          <h4 className="font-display font-bold text-sm text-ink truncate flex items-center gap-1.5">
+                            <span className="truncate">{item.name}</span>
+                            {item.selected_weight && (
+                              <span className="text-[10px] text-herb font-mono shrink-0 bg-paper px-1.5 py-0.5 rounded border border-cardboard font-bold">
+                                {item.selected_weight}
+                              </span>
+                            )}
+                          </h4>
+
+                          {/* Stock Micro-Badge */}
+                          <div className="pt-1 flex items-center gap-1.5 flex-wrap">
+                            {isOutOfStock ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-red-700 bg-red-100/80 border border-red-200 px-2 py-0.5 rounded-sm">
+                                <AlertCircle className="w-3 h-3 shrink-0" />
+                                Out of Stock
+                              </span>
+                            ) : exceedsStock ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-amber-900 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-sm">
+                                <AlertCircle className="w-3 h-3 shrink-0" />
+                                Only {item.available_stock} in batch (adjust qty)
+                              </span>
+                            ) : isLowStock ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-sm">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                Only {item.available_stock} left in batch
+                              </span>
+                            ) : hasStockInfo ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50/70 border border-emerald-200 px-2 py-0.5 rounded-sm">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                {item.available_stock} available
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
                         
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-baseline">
                           <span className="font-mono text-[10px] text-herb">
                             ₹{parseFloat(item.price).toFixed(2)} / pack
                           </span>
@@ -155,26 +229,46 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                         </div>
 
                         {/* Controls buy box */}
-                        <div className="flex items-center justify-between pt-1">
-                          <div className="flex items-center justify-between border border-cardboard bg-paperLight rounded-sm p-0.5 w-24 shrink-0">
+                        <div className="flex items-center justify-between pt-0.5">
+                          <div className="flex items-center border border-cardboard bg-paperLight rounded-sm p-0.5 shrink-0">
                             <button
                               onClick={() => updateItem(item.id, item.quantity - 1)}
                               disabled={item.quantity <= 1 || isLoading}
-                              className="p-1 hover:bg-paper rounded-sm text-ink disabled:opacity-30"
+                              className="p-1 hover:bg-paper rounded-sm text-ink disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
+                              title="Decrease quantity"
+                              aria-label={`Decrease quantity of ${item.name}`}
                             >
                               <Minus className="w-3 h-3" />
                             </button>
-                            <span className="font-mono font-bold text-xs px-2 text-ink">
+                            <span className="font-mono font-bold text-xs px-2.5 text-ink min-w-[28px] text-center">
                               {item.quantity}
                             </span>
                             <button
                               onClick={() => updateItem(item.id, item.quantity + 1)}
-                              disabled={isLoading}
-                              className="p-1 hover:bg-paper rounded-sm text-ink disabled:opacity-30"
+                              disabled={isLoading || isMaxStockReached || isOutOfStock}
+                              className={`p-1 rounded-sm transition-colors ${
+                                isMaxStockReached || isOutOfStock
+                                  ? 'text-ink/30 cursor-not-allowed bg-cardboard/20'
+                                  : 'hover:bg-paper text-ink cursor-pointer'
+                              }`}
+                              title={
+                                isOutOfStock
+                                  ? 'Item is out of stock'
+                                  : isMaxStockReached
+                                  ? `Maximum available batch stock (${item.available_stock}) reached`
+                                  : 'Increase quantity'
+                              }
+                              aria-label={`Increase quantity of ${item.name}`}
                             >
                               <Plus className="w-3 h-3" />
                             </button>
                           </div>
+
+                          {isMaxStockReached && !isOutOfStock && !exceedsStock && (
+                            <span className="font-mono text-[9px] text-ink/60 font-semibold pl-2">
+                              Max batch reached
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -182,9 +276,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                       <button
                         onClick={() => removeItem(item.id)}
                         disabled={isLoading}
-                        className="p-1 hover:bg-paper rounded-sm text-paprika opacity-70 hover:opacity-100 transition-colors absolute top-2 right-2 disabled:opacity-30"
+                        className="p-1.5 hover:bg-paper rounded-sm text-paprika opacity-70 hover:opacity-100 transition-colors absolute top-2.5 right-2.5 disabled:opacity-30 cursor-pointer"
+                        title="Remove item"
+                        aria-label={`Remove ${item.name} from cart`}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5 hover:text-red-700" />
                       </button>
                     </div>
                   );
@@ -292,11 +388,27 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
+              {/* Stock Warning Notice if items exceed batch capacity */}
+              {hasStockError && (
+                <div className="bg-red-50 border border-red-200 rounded-sm p-3 flex items-start space-x-2 text-left">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  <div className="text-[11px] text-red-800 font-body leading-relaxed">
+                    <strong className="block font-bold">Pantry Stock Limit Exceeded</strong>
+                    Some items in your ledger exceed the available batch inventory. Please adjust quantities or remove out-of-stock items before checkout.
+                  </div>
+                </div>
+              )}
+
               <button
                 onClick={handleCheckoutRedirect}
-                className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs uppercase py-3.5 rounded-sm tracking-wide transition-colors shadow-sm flex items-center justify-center space-x-2 cursor-pointer"
+                disabled={hasStockError}
+                className={`w-full font-body font-bold text-xs uppercase py-3.5 rounded-sm tracking-wide transition-all shadow-sm flex items-center justify-center space-x-2 ${
+                  hasStockError
+                    ? 'bg-cardboard text-ink/40 cursor-not-allowed'
+                    : 'bg-turmeric hover:bg-amber-400 text-ink cursor-pointer'
+                }`}
               >
-                <span>Proceed to Checkout</span>
+                <span>{hasStockError ? 'Adjust Quantities to Proceed' : 'Proceed to Checkout'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 

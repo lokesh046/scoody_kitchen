@@ -52,12 +52,22 @@ export const OrderSuccessScreen = memo(function OrderSuccessScreen({
 
         {/* Action CTAs */}
         <View style={styles.successBtnRow}>
-          <TouchableOpacity style={styles.viewOrderHistoryBtn} onPress={onTrackOrder}>
+          <TouchableOpacity
+            style={styles.viewOrderHistoryBtn}
+            onPress={onTrackOrder}
+            accessibilityRole="button"
+            accessibilityLabel="Track order details"
+          >
             <Package size={18} color="#FFFFFF" />
             <Text style={styles.viewOrderHistoryText}>Track Order Details</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.backToMenuBtn} onPress={onBackToHome}>
+          <TouchableOpacity
+            style={styles.backToMenuBtn}
+            onPress={onBackToHome}
+            accessibilityRole="button"
+            accessibilityLabel="Back to home"
+          >
             <PawPrint size={18} color={COLORS.forestGreen} fill={COLORS.forestGreen} />
             <Text style={styles.backToMenuText}>Back to Home</Text>
           </TouchableOpacity>

@@ -56,7 +56,10 @@ import {
   Sliders, 
   ShieldCheck, 
   CheckCircle2,
-  Tag
+  Tag,
+  ChevronDown,
+  ChevronUp,
+  Package
 } from 'lucide-react';
 
 
@@ -166,6 +169,7 @@ export const AdminDashboard: React.FC = () => {
   const [registeringInventoryProduct, setRegisteringInventoryProduct] = useState<any | null>(null);
   const [regStock, setRegStock] = useState('10');
   const [regThreshold, setRegThreshold] = useState('5');
+  const [expandedProductRowId, setExpandedProductRowId] = useState<number | null>(null);
 
 
 
@@ -1117,22 +1121,35 @@ export const AdminDashboard: React.FC = () => {
                     e.preventDefault();
                     if (recipeName && recipeSku && recipePrice && recipeCategoryId) {
                       const parsedOptions = recipeWeightsInput ? recipeWeightsInput.split(',').map(part => {
-                        const [w, p] = part.split(':');
+                        const pieces = part.split(':').map(s => s.trim());
+                        const w = pieces[0] || '';
+                        const p = pieces[1] ? parseFloat(pieces[1]) : (parseFloat(recipePrice) || 0);
+                        const s = pieces[2] !== undefined && pieces[2] !== '' ? parseInt(pieces[2], 10) : (recipeStock ? parseInt(recipeStock, 10) : undefined);
                         return {
-                          weight: w ? w.trim() : '',
-                          price: p ? parseFloat(p.trim()) : 0
+                          weight: w,
+                          price: p,
+                          ...(s !== undefined && !isNaN(s) ? { stock: s, reserved: 0 } : {})
                         };
                       }).filter(opt => opt.weight !== '') : undefined;
+
+                      // Default weight option: if no custom weights are specified, provide default 500g pack
+                      const finalWeightOptions = parsedOptions && parsedOptions.length > 0
+                        ? parsedOptions
+                        : [{ weight: '500g', price: parseFloat(recipePrice) || 0, stock: Number(recipeStock) || 10, reserved: 0 }];
+
+                      const totalStock = finalWeightOptions.some(opt => opt.stock !== undefined)
+                        ? finalWeightOptions.reduce((sum, opt) => sum + (opt.stock || 0), 0)
+                        : Number(recipeStock);
 
                       createProductMutation.mutate({
                         name: recipeName,
                         description: recipeDesc,
                         sku: recipeSku,
                         price: recipePrice,
-                        available_stock: Number(recipeStock),
+                        available_stock: totalStock,
                         category_id: Number(recipeCategoryId),
                         image_url: recipeImgUrl || undefined,
-                        weight_options: parsedOptions,
+                        weight_options: finalWeightOptions,
                         in_slider: recipeInSlider
                       });
                     }
@@ -1200,7 +1217,7 @@ export const AdminDashboard: React.FC = () => {
                   </div>
 
                   <input
-                    placeholder="Custom Weight Options (e.g. 1 Kg: 500, 5 Kg: 2200)"
+                    placeholder="Custom Weight Options (e.g. 500g: 350: 20, 1kg: 650: 10, 5kg: 2800: 3)"
                     value={recipeWeightsInput}
                     onChange={(e) => setRecipeWeightsInput(e.target.value)}
                     className="bg-paper border border-cardboard w-full p-2.5 text-xs text-ink outline-none font-mono"
@@ -1476,81 +1493,218 @@ export const AdminDashboard: React.FC = () => {
                         const isRegistered = prod.inventory_id !== null && prod.available_stock !== null;
                         const lowStock = isRegistered && prod.is_active && (prod.available_stock ?? 0) <= (prod.low_stock_threshold ?? 5);
                         const physicalStock = isRegistered ? (prod.available_stock ?? 0) + (prod.reserved_stock ?? 0) : 0;
+                        const hasVariants = prod.weight_options && prod.weight_options.length > 0;
+                        const isExpanded = expandedProductRowId === prod.id;
+
                         return (
-                          <tr key={prod.id} className="hover:bg-paper transition-colors">
-                            <td className="p-4 font-bold">{prod.name}</td>
-                            <td className="p-4 font-mono text-[10px]">{prod.sku}</td>
-                            <td className="p-4 text-right font-mono font-bold">
-                              {isRegistered ? physicalStock : <span className="opacity-45">—</span>}
-                            </td>
-                            <td className="p-4 text-right font-mono text-paprika">
-                              {isRegistered ? (prod.reserved_stock ?? 0) : <span className="opacity-45">—</span>}
-                            </td>
-                            <td className="p-4 text-right font-mono font-bold text-herb">
-                              {isRegistered ? (prod.available_stock ?? 0) : <span className="opacity-45">—</span>}
-                            </td>
-                            <td className="p-4 text-right font-mono">
-                              {isRegistered ? (prod.low_stock_threshold ?? 5) : <span className="opacity-45">—</span>}
-                            </td>
-                            <td className="p-4 text-center">
-                              <span className={`font-mono text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold ${
-                                !prod.is_active
-                                  ? 'bg-red-100 text-red-800'
-                                  : !isRegistered
-                                  ? 'bg-red-50 text-red-700 border border-red-200 border-dashed'
-                                  : lowStock
-                                  ? 'bg-yellow-100 text-yellow-800 animate-pulse'
-                                  : 'bg-green-100 text-green-800'
-                              }`}>
-                                {!prod.is_active ? 'Inactive' : !isRegistered ? '⚠️ Unregistered' : lowStock ? '⚠️ Low Stock' : '✅ Good'}
-                              </span>
-                            </td>
-                            <td className="p-4 text-center">
-                              <div className="flex items-center justify-center space-x-3">
-                                {isRegistered ? (
-                                  <>
+                          <React.Fragment key={prod.id}>
+                            <tr className={`hover:bg-paper transition-colors ${isExpanded ? 'bg-paper/40' : ''}`}>
+                              <td className="p-4 align-top">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-ink">{prod.name}</span>
+                                  {hasVariants && (
                                     <button
-                                      onClick={() => setSelectedInventoryProductId(prod.id)}
-                                      className="font-mono text-[9px] uppercase font-bold tracking-wider text-ink hover:underline"
+                                      type="button"
+                                      onClick={() => setExpandedProductRowId(isExpanded ? null : prod.id)}
+                                      className="p-1 hover:bg-cardboard/30 rounded text-herb hover:text-ink transition-colors inline-flex items-center gap-0.5 text-[9px] font-mono uppercase font-bold"
+                                      title="Toggle variant breakdown"
                                     >
-                                      Details
+                                      {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                      <span>{isExpanded ? 'Hide Sizes' : 'Sizes'}</span>
                                     </button>
-                                    <button
-                                      onClick={() => {
-                                        setEditingProduct(prod);
-                                        setEditPrice(prod.price);
-                                        setEditStock(String(prod.available_stock ?? ''));
-                                        setEditWeightsInput(prod.weight_options ? prod.weight_options.map((opt: any) => `${opt.weight}: ${opt.price}`).join(', ') : '');
-                                      }}
-                                      className="font-mono text-[9px] uppercase font-bold tracking-wider text-herb hover:underline"
-                                    >
-                                      Edit Stock
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setEditingThresholdProduct(prod);
-                                        setEditThreshold(String(prod.low_stock_threshold ?? 5));
-                                      }}
-                                      className="font-mono text-[9px] uppercase font-bold tracking-wider text-turmeric hover:underline"
-                                    >
-                                      Set Alert
-                                    </button>
-                                  </>
+                                  )}
+                                </div>
+
+                                {/* Weight-Wise Pouch Stock Chips */}
+                                {hasVariants ? (
+                                  <div className="mt-2 flex flex-wrap gap-1.5 items-center">
+                                    <span className="font-mono text-[8px] uppercase tracking-wider text-ink/45 font-bold">
+                                      Pouch Stock:
+                                    </span>
+                                    {prod.weight_options!.map((opt: any) => {
+                                      const vStock = opt.stock !== undefined ? Number(opt.stock) : null;
+                                      const vRes = Number(opt.reserved ?? 0);
+                                      const vAvail = vStock !== null ? Math.max(0, vStock - vRes) : null;
+                                      const isOos = vAvail === 0;
+                                      const isLow = vAvail !== null && vAvail > 0 && vAvail <= 3;
+
+                                      return (
+                                        <span
+                                          key={opt.weight}
+                                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm border font-mono text-[10px] ${
+                                            isOos
+                                              ? 'bg-red-50 text-red-700 border-red-200 font-bold'
+                                              : isLow
+                                              ? 'bg-amber-50 text-amber-800 border-amber-200 font-bold'
+                                              : 'bg-paper text-ink border-cardboard'
+                                          }`}
+                                          title={`${opt.weight} (₹${opt.price}): ${vStock ?? '—'} physical, ${vRes} reserved, ${vAvail ?? '—'} available to buy`}
+                                        >
+                                          <span className="font-bold text-herb">{opt.weight}</span>
+                                          <span className="text-ink/20">|</span>
+                                          <span className={isOos ? 'text-red-600 font-bold' : isLow ? 'text-amber-700 font-bold' : 'text-ink font-semibold'}>
+                                            {vAvail !== null ? `${vAvail} left` : 'untracked'}
+                                          </span>
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
                                 ) : (
-                                  <button
-                                    onClick={() => {
-                                      setRegisteringInventoryProduct(prod);
-                                      setRegStock('10');
-                                      setRegThreshold('5');
-                                    }}
-                                    className="font-mono text-[9px] uppercase font-bold tracking-wider text-paprika hover:underline"
-                                  >
-                                    Register Slot
-                                  </button>
+                                  <div className="mt-1.5 flex items-center gap-1.5 font-mono text-[9px] text-ink/50">
+                                    <span className="px-1.5 py-0.5 rounded-sm bg-paper border border-cardboard/70">
+                                      Single SKU format {prod.sku.toLowerCase().includes('5kg') || prod.name.toLowerCase().includes('5kg') ? '(Fixed 5 kg)' : ''}
+                                    </span>
+                                  </div>
                                 )}
-                              </div>
-                            </td>
-                          </tr>
+                              </td>
+
+                              <td className="p-4 font-mono text-[10px] align-top">{prod.sku}</td>
+
+                              <td className="p-4 text-right font-mono align-top">
+                                <span className="font-bold text-sm text-ink block">
+                                  {isRegistered ? physicalStock : <span className="opacity-45">—</span>}
+                                </span>
+                                {hasVariants && (
+                                  <span className="text-[8px] text-ink/50 block font-normal uppercase">
+                                    {prod.weight_options!.length} sizes total
+                                  </span>
+                                )}
+                              </td>
+
+                              <td className="p-4 text-right font-mono text-paprika align-top">
+                                <span className="font-bold text-sm block">
+                                  {isRegistered ? (prod.reserved_stock ?? 0) : <span className="opacity-45">—</span>}
+                                </span>
+                              </td>
+
+                              <td className="p-4 text-right font-mono text-herb align-top">
+                                <span className="font-bold text-sm block">
+                                  {isRegistered ? (prod.available_stock ?? 0) : <span className="opacity-45">—</span>}
+                                </span>
+                                {hasVariants && (
+                                  <span className="text-[8px] text-herb/70 block font-normal uppercase">
+                                    all sizes net
+                                  </span>
+                                )}
+                              </td>
+
+                              <td className="p-4 text-right font-mono align-top">
+                                {isRegistered ? (prod.low_stock_threshold ?? 5) : <span className="opacity-45">—</span>}
+                              </td>
+
+                              <td className="p-4 text-center align-top">
+                                <span className={`font-mono text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold ${
+                                  !prod.is_active
+                                    ? 'bg-red-100 text-red-800'
+                                    : !isRegistered
+                                    ? 'bg-red-50 text-red-700 border border-red-200 border-dashed'
+                                    : lowStock
+                                    ? 'bg-yellow-100 text-yellow-800 animate-pulse'
+                                    : 'bg-green-100 text-green-800'
+                                }`}>
+                                  {!prod.is_active ? 'Inactive' : !isRegistered ? '⚠️ Unregistered' : lowStock ? '⚠️ Low Stock' : '✅ Good'}
+                                </span>
+                              </td>
+
+                              <td className="p-4 text-center align-top">
+                                <div className="flex items-center justify-center space-x-3">
+                                  {isRegistered ? (
+                                    <>
+                                      <button
+                                        onClick={() => setSelectedInventoryProductId(prod.id)}
+                                        className="font-mono text-[9px] uppercase font-bold tracking-wider text-ink hover:underline cursor-pointer"
+                                      >
+                                        Details
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingProduct(prod);
+                                          setEditPrice(prod.price);
+                                          setEditStock(String(prod.available_stock ?? ''));
+                                          setEditWeightsInput(
+                                            prod.weight_options 
+                                              ? prod.weight_options.map((opt: any) => 
+                                                  opt.stock !== undefined 
+                                                    ? `${opt.weight}: ${opt.price}: ${opt.stock}` 
+                                                    : `${opt.weight}: ${opt.price}`
+                                                ).join(', ') 
+                                              : ''
+                                          );
+                                        }}
+                                        className="font-mono text-[9px] uppercase font-bold tracking-wider text-herb hover:underline cursor-pointer"
+                                      >
+                                        Edit Stock
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingThresholdProduct(prod);
+                                          setEditThreshold(String(prod.low_stock_threshold ?? 5));
+                                        }}
+                                        className="font-mono text-[9px] uppercase font-bold tracking-wider text-turmeric hover:underline cursor-pointer"
+                                      >
+                                        Set Alert
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        setRegisteringInventoryProduct(prod);
+                                        setRegStock('10');
+                                        setRegThreshold('5');
+                                      }}
+                                      className="font-mono text-[9px] uppercase font-bold tracking-wider text-paprika hover:underline cursor-pointer"
+                                    >
+                                      Register Slot
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+
+                            {/* Expandable Per-Weight Breakdown Matrix */}
+                            {isExpanded && hasVariants && (
+                              <tr className="bg-paper/30 border-b border-cardboard">
+                                <td colSpan={8} className="p-4 pl-8">
+                                  <div className="p-3.5 border border-cardboard rounded-sm bg-paperLight space-y-3">
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold flex items-center gap-1.5">
+                                        <Package className="w-3.5 h-3.5" />
+                                        <span>Per-Weight Pouch Inventory & Held Units for {prod.name}</span>
+                                      </span>
+                                      <span className="font-mono text-[8px] text-ink/50 uppercase">
+                                        {prod.weight_options!.length} pouch variants configured
+                                      </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                      {prod.weight_options!.map((opt: any) => {
+                                        const vStock = opt.stock !== undefined ? Number(opt.stock) : null;
+                                        const vRes = Number(opt.reserved ?? 0);
+                                        const vAvail = vStock !== null ? Math.max(0, vStock - vRes) : null;
+                                        return (
+                                          <div key={opt.weight} className="p-2.5 bg-paper border border-cardboard rounded-sm font-mono text-xs space-y-1.5">
+                                            <div className="flex justify-between font-bold text-ink">
+                                              <span>{opt.weight}</span>
+                                              <span className="text-herb">₹{opt.price}</span>
+                                            </div>
+                                            <div className="flex justify-between text-[10px] text-ink/70">
+                                              <span>Physical: <strong>{vStock ?? '—'}</strong></span>
+                                              <span>Held: <strong className="text-paprika">{vRes}</strong></span>
+                                            </div>
+                                            <div className="pt-1 border-t border-cardboard/50 flex justify-between text-[10px] font-bold">
+                                              <span>Available:</span>
+                                              <span className={vAvail === 0 ? 'text-red-600' : 'text-herb'}>
+                                                {vAvail ?? '—'} to buy
+                                              </span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         );
                       })}
                     </tbody>
@@ -2466,18 +2620,26 @@ export const AdminDashboard: React.FC = () => {
               onSubmit={(e) => {
                 e.preventDefault();
                 const parsedOptions = editWeightsInput ? editWeightsInput.split(',').map(part => {
-                  const [w, p] = part.split(':');
+                  const pieces = part.split(':').map(s => s.trim());
+                  const w = pieces[0] || '';
+                  const p = pieces[1] ? parseFloat(pieces[1]) : 0;
+                  const s = pieces[2] !== undefined && pieces[2] !== '' ? parseInt(pieces[2], 10) : undefined;
                   return {
-                    weight: w ? w.trim() : '',
-                    price: p ? parseFloat(p.trim()) : 0
+                    weight: w,
+                    price: p,
+                    ...(s !== undefined && !isNaN(s) ? { stock: s, reserved: 0 } : {})
                   };
                 }).filter(opt => opt.weight !== '') : [];
+
+                const totalVariantStock = parsedOptions.some(opt => opt.stock !== undefined)
+                  ? parsedOptions.reduce((sum, opt) => sum + (opt.stock || 0), 0)
+                  : (editStock ? Number(editStock) : undefined);
 
                 updateProductMutation.mutate({
                   productId: editingProduct.id,
                   productData: {
                     price: editPrice || undefined,
-                    available_stock: editStock ? Number(editStock) : undefined,
+                    available_stock: totalVariantStock,
                     weight_options: parsedOptions.length > 0 ? parsedOptions : [],
                     in_slider: editInSlider
                   }
@@ -2502,7 +2664,7 @@ export const AdminDashboard: React.FC = () => {
 
               <div className="space-y-1.5">
                 <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
-                  Stock Level:
+                  Total Physical Stock:
                 </label>
                 <input
                   type="number"
@@ -2514,15 +2676,67 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
-                  Weight options (e.g. 1 Kg: 500, 5 Kg: 2200):
-                </label>
+                <div className="flex justify-between items-baseline">
+                  <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                    Pouch Variants (Weight: Price: Stock, e.g. 1kg: 650: 10, 5kg: 2500: 20):
+                  </label>
+                </div>
                 <input
                   type="text"
                   value={editWeightsInput}
                   onChange={(e) => setEditWeightsInput(e.target.value)}
+                  placeholder="e.g. 1.5 kg: 1000: 20, 3 kg: 4000: 12, 5 kg: 6000: 10"
                   className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors font-mono"
                 />
+
+                {/* Quick Add Presets */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                  <span className="font-mono text-[8px] uppercase text-ink/50 font-bold">Quick append:</span>
+                  {[
+                    { label: '+ 5 kg', val: '5 kg: 3000: 10' },
+                    { label: '+ 1 kg', val: '1 kg: 800: 15' },
+                    { label: '+ 2 kg', val: '2 kg: 1500: 12' },
+                    { label: '+ 3 kg', val: '3 kg: 2200: 10' }
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        setEditWeightsInput(prev => {
+                          const clean = prev ? prev.trim() : '';
+                          if (!clean) return preset.val;
+                          return `${clean}, ${preset.val}`;
+                        });
+                      }}
+                      className="font-mono text-[9px] px-2 py-0.5 rounded-sm border border-cardboard bg-paper hover:bg-turmeric/20 text-ink transition-colors cursor-pointer"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Live Parsed Preview Chips */}
+                {editWeightsInput.trim() && (
+                  <div className="p-2.5 bg-paper border border-cardboard rounded-sm space-y-1 mt-1.5">
+                    <span className="font-mono text-[8px] uppercase tracking-wider text-ink/50 font-bold block">
+                      Parsed Variant Stock Allocation:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {editWeightsInput.split(',').map(s => s.trim()).filter(Boolean).map((part, idx) => {
+                        const [w, p, s] = part.split(':').map(x => x?.trim());
+                        return (
+                          <span key={idx} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-paperLight border border-cardboard font-mono text-[10px]">
+                            <span className="font-bold text-herb">{w || 'Size?'}</span>
+                            <span className="text-ink/30">|</span>
+                            <span className="text-ink/70">₹{p || '0'}</span>
+                            <span className="text-ink/30">|</span>
+                            <span className="font-bold text-ink">{s !== undefined && s !== '' ? `${s} stock` : 'no stock'}</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center space-x-2 py-1 select-none">
@@ -2721,6 +2935,32 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 <hr className="border-t border-cardboard border-dashed" />
+
+                {/* Sealed Pouch Variant Holdings Breakdown */}
+                {(() => {
+                  const selectedProd = products.find(p => p.id === selectedInventoryProductId);
+                  if (!selectedProd?.weight_options || selectedProd.weight_options.length === 0) return null;
+                  return (
+                    <div className="space-y-2">
+                      <span className="font-mono text-[8px] uppercase tracking-wider text-ink opacity-60 block">Sealed Pouch Variant Holdings:</span>
+                      <div className="border border-cardboard rounded-sm divide-y divide-cardboard divide-dashed bg-paper">
+                        {selectedProd.weight_options.map((opt: any) => {
+                          const vStock = opt.stock !== undefined ? opt.stock : 'N/A';
+                          const vRes = opt.reserved ?? 0;
+                          return (
+                            <div key={opt.weight} className="p-2.5 flex justify-between items-center text-xs font-mono">
+                              <span className="font-bold text-ink">{opt.weight} (₹{opt.price})</span>
+                              <div className="flex space-x-3 text-[10px]">
+                                <span className="text-herb font-bold">Physical: {vStock}</span>
+                                <span className="text-paprika font-bold">Held: {vRes}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Quantitative statistics */}
                 <div className="grid grid-cols-3 gap-3 text-center">

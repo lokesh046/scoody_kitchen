@@ -13,7 +13,7 @@
 
 import { Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
 import { Quicksand_400Regular, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
-import { IBMPlexMono_500Medium } from '@expo-google-fonts/ibm-plex-mono';
+import { CourierPrime_400Regular } from '@expo-google-fonts/courier-prime';
 
 // DESIGN.md "Display/Headline: Bold, weight 700" — section titles, banner
 // titles, the brand wordmark.
@@ -27,10 +27,13 @@ export const FONT_BODY = 'Quicksand_400Regular';
 // A heavier body weight for short emphatic UI text (button labels, links,
 // card titles) that isn't a full headline but needs more presence than body.
 export const FONT_BODY_BOLD = 'Quicksand_700Bold';
-// DESIGN.md "Label: Medium Mono, weight 500" — the Ledger Monospace Rule:
-// raw percentages, quantities, prices, datestamps, SKU/batch codes, and
-// small tech/status tags.
-export const LEDGER_MONO = 'IBMPlexMono_500Medium';
+// DESIGN.md "Label: Regular/Bold Mono, weight 400/700" — the Ledger
+// Monospace Rule: raw percentages, quantities, prices, datestamps,
+// SKU/batch codes, and small tech/status tags. Matches the web frontend's
+// `font-mono` token (frontend/tailwind.config.js), which was moved from IBM
+// Plex Mono to Courier Prime for its stronger "kitchen journal ledger" /
+// typewriter character.
+export const LEDGER_MONO = 'CourierPrime_400Regular';
 
 // Passed to Expo's `useFonts()` once, centrally, in App.tsx — not re-loaded
 // per screen — so every screen has these ready before its first render.
@@ -39,5 +42,5 @@ export const FONT_ASSETS = {
   Outfit_700Bold,
   Quicksand_400Regular,
   Quicksand_700Bold,
-  IBMPlexMono_500Medium,
+  CourierPrime_400Regular,
 };

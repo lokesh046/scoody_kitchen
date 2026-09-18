@@ -28,10 +28,19 @@ import {
   AlertCircle,
   Flame,
   CheckCircle2,
+  ShieldCheck,
+  Globe2,
+  Dna,
+  Gauge,
+  Download,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { captureRef } from 'react-native-view-shot';
+import * as MediaLibrary from 'expo-media-library';
+import * as Sharing from 'expo-sharing';
 import { COLORS } from '../theme/colors';
-import { classifyPetPhoto, ClassificationResponse } from '../api/vision';
+import { classifyPetPhoto, ClassificationResponse, BreedHeritage } from '../api/vision';
+import PassportContent, { PassportFormat } from './PassportContent';
 
 interface PetVisionModalProps {
   visible: boolean;
@@ -53,6 +62,12 @@ export default function PetVisionModal({
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [result, setResult] = useState<ClassificationResponse | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+
+  // Shareable Pet Heritage Passport export (native parity with web's
+  // PetHeritagePassport component — see frontend/src/components/PetHeritagePassport.tsx).
+  const [exportFormat, setExportFormat] = useState<PassportFormat>('card');
+  const [isExportingPassport, setIsExportingPassport] = useState(false);
+  const passportRef = useRef<View>(null);
 
   // Animated laser line for scanning effect
   const scanAnim = useRef(new Animated.Value(0)).current;
@@ -173,6 +188,46 @@ export default function PetVisionModal({
 
   const confidencePct = result?.confidence ? Math.round(result.confidence * 100) : 0;
 
+  // Mirrors web's PetHeritagePassport passport-code generation exactly, so
+  // the same breed produces a recognizably-shaped (if not byte-identical,
+  // since Date.now()'s year is the only shared input) document number.
+  const passportCode = result?.primary_breed
+    ? `SK-PASSPORT-${Math.abs(
+        result.primary_breed.split('').reduce((acc, c) => acc + c.charCodeAt(0), 1000)
+      )}-${new Date().getFullYear()}`
+    : '';
+
+  const handleExportPassport = async () => {
+    if (!result?.heritage) return;
+    setIsExportingPassport(true);
+    try {
+      // Let the off-screen passport view commit its layout (format toggle,
+      // image decode) before rasterizing it — capturing on the same tick as
+      // a state change can grab a stale frame.
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const uri = await captureRef(passportRef, { format: 'png', quality: 1 });
+
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Needed', 'Photo library access is required to save the passport.');
+        return;
+      }
+      await MediaLibrary.saveToLibraryAsync(uri);
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share Pet Heritage Passport' });
+      } else {
+        Alert.alert('Saved', 'The passport has been saved to your photo library.');
+      }
+    } catch (err) {
+      console.warn('Passport export error:', err);
+      Alert.alert('Export Failed', 'Could not export the passport. Please try again.');
+    } finally {
+      setIsExportingPassport(false);
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -196,6 +251,8 @@ export default function PetVisionModal({
             style={styles.closeBtn}
             onPress={onClose}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Close pet vision scanner"
           >
             <X size={22} color={COLORS.textCoffee} />
           </TouchableOpacity>
@@ -262,6 +319,8 @@ export default function PetVisionModal({
                 style={[styles.cameraActionBtn, styles.primaryCameraBtn]}
                 onPress={() => handlePickImage(true)}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={selectedImageUri ? 'Retake photo' : 'Take photo'}
               >
                 <Camera size={18} color="#FFFFFF" strokeWidth={2.4} />
                 <Text style={styles.primaryCameraBtnText}>
@@ -272,6 +331,8 @@ export default function PetVisionModal({
               <TouchableOpacity
                 style={[styles.cameraActionBtn, styles.secondaryCameraBtn]}
                 onPress={() => handlePickImage(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Choose photo from gallery"
                 activeOpacity={0.85}
               >
                 <ImageIcon size={18} color={COLORS.forestGreen} strokeWidth={2.2} />
@@ -494,12 +555,71 @@ export default function PetVisionModal({
                 </View>
               )}
 
+              {/* Shareable Pet Heritage Passport Export */}
+              {result.heritage && (
+                <View style={styles.passportExportCard}>
+                  <View style={styles.sectionTitleRow}>
+                    <ShieldCheck size={18} color={COLORS.forestGreen} />
+                    <Text style={styles.sectionTitle}>Export Heritage Passport</Text>
+                  </View>
+                  <Text style={styles.passportExportHint}>
+                    Save a keepsake passport card to your photo library or share it.
+                  </Text>
+
+                  <View style={styles.formatToggleRow}>
+                    <TouchableOpacity
+                      style={[styles.formatToggleBtn, exportFormat === 'card' && styles.formatToggleBtnActive]}
+                      onPress={() => setExportFormat('card')}
+                      accessibilityRole="button"
+                      accessibilityLabel="Card format"
+                      accessibilityState={{ selected: exportFormat === 'card' }}
+                    >
+                      <Text style={[styles.formatToggleText, exportFormat === 'card' && styles.formatToggleTextActive]}>
+                        Card
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.formatToggleBtn, exportFormat === 'story' && styles.formatToggleBtnActive]}
+                      onPress={() => setExportFormat('story')}
+                      accessibilityRole="button"
+                      accessibilityLabel="Story format"
+                      accessibilityState={{ selected: exportFormat === 'story' }}
+                    >
+                      <Text style={[styles.formatToggleText, exportFormat === 'story' && styles.formatToggleTextActive]}>
+                        Story
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.exportPassportBtn, isExportingPassport && styles.exportPassportBtnDisabled]}
+                    onPress={handleExportPassport}
+                    disabled={isExportingPassport}
+                    activeOpacity={0.88}
+                    accessibilityRole="button"
+                    accessibilityLabel="Export passport"
+                    accessibilityState={{ disabled: isExportingPassport, busy: isExportingPassport }}
+                  >
+                    {isExportingPassport ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Download size={16} color="#FFFFFF" />
+                    )}
+                    <Text style={styles.exportPassportBtnText}>
+                      {isExportingPassport ? 'Generating Passport...' : 'Export Passport'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {/* Apply / Use for Companion CTA */}
               {onApplyPetDetails && (
                 <TouchableOpacity
                   style={styles.applyBtn}
                   onPress={handleApplyToRegistration}
                   activeOpacity={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Auto-fill ${result.primary_breed || 'pet'} profile`}
                 >
                   <Check size={20} color="#FFFFFF" strokeWidth={2.5} />
                   <Text style={styles.applyBtnText}>Auto-Fill {result.primary_breed} Profile</Text>
@@ -533,6 +653,25 @@ export default function PetVisionModal({
             </View>
           )}
         </ScrollView>
+
+        {/* Off-screen render target for react-native-view-shot — mounted
+            whenever heritage data exists so its image has already decoded
+            by the time the user taps Export, but positioned far outside the
+            viewport so it's never visible or scrollable into view. */}
+        {result?.heritage && (
+          <View style={styles.offscreenCaptureHost} pointerEvents="none">
+            <PassportContent
+              ref={passportRef}
+              format={exportFormat}
+              petName="Honored Companion"
+              breedName={result.primary_breed || 'Mixed Breed'}
+              species={result.species || 'Dog'}
+              photoUri={selectedImageUri}
+              heritage={result.heritage}
+              passportCode={passportCode}
+            />
+          </View>
+        )}
       </SafeAreaView>
     </Modal>
   );
@@ -1003,6 +1142,67 @@ const styles = StyleSheet.create({
     color: COLORS.textCoffee,
     lineHeight: 18,
     marginTop: 4,
+  },
+
+  /* Passport Export */
+  passportExportCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: COLORS.kraftBorder,
+    gap: 12,
+  },
+  passportExportHint: {
+    fontSize: 11.5,
+    color: COLORS.textMuted,
+    marginTop: -6,
+  },
+  formatToggleRow: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.canvas,
+    borderRadius: 10,
+    padding: 3,
+    gap: 3,
+  },
+  formatToggleBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  formatToggleBtnActive: {
+    backgroundColor: COLORS.forestGreen,
+  },
+  formatToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textMuted,
+  },
+  formatToggleTextActive: {
+    color: '#FFFFFF',
+  },
+  exportPassportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: COLORS.brandGold,
+    paddingVertical: 13,
+    borderRadius: 12,
+  },
+  exportPassportBtnDisabled: {
+    opacity: 0.6,
+  },
+  exportPassportBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  offscreenCaptureHost: {
+    position: 'absolute',
+    top: -10000,
+    left: 0,
   },
 
   /* Apply CTA */

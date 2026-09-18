@@ -70,7 +70,13 @@ export const PaymentStep = memo(function PaymentStep({
   return (
     <>
       {/* Back to Step 2 Button */}
-      <TouchableOpacity style={styles.stepBackBtn} onPress={onEditAddress} activeOpacity={0.7}>
+      <TouchableOpacity
+        style={styles.stepBackBtn}
+        onPress={onEditAddress}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Change delivery address"
+      >
         <ArrowLeft size={16} color={COLORS.forestGreen} />
         <Text style={styles.stepBackText}>Change Delivery Address</Text>
       </TouchableOpacity>
@@ -82,7 +88,12 @@ export const PaymentStep = memo(function PaymentStep({
             <MapPin size={16} color={COLORS.forestGreen} />
             <Text style={styles.summaryAddressTitle}>Delivery Destination</Text>
           </View>
-          <TouchableOpacity onPress={onEditAddress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity
+            onPress={onEditAddress}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Edit delivery address"
+          >
             <Text style={styles.summaryEditBtn}>Edit</Text>
           </TouchableOpacity>
         </View>
@@ -188,6 +199,9 @@ export const PaymentStep = memo(function PaymentStep({
             onPress={onStartCheckout}
             disabled={isCheckingOut || isSyncing}
             activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel={`Retry payment, ₹${total.toFixed(2)}`}
+            accessibilityState={{ disabled: isCheckingOut || isSyncing, busy: isCheckingOut }}
           >
             <RotateCcw size={16} color="#FFFFFF" strokeWidth={2.4} />
             <Text style={styles.retryPaymentBtnText}>Retry Payment (₹{total.toFixed(2)})</Text>
@@ -201,6 +215,9 @@ export const PaymentStep = memo(function PaymentStep({
         onPress={onStartCheckout}
         disabled={isCheckingOut || isSyncing}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={`Pay ₹${total.toFixed(2)} via Razorpay`}
+        accessibilityState={{ disabled: isCheckingOut || isSyncing, busy: isCheckingOut }}
       >
         {isCheckingOut ? (
           <ActivityIndicator color="#FFFFFF" size="small" />

@@ -378,18 +378,18 @@ export default function HomePage() {
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border border-cardboard p-4 gap-4 bg-paperLight rounded-[14px] shadow-xs hover:border-turmeric transition-colors">
                         <div className="flex items-center space-x-3 text-left">
                           <img 
-                            src={calcResult.recommendedProduct.image_url || 'https://images.unsplash.com/photo-1589924691106-07a3c22a12e7?auto=format&fit=crop&q=80&w=200'} 
+                            src={calcResult.recommendedProduct.image_url || 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&q=80&w=200'} 
                             alt={calcResult.recommendedProduct.name} 
                             width={56}
                             height={56}
                             className="w-14 h-14 object-cover border border-cardboard rounded-[8px] shrink-0"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1589924691106-07a3c22a12e7?auto=format&fit=crop&q=80&w=200';
+                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&q=80&w=200';
                             }}
                           />
                           <div>
                             <h4 className="font-display font-bold text-sm text-ink">{calcResult.recommendedProduct.name}</h4>
-                            <p className="font-mono text-xs text-turmeric font-bold">${parseFloat(calcResult.recommendedProduct.price).toFixed(2)} per lb</p>
+                            <p className="font-mono text-xs text-turmeric font-bold">₹{parseFloat(calcResult.recommendedProduct.price).toFixed(2)} per lb</p>
                           </div>
                         </div>
                         <button 

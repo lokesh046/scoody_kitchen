@@ -187,3 +187,41 @@ def test_concurrent_reserve_simulation():
     assert results.count("SUCCESS") == 1
     assert results.count("FAILED") == 1
     assert inv.reserved_quantity <= inv.stock_quantity
+
+
+def test_variant_stock_check_reserve_release_finalize():
+    db = MagicMock()
+    mock_prod = MagicMock()
+    mock_prod.id = 10
+    mock_prod.name = "Chicken Stew"
+    mock_prod.is_active = True
+    mock_prod.weight_options = [
+        {"weight": "500g", "price": 350, "stock": 10, "reserved": 0},
+        {"weight": "1kg", "price": 650, "stock": 5, "reserved": 0},
+    ]
+    inv = Inventory(product_id=10, stock_quantity=15, reserved_quantity=0)
+    db.get.side_effect = lambda model, id_: mock_prod if model == Product else inv
+    db.scalar.return_value = inv
+
+    # Reserve 2 pouches of 500g
+    reserve_stock(db, product_id=10, quantity=2, selected_weight="500g")
+    assert mock_prod.weight_options[0]["reserved"] == 2
+    assert inv.reserved_quantity == 2
+
+    # Attempting to reserve 9 more 500g should fail (only 8 available: 10 - 2)
+    with pytest.raises(ValueError) as exc:
+        check_stock(db, product_id=10, quantity=9, selected_weight="500g")
+    assert "Insufficient stock for 'Chicken Stew (500g)'" in str(exc.value)
+
+    # Releasing 1 pouch of 500g
+    release_stock(db, product_id=10, quantity=1, selected_weight="500g")
+    assert mock_prod.weight_options[0]["reserved"] == 1
+    assert inv.reserved_quantity == 1
+
+    # Finalizing 1 pouch of 500g
+    finalize_stock(db, product_id=10, quantity=1, selected_weight="500g")
+    assert mock_prod.weight_options[0]["stock"] == 9
+    assert mock_prod.weight_options[0]["reserved"] == 0
+    assert inv.stock_quantity == 14
+    assert inv.reserved_quantity == 0
+

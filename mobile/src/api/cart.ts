@@ -10,6 +10,7 @@ export interface CartItemResponse {
   subtotal: string | number;
   image_url: string | null;
   selected_weight: string | null;
+  available_stock?: number | null;
   created_at?: string;
   updated_at?: string;
 }

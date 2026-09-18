@@ -390,7 +390,7 @@ export const OrdersPage: React.FC = () => {
                             )}
                             <span className="text-ink opacity-60 text-[11px] ml-1">× {item.quantity}</span>
                           </span>
-                          <span className="font-mono font-bold text-ink shrink-0">${parseFloat(item.subtotal).toFixed(2)}</span>
+                          <span className="font-mono font-bold text-ink shrink-0">₹{parseFloat(item.subtotal).toFixed(2)}</span>
                         </div>
                       ))}
                     </div>
@@ -415,7 +415,7 @@ export const OrdersPage: React.FC = () => {
                       TOTAL BILLED
                     </span>
                     <span className="font-mono font-black text-herb text-lg">
-                      ${parseFloat(order.total_amount).toFixed(2)}
+                      ₹{parseFloat(order.total_amount).toFixed(2)}
                     </span>
                   </div>
 

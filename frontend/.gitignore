@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 .env
+
+# Regenerated from live product data by scripts/generate-sitemap.js on
+# every build (see package.json's prebuild script) — not hand-maintained,
+# so committing it would just go stale and create noisy diffs.
+public/sitemap.xml
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

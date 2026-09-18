@@ -30,6 +30,7 @@ class CartItemResponse(BaseModel):
     subtotal: Decimal
     image_url: str | None = None
     selected_weight: str | None = None
+    available_stock: int | None = None
 
     created_at: datetime
     updated_at: datetime

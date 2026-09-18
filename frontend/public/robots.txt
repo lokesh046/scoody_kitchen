@@ -1,0 +1,26 @@
+# Default: allow crawling. Everything below is explicitly excluded instead
+# of trying to allow-list every public route — simpler to keep correct as
+# routes change, and matches standard robots.txt convention.
+User-agent: *
+
+# Auth flows and callback URLs — never content, and login redirects would
+# just waste crawl budget.
+Disallow: /login
+Disallow: /auth/
+
+# Signed-in-only pages (RequireAuth in App.tsx) — private user data, or a
+# login wall a crawler can't get past anyway.
+Disallow: /profile
+Disallow: /checkout
+Disallow: /orders
+Disallow: /pets
+Disallow: /consultations
+Disallow: /apply-doctor
+Disallow: /assistant
+
+# Admin and doctor-only back-office tools — never meant to be public.
+Disallow: /admin
+Disallow: /doctor
+
+# Replace with your real production domain.
+Sitemap: https://www.scoobyskitchen.com/sitemap.xml

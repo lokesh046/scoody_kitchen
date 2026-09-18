@@ -166,6 +166,12 @@ async def create_new_product(
             parsed_weight_options = json.loads(weight_options)
             if not isinstance(parsed_weight_options, list):
                 raise ValueError("weight_options must be a list of weight configurations")
+            for opt in parsed_weight_options:
+                if "stock" in opt:
+                    opt["stock"] = int(opt["stock"])
+                    opt["reserved"] = int(opt.get("reserved", 0))
+            if any("stock" in opt for opt in parsed_weight_options) and (available_stock is None or available_stock == 0):
+                available_stock = sum(int(opt.get("stock", 0)) for opt in parsed_weight_options)
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -270,6 +276,12 @@ async def update_existing_product(
             parsed_weight_options = json.loads(weight_options)
             if not isinstance(parsed_weight_options, list):
                 raise ValueError("weight_options must be a list of weight configurations")
+            for opt in parsed_weight_options:
+                if "stock" in opt:
+                    opt["stock"] = int(opt["stock"])
+                    opt["reserved"] = int(opt.get("reserved", 0))
+            if any("stock" in opt for opt in parsed_weight_options) and available_stock is None:
+                available_stock = sum(int(opt.get("stock", 0)) for opt in parsed_weight_options)
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

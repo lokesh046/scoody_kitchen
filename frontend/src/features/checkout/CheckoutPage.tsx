@@ -801,7 +801,7 @@ export const CheckoutPage: React.FC = () => {
               <div className="space-y-2">
                 <h3 className="font-display font-black text-2xl uppercase tracking-tight text-ink">Payment Successful!</h3>
                 <p className="font-body text-xs text-ink opacity-80 max-w-sm mx-auto leading-relaxed">
-                  Your payment of <span className="font-mono font-bold text-turmeric">${parseFloat(placedOrder.total_amount).toFixed(2)}</span> has been confirmed. Recipes are being prepared fresh in the kitchen!
+                  Your payment of <span className="font-mono font-bold text-turmeric">₹{parseFloat(placedOrder.total_amount).toFixed(2)}</span> has been confirmed. Recipes are being prepared fresh in the kitchen!
                 </p>
               </div>
               <button
@@ -817,7 +817,7 @@ export const CheckoutPage: React.FC = () => {
               <div className="flex justify-between items-center bg-paper p-4 rounded-none border border-cardboard border-dashed">
                 <div>
                   <span className="font-mono text-[9px] uppercase text-cardboard font-bold block">Grand Total Due</span>
-                  <span className="font-mono font-bold text-turmeric text-lg">${parseFloat(placedOrder.total_amount).toFixed(2)}</span>
+                  <span className="font-mono font-bold text-turmeric text-lg">₹{parseFloat(placedOrder.total_amount).toFixed(2)}</span>
                 </div>
                 <div className="flex space-x-2">
                   <button
@@ -1295,7 +1295,9 @@ export const CheckoutPage: React.FC = () => {
                 {cartItems.map((item) => (
                   <div key={item.id} className="flex justify-between items-start text-xs">
                     <div className="max-w-[70%] text-left">
-                      <span className="font-display font-bold text-ink block">{item.name}</span>
+                      <span className="font-display font-bold text-ink block">
+                        {item.name} {item.selected_weight && <span className="text-[10px] text-herb font-mono ml-1 font-bold">({item.selected_weight})</span>}
+                      </span>
                       <span className="font-mono text-[10px] text-herb">
                         Qty: {item.quantity} × ₹{parseFloat(item.price).toFixed(2)}
                       </span>

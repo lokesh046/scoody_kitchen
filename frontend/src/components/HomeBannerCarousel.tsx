@@ -23,7 +23,7 @@ export const HomeBannerCarousel: React.FC = () => {
     queryFn: fetchActiveBanners,
   });
 
-  // Default fallback banners matching the user's reference design with 4K ultra-high resolution
+  // Default fallback banners matching the user's custom designs with 4K ultra-high resolution
   const fallbackBanners: any[] = [
     {
       id: -1,
@@ -32,7 +32,7 @@ export const HomeBannerCarousel: React.FC = () => {
       title: "THE SCOOBY'S FAM",
       subtitle: "Come be a part of our family's quest for delighted and thriving pets! We craft unique pet meals infused with care and premium ingredients, striving to turn each nibble into a source of joy for your furry companions overall well being.",
       tagline: "Our Recipes are crafted to nurture their Mind, Body and Spirit!",
-      image_url: "/images/scoobys_fam_banner.jpg",
+      image_url: "https://res.cloudinary.com/utnenyxi/image/upload/v1788521361/scooby_kitchen/zfmzprttuoojru2qleeh.jpg",
       link_url: "/shop",
       button_text: "Know More",
     },
@@ -42,19 +42,29 @@ export const HomeBannerCarousel: React.FC = () => {
       title: "Honest Ingredients. Zero Filler.",
       subtitle: "Every single recipe batch contains zero corn, wheat, soy, or rendering byproducts. Certified and tested by pet nutrition specialists.",
       tagline: "Human-grade, small-batch recipes cooked for active pet health.",
-      image_url: "https://images.unsplash.com/photo-1589924691106-07a3c22a12e7?auto=format&fit=crop&q=95&w=2400",
+      image_url: "https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg",
       link_url: "/shop",
       button_text: "Explore Recipes",
     },
     {
       id: -3,
-      pretitle: "Clinical Care",
-      title: "Veterinary Audited Diets",
-      subtitle: "Schedule online consultations and log active nutritional diagnostics directly with certified pet doctors.",
+      pretitle: "Farm Fresh",
+      title: "Farm-To-Bowl Holistic Meals",
+      subtitle: "Real whole-food chicken and farm-fresh sweet potatoes slow-cooked daily to nurture vitality and active health.",
       tagline: "Tailored dietary blueprints for every life stage.",
-      image_url: "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&q=95&w=2400",
-      link_url: "/consultations",
-      button_text: "Book Consultation",
+      image_url: "https://res.cloudinary.com/utnenyxi/image/upload/v1788521315/scooby_kitchen/nji85annhntaovsycm9q.jpg",
+      link_url: "/shop",
+      button_text: "Explore Menu",
+    },
+    {
+      id: -4,
+      pretitle: "High Protein",
+      title: "Raptor: All-Meat Diet",
+      subtitle: "Pure primal nutrition engineered for athletic endurance, lean muscle development, and digestive resilience.",
+      tagline: "Zero fillers, zero rendering byproducts.",
+      image_url: "https://res.cloudinary.com/utnenyxi/image/upload/v1788521296/scooby_kitchen/fcw2fhniavnni3qracok.jpg",
+      link_url: "/shop",
+      button_text: "View Recipe",
     }
   ];
 

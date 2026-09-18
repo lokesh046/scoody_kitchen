@@ -47,6 +47,11 @@ export const CartStep = memo(function CartStep({
   total,
   onProceedToDelivery,
 }: CartStepProps) {
+  const hasStockError = items.some((item) => {
+    const s = item.available_stock;
+    return typeof s === 'number' && (s === 0 || item.quantity > s);
+  });
+
   return (
     <>
       {/* Cart Item Cards */}
@@ -96,6 +101,8 @@ export const CartStep = memo(function CartStep({
               style={styles.removeCouponBtn}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove coupon ${appliedCoupon.code}`}
             >
               <Text style={styles.removeCouponBtnText}>Remove</Text>
             </TouchableOpacity>
@@ -121,6 +128,9 @@ export const CartStep = memo(function CartStep({
                 onPress={onApplyCoupon}
                 disabled={!couponCode.trim() || validatingCoupon}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Apply coupon"
+                accessibilityState={{ disabled: !couponCode.trim() || validatingCoupon, busy: validatingCoupon }}
               >
                 {validatingCoupon ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
@@ -180,6 +190,16 @@ export const CartStep = memo(function CartStep({
         </View>
       </View>
 
+      {/* Stock Error Notice */}
+      {hasStockError && (
+        <View style={styles.stockWarningCard}>
+          <AlertCircle size={16} color="#C0392B" />
+          <Text style={styles.stockWarningText}>
+            Some fresh recipes in your bowl exceed the available kitchen stock. Please adjust quantities to proceed.
+          </Text>
+        </View>
+      )}
+
       {/* Step 1 Primary Action Bar */}
       <View style={styles.stepActionCard}>
         <View style={styles.stepActionRow}>
@@ -188,11 +208,17 @@ export const CartStep = memo(function CartStep({
             <Text style={styles.stepActionTotal}>₹{total.toFixed(2)}</Text>
           </View>
           <TouchableOpacity
-            style={styles.primaryStepBtn}
-            onPress={onProceedToDelivery}
+            style={[styles.primaryStepBtn, hasStockError && styles.primaryStepBtnDisabled]}
+            onPress={hasStockError ? undefined : onProceedToDelivery}
+            disabled={hasStockError}
             activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel={hasStockError ? "Adjust quantities to proceed" : "Proceed to delivery"}
+            accessibilityState={{ disabled: hasStockError }}
           >
-            <Text style={styles.primaryStepBtnText}>Proceed to Delivery</Text>
+            <Text style={styles.primaryStepBtnText}>
+              {hasStockError ? 'Adjust Quantities' : 'Proceed to Delivery'}
+            </Text>
             <ArrowRight size={18} color="#FFFFFF" strokeWidth={2.4} />
           </TouchableOpacity>
         </View>

@@ -25,12 +25,14 @@ import {
   PackageOpen,
   ShieldCheck,
   KeyRound,
+  WifiOff,
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
 import { BrandMedallion } from '../components/BrandLogo';
 import { fetchMyOrders, Order } from '../api/orders';
 import { useAuthStore } from '../store/authStore';
 import { tabPrefetchCache } from '../services/tabPrefetch';
+import { isNetworkError } from '../store/networkStore';
 import { useResponsive } from '../hooks/useResponsive';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import { isConfirmedAndPaid, isDelivered, isCancelled, getStatusBadgeStyle } from '../utils/orderStatus';
@@ -69,6 +71,8 @@ const OrderCardItem = memo(function OrderCardItem({ order, onSelect, cardWidth }
       style={[styles.orderCard, { width: cardWidth }]}
       onPress={handlePress}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={`View order #${order.id}, ${badge.label}`}
     >
       {/* Order Top Line */}
       <View style={styles.cardHeader}>
@@ -154,6 +158,7 @@ export default function OrdersScreen({ navigation }: any) {
   const [loading, setLoading] = useState(() => !tabPrefetchCache.orders);
   const [refreshing, setRefreshing] = useState(false);
   const [isAuthError, setIsAuthError] = useState(false);
+  const [isNetworkFailure, setIsNetworkFailure] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<FilterType>('ALL');
 
   const ordersLastFetchedRef = useRef(tabPrefetchCache.ordersFetchedAt || 0);
@@ -175,11 +180,14 @@ export default function OrdersScreen({ navigation }: any) {
         const data = await fetchMyOrders();
         setOrders(data || []);
         setIsAuthError(false);
+        setIsNetworkFailure(false);
         ordersLastFetchedRef.current = Date.now();
       } catch (e: any) {
         console.log('Error loading orders:', e?.response?.status || e);
         if (e?.response?.status === 401) {
           setIsAuthError(true);
+        } else if (isNetworkError(e)) {
+          setIsNetworkFailure(true);
         }
       } finally {
         setLoading(false);
@@ -269,6 +277,8 @@ export default function OrdersScreen({ navigation }: any) {
           <TouchableOpacity
             style={styles.exploreBtn}
             onPress={() => logout()}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in to account"
           >
             <KeyRound size={16} color="#FFFFFF" />
             <Text style={styles.exploreBtnText}>Sign In to Account</Text>
@@ -282,6 +292,29 @@ export default function OrdersScreen({ navigation }: any) {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.forestGreen} />
           <Text style={styles.loadingText}>Loading your orders...</Text>
+        </View>
+      );
+    }
+
+    if (isNetworkFailure) {
+      return (
+        <View style={styles.emptyStateContainer}>
+          <View style={styles.emptyIconCircle}>
+            <WifiOff size={48} color={COLORS.brandGold} />
+          </View>
+          <Text style={styles.emptyTitle}>Couldn't Load Orders</Text>
+          <Text style={styles.emptySub}>
+            We couldn't reach the server. Check your internet connection and try again.
+          </Text>
+          <TouchableOpacity
+            style={styles.exploreBtn}
+            onPress={() => loadOrders(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading orders"
+          >
+            <WifiOff size={16} color="#FFFFFF" />
+            <Text style={styles.exploreBtnText}>Tap to Retry</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -304,13 +337,15 @@ export default function OrdersScreen({ navigation }: any) {
         <TouchableOpacity
           style={styles.exploreBtn}
           onPress={() => navigation.navigate('Kitchen')}
+          accessibilityRole="button"
+          accessibilityLabel="Explore fresh recipes"
         >
           <UtensilsCrossed size={16} color="#FFFFFF" />
           <Text style={styles.exploreBtnText}>Explore Fresh Recipes</Text>
         </TouchableOpacity>
       </View>
     );
-  }, [user, isGuest, isAuthError, loading, selectedFilter, logout, navigation]);
+  }, [user, isGuest, isAuthError, isNetworkFailure, loading, selectedFilter, logout, navigation, loadOrders]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>

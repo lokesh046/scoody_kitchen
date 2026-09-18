@@ -48,11 +48,13 @@ import { FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_BODY, FONT_BODY_BOLD, LEDGER_
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { usePetStore } from '../store/petStore';
+import { useTourStore } from '../store/tourStore';
 import { fetchProducts } from '../api/products';
 import { fetchActiveBanners } from '../api/banners';
 import { fetchRecentReviews, UnifiedReview } from '../api/reviews';
 import { Product } from '../types';
 import PetVisionModal from '../components/PetVisionModal';
+import AppTour, { TourStep } from '../components/AppTour';
 import { NotificationModal } from '../components/NotificationModal';
 import { BrandHeader } from '../components/BrandLogo';
 import { fetchUnreadCount } from '../api/notifications';
@@ -85,30 +87,39 @@ interface HeroBanner {
 const HERO_BANNERS: HeroBanner[] = [
   {
     id: '1',
-    badge: '🌸 New Spring Release',
-    title: 'Hand-crafted fresh meals & herbal supplements',
-    subtitle: 'Steamed small-batch holistic nutrition crafted daily by clinical pet nutritionists and herbalists.',
-    ctaText: 'Explore Spring Menu',
+    badge: 'Family Owned • Since 2016',
+    title: 'Hearth & Hound: Small-Batch Nutrition',
+    subtitle: 'Wholesome Chicken & Sweet Potato recipes hand-crafted with human-grade ingredients.',
+    ctaText: 'Explore Kitchen',
     targetScreen: 'Shop',
-    bgImage: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=85&w=1200',
+    bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521361/scooby_kitchen/zfmzprttuoojru2qleeh.jpg',
   },
   {
     id: '2',
-    badge: 'Family Owned • Since 2016',
-    title: "THE SCOOBY'S FAM: Honest Nutrition",
-    subtitle: 'Come be a part of our family quest for thriving pets! Crafted with premium human-grade ingredients.',
-    ctaText: 'Explore Kitchen',
+    badge: '100% Transparent',
+    title: 'Honest Ingredients. Zero Filler.',
+    subtitle: 'Every batch contains zero corn, wheat, soy, or synthetic preservatives. Tested by nutritionists.',
+    ctaText: 'Explore Recipes',
     targetScreen: 'Shop',
-    bgImage: 'https://images.unsplash.com/photo-1589924691106-07a3c22a12e7?auto=format&fit=crop&q=85&w=1200',
+    bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg',
   },
   {
     id: '3',
-    badge: '100% Veterinary Audited',
-    title: 'Clinical Care & Tailored Diets',
-    subtitle: 'Zero corn, wheat, or rendering byproducts. Schedule online consultations with certified veterinarians.',
-    ctaText: 'Book Consultation',
-    targetScreen: 'Consult',
-    bgImage: 'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&q=85&w=1200',
+    badge: 'Farm Fresh',
+    title: 'Farm-To-Bowl Holistic Meals',
+    subtitle: 'Real whole-food chicken and farm-fresh sweet potatoes slow-cooked daily to nurture vitality.',
+    ctaText: 'Explore Menu',
+    targetScreen: 'Shop',
+    bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521315/scooby_kitchen/nji85annhntaovsycm9q.jpg',
+  },
+  {
+    id: '4',
+    badge: 'High Protein',
+    title: 'Raptor: All-Meat Diet',
+    subtitle: 'Pure primal nutrition engineered for athletic endurance, lean muscle, and digestive resilience.',
+    ctaText: 'View Recipe',
+    targetScreen: 'Shop',
+    bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521296/scooby_kitchen/fcw2fhniavnni3qracok.jpg',
   },
 ];
 
@@ -208,10 +219,25 @@ const BannerSlideItem = memo(function BannerSlideItem({
   slideWidth,
   cardWidth,
 }: BannerSlideItemProps) {
+  const [imgUri, setImgUri] = useState(item.bgImage);
+
+  useEffect(() => {
+    setImgUri(item.bgImage);
+  }, [item.bgImage]);
+
   return (
     <View style={[styles.bannerSlideWrapper, slideWidth ? { width: slideWidth } : null]}>
       <View style={[styles.bannerSlide, cardWidth ? { width: cardWidth } : null]}>
-        <Image source={{ uri: item.bgImage }} style={styles.bannerImage} contentFit="cover" />
+        <Image
+          source={{ uri: imgUri }}
+          style={styles.bannerImage}
+          contentFit="cover"
+          onError={() => {
+            if (imgUri !== HERO_BANNERS[0].bgImage) {
+              setImgUri(HERO_BANNERS[0].bgImage);
+            }
+          }}
+        />
         <LinearGradient
           colors={['transparent', 'rgba(20,14,8,0.12)', 'rgba(20,14,8,0.72)']}
           locations={[0, 0.45, 1]}
@@ -232,6 +258,8 @@ const BannerSlideItem = memo(function BannerSlideItem({
             style={styles.bannerCtaBtn}
             onPress={() => onNavigate(item.targetScreen)}
             activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel={item.ctaText}
           >
             <Text style={styles.bannerCtaText}>{item.ctaText}</Text>
             <ArrowRight size={15} color="#FFFFFF" strokeWidth={2.4} />
@@ -315,7 +343,12 @@ const ProductFavoriteCard = memo(function ProductFavoriteCard({
 
       {/* Card Body */}
       <View style={styles.cardBody}>
-        <TouchableOpacity onPress={() => onSelectProduct(product.id)} activeOpacity={0.85}>
+        <TouchableOpacity
+          onPress={() => onSelectProduct(product.id)}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${product.name}`}
+        >
           {/* Rating (only shown once the recipe has real reviews) */}
           {hasReviews && (
             <View style={styles.ratingRow}>
@@ -385,6 +418,8 @@ const ProductFavoriteCard = memo(function ProductFavoriteCard({
               style={styles.cardAddBtn}
               onPress={() => onAddItem(product.id, 1)}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={`Add ${product.name} to cart`}
             >
               <Plus size={13} color="#FFFFFF" strokeWidth={2.5} />
               <Text style={styles.cardAddText}>Add</Text>
@@ -417,6 +452,8 @@ const ReviewCardItem = memo(function ReviewCardItem({
       style={styles.reviewCard}
       onPress={() => onOpenModal(review)}
       activeOpacity={0.88}
+      accessibilityRole="button"
+      accessibilityLabel={`View review by ${review.author_name}, ${review.rating} out of 5 stars`}
     >
       {/* Review Picture with Badge */}
       <View style={styles.reviewImageWrap}>
@@ -478,6 +515,8 @@ const ReviewCardItem = memo(function ReviewCardItem({
           }}
           activeOpacity={0.75}
           hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={review.type === 'doctor' ? 'View consultation details' : 'View product details'}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
             {review.type === 'doctor' ? (
@@ -564,6 +603,65 @@ export default function HomeScreen({ navigation }: any) {
     return () => clearTimeout(timer);
   }, []);
   const toastTimerRef = useRef<any>(null);
+
+  // First-run coach-mark tour (see AppTour.tsx) — targets two real elements
+  // already on this screen rather than a separate tutorial mode.
+  const recipesSectionRef = useRef<View>(null);
+  const vetCardRef = useRef<View>(null);
+  const hasSeenHomeTour = useTourStore((s) => s.hasSeenHomeTour);
+  const hasLoadedTourFlag = useTourStore((s) => s.hasLoadedSeenFlag);
+  const loadTourSeenFlag = useTourStore((s) => s.loadSeenFlag);
+  const startTour = useTourStore((s) => s.startTour);
+  const isTourActive = useTourStore((s) => s.isTourActive);
+  const endTour = useTourStore((s) => s.endTour);
+  const tourSteps = useMemo<TourStep[]>(
+    () => [
+      {
+        icon: PawPrint,
+        title: 'Welcome to Scooby’s Kitchen 🐾',
+        description:
+          'A 20-second look at what makes us different: total ingredient transparency, backed by real veterinary guidance.',
+      },
+      {
+        targetRef: recipesSectionRef,
+        icon: ShieldCheck,
+        title: 'See exactly what’s inside',
+        description:
+          'Every recipe lists precise ingredient percentages — real meat, real vegetables, zero mystery fillers.',
+      },
+      {
+        targetRef: vetCardRef,
+        icon: Stethoscope,
+        title: 'Vet-backed, always',
+        description:
+          'Every recipe is formulated with veterinary guidance, and certified vets are a tap away whenever you need advice.',
+      },
+      {
+        icon: PawPrint,
+        title: 'You’re all set!',
+        description: 'Explore recipes, meet our vets, and give your pup the transparency they deserve.',
+      },
+    ],
+    []
+  );
+
+  useEffect(() => {
+    loadTourSeenFlag();
+  }, [loadTourSeenFlag]);
+
+  useEffect(() => {
+    if (!hasLoadedTourFlag || hasSeenHomeTour) return;
+    const timer = setTimeout(() => startTour(), 500);
+    return () => clearTimeout(timer);
+  }, [hasLoadedTourFlag, hasSeenHomeTour, startTour]);
+
+  // The tour's spotlighted elements (e.g. "Find a Vet") are genuinely
+  // tappable, so a real interaction can navigate away from Home mid-tour.
+  // Tabs stay mounted when unfocused, so without this the overlay would
+  // otherwise keep running invisibly and reappear on return to Home.
+  useEffect(() => {
+    if (!isFocused && isTourActive) endTour();
+  }, [isFocused, isTourActive, endTour]);
 
   // The AI Vision spotlight card communicates "this scans your pet" through
   // a camera-viewfinder motif (corner brackets + this sweeping line) instead
@@ -1052,6 +1150,7 @@ export default function HomeScreen({ navigation }: any) {
   );
 
   return (
+    <>
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* 1. Header with Logo & Notification Controls */}
       <View style={styles.header}>
@@ -1201,13 +1300,13 @@ export default function HomeScreen({ navigation }: any) {
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
+            initialScrollIndex={banners.length > 1 ? 1 : 0}
             onMomentumScrollEnd={onBannerScrollEnd}
             getItemLayout={getBannerItemLayout}
             renderItem={renderBannerItem}
-            initialNumToRender={2}
-            maxToRenderPerBatch={2}
-            windowSize={3}
-            removeClippedSubviews={Platform.OS === 'android'}
+            initialNumToRender={3}
+            maxToRenderPerBatch={3}
+            windowSize={5}
             decelerationRate="fast"
             snapToInterval={carouselWidth}
             snapToAlignment="center"
@@ -1353,7 +1452,7 @@ export default function HomeScreen({ navigation }: any) {
         </View>
 
         {/* 6. Kitchen Favorites Section */}
-        <View style={styles.sectionHeaderRow}>
+        <View style={styles.sectionHeaderRow} ref={recipesSectionRef} collapsable={false}>
           <View>
             <Text style={styles.sectionTitle}>Signature Recipes</Text>
           </View>
@@ -1412,6 +1511,30 @@ export default function HomeScreen({ navigation }: any) {
           </ScrollView>
         )}
 
+        {/* Meal Planner entry — mirrors web's persistent "Meal Planner"
+            nav item / Home CTA (frontend/src/features/onboarding), a diet
+            quiz usable any time rather than a first-run/signup gate. */}
+        <View style={styles.mealPlannerCard}>
+          <View style={styles.mealPlannerIconCircle}>
+            <Sparkles size={22} color={COLORS.brandGold} />
+          </View>
+          <View style={styles.mealPlannerTextCol}>
+            <Text style={styles.mealPlannerTitle}>Meal Planner</Text>
+            <Text style={styles.mealPlannerSubtitle}>
+              Get a personalized recipe recommendation in 90 seconds.
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.mealPlannerBtn}
+            onPress={() => handleNavigateScreen('MealPlanner')}
+            activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel="Open meal planner"
+          >
+            <ArrowRight size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+
         {/* 7. Vet Consultation Card (Dark Forest Green). "Telehealth
             Apothecary" wasn't the right name for what this is — it's a vet
             consultation booking, so the badge says that plainly. The price
@@ -1419,7 +1542,7 @@ export default function HomeScreen({ navigation }: any) {
             the pulse-line glyph that replaces it in that slot says
             "clinical" through the design instead of another label. Copy
             trimmed to what a glance actually needs. */}
-        <View style={styles.telehealthCard}>
+        <View style={styles.telehealthCard} ref={vetCardRef} collapsable={false}>
           <View style={styles.telehealthHeaderRow}>
             <View style={styles.telehealthPill}>
               <Stethoscope size={13} color={COLORS.sageLight} />
@@ -1450,6 +1573,8 @@ export default function HomeScreen({ navigation }: any) {
             style={styles.findVetBtn}
             onPress={() => handleNavigateScreen('Consult')}
             activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel="Find a vet"
           >
             <Stethoscope size={16} color="#FFFFFF" />
             <Text style={styles.findVetBtnText}>Find a Vet</Text>
@@ -1605,6 +1730,8 @@ export default function HomeScreen({ navigation }: any) {
             setLiveToast(null);
             setNotificationModalVisible(true);
           }}
+          accessibilityRole="button"
+          accessibilityLabel={`Notification: ${liveToast.title}. ${liveToast.message}`}
         >
           <View style={styles.liveToastIconWrap}>
             <Sparkles size={16} color={COLORS.sageIcon} />
@@ -1742,6 +1869,8 @@ export default function HomeScreen({ navigation }: any) {
                     ]}
                     onPress={() => handleNavigateToReviewTarget(selectedReviewModal)}
                     activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel={selectedReviewModal.type === 'doctor' ? 'View consulted specialist' : 'View sourced recipe'}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                       <View
@@ -1787,6 +1916,12 @@ export default function HomeScreen({ navigation }: any) {
         </Modal>
       )}
     </SafeAreaView>
+
+    {/* Rendered as a sibling of SafeAreaView, not a child — its coordinates
+        come from measureInWindow (true full-window), and SafeAreaView's top
+        inset would otherwise offset it from the window. */}
+    <AppTour steps={tourSteps} />
+    </>
   );
 }
 
@@ -2012,6 +2147,8 @@ const styles = StyleSheet.create({
   },
   bannerImage: {
     ...StyleSheet.absoluteFill,
+    width: '100%',
+    height: '100%',
   },
   bannerContent: {
     gap: 8,
@@ -2497,6 +2634,45 @@ const styles = StyleSheet.create({
   },
 
   /* 7. Telehealth Apothecary Card */
+  mealPlannerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORS.card,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.kraftBorder,
+    padding: 14,
+  },
+  mealPlannerIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.cardAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mealPlannerTextCol: { flex: 1, gap: 2 },
+  mealPlannerTitle: {
+    fontSize: 14,
+    fontFamily: FONT_DISPLAY,
+    color: COLORS.textCoffee,
+  },
+  mealPlannerSubtitle: {
+    fontSize: 11.5,
+    fontFamily: FONT_BODY,
+    color: COLORS.textMuted,
+  },
+  mealPlannerBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.forestGreen,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   telehealthCard: {
     backgroundColor: COLORS.forestDark,
     marginHorizontal: 16,

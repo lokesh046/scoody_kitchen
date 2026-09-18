@@ -30,7 +30,7 @@ export interface ProductResponse {
   reserved_stock?: number;
   low_stock_threshold?: number;
   images?: ProductImageResponse[];
-  weight_options?: { weight: string; price: number | string }[];
+  weight_options?: { weight: string; price: number | string; stock?: number; reserved?: number }[];
   average_rating?: number;
   review_count?: number;
 }

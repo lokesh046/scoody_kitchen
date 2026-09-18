@@ -2,6 +2,8 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { refreshAuthTokenSilently } from './client';
 import { resolveHost } from './resolveHost';
+import { captureApiError } from '../services/sentry';
+import { isNetworkError } from '../store/networkStore';
 
 export const getChatbotBaseUrl = (): string => resolveHost(8002, process.env.EXPO_PUBLIC_CHATBOT_URL);
 
@@ -174,8 +176,14 @@ export const streamChatMessage = (
       onToken(res.reply);
       onDone();
     } catch (err: any) {
+      // Reached only when BOTH the streaming attempt (xhr.onerror/onload
+      // fallback above) AND this REST fallback have failed — the user's
+      // message genuinely never got a response, always worth knowing about.
+      captureApiError(err, 'chat.fallbackFailed', { alwaysCapture: true });
       if (err.response?.status === 401) {
         onError('Authentication required or expired. Please log in to chat with Scooby AI.');
+      } else if (isNetworkError(err)) {
+        onError('You appear to be offline. Check your connection and try sending your message again.');
       } else {
         onError(err.response?.data?.detail || 'Could not connect to Scooby AI service.');
       }

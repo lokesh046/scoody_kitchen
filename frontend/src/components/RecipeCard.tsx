@@ -89,7 +89,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = React.memo(({ product, onAd
               {product.name}
             </h4>
             <span className="font-mono font-bold text-turmeric text-base whitespace-nowrap">
-              ${parseFloat(product.price).toFixed(2)}
+              ₹{parseFloat(product.price).toFixed(2)}
             </span>
           </div>
 

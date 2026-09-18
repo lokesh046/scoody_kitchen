@@ -495,7 +495,7 @@ export const AdminDoctorsPage: React.FC = () => {
                                   <span className="text-ink block leading-relaxed">Degree: {app.qualification} ({app.degree_start_year} - {app.degree_end_year})</span>
                                 )}
                                 <span className="text-ink block">License: {app.license_number}</span>
-                                <span className="text-turmeric block font-bold">Fee: ${parseFloat(app.consultation_fee).toFixed(2)}</span>
+                                <span className="text-turmeric block font-bold">Fee: ₹{parseFloat(app.consultation_fee).toFixed(2)}</span>
                                 <span className="text-ink block">Exp: {app.experience_years} Years</span>
                               </td>
                               <td className="py-4 px-2 space-y-1">
@@ -728,7 +728,7 @@ export const AdminDoctorsPage: React.FC = () => {
                             <div className="grid grid-cols-2 gap-4 font-mono text-xs bg-paperLight p-3.5 border border-cardboard border-dashed rounded-sm text-ink">
                               <div><strong>Specialization:</strong> {doc.specialization}</div>
                               <div><strong>License:</strong> {doc.license_number}</div>
-                              <div><strong>Consultation Fee:</strong> ${parseFloat(doc.consultation_fee).toFixed(2)}</div>
+                              <div><strong>Consultation Fee:</strong> ₹{parseFloat(doc.consultation_fee).toFixed(2)}</div>
                               <div><strong>Clinic:</strong> {doc.clinic?.name || 'Private Practice'}</div>
                             </div>
 

@@ -25,6 +25,7 @@ def get_or_create_cart(
         .options(
             joinedload(Cart.items)
             .joinedload(CartItem.product)
+            .joinedload(Product.inventory)
         )
         .where(Cart.user_id == user_id)
     )
@@ -72,22 +73,44 @@ def build_cart_item_response(
     cart_item: CartItem,
 ) -> CartItemResponse:
 
-    price = get_product_price(cart_item.product, cart_item.selected_weight)
+    product = cart_item.product
+    price = get_product_price(product, cart_item.selected_weight)
     subtotal = (
         price
         * cart_item.quantity
     )
 
+    available_stock = None
+    if product:
+        if cart_item.selected_weight and product.weight_options:
+            for opt in product.weight_options:
+                if opt.get("weight") == cart_item.selected_weight:
+                    if "stock" in opt:
+                        available_stock = max(0, int(opt["stock"]) - int(opt.get("reserved", 0)))
+                    break
+        if available_stock is None and getattr(product, "inventory", None) is not None:
+            inv = product.inventory
+            available_stock = max(0, inv.stock_quantity - inv.reserved_quantity)
+        if available_stock is None and product.weight_options:
+            variant_stocks = [
+                max(0, int(opt["stock"]) - int(opt.get("reserved", 0)))
+                for opt in product.weight_options
+                if "stock" in opt
+            ]
+            if variant_stocks:
+                available_stock = sum(variant_stocks)
+
     return CartItemResponse(
         id=cart_item.id,
         product_id=cart_item.product_id,
-        name=cart_item.product.name,
-        description=cart_item.product.description,
+        name=product.name if product else f"Product #{cart_item.product_id}",
+        description=product.description if product else None,
         price=price,
         quantity=cart_item.quantity,
         subtotal=subtotal,
-        image_url=cart_item.product.image_url,
+        image_url=product.image_url if product else None,
         selected_weight=cart_item.selected_weight,
+        available_stock=available_stock,
         created_at=cart_item.created_at,
         updated_at=cart_item.updated_at,
     )
@@ -169,6 +192,11 @@ def add_item_to_cart(
         statement
     )
 
+    target_quantity = (existing_item.quantity + item_data.quantity) if existing_item is not None else item_data.quantity
+    if getattr(product, "inventory", None) is not None:
+        from app.services.inventory_service import check_stock
+        check_stock(db, product.id, target_quantity, selected_weight=item_data.selected_weight)
+
     if existing_item is not None:
 
         existing_item.quantity += (
@@ -182,6 +210,8 @@ def add_item_to_cart(
             .options(
                 joinedload(
                     CartItem.product
+                ).joinedload(
+                    Product.inventory
                 )
             )
             .where(
@@ -216,6 +246,8 @@ def add_item_to_cart(
         .options(
             joinedload(
                 CartItem.product
+            ).joinedload(
+                Product.inventory
             )
         )
         .where(
@@ -253,6 +285,10 @@ def update_cart_item(
     if cart_item is None:
         return None
 
+    if getattr(cart_item, "product", None) is not None and getattr(cart_item.product, "inventory", None) is not None:
+        from app.services.inventory_service import check_stock
+        check_stock(db, cart_item.product_id, item_data.quantity, selected_weight=cart_item.selected_weight)
+
     cart_item.quantity = (
         item_data.quantity
     )
@@ -264,6 +300,8 @@ def update_cart_item(
         .options(
             joinedload(
                 CartItem.product
+            ).joinedload(
+                Product.inventory
             )
         )
         .where(

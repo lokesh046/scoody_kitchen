@@ -7,16 +7,14 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon-1024.png",
-    "splash": {
-      "image": "./assets/scooby-logo-512.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F9F6F0"
-    },
     "ios": {
+      "bundleIdentifier": "com.scooby.kitchen",
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Scooby's Kitchen needs camera access so you can be seen during your video consultation with the veterinarian.",
-        "NSMicrophoneUsageDescription": "Scooby's Kitchen needs microphone access so you can speak during your video consultation with the veterinarian."
+        "NSCameraUsageDescription": "Scooby's Kitchen needs camera access to let you take photos of your pet, scan recipes, and be seen during video consultations with the veterinarian.",
+        "NSMicrophoneUsageDescription": "Scooby's Kitchen needs microphone access so you can speak during your video consultation with the veterinarian.",
+        "NSPhotoLibraryUsageDescription": "Scooby's Kitchen needs access to your photo library so you can upload a profile picture and photos of your pet.",
+        "NSLocationWhenInUseUsageDescription": "Scooby's Kitchen uses your location to auto-fill your delivery address at checkout."
       }
     },
     "android": {
@@ -37,7 +35,23 @@
       "expo-font",
       "expo-sharing",
       "expo-secure-store",
-      "@sentry/react-native"
+      "@sentry/react-native",
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/scooby-logo-512.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#F9F6F0"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": false,
+          "savePhotosPermission": "Scooby's Kitchen needs permission to save your Pet Heritage Passport to your photo library."
+        }
+      ]
     ]
   }
 }

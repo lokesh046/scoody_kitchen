@@ -1,19 +1,92 @@
 services:
-  backend:
+  # --- Database connection pooling -------------------------------------
+  # Sits between the backend replicas and Neon. Without this, 3 backend
+  # replicas x WEB_CONCURRENCY=4 gunicorn workers x (DB_POOL_SIZE=10 +
+  # DB_MAX_OVERFLOW=5) = 180 direct Postgres connections from one VPS —
+  # likely past what your Neon plan allows, causing "too many connections"
+  # outright outages rather than slowdowns. PgBouncer in transaction mode
+  # multiplexes those onto a much smaller number of real upstream connections.
+  #
+  # Uses edoburu/pgbouncer, which builds pgbouncer.ini from env vars instead
+  # of needing a hand-written ini file with credentials baked into it.
+  # Fill in the PGBOUNCER_* vars in your root .env from your existing Neon
+  # DATABASE_URL (postgresql://USER:PASSWORD@HOST:PORT/DBNAME).
+  #
+  # CAVEAT: Neon requires SSL. Confirm this image's default server-side SSL
+  # behavior is acceptable for your Neon endpoint (check its docs for
+  # server_tls_sslmode) before relying on this in production — this file
+  # assumes the image's default handles it, which may need adjusting for
+  # your specific Neon project.
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: pet_platform_pgbouncer
+    environment:
+      - DB_HOST=${PGBOUNCER_DB_HOST}
+      - DB_PORT=${PGBOUNCER_DB_PORT:-5432}
+      - DB_USER=${PGBOUNCER_DB_USER}
+      - DB_PASSWORD=${PGBOUNCER_DB_PASSWORD}
+      - DB_NAME=${PGBOUNCER_DB_NAME}
+      - POOL_MODE=transaction
+      - MAX_CLIENT_CONN=500
+      - DEFAULT_POOL_SIZE=25
+      - AUTH_TYPE=scram-sha-256
+    # No host port published — only reachable from other containers on
+    # scooby_net, same as redis and mcp-server.
+    networks:
+      - scooby_net
+    restart: unless-stopped
+
+  # --- Backend replicas ---------------------------------------------------
+  # Three identical instances instead of Docker Compose's `--scale` flag —
+  # `--scale` needs nginx to re-resolve DNS per request to see new replicas,
+  # which plain open-source nginx doesn't do well. Named, fixed replicas
+  # are simpler to reason about for a VPS that isn't autoscaling anyway.
+  # None publish a host port: nginx is the only public entry point now.
+  backend_1: &backend_replica
     build:
       context: ./pet-platform-backend
-    container_name: pet_platform_backend
-    ports:
-      - "8000:8000"
+    container_name: pet_platform_backend_1
     env_file:
       - ./pet-platform-backend/.env
     volumes:
       - ./pet-platform-backend/firebase-service-account.json:/app/firebase-service-account.json:ro
     environment:
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      # Overrides whatever DATABASE_URL is in .env (which still points
+      # directly at Neon, e.g. for one-off scripts run outside Docker) —
+      # the running app now goes through pgbouncer instead.
+      - DATABASE_URL=postgresql+psycopg://${PGBOUNCER_DB_USER}:${PGBOUNCER_DB_PASSWORD}@pgbouncer:6432/${PGBOUNCER_DB_NAME}
     networks:
       - scooby_net
     restart: unless-stopped
+    depends_on:
+      - pgbouncer
+
+  backend_2:
+    <<: *backend_replica
+    container_name: pet_platform_backend_2
+
+  backend_3:
+    <<: *backend_replica
+    container_name: pet_platform_backend_3
+
+  # --- Load balancer -------------------------------------------------------
+  # The only service publishing a host port for the backend now — see
+  # nginx/nginx.conf for the actual load-balancing/health-check config.
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: pet_platform_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - scooby_net
+    restart: unless-stopped
+    depends_on:
+      - backend_1
+      - backend_2
+      - backend_3
 
   celery-worker:
     build:
@@ -24,6 +97,11 @@ services:
       - ./pet-platform-backend/.env
     environment:
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      # Left pointing directly at Neon (via .env), not through pgbouncer —
+      # a single long-lived worker process doesn't multiply connections
+      # the way N backend replicas x M gunicorn workers does, and Celery
+      # tasks can hold longer transactions than pgbouncer's transaction
+      # pooling mode is meant for.
     networks:
       - scooby_net
     restart: unless-stopped
@@ -52,10 +130,28 @@ services:
     environment:
       - HOST=0.0.0.0
       - PORT=8001
-      - BACKEND_URL=http://backend:8000
+      - BACKEND_URL=http://nginx:80
       - MCP_INTERNAL_SECRET=${MCP_INTERNAL_SECRET}
       - MCP_CALL_TOKEN_SECRET=${MCP_CALL_TOKEN_SECRET}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+    networks:
+      - scooby_net
+    restart: unless-stopped
+
+  # --- Shared ML inference ------------------------------------------------
+  # Loads the embedding model (and, lazily, Prompt Guard) exactly once —
+  # see ml-inference-service/main.py. chatbot-service's workers call this
+  # instead of loading torch/transformers themselves, so CHATBOT_WORKERS can
+  # scale without multiplying model memory. No host port published —
+  # internal-only, same as mcp-server.
+  ml-inference:
+    build:
+      context: ./ml-inference-service
+    container_name: pet_platform_ml_inference
+    env_file:
+      - ./ml-inference-service/.env
+    environment:
+      - PORT=8010
     networks:
       - scooby_net
     restart: unless-stopped
@@ -72,9 +168,13 @@ services:
       - PORT=8002
       - MCP_SERVER_URL=http://mcp-server:8001/sse
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - ML_INFERENCE_URL=http://ml-inference:8010
+      - WEB_CONCURRENCY=${CHATBOT_WORKERS:-4}
     networks:
       - scooby_net
     restart: unless-stopped
+    depends_on:
+      - ml-inference
 
   vision-service:
     build:

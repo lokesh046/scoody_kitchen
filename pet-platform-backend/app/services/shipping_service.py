@@ -89,6 +89,29 @@ async def create_shipment_for_order(
         if not items:
             items = [{"name": "Pet Care Product", "sku": "PET-ITEM-001", "units": 1, "selling_price": str(order.total_amount)}]
 
+        def calculate_order_weight_kg(ord: Order) -> float:
+            total_kg = 0.0
+            if ord.items:
+                for item in ord.items:
+                    weight_str = (item.selected_weight or "").strip().lower()
+                    qty = item.quantity or 1
+                    if "kg" in weight_str:
+                        try:
+                            val = float(weight_str.replace("kg", "").strip())
+                            total_kg += val * qty
+                            continue
+                        except ValueError:
+                            pass
+                    elif "g" in weight_str:
+                        try:
+                            val = float(weight_str.replace("g", "").strip()) / 1000.0
+                            total_kg += val * qty
+                            continue
+                        except ValueError:
+                            pass
+                    total_kg += 0.5 * qty
+            return max(0.5, round(total_kg, 2))
+
         shiprocket_payload = {
             "order_id": f"SCOOBY_ORDER_{order.id}",
             "order_date": order_date_str,
@@ -109,7 +132,7 @@ async def create_shipment_for_order(
             "length": 10,
             "breadth": 10,
             "height": 10,
-            "weight": 0.5,
+            "weight": calculate_order_weight_kg(order),
         }
         sr_res = await shipping_provider.create_order(shiprocket_payload)
         if isinstance(sr_res, dict) and sr_res.get("awb_code"):

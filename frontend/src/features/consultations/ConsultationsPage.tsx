@@ -2410,7 +2410,7 @@ export const ConsultationsPage: React.FC = () => {
                       </div>
                       <div>
                         <span className="text-[9px] uppercase text-paprika font-bold block">Consultation Fee</span>
-                        <span className="text-herb font-bold">${parseFloat(inspectingDoctor.consultation_fee).toFixed(2)}</span>
+                        <span className="text-herb font-bold">₹{parseFloat(inspectingDoctor.consultation_fee).toFixed(2)}</span>
                       </div>
                       <div>
                         <span className="text-[9px] uppercase text-paprika font-bold block">Clinic Mapping</span>

@@ -70,6 +70,7 @@ def add_product_to_cart(
             cart,
             item_data,
         )
+        db.expire_all()
         return get_cart_response(
             db,
             current_user.id,
@@ -117,6 +118,7 @@ def update_my_cart_item(
             detail="Cart item not found",
         )
 
+    db.expire_all()
     return get_cart_response(
         db,
         current_user.id,
@@ -153,6 +155,7 @@ def remove_item_from_cart(
             detail="Cart item not found",
         )
 
+    db.expire_all()
     return get_cart_response(
         db,
         current_user.id,

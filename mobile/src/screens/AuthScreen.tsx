@@ -30,6 +30,7 @@ import { FONT_DISPLAY_SEMIBOLD, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '.
 import { useAuthStore } from '../store/authStore';
 import { BrandMedallion } from '../components/BrandLogo';
 import apiClient from '../api/client';
+import { captureApiError } from '../services/sentry';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -115,6 +116,7 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
       }
     } catch (err: any) {
       console.log('Google backend auth error:', err.response?.data);
+      captureApiError(err, 'auth.googleSignIn');
       const detail =
         err.response?.data?.detail ||
         'Google authentication failed on server. Please check backend configuration.';
@@ -146,6 +148,7 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
       setStep('verify');
     } catch (err: any) {
       console.log('Auth request error:', err.response?.data || err.message);
+      captureApiError(err, 'auth.sendCode');
       const detail =
         err.response?.data?.detail ||
         (err.message?.includes('timeout') ? 'Request timed out. Please try again.' : 'Failed to connect to backend.');
@@ -186,6 +189,7 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
       }
     } catch (err: any) {
       console.log('Verification error:', err.response?.data);
+      captureApiError(err, 'auth.verifyCode');
       const detail = err.response?.data?.detail || 'Invalid or expired verification code';
       setErrorMsg(detail);
     } finally {

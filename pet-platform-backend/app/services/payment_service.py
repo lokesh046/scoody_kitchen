@@ -93,6 +93,7 @@ def process_payment_success(
             db,
             order_item.product_id,
             order_item.quantity,
+            selected_weight=order_item.selected_weight,
         )
 
     payment.status = PaymentStatus.SUCCESS

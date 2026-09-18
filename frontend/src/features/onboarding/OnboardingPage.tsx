@@ -571,7 +571,7 @@ export const OnboardingPage: React.FC = () => {
               {recProduct ? (
                 <div className="border border-cardboard bg-paperLight p-5 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-5 text-left">
                   <img
-                    src={recProduct.image_url || 'https://images.unsplash.com/photo-1589924691106-07a3c22a12e7?auto=format&fit=crop&q=80&w=300'}
+                    src={recProduct.image_url || 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&q=80&w=300'}
                     alt={recProduct.name}
                     className="w-24 h-24 object-cover border border-cardboard"
                   />

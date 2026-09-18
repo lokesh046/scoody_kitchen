@@ -34,10 +34,12 @@ import {
   Image as ImageIcon,
   AlertCircle,
   LogIn,
+  Bug,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../theme/colors';
 import { BrandMedallion } from '../components/BrandLogo';
+import { Sentry, isSentryEnabled } from '../services/sentry';
 import { useAuthStore, UserProfile } from '../store/authStore';
 import { usePetStore } from '../store/petStore';
 import { fetchMyOrders, Order } from '../api/orders';
@@ -833,6 +835,27 @@ export default function ProfileScreen({ navigation }: any) {
     );
   }, [user, logout]);
 
+  // Dev-only: fires one deliberate, clearly-labeled test error so you can
+  // confirm Sentry is actually wired up end-to-end (DSN correct, network
+  // path working) rather than just trusting that the config files look
+  // right. Not reachable in a production build — __DEV__ is compiled out.
+  const handleTestSentry = useCallback(() => {
+    if (!isSentryEnabled) {
+      Alert.alert(
+        'Sentry Not Enabled',
+        'EXPO_PUBLIC_SENTRY_DSN is missing or empty, so Sentry.init() never ran. Check your .env file.'
+      );
+      return;
+    }
+    const eventId = Sentry.captureException(
+      new Error('Scooby test error — manual Sentry verification from Profile screen')
+    );
+    Alert.alert(
+      'Test Error Sent',
+      `Event ID: ${eventId}\n\nCheck your Sentry dashboard in a few seconds — it should show up under this event ID.`
+    );
+  }, []);
+
   const handleSignIn = useCallback(() => {
     logout();
   }, [logout]);
@@ -944,6 +967,22 @@ export default function ProfileScreen({ navigation }: any) {
 
           {/* Veterinary Quality Commitment */}
           <NutritionPledgeCard />
+
+          {/* Dev-only: manual Sentry verification trigger. __DEV__ is a
+              compile-time constant, so this whole block is stripped out of
+              production builds — never visible to real users. */}
+          {__DEV__ && (
+            <TouchableOpacity
+              style={styles.devTestBtn}
+              onPress={handleTestSentry}
+              activeOpacity={0.8}
+            >
+              <Bug size={16} color={COLORS.textMuted} />
+              <Text style={styles.devTestText}>
+                Test Sentry (dev only)
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* Sign Out / Exit Guest Action */}
           <TouchableOpacity
@@ -1391,6 +1430,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   logoutText: { fontSize: 13, fontWeight: '700', color: '#991B1B' },
+  devTestBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: COLORS.cardAlt,
+    borderWidth: 1,
+    borderColor: COLORS.kraftBorder,
+    borderStyle: 'dashed',
+    paddingVertical: 11,
+    borderRadius: 14,
+    marginTop: 12,
+  },
+  devTestText: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
 
   // Modal Styles
   modalOverlay: {

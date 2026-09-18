@@ -149,6 +149,14 @@ export const ProductDetailPage: React.FC = () => {
   const availableWeights = product?.weight_options || [];
   const activeWeight = selectedWeight || (availableWeights.length > 0 ? availableWeights[0].weight : null);
 
+  // Variant-level available stock calculation
+  const activeWeightOption = availableWeights.find((opt: any) => opt.weight === activeWeight);
+  const activeVariantStock = activeWeightOption && activeWeightOption.stock !== undefined
+    ? Math.max(0, Number(activeWeightOption.stock) - Number(activeWeightOption.reserved || 0))
+    : (product?.available_stock ?? null);
+
+  const effectiveMaxStock = activeVariantStock !== null ? activeVariantStock : (product?.available_stock ?? 99);
+
   let currentPrice = product ? parseFloat(product.price) : 0;
   if (product && activeWeight && availableWeights.length > 0) {
     const match = availableWeights.find((opt: any) => opt.weight === activeWeight);
@@ -157,11 +165,9 @@ export const ProductDetailPage: React.FC = () => {
     }
   }
 
-
-
   const handleIncrement = () => {
-    if (product && product.available_stock !== null && product.available_stock !== undefined) {
-      if (quantity < product.available_stock) {
+    if (effectiveMaxStock !== null && effectiveMaxStock !== undefined) {
+      if (quantity < effectiveMaxStock) {
         setQuantity(prev => prev + 1);
       }
     } else {
@@ -319,7 +325,9 @@ export const ProductDetailPage: React.FC = () => {
   const imageUrl = product.image_url || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="300" height="200" fill="%23FAF6EC"/><path d="M 0,20 L 300,20 M 0,40 L 300,40 M 0,60 L 300,60 M 0,80 L 300,80 M 0,100 L 300,100 M 0,120 L 300,120 M 0,140 L 300,140 M 0,160 L 300,160 M 0,180 L 300,180" stroke="%23C9BB9C" stroke-width="0.5" stroke-dasharray="2,2"/><g transform="translate(110, 45)" fill="none" stroke="%234B6B3A" stroke-width="2"><path d="M10 50 L70 50 L60 25 L20 25 Z" stroke-linejoin="round"/><ellipse cx="40" cy="25" rx="20" ry="5"/><circle cx="35" cy="21" r="2" fill="%234B6B3A"/><circle cx="45" cy="22" r="2.5" fill="%234B6B3A"/><circle cx="40" cy="19" r="1.5" fill="%234B6B3A"/><path d="M 12 10 Q 5 5 0 10 Q -5 15 0 20 Q 5 25 12 20 L 68 20 Q 75 25 80 20 Q 85 15 80 10 Q 75 5 68 10 Z" transform="translate(-5, -20) rotate(-15 40 25)"/></g><text x="50%" y="80%" font-family="monospace" font-size="11" font-weight="bold" fill="%232E2418" dominant-baseline="middle" text-anchor="middle">🐾 SCOOBY’S KITCHEN 🐾</text><text x="50%" y="90%" font-family="monospace" font-size="9" fill="%234B6B3A" dominant-baseline="middle" text-anchor="middle">Canine Tested Recipe</text></svg>';
   const currentDisplayImage = selectedImage || imageUrl;
   
-  const isOutOfStock = product.available_stock === 0;
+  const isOutOfStock = activeVariantStock !== null 
+    ? activeVariantStock === 0 
+    : product.available_stock === 0;
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
@@ -461,7 +469,7 @@ export const ProductDetailPage: React.FC = () => {
               
               <div className="flex flex-wrap items-center gap-4 pt-1">
                 <span className="font-mono font-bold text-turmeric text-2xl">
-                  ${currentPrice.toFixed(2)}
+                  ₹{currentPrice.toFixed(2)}
                 </span>
                 
                 {/* Stock Status Badge */}
@@ -470,12 +478,12 @@ export const ProductDetailPage: React.FC = () => {
                     Deactivated
                   </span>
                 ) : isOutOfStock ? (
-                  <span className="font-mono text-[10px] font-bold text-paprika bg-red-50 border border-turmeric border-opacity-35 px-2 py-0.5 rounded-sm uppercase tracking-wider">
-                    Out of Stock
+                  <span className="font-mono text-[10px] font-bold text-paprika bg-red-50 border border-paprika border-opacity-35 px-2 py-0.5 rounded-sm uppercase tracking-wider">
+                    {activeWeight ? `${activeWeight} Sold Out` : 'Out of Stock'}
                   </span>
                 ) : (
                   <span className="font-mono text-[10px] font-bold text-paprika bg-emerald-50 border border-herb border-opacity-35 px-2 py-0.5 rounded-sm uppercase tracking-wider">
-                    In Stock ({product.available_stock !== null ? `${product.available_stock} packs left` : 'Fresh Batch'})
+                    In Stock ({activeVariantStock !== null ? `${activeVariantStock} packs left` : product.available_stock !== null ? `${product.available_stock} packs left` : 'Fresh Batch'})
                   </span>
                 )}
               </div>
@@ -512,19 +520,36 @@ export const ProductDetailPage: React.FC = () => {
                     Pack Size:
                   </span>
                   <div className="flex flex-wrap gap-2.5">
-                    {availableWeights.map((opt: any) => (
-                      <button
-                        key={opt.weight}
-                        onClick={() => setSelectedWeight(opt.weight)}
-                        className={`font-mono text-xs uppercase font-bold px-4 py-2 rounded-sm border transition-all duration-150 cursor-pointer ${
-                          activeWeight === opt.weight
-                            ? 'border-turmeric text-turmeric bg-paperLight ring-1 ring-turmeric shadow-xs'
-                            : 'border-cardboard text-ink opacity-80 hover:opacity-100 hover:border-ink bg-paper'
-                        }`}
-                      >
-                        {opt.weight}
-                      </button>
-                    ))}
+                    {availableWeights.map((opt: any) => {
+                      const variantStock = opt.stock !== undefined ? Math.max(0, Number(opt.stock) - Number(opt.reserved || 0)) : null;
+                      const isVariantSoldOut = variantStock !== null && variantStock === 0;
+                      const isLowStock = variantStock !== null && variantStock > 0 && variantStock <= 3;
+
+                      return (
+                        <button
+                          key={opt.weight}
+                          disabled={isVariantSoldOut}
+                          onClick={() => {
+                            setSelectedWeight(opt.weight);
+                            setQuantity(1);
+                          }}
+                          className={`font-mono text-xs uppercase font-bold px-4 py-2 rounded-sm border transition-all duration-150 relative ${
+                            isVariantSoldOut
+                              ? 'border-cardboard border-dashed text-cardboard bg-paper cursor-not-allowed opacity-50 line-through'
+                              : activeWeight === opt.weight
+                              ? 'border-turmeric text-turmeric bg-paperLight ring-1 ring-turmeric shadow-xs cursor-pointer'
+                              : 'border-cardboard text-ink opacity-80 hover:opacity-100 hover:border-ink bg-paper cursor-pointer'
+                          }`}
+                        >
+                          <span>{opt.weight}</span>
+                          {isVariantSoldOut ? (
+                            <span className="text-[7px] text-paprika block font-normal no-underline uppercase">Sold Out</span>
+                          ) : isLowStock ? (
+                            <span className="text-[7px] text-turmeric block font-normal uppercase">Only {variantStock} left</span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </>

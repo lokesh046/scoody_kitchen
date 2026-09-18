@@ -12,6 +12,7 @@ import {
   StatusBar,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -196,6 +197,8 @@ const ProductSuggestionRow = memo(function ProductSuggestionRow({
           style={styles.productCard}
           activeOpacity={0.85}
           onPress={() => onSelectProduct(product)}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${product.name}`}
         >
           {product.image_url ? (
             <Image source={{ uri: product.image_url }} style={styles.productCardImage} />
@@ -227,6 +230,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
 
   const [sessionId, setSessionId] = useState<string>('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(true);
   const [inputText, setInputText] = useState<string>('');
   const [isSending, setIsSending] = useState<boolean>(false);
   const [streamingStatus, setStreamingStatus] = useState<string>('');
@@ -262,6 +266,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
   useEffect(() => {
     const initSession = async () => {
       if (!user?.id) {
+        setIsLoadingHistory(false);
         return;
       }
       const token = await getAccessToken();
@@ -311,6 +316,8 @@ export default function ChatbotScreen({ navigation, route }: any) {
             timestamp: new Date().toISOString(),
           },
         ]);
+      } finally {
+        setIsLoadingHistory(false);
       }
 
       // If an initial query was passed in, auto-send it
@@ -639,6 +646,8 @@ export default function ChatbotScreen({ navigation, route }: any) {
               onPress={handleClose}
               style={styles.backButton}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close chat"
             >
               <ArrowLeft size={22} color="#FFFFFF" />
             </TouchableOpacity>
@@ -677,6 +686,8 @@ export default function ChatbotScreen({ navigation, route }: any) {
                 style={styles.headerCartBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={`Cart, ${totalCartItems} item${totalCartItems === 1 ? '' : 's'}`}
               >
                 <View style={styles.headerCartOuterCircle}>
                   <View style={styles.headerCartInnerRing}>
@@ -694,6 +705,8 @@ export default function ChatbotScreen({ navigation, route }: any) {
               onPress={handleClearHistory}
               style={styles.headerActionBtn}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear chat history"
             >
               <RotateCcw size={18} color="#FFFFFF" />
             </TouchableOpacity>
@@ -714,6 +727,8 @@ export default function ChatbotScreen({ navigation, route }: any) {
                   style={styles.authGateBtn}
                   onPress={handleClose}
                   activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="Sign in or register"
                 >
                   <Text style={styles.authGateBtnText}>Sign In / Register</Text>
                 </TouchableOpacity>
@@ -747,20 +762,27 @@ export default function ChatbotScreen({ navigation, route }: any) {
                 </View>
 
                 {/* Messages FlatList */}
-                <FlatList
-                  ref={flatListRef}
-                  data={messages}
-                  keyExtractor={(item) => item.id}
-                  renderItem={renderMessageItem}
-                  contentContainerStyle={styles.listContent}
-                  onContentSizeChange={scrollToBottom}
-                  onLayout={scrollToBottom}
-                  showsVerticalScrollIndicator={false}
-                  initialNumToRender={15}
-                  maxToRenderPerBatch={10}
-                  windowSize={10}
-                  removeClippedSubviews={Platform.OS === 'android'}
-                />
+                {isLoadingHistory ? (
+                  <View style={styles.historyLoadingBox}>
+                    <ActivityIndicator size="small" color={COLORS.forestGreen} />
+                    <Text style={styles.historyLoadingText}>Loading conversation…</Text>
+                  </View>
+                ) : (
+                  <FlatList
+                    ref={flatListRef}
+                    data={messages}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderMessageItem}
+                    contentContainerStyle={styles.listContent}
+                    onContentSizeChange={scrollToBottom}
+                    onLayout={scrollToBottom}
+                    showsVerticalScrollIndicator={false}
+                    initialNumToRender={15}
+                    maxToRenderPerBatch={10}
+                    windowSize={10}
+                    removeClippedSubviews={Platform.OS === 'android'}
+                  />
+                )}
               </View>
 
               {/* Quick Suggestion Chips Carousel */}
@@ -777,6 +799,9 @@ export default function ChatbotScreen({ navigation, route }: any) {
                       onPress={() => handleSendMessage(prompt)}
                       disabled={isSending}
                       activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Ask: ${prompt}`}
+                      accessibilityState={{ disabled: isSending }}
                     >
                       <Text style={styles.chipText}>{prompt}</Text>
                     </TouchableOpacity>
@@ -824,6 +849,9 @@ export default function ChatbotScreen({ navigation, route }: any) {
                   }}
                   disabled={!isSending && inputText.trim().length === 0}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={isSending ? 'Stop response' : 'Send message'}
+                  accessibilityState={{ disabled: !isSending && inputText.trim().length === 0 }}
                 >
                   {isSending ? (
                     <Square size={16} color="#FFFFFF" fill="#FFFFFF" />
@@ -989,6 +1017,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 10,
     paddingBottom: 16,
+  },
+  historyLoadingBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  historyLoadingText: {
+    fontSize: 13,
+    color: COLORS.textMuted,
   },
   dateSeparator: {
     alignSelf: 'center',

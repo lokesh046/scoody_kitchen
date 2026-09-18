@@ -24,6 +24,7 @@ import {
 import { COLORS } from '../theme/colors';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
+import { useNetworkStore, isNetworkError } from '../store/networkStore';
 import { checkoutOrder, Order } from '../api/orders';
 import { verifyRazorpayPayment } from '../api/payments';
 import { verifyPhoneWithToken } from '../api/auth';
@@ -36,6 +37,7 @@ import { AddressStep } from './cart/AddressStep';
 import { PaymentStep } from './cart/PaymentStep';
 import { OrderSuccessScreen } from './cart/OrderSuccessScreen';
 import { styles } from './cart/cartStyles';
+import { captureApiError } from '../services/sentry';
 
 const ADDRESS_STORAGE_KEY = 'scooby_saved_shipping_address';
 
@@ -54,6 +56,7 @@ export default function CartScreen({ navigation }: any) {
   } = useCartStore();
 
   const { user, updateUser } = useAuthStore();
+  const isConnected = useNetworkStore((state) => state.isConnected);
 
   // Structured Address States
   const [doorNo, setDoorNo] = useState('');
@@ -418,6 +421,14 @@ export default function CartScreen({ navigation }: any) {
   const handleStartCheckout = async () => {
     setPaymentFailureNotice(null);
 
+    if (!isConnected) {
+      Alert.alert(
+        'No Internet Connection',
+        'Payment cannot be started while offline. Please check your connection and try again.'
+      );
+      return;
+    }
+
     // If order already initialized with Razorpay gateway credentials, re-launch checkout directly without duplicate creation
     if (createdOrder?.razorpay_order_id && createdOrder?.razorpay_key_id) {
       setShowRazorpayModal(true);
@@ -514,6 +525,7 @@ export default function CartScreen({ navigation }: any) {
       }
     } catch (err: any) {
       console.log('Checkout order creation error:', err.response?.data);
+      captureApiError(err, 'checkout.createOrder', { alwaysCapture: true });
       const detail = err.response?.data?.detail || 'Failed to initialize order on server.';
       Alert.alert('Checkout Error', detail);
     } finally {
@@ -544,7 +556,14 @@ export default function CartScreen({ navigation }: any) {
       await clearCart();
     } catch (err: any) {
       console.log('Payment verification error:', err.response?.data);
-      const detail = err.response?.data?.detail || 'Payment verification failed on server.';
+      captureApiError(err, 'checkout.verifyPayment', { alwaysCapture: true });
+      // Razorpay already charged the customer by this point — a network
+      // failure here means our verification call never reached the server,
+      // not that the payment was declined. Telling the user to simply retry
+      // would risk a duplicate charge, so this case gets its own message.
+      const detail = isNetworkError(err)
+        ? "Your payment may have gone through, but we couldn't confirm it because you're offline. Please check your internet connection, then check your Orders tab before paying again."
+        : err.response?.data?.detail || 'Payment verification failed on server.';
       setPaymentFailureNotice({
         message: detail,
         isDismissed: false,
@@ -615,7 +634,14 @@ export default function CartScreen({ navigation }: any) {
           </View>
 
           {items.length > 0 && checkoutStep === 'cart' && (
-            <TouchableOpacity onPress={clearCart} style={styles.clearBtn} disabled={isSyncing}>
+            <TouchableOpacity
+              onPress={clearCart}
+              style={styles.clearBtn}
+              disabled={isSyncing}
+              accessibilityRole="button"
+              accessibilityLabel="Clear cart"
+              accessibilityState={{ disabled: isSyncing }}
+            >
               <Trash2 size={16} color={COLORS.textMuted} />
             </TouchableOpacity>
           )}
@@ -629,6 +655,9 @@ export default function CartScreen({ navigation }: any) {
               style={[styles.stepItem, checkoutStep === 'cart' && styles.stepItemActive]}
               onPress={() => setCheckoutStep('cart')}
               activeOpacity={0.75}
+              accessibilityRole="tab"
+              accessibilityLabel="Step 1: Bowl"
+              accessibilityState={{ selected: checkoutStep === 'cart' }}
             >
               <View
                 style={[
@@ -658,6 +687,9 @@ export default function CartScreen({ navigation }: any) {
                 else handleProceedToDelivery();
               }}
               activeOpacity={0.75}
+              accessibilityRole="tab"
+              accessibilityLabel="Step 2: Address"
+              accessibilityState={{ selected: checkoutStep === 'address' }}
             >
               <View
                 style={[
@@ -690,6 +722,9 @@ export default function CartScreen({ navigation }: any) {
                 if (checkoutStep === 'address') handleProceedToPayment();
               }}
               activeOpacity={0.75}
+              accessibilityRole="tab"
+              accessibilityLabel="Step 3: Payment"
+              accessibilityState={{ selected: checkoutStep === 'payment' }}
             >
               <View
                 style={[
@@ -718,7 +753,12 @@ export default function CartScreen({ navigation }: any) {
                 Sign in to sync your bowl with our cloud kitchen database and unlock checkout.
               </Text>
             </View>
-            <TouchableOpacity style={styles.guestSignInBtn} onPress={() => navigation?.navigate('Profile')}>
+            <TouchableOpacity
+              style={styles.guestSignInBtn}
+              onPress={() => navigation?.navigate('Profile')}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in"
+            >
               <Text style={styles.guestSignInBtnText}>Sign In</Text>
             </TouchableOpacity>
           </View>
@@ -739,7 +779,12 @@ export default function CartScreen({ navigation }: any) {
           <Text style={styles.emptySub}>
             Browse the catalogue in the Kitchen tab to add freshly simmered recipes, broths, and vacuum pouches.
           </Text>
-          <TouchableOpacity style={styles.exploreBtn} onPress={() => navigation?.navigate('Kitchen')}>
+          <TouchableOpacity
+            style={styles.exploreBtn}
+            onPress={() => navigation?.navigate('Kitchen')}
+            accessibilityRole="button"
+            accessibilityLabel="Explore kitchen menu"
+          >
             <PawPrint size={16} color="#FFFFFF" fill="#FFFFFF" />
             <Text style={styles.exploreBtnText}>Explore Kitchen Menu</Text>
           </TouchableOpacity>

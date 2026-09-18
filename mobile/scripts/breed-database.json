@@ -1,0 +1,2022 @@
+[
+  {
+    "name": "Affenpinscher",
+    "group": "Toy Group",
+    "typicalWeightKg": 5,
+    "defaultCalories": {
+      "sedentary": 234,
+      "active": 328,
+      "very_active": 421
+    }
+  },
+  {
+    "name": "Afghan Hound",
+    "group": "Hound Group",
+    "typicalWeightKg": 23.8,
+    "defaultCalories": {
+      "sedentary": 754,
+      "active": 1056,
+      "very_active": 1358
+    }
+  },
+  {
+    "name": "Airedale Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 20.3,
+    "defaultCalories": {
+      "sedentary": 669,
+      "active": 937,
+      "very_active": 1205
+    }
+  },
+  {
+    "name": "Akita",
+    "group": "Working Group",
+    "typicalWeightKg": 45,
+    "defaultCalories": {
+      "sedentary": 1216,
+      "active": 1703,
+      "very_active": 2189
+    }
+  },
+  {
+    "name": "Alaskan Malamute",
+    "group": "Working Group",
+    "typicalWeightKg": 35.8,
+    "defaultCalories": {
+      "sedentary": 1024,
+      "active": 1434,
+      "very_active": 1844
+    }
+  },
+  {
+    "name": "American English Coonhound",
+    "group": "Hound Group",
+    "typicalWeightKg": 24.5,
+    "defaultCalories": {
+      "sedentary": 771,
+      "active": 1079,
+      "very_active": 1388
+    }
+  },
+  {
+    "name": "American Eskimo Dog",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 14.5,
+    "defaultCalories": {
+      "sedentary": 520,
+      "active": 728,
+      "very_active": 936
+    }
+  },
+  {
+    "name": "American Foxhound",
+    "group": "Hound Group",
+    "typicalWeightKg": 28.8,
+    "defaultCalories": {
+      "sedentary": 870,
+      "active": 1218,
+      "very_active": 1566
+    }
+  },
+  {
+    "name": "American Hairless Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 6,
+    "defaultCalories": {
+      "sedentary": 268,
+      "active": 376,
+      "very_active": 483
+    }
+  },
+  {
+    "name": "American Staffordshire Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 29,
+    "defaultCalories": {
+      "sedentary": 875,
+      "active": 1225,
+      "very_active": 1575
+    }
+  },
+  {
+    "name": "American Water Spaniel",
+    "group": "Sporting Group",
+    "typicalWeightKg": 16,
+    "defaultCalories": {
+      "sedentary": 560,
+      "active": 784,
+      "very_active": 1008
+    }
+  },
+  {
+    "name": "Anatolian Shepherd Dog",
+    "group": "Working Group",
+    "typicalWeightKg": 52.8,
+    "defaultCalories": {
+      "sedentary": 1371,
+      "active": 1920,
+      "very_active": 2468
+    }
+  },
+  {
+    "name": "Australian Cattle Dog",
+    "group": "Herding Group",
+    "typicalWeightKg": 19,
+    "defaultCalories": {
+      "sedentary": 637,
+      "active": 892,
+      "very_active": 1147
+    }
+  },
+  {
+    "name": "Australian Shepherd",
+    "group": "Herding Group",
+    "typicalWeightKg": 23,
+    "defaultCalories": {
+      "sedentary": 735,
+      "active": 1029,
+      "very_active": 1323
+    }
+  },
+  {
+    "name": "Australian Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 6.5,
+    "defaultCalories": {
+      "sedentary": 285,
+      "active": 399,
+      "very_active": 513
+    }
+  },
+  {
+    "name": "Azawakh",
+    "group": "Hound Group",
+    "typicalWeightKg": 20,
+    "defaultCalories": {
+      "sedentary": 662,
+      "active": 927,
+      "very_active": 1192
+    }
+  },
+  {
+    "name": "Barbet",
+    "group": "Sporting Group",
+    "typicalWeightKg": 20.5,
+    "defaultCalories": {
+      "sedentary": 674,
+      "active": 944,
+      "very_active": 1214
+    }
+  },
+  {
+    "name": "Basenji",
+    "group": "Hound Group",
+    "typicalWeightKg": 10,
+    "defaultCalories": {
+      "sedentary": 394,
+      "active": 551,
+      "very_active": 709
+    }
+  },
+  {
+    "name": "Basset Hound",
+    "group": "Hound Group",
+    "typicalWeightKg": 24.8,
+    "defaultCalories": {
+      "sedentary": 778,
+      "active": 1089,
+      "very_active": 1400
+    }
+  },
+  {
+    "name": "Beagle",
+    "group": "Hound Group",
+    "typicalWeightKg": 11.5,
+    "defaultCalories": {
+      "sedentary": 437,
+      "active": 612,
+      "very_active": 787
+    }
+  },
+  {
+    "name": "Bearded Collie",
+    "group": "Herding Group",
+    "typicalWeightKg": 22.5,
+    "defaultCalories": {
+      "sedentary": 723,
+      "active": 1012,
+      "very_active": 1302
+    }
+  },
+  {
+    "name": "Beauceron",
+    "group": "Herding Group",
+    "typicalWeightKg": 34.5,
+    "defaultCalories": {
+      "sedentary": 996,
+      "active": 1395,
+      "very_active": 1794
+    }
+  },
+  {
+    "name": "Bedlington Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 8,
+    "defaultCalories": {
+      "sedentary": 333,
+      "active": 466,
+      "very_active": 599
+    }
+  },
+  {
+    "name": "Belgian Laekenois",
+    "group": "Herding Group",
+    "typicalWeightKg": 27,
+    "defaultCalories": {
+      "sedentary": 829,
+      "active": 1161,
+      "very_active": 1492
+    }
+  },
+  {
+    "name": "Belgian Malinois",
+    "group": "Herding Group",
+    "typicalWeightKg": 27,
+    "defaultCalories": {
+      "sedentary": 829,
+      "active": 1161,
+      "very_active": 1492
+    }
+  },
+  {
+    "name": "Belgian Sheepdog",
+    "group": "Herding Group",
+    "typicalWeightKg": 26,
+    "defaultCalories": {
+      "sedentary": 806,
+      "active": 1128,
+      "very_active": 1451
+    }
+  },
+  {
+    "name": "Belgian Tervuren",
+    "group": "Herding Group",
+    "typicalWeightKg": 26,
+    "defaultCalories": {
+      "sedentary": 806,
+      "active": 1128,
+      "very_active": 1451
+    }
+  },
+  {
+    "name": "Bergamasco Sheepdog",
+    "group": "Herding Group",
+    "typicalWeightKg": 32,
+    "defaultCalories": {
+      "sedentary": 942,
+      "active": 1319,
+      "very_active": 1695
+    }
+  },
+  {
+    "name": "Berger Picard",
+    "group": "Herding Group",
+    "typicalWeightKg": 27.5,
+    "defaultCalories": {
+      "sedentary": 841,
+      "active": 1177,
+      "very_active": 1513
+    }
+  },
+  {
+    "name": "Bernese Mountain Dog",
+    "group": "Working Group",
+    "typicalWeightKg": 40.8,
+    "defaultCalories": {
+      "sedentary": 1130,
+      "active": 1582,
+      "very_active": 2034
+    }
+  },
+  {
+    "name": "Bichon Frise",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 6.5,
+    "defaultCalories": {
+      "sedentary": 285,
+      "active": 399,
+      "very_active": 513
+    }
+  },
+  {
+    "name": "Biewer Terrier",
+    "group": "Toy Group",
+    "typicalWeightKg": 3,
+    "defaultCalories": {
+      "sedentary": 160,
+      "active": 223,
+      "very_active": 287
+    }
+  },
+  {
+    "name": "Black and Tan Coonhound",
+    "group": "Hound Group",
+    "typicalWeightKg": 26,
+    "defaultCalories": {
+      "sedentary": 806,
+      "active": 1128,
+      "very_active": 1451
+    }
+  },
+  {
+    "name": "Black Russian Terrier",
+    "group": "Working Group",
+    "typicalWeightKg": 51.3,
+    "defaultCalories": {
+      "sedentary": 1342,
+      "active": 1879,
+      "very_active": 2415
+    }
+  },
+  {
+    "name": "Bloodhound",
+    "group": "Hound Group",
+    "typicalWeightKg": 43,
+    "defaultCalories": {
+      "sedentary": 1175,
+      "active": 1646,
+      "very_active": 2116
+    }
+  },
+  {
+    "name": "Bluetick Coonhound",
+    "group": "Hound Group",
+    "typicalWeightKg": 27.5,
+    "defaultCalories": {
+      "sedentary": 841,
+      "active": 1177,
+      "very_active": 1513
+    }
+  },
+  {
+    "name": "Boerboel",
+    "group": "Working Group",
+    "typicalWeightKg": 69.3,
+    "defaultCalories": {
+      "sedentary": 1681,
+      "active": 2354,
+      "very_active": 3026
+    }
+  },
+  {
+    "name": "Border Collie",
+    "group": "Herding Group",
+    "typicalWeightKg": 17.8,
+    "defaultCalories": {
+      "sedentary": 607,
+      "active": 849,
+      "very_active": 1092
+    }
+  },
+  {
+    "name": "Border Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 6,
+    "defaultCalories": {
+      "sedentary": 268,
+      "active": 376,
+      "very_active": 483
+    }
+  },
+  {
+    "name": "Borzoi",
+    "group": "Hound Group",
+    "typicalWeightKg": 37,
+    "defaultCalories": {
+      "sedentary": 1050,
+      "active": 1470,
+      "very_active": 1890
+    }
+  },
+  {
+    "name": "Boston Terrier",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 8,
+    "defaultCalories": {
+      "sedentary": 333,
+      "active": 466,
+      "very_active": 599
+    }
+  },
+  {
+    "name": "Bouvier des Flandres",
+    "group": "Herding Group",
+    "typicalWeightKg": 34.3,
+    "defaultCalories": {
+      "sedentary": 992,
+      "active": 1389,
+      "very_active": 1786
+    }
+  },
+  {
+    "name": "Boxer",
+    "group": "Working Group",
+    "typicalWeightKg": 26.5,
+    "defaultCalories": {
+      "sedentary": 818,
+      "active": 1145,
+      "very_active": 1472
+    }
+  },
+  {
+    "name": "Boykin Spaniel",
+    "group": "Sporting Group",
+    "typicalWeightKg": 14.8,
+    "defaultCalories": {
+      "sedentary": 528,
+      "active": 739,
+      "very_active": 951
+    }
+  },
+  {
+    "name": "Briard",
+    "group": "Herding Group",
+    "typicalWeightKg": 32.5,
+    "defaultCalories": {
+      "sedentary": 953,
+      "active": 1334,
+      "very_active": 1715
+    }
+  },
+  {
+    "name": "Brittany",
+    "group": "Sporting Group",
+    "typicalWeightKg": 16,
+    "defaultCalories": {
+      "sedentary": 560,
+      "active": 784,
+      "very_active": 1008
+    }
+  },
+  {
+    "name": "Brussels Griffon",
+    "group": "Toy Group",
+    "typicalWeightKg": 4.5,
+    "defaultCalories": {
+      "sedentary": 216,
+      "active": 303,
+      "very_active": 389
+    }
+  },
+  {
+    "name": "Bull Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 24.8,
+    "defaultCalories": {
+      "sedentary": 778,
+      "active": 1089,
+      "very_active": 1400
+    }
+  },
+  {
+    "name": "Bulldog",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 20.5,
+    "defaultCalories": {
+      "sedentary": 674,
+      "active": 944,
+      "very_active": 1214
+    }
+  },
+  {
+    "name": "Bullmastiff",
+    "group": "Working Group",
+    "typicalWeightKg": 52,
+    "defaultCalories": {
+      "sedentary": 1356,
+      "active": 1898,
+      "very_active": 2440
+    }
+  },
+  {
+    "name": "Cairn Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 6.3,
+    "defaultCalories": {
+      "sedentary": 278,
+      "active": 390,
+      "very_active": 501
+    }
+  },
+  {
+    "name": "Canaan Dog",
+    "group": "Herding Group",
+    "typicalWeightKg": 20,
+    "defaultCalories": {
+      "sedentary": 662,
+      "active": 927,
+      "very_active": 1192
+    }
+  },
+  {
+    "name": "Cane Corso",
+    "group": "Working Group",
+    "typicalWeightKg": 42.5,
+    "defaultCalories": {
+      "sedentary": 1165,
+      "active": 1631,
+      "very_active": 2097
+    }
+  },
+  {
+    "name": "Cardigan Welsh Corgi",
+    "group": "Herding Group",
+    "typicalWeightKg": 14.3,
+    "defaultCalories": {
+      "sedentary": 515,
+      "active": 721,
+      "very_active": 927
+    }
+  },
+  {
+    "name": "Cavalier King Charles Spaniel",
+    "group": "Toy Group",
+    "typicalWeightKg": 6.5,
+    "defaultCalories": {
+      "sedentary": 285,
+      "active": 399,
+      "very_active": 513
+    }
+  },
+  {
+    "name": "Cesky Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 7.5,
+    "defaultCalories": {
+      "sedentary": 317,
+      "active": 444,
+      "very_active": 571
+    }
+  },
+  {
+    "name": "Chesapeake Bay Retriever",
+    "group": "Sporting Group",
+    "typicalWeightKg": 29.5,
+    "defaultCalories": {
+      "sedentary": 886,
+      "active": 1240,
+      "very_active": 1595
+    }
+  },
+  {
+    "name": "Chihuahua",
+    "group": "Toy Group",
+    "typicalWeightKg": 2,
+    "defaultCalories": {
+      "sedentary": 118,
+      "active": 165,
+      "very_active": 212
+    }
+  },
+  {
+    "name": "Chinese Crested",
+    "group": "Toy Group",
+    "typicalWeightKg": 4,
+    "defaultCalories": {
+      "sedentary": 198,
+      "active": 277,
+      "very_active": 356
+    }
+  },
+  {
+    "name": "Chinese Shar-Pei",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 23.5,
+    "defaultCalories": {
+      "sedentary": 747,
+      "active": 1046,
+      "very_active": 1345
+    }
+  },
+  {
+    "name": "Chinook",
+    "group": "Working Group",
+    "typicalWeightKg": 32.5,
+    "defaultCalories": {
+      "sedentary": 953,
+      "active": 1334,
+      "very_active": 1715
+    }
+  },
+  {
+    "name": "Chow Chow",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 26,
+    "defaultCalories": {
+      "sedentary": 806,
+      "active": 1128,
+      "very_active": 1451
+    }
+  },
+  {
+    "name": "Cirneco dell'Etna",
+    "group": "Hound Group",
+    "typicalWeightKg": 10.3,
+    "defaultCalories": {
+      "sedentary": 402,
+      "active": 563,
+      "very_active": 724
+    }
+  },
+  {
+    "name": "Clumber Spaniel",
+    "group": "Sporting Group",
+    "typicalWeightKg": 32,
+    "defaultCalories": {
+      "sedentary": 942,
+      "active": 1319,
+      "very_active": 1695
+    }
+  },
+  {
+    "name": "Cocker Spaniel",
+    "group": "Sporting Group",
+    "typicalWeightKg": 11.8,
+    "defaultCalories": {
+      "sedentary": 446,
+      "active": 624,
+      "very_active": 802
+    }
+  },
+  {
+    "name": "Collie",
+    "group": "Herding Group",
+    "typicalWeightKg": 28.3,
+    "defaultCalories": {
+      "sedentary": 859,
+      "active": 1202,
+      "very_active": 1546
+    }
+  },
+  {
+    "name": "Coton de Tulear",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 5.3,
+    "defaultCalories": {
+      "sedentary": 245,
+      "active": 342,
+      "very_active": 440
+    }
+  },
+  {
+    "name": "Curly-Coated Retriever",
+    "group": "Sporting Group",
+    "typicalWeightKg": 32.5,
+    "defaultCalories": {
+      "sedentary": 953,
+      "active": 1334,
+      "very_active": 1715
+    }
+  },
+  {
+    "name": "Dachshund",
+    "group": "Hound Group",
+    "typicalWeightKg": 11,
+    "defaultCalories": {
+      "sedentary": 423,
+      "active": 592,
+      "very_active": 761
+    }
+  },
+  {
+    "name": "Dalmatian",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 28.5,
+    "defaultCalories": {
+      "sedentary": 863,
+      "active": 1209,
+      "very_active": 1554
+    }
+  },
+  {
+    "name": "Dandie Dinmont Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 9.5,
+    "defaultCalories": {
+      "sedentary": 379,
+      "active": 530,
+      "very_active": 682
+    }
+  },
+  {
+    "name": "Doberman Pinscher",
+    "group": "Working Group",
+    "typicalWeightKg": 36.3,
+    "defaultCalories": {
+      "sedentary": 1035,
+      "active": 1449,
+      "very_active": 1863
+    }
+  },
+  {
+    "name": "Dogo Argentino",
+    "group": "Working Group",
+    "typicalWeightKg": 42,
+    "defaultCalories": {
+      "sedentary": 1155,
+      "active": 1617,
+      "very_active": 2079
+    }
+  },
+  {
+    "name": "Dogue de Bordeaux",
+    "group": "Working Group",
+    "typicalWeightKg": 54.8,
+    "defaultCalories": {
+      "sedentary": 1410,
+      "active": 1974,
+      "very_active": 2538
+    }
+  },
+  {
+    "name": "English Cocker Spaniel",
+    "group": "Sporting Group",
+    "typicalWeightKg": 13.8,
+    "defaultCalories": {
+      "sedentary": 501,
+      "active": 702,
+      "very_active": 902
+    }
+  },
+  {
+    "name": "English Foxhound",
+    "group": "Hound Group",
+    "typicalWeightKg": 29.5,
+    "defaultCalories": {
+      "sedentary": 886,
+      "active": 1240,
+      "very_active": 1595
+    }
+  },
+  {
+    "name": "English Setter",
+    "group": "Sporting Group",
+    "typicalWeightKg": 28.3,
+    "defaultCalories": {
+      "sedentary": 859,
+      "active": 1202,
+      "very_active": 1546
+    }
+  },
+  {
+    "name": "English Springer Spaniel",
+    "group": "Sporting Group",
+    "typicalWeightKg": 20.3,
+    "defaultCalories": {
+      "sedentary": 669,
+      "active": 937,
+      "very_active": 1205
+    }
+  },
+  {
+    "name": "English Toy Spaniel",
+    "group": "Toy Group",
+    "typicalWeightKg": 5,
+    "defaultCalories": {
+      "sedentary": 234,
+      "active": 328,
+      "very_active": 421
+    }
+  },
+  {
+    "name": "Entlebucher Mountain Dog",
+    "group": "Herding Group",
+    "typicalWeightKg": 23.8,
+    "defaultCalories": {
+      "sedentary": 754,
+      "active": 1056,
+      "very_active": 1358
+    }
+  },
+  {
+    "name": "Field Spaniel",
+    "group": "Sporting Group",
+    "typicalWeightKg": 20.5,
+    "defaultCalories": {
+      "sedentary": 674,
+      "active": 944,
+      "very_active": 1214
+    }
+  },
+  {
+    "name": "Finnish Lapphund",
+    "group": "Herding Group",
+    "typicalWeightKg": 19.5,
+    "defaultCalories": {
+      "sedentary": 650,
+      "active": 909,
+      "very_active": 1169
+    }
+  },
+  {
+    "name": "Finnish Spitz",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 12.3,
+    "defaultCalories": {
+      "sedentary": 460,
+      "active": 644,
+      "very_active": 828
+    }
+  },
+  {
+    "name": "Flat-Coated Retriever",
+    "group": "Sporting Group",
+    "typicalWeightKg": 30.5,
+    "defaultCalories": {
+      "sedentary": 908,
+      "active": 1272,
+      "very_active": 1635
+    }
+  },
+  {
+    "name": "French Bulldog",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 11.5,
+    "defaultCalories": {
+      "sedentary": 437,
+      "active": 612,
+      "very_active": 787
+    }
+  },
+  {
+    "name": "German Pinscher",
+    "group": "Working Group",
+    "typicalWeightKg": 17,
+    "defaultCalories": {
+      "sedentary": 586,
+      "active": 820,
+      "very_active": 1055
+    }
+  },
+  {
+    "name": "German Shepherd Dog",
+    "group": "Herding Group",
+    "typicalWeightKg": 31,
+    "defaultCalories": {
+      "sedentary": 920,
+      "active": 1288,
+      "very_active": 1655
+    }
+  },
+  {
+    "name": "German Shorthaired Pointer",
+    "group": "Sporting Group",
+    "typicalWeightKg": 26,
+    "defaultCalories": {
+      "sedentary": 806,
+      "active": 1128,
+      "very_active": 1451
+    }
+  },
+  {
+    "name": "German Wirehaired Pointer",
+    "group": "Sporting Group",
+    "typicalWeightKg": 26,
+    "defaultCalories": {
+      "sedentary": 806,
+      "active": 1128,
+      "very_active": 1451
+    }
+  },
+  {
+    "name": "Giant Schnauzer",
+    "group": "Working Group",
+    "typicalWeightKg": 31.3,
+    "defaultCalories": {
+      "sedentary": 926,
+      "active": 1297,
+      "very_active": 1667
+    }
+  },
+  {
+    "name": "Glen of Imaal Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 15,
+    "defaultCalories": {
+      "sedentary": 534,
+      "active": 747,
+      "very_active": 960
+    }
+  },
+  {
+    "name": "Golden Retriever",
+    "group": "Sporting Group",
+    "typicalWeightKg": 30,
+    "defaultCalories": {
+      "sedentary": 897,
+      "active": 1256,
+      "very_active": 1615
+    }
+  },
+  {
+    "name": "Gordon Setter",
+    "group": "Sporting Group",
+    "typicalWeightKg": 28.3,
+    "defaultCalories": {
+      "sedentary": 859,
+      "active": 1202,
+      "very_active": 1546
+    }
+  },
+  {
+    "name": "Grand Basset Griffon Vendéen",
+    "group": "Hound Group",
+    "typicalWeightKg": 21.5,
+    "defaultCalories": {
+      "sedentary": 699,
+      "active": 978,
+      "very_active": 1258
+    }
+  },
+  {
+    "name": "Great Dane",
+    "group": "Working Group",
+    "typicalWeightKg": 61.8,
+    "defaultCalories": {
+      "sedentary": 1543,
+      "active": 2160,
+      "very_active": 2777
+    }
+  },
+  {
+    "name": "Great Pyrenees",
+    "group": "Working Group",
+    "typicalWeightKg": 52.3,
+    "defaultCalories": {
+      "sedentary": 1361,
+      "active": 1906,
+      "very_active": 2450
+    }
+  },
+  {
+    "name": "Greater Swiss Mountain Dog",
+    "group": "Working Group",
+    "typicalWeightKg": 47.8,
+    "defaultCalories": {
+      "sedentary": 1273,
+      "active": 1782,
+      "very_active": 2291
+    }
+  },
+  {
+    "name": "Greyhound",
+    "group": "Hound Group",
+    "typicalWeightKg": 29.5,
+    "defaultCalories": {
+      "sedentary": 886,
+      "active": 1240,
+      "very_active": 1595
+    }
+  },
+  {
+    "name": "Harrier",
+    "group": "Hound Group",
+    "typicalWeightKg": 22.5,
+    "defaultCalories": {
+      "sedentary": 723,
+      "active": 1012,
+      "very_active": 1302
+    }
+  },
+  {
+    "name": "Havanese",
+    "group": "Toy Group",
+    "typicalWeightKg": 4.5,
+    "defaultCalories": {
+      "sedentary": 216,
+      "active": 303,
+      "very_active": 389
+    }
+  },
+  {
+    "name": "Ibizan Hound",
+    "group": "Hound Group",
+    "typicalWeightKg": 22.5,
+    "defaultCalories": {
+      "sedentary": 723,
+      "active": 1012,
+      "very_active": 1302
+    }
+  },
+  {
+    "name": "Icelandic Sheepdog",
+    "group": "Herding Group",
+    "typicalWeightKg": 13,
+    "defaultCalories": {
+      "sedentary": 479,
+      "active": 671,
+      "very_active": 863
+    }
+  },
+  {
+    "name": "Irish Red and White Setter",
+    "group": "Sporting Group",
+    "typicalWeightKg": 28.5,
+    "defaultCalories": {
+      "sedentary": 863,
+      "active": 1209,
+      "very_active": 1554
+    }
+  },
+  {
+    "name": "Irish Setter",
+    "group": "Sporting Group",
+    "typicalWeightKg": 29.3,
+    "defaultCalories": {
+      "sedentary": 882,
+      "active": 1234,
+      "very_active": 1587
+    }
+  },
+  {
+    "name": "Irish Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 11.5,
+    "defaultCalories": {
+      "sedentary": 437,
+      "active": 612,
+      "very_active": 787
+    }
+  },
+  {
+    "name": "Irish Water Spaniel",
+    "group": "Sporting Group",
+    "typicalWeightKg": 25.8,
+    "defaultCalories": {
+      "sedentary": 801,
+      "active": 1122,
+      "very_active": 1442
+    }
+  },
+  {
+    "name": "Irish Wolfhound",
+    "group": "Hound Group",
+    "typicalWeightKg": 60,
+    "defaultCalories": {
+      "sedentary": 1509,
+      "active": 2113,
+      "very_active": 2716
+    }
+  },
+  {
+    "name": "Italian Greyhound",
+    "group": "Toy Group",
+    "typicalWeightKg": 4,
+    "defaultCalories": {
+      "sedentary": 198,
+      "active": 277,
+      "very_active": 356
+    }
+  },
+  {
+    "name": "Japanese Chin",
+    "group": "Toy Group",
+    "typicalWeightKg": 3,
+    "defaultCalories": {
+      "sedentary": 160,
+      "active": 223,
+      "very_active": 287
+    }
+  },
+  {
+    "name": "Keeshond",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 17.5,
+    "defaultCalories": {
+      "sedentary": 599,
+      "active": 839,
+      "very_active": 1078
+    }
+  },
+  {
+    "name": "Kerry Blue Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 15.8,
+    "defaultCalories": {
+      "sedentary": 555,
+      "active": 777,
+      "very_active": 999
+    }
+  },
+  {
+    "name": "Komondor",
+    "group": "Working Group",
+    "typicalWeightKg": 49.3,
+    "defaultCalories": {
+      "sedentary": 1302,
+      "active": 1823,
+      "very_active": 2344
+    }
+  },
+  {
+    "name": "Kuvasz",
+    "group": "Working Group",
+    "typicalWeightKg": 42.5,
+    "defaultCalories": {
+      "sedentary": 1165,
+      "active": 1631,
+      "very_active": 2097
+    }
+  },
+  {
+    "name": "Labrador Retriever",
+    "group": "Sporting Group",
+    "typicalWeightKg": 30.5,
+    "defaultCalories": {
+      "sedentary": 908,
+      "active": 1272,
+      "very_active": 1635
+    }
+  },
+  {
+    "name": "Lagotto Romagnolo",
+    "group": "Sporting Group",
+    "typicalWeightKg": 13.5,
+    "defaultCalories": {
+      "sedentary": 493,
+      "active": 690,
+      "very_active": 887
+    }
+  },
+  {
+    "name": "Lakeland Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 8,
+    "defaultCalories": {
+      "sedentary": 333,
+      "active": 466,
+      "very_active": 599
+    }
+  },
+  {
+    "name": "Leonberger",
+    "group": "Working Group",
+    "typicalWeightKg": 59.3,
+    "defaultCalories": {
+      "sedentary": 1496,
+      "active": 2094,
+      "very_active": 2693
+    }
+  },
+  {
+    "name": "Lhasa Apso",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 6.5,
+    "defaultCalories": {
+      "sedentary": 285,
+      "active": 399,
+      "very_active": 513
+    }
+  },
+  {
+    "name": "Löwchen",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 6,
+    "defaultCalories": {
+      "sedentary": 268,
+      "active": 376,
+      "very_active": 483
+    }
+  },
+  {
+    "name": "Maltese",
+    "group": "Toy Group",
+    "typicalWeightKg": 2.5,
+    "defaultCalories": {
+      "sedentary": 139,
+      "active": 195,
+      "very_active": 251
+    }
+  },
+  {
+    "name": "Manchester Terrier (Standard)",
+    "group": "Terrier Group",
+    "typicalWeightKg": 7.5,
+    "defaultCalories": {
+      "sedentary": 317,
+      "active": 444,
+      "very_active": 571
+    }
+  },
+  {
+    "name": "Manchester Terrier (Toy)",
+    "group": "Toy Group",
+    "typicalWeightKg": 4,
+    "defaultCalories": {
+      "sedentary": 198,
+      "active": 277,
+      "very_active": 356
+    }
+  },
+  {
+    "name": "Mastiff",
+    "group": "Working Group",
+    "typicalWeightKg": 82.5,
+    "defaultCalories": {
+      "sedentary": 1916,
+      "active": 2683,
+      "very_active": 3449
+    }
+  },
+  {
+    "name": "Miniature American Shepherd",
+    "group": "Herding Group",
+    "typicalWeightKg": 13.5,
+    "defaultCalories": {
+      "sedentary": 493,
+      "active": 690,
+      "very_active": 887
+    }
+  },
+  {
+    "name": "Miniature Bull Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 11,
+    "defaultCalories": {
+      "sedentary": 423,
+      "active": 592,
+      "very_active": 761
+    }
+  },
+  {
+    "name": "Miniature Pinscher",
+    "group": "Toy Group",
+    "typicalWeightKg": 5,
+    "defaultCalories": {
+      "sedentary": 234,
+      "active": 328,
+      "very_active": 421
+    }
+  },
+  {
+    "name": "Miniature Schnauzer",
+    "group": "Terrier Group",
+    "typicalWeightKg": 7,
+    "defaultCalories": {
+      "sedentary": 301,
+      "active": 422,
+      "very_active": 542
+    }
+  },
+  {
+    "name": "Mudi",
+    "group": "Herding Group",
+    "typicalWeightKg": 11,
+    "defaultCalories": {
+      "sedentary": 423,
+      "active": 592,
+      "very_active": 761
+    }
+  },
+  {
+    "name": "Neapolitan Mastiff",
+    "group": "Working Group",
+    "typicalWeightKg": 60,
+    "defaultCalories": {
+      "sedentary": 1509,
+      "active": 2113,
+      "very_active": 2716
+    }
+  },
+  {
+    "name": "Nederlandse Kooikerhondje",
+    "group": "Sporting Group",
+    "typicalWeightKg": 12.5,
+    "defaultCalories": {
+      "sedentary": 465,
+      "active": 651,
+      "very_active": 838
+    }
+  },
+  {
+    "name": "Newfoundland",
+    "group": "Working Group",
+    "typicalWeightKg": 56.5,
+    "defaultCalories": {
+      "sedentary": 1443,
+      "active": 2020,
+      "very_active": 2597
+    }
+  },
+  {
+    "name": "Norfolk Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 5.5,
+    "defaultCalories": {
+      "sedentary": 251,
+      "active": 352,
+      "very_active": 453
+    }
+  },
+  {
+    "name": "Norwegian Buhund",
+    "group": "Herding Group",
+    "typicalWeightKg": 15,
+    "defaultCalories": {
+      "sedentary": 534,
+      "active": 747,
+      "very_active": 960
+    }
+  },
+  {
+    "name": "Norwegian Elkhound",
+    "group": "Hound Group",
+    "typicalWeightKg": 21.5,
+    "defaultCalories": {
+      "sedentary": 699,
+      "active": 978,
+      "very_active": 1258
+    }
+  },
+  {
+    "name": "Norwegian Lundehund",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 6.5,
+    "defaultCalories": {
+      "sedentary": 285,
+      "active": 399,
+      "very_active": 513
+    }
+  },
+  {
+    "name": "Norwich Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 5.5,
+    "defaultCalories": {
+      "sedentary": 251,
+      "active": 352,
+      "very_active": 453
+    }
+  },
+  {
+    "name": "Nova Scotia Duck Tolling Retriever",
+    "group": "Sporting Group",
+    "typicalWeightKg": 19.5,
+    "defaultCalories": {
+      "sedentary": 650,
+      "active": 909,
+      "very_active": 1169
+    }
+  },
+  {
+    "name": "Old English Sheepdog",
+    "group": "Herding Group",
+    "typicalWeightKg": 34,
+    "defaultCalories": {
+      "sedentary": 986,
+      "active": 1380,
+      "very_active": 1774
+    }
+  },
+  {
+    "name": "Otterhound",
+    "group": "Hound Group",
+    "typicalWeightKg": 40,
+    "defaultCalories": {
+      "sedentary": 1113,
+      "active": 1559,
+      "very_active": 2004
+    }
+  },
+  {
+    "name": "Papillon",
+    "group": "Toy Group",
+    "typicalWeightKg": 4,
+    "defaultCalories": {
+      "sedentary": 198,
+      "active": 277,
+      "very_active": 356
+    }
+  },
+  {
+    "name": "Parson Russell Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 7,
+    "defaultCalories": {
+      "sedentary": 301,
+      "active": 422,
+      "very_active": 542
+    }
+  },
+  {
+    "name": "Pekingese",
+    "group": "Toy Group",
+    "typicalWeightKg": 4.5,
+    "defaultCalories": {
+      "sedentary": 216,
+      "active": 303,
+      "very_active": 389
+    }
+  },
+  {
+    "name": "Pembroke Welsh Corgi",
+    "group": "Herding Group",
+    "typicalWeightKg": 10.5,
+    "defaultCalories": {
+      "sedentary": 408,
+      "active": 572,
+      "very_active": 735
+    }
+  },
+  {
+    "name": "Petit Basset Griffon Vendéen",
+    "group": "Hound Group",
+    "typicalWeightKg": 14,
+    "defaultCalories": {
+      "sedentary": 507,
+      "active": 709,
+      "very_active": 912
+    }
+  },
+  {
+    "name": "Pharaoh Hound",
+    "group": "Hound Group",
+    "typicalWeightKg": 22.5,
+    "defaultCalories": {
+      "sedentary": 723,
+      "active": 1012,
+      "very_active": 1302
+    }
+  },
+  {
+    "name": "Plott",
+    "group": "Hound Group",
+    "typicalWeightKg": 23.3,
+    "defaultCalories": {
+      "sedentary": 742,
+      "active": 1039,
+      "very_active": 1336
+    }
+  },
+  {
+    "name": "Pointer",
+    "group": "Sporting Group",
+    "typicalWeightKg": 27,
+    "defaultCalories": {
+      "sedentary": 829,
+      "active": 1161,
+      "very_active": 1492
+    }
+  },
+  {
+    "name": "Polish Lowland Sheepdog",
+    "group": "Herding Group",
+    "typicalWeightKg": 18.3,
+    "defaultCalories": {
+      "sedentary": 619,
+      "active": 867,
+      "very_active": 1115
+    }
+  },
+  {
+    "name": "Pomeranian",
+    "group": "Toy Group",
+    "typicalWeightKg": 2,
+    "defaultCalories": {
+      "sedentary": 118,
+      "active": 165,
+      "very_active": 212
+    }
+  },
+  {
+    "name": "Poodle (Miniature)",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 5.5,
+    "defaultCalories": {
+      "sedentary": 251,
+      "active": 352,
+      "very_active": 453
+    }
+  },
+  {
+    "name": "Poodle (Standard)",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 24.3,
+    "defaultCalories": {
+      "sedentary": 766,
+      "active": 1073,
+      "very_active": 1379
+    }
+  },
+  {
+    "name": "Poodle (Toy)",
+    "group": "Toy Group",
+    "typicalWeightKg": 3.5,
+    "defaultCalories": {
+      "sedentary": 179,
+      "active": 251,
+      "very_active": 322
+    }
+  },
+  {
+    "name": "Portuguese Podengo Pequeno",
+    "group": "Hound Group",
+    "typicalWeightKg": 5,
+    "defaultCalories": {
+      "sedentary": 234,
+      "active": 328,
+      "very_active": 421
+    }
+  },
+  {
+    "name": "Portuguese Water Dog",
+    "group": "Working Group",
+    "typicalWeightKg": 21.3,
+    "defaultCalories": {
+      "sedentary": 694,
+      "active": 972,
+      "very_active": 1249
+    }
+  },
+  {
+    "name": "Pug",
+    "group": "Toy Group",
+    "typicalWeightKg": 7,
+    "defaultCalories": {
+      "sedentary": 301,
+      "active": 422,
+      "very_active": 542
+    }
+  },
+  {
+    "name": "Puli",
+    "group": "Herding Group",
+    "typicalWeightKg": 13.5,
+    "defaultCalories": {
+      "sedentary": 493,
+      "active": 690,
+      "very_active": 887
+    }
+  },
+  {
+    "name": "Pumi",
+    "group": "Herding Group",
+    "typicalWeightKg": 11.5,
+    "defaultCalories": {
+      "sedentary": 437,
+      "active": 612,
+      "very_active": 787
+    }
+  },
+  {
+    "name": "Pyrenean Shepherd",
+    "group": "Herding Group",
+    "typicalWeightKg": 12.5,
+    "defaultCalories": {
+      "sedentary": 465,
+      "active": 651,
+      "very_active": 838
+    }
+  },
+  {
+    "name": "Rat Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 8,
+    "defaultCalories": {
+      "sedentary": 333,
+      "active": 466,
+      "very_active": 599
+    }
+  },
+  {
+    "name": "Redbone Coonhound",
+    "group": "Hound Group",
+    "typicalWeightKg": 26,
+    "defaultCalories": {
+      "sedentary": 806,
+      "active": 1128,
+      "very_active": 1451
+    }
+  },
+  {
+    "name": "Rhodesian Ridgeback",
+    "group": "Hound Group",
+    "typicalWeightKg": 34.3,
+    "defaultCalories": {
+      "sedentary": 992,
+      "active": 1389,
+      "very_active": 1786
+    }
+  },
+  {
+    "name": "Rottweiler",
+    "group": "Working Group",
+    "typicalWeightKg": 47.8,
+    "defaultCalories": {
+      "sedentary": 1273,
+      "active": 1782,
+      "very_active": 2291
+    }
+  },
+  {
+    "name": "Russell Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 6,
+    "defaultCalories": {
+      "sedentary": 268,
+      "active": 376,
+      "very_active": 483
+    }
+  },
+  {
+    "name": "Russian Toy",
+    "group": "Toy Group",
+    "typicalWeightKg": 2,
+    "defaultCalories": {
+      "sedentary": 118,
+      "active": 165,
+      "very_active": 212
+    }
+  },
+  {
+    "name": "Saint Bernard",
+    "group": "Working Group",
+    "typicalWeightKg": 65.5,
+    "defaultCalories": {
+      "sedentary": 1612,
+      "active": 2256,
+      "very_active": 2901
+    }
+  },
+  {
+    "name": "Saluki",
+    "group": "Hound Group",
+    "typicalWeightKg": 25,
+    "defaultCalories": {
+      "sedentary": 783,
+      "active": 1096,
+      "very_active": 1409
+    }
+  },
+  {
+    "name": "Samoyed",
+    "group": "Working Group",
+    "typicalWeightKg": 22.3,
+    "defaultCalories": {
+      "sedentary": 718,
+      "active": 1006,
+      "very_active": 1293
+    }
+  },
+  {
+    "name": "Schipperke",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 6,
+    "defaultCalories": {
+      "sedentary": 268,
+      "active": 376,
+      "very_active": 483
+    }
+  },
+  {
+    "name": "Scottish Deerhound",
+    "group": "Hound Group",
+    "typicalWeightKg": 41.5,
+    "defaultCalories": {
+      "sedentary": 1145,
+      "active": 1602,
+      "very_active": 2060
+    }
+  },
+  {
+    "name": "Scottish Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 9.3,
+    "defaultCalories": {
+      "sedentary": 373,
+      "active": 522,
+      "very_active": 671
+    }
+  },
+  {
+    "name": "Sealyham Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 9.5,
+    "defaultCalories": {
+      "sedentary": 379,
+      "active": 530,
+      "very_active": 682
+    }
+  },
+  {
+    "name": "Shetland Sheepdog",
+    "group": "Herding Group",
+    "typicalWeightKg": 9,
+    "defaultCalories": {
+      "sedentary": 364,
+      "active": 509,
+      "very_active": 655
+    }
+  },
+  {
+    "name": "Shiba Inu",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 8.8,
+    "defaultCalories": {
+      "sedentary": 358,
+      "active": 501,
+      "very_active": 644
+    }
+  },
+  {
+    "name": "Shih Tzu",
+    "group": "Toy Group",
+    "typicalWeightKg": 5.5,
+    "defaultCalories": {
+      "sedentary": 251,
+      "active": 352,
+      "very_active": 453
+    }
+  },
+  {
+    "name": "Siberian Husky",
+    "group": "Working Group",
+    "typicalWeightKg": 21.5,
+    "defaultCalories": {
+      "sedentary": 699,
+      "active": 978,
+      "very_active": 1258
+    }
+  },
+  {
+    "name": "Silky Terrier",
+    "group": "Toy Group",
+    "typicalWeightKg": 4.5,
+    "defaultCalories": {
+      "sedentary": 216,
+      "active": 303,
+      "very_active": 389
+    }
+  },
+  {
+    "name": "Skye Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 16.3,
+    "defaultCalories": {
+      "sedentary": 568,
+      "active": 795,
+      "very_active": 1022
+    }
+  },
+  {
+    "name": "Sloughi",
+    "group": "Hound Group",
+    "typicalWeightKg": 22.3,
+    "defaultCalories": {
+      "sedentary": 718,
+      "active": 1006,
+      "very_active": 1293
+    }
+  },
+  {
+    "name": "Smooth Fox Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 7.5,
+    "defaultCalories": {
+      "sedentary": 317,
+      "active": 444,
+      "very_active": 571
+    }
+  },
+  {
+    "name": "Soft Coated Wheaten Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 16,
+    "defaultCalories": {
+      "sedentary": 560,
+      "active": 784,
+      "very_active": 1008
+    }
+  },
+  {
+    "name": "Spanish Water Dog",
+    "group": "Herding Group",
+    "typicalWeightKg": 17.8,
+    "defaultCalories": {
+      "sedentary": 607,
+      "active": 849,
+      "very_active": 1092
+    }
+  },
+  {
+    "name": "Spinone Italiano",
+    "group": "Sporting Group",
+    "typicalWeightKg": 31.8,
+    "defaultCalories": {
+      "sedentary": 937,
+      "active": 1312,
+      "very_active": 1687
+    }
+  },
+  {
+    "name": "Staffordshire Bull Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 14,
+    "defaultCalories": {
+      "sedentary": 507,
+      "active": 709,
+      "very_active": 912
+    }
+  },
+  {
+    "name": "Standard Schnauzer",
+    "group": "Working Group",
+    "typicalWeightKg": 18.3,
+    "defaultCalories": {
+      "sedentary": 619,
+      "active": 867,
+      "very_active": 1115
+    }
+  },
+  {
+    "name": "Sussex Spaniel",
+    "group": "Sporting Group",
+    "typicalWeightKg": 18,
+    "defaultCalories": {
+      "sedentary": 612,
+      "active": 856,
+      "very_active": 1101
+    }
+  },
+  {
+    "name": "Swedish Vallhund",
+    "group": "Herding Group",
+    "typicalWeightKg": 14.5,
+    "defaultCalories": {
+      "sedentary": 520,
+      "active": 728,
+      "very_active": 936
+    }
+  },
+  {
+    "name": "Tibetan Mastiff",
+    "group": "Working Group",
+    "typicalWeightKg": 48.8,
+    "defaultCalories": {
+      "sedentary": 1292,
+      "active": 1809,
+      "very_active": 2326
+    }
+  },
+  {
+    "name": "Tibetan Spaniel",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 5.5,
+    "defaultCalories": {
+      "sedentary": 251,
+      "active": 352,
+      "very_active": 453
+    }
+  },
+  {
+    "name": "Tibetan Terrier",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 11,
+    "defaultCalories": {
+      "sedentary": 423,
+      "active": 592,
+      "very_active": 761
+    }
+  },
+  {
+    "name": "Toy Fox Terrier",
+    "group": "Toy Group",
+    "typicalWeightKg": 2.5,
+    "defaultCalories": {
+      "sedentary": 139,
+      "active": 195,
+      "very_active": 251
+    }
+  },
+  {
+    "name": "Treeing Walker Coonhound",
+    "group": "Hound Group",
+    "typicalWeightKg": 25,
+    "defaultCalories": {
+      "sedentary": 783,
+      "active": 1096,
+      "very_active": 1409
+    }
+  },
+  {
+    "name": "Vizsla",
+    "group": "Sporting Group",
+    "typicalWeightKg": 24.3,
+    "defaultCalories": {
+      "sedentary": 766,
+      "active": 1073,
+      "very_active": 1379
+    }
+  },
+  {
+    "name": "Weimaraner",
+    "group": "Sporting Group",
+    "typicalWeightKg": 32.5,
+    "defaultCalories": {
+      "sedentary": 953,
+      "active": 1334,
+      "very_active": 1715
+    }
+  },
+  {
+    "name": "Welsh Springer Spaniel",
+    "group": "Sporting Group",
+    "typicalWeightKg": 20.5,
+    "defaultCalories": {
+      "sedentary": 674,
+      "active": 944,
+      "very_active": 1214
+    }
+  },
+  {
+    "name": "Welsh Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 9,
+    "defaultCalories": {
+      "sedentary": 364,
+      "active": 509,
+      "very_active": 655
+    }
+  },
+  {
+    "name": "West Highland White Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 7.5,
+    "defaultCalories": {
+      "sedentary": 317,
+      "active": 444,
+      "very_active": 571
+    }
+  },
+  {
+    "name": "Whippet",
+    "group": "Hound Group",
+    "typicalWeightKg": 14.5,
+    "defaultCalories": {
+      "sedentary": 520,
+      "active": 728,
+      "very_active": 936
+    }
+  },
+  {
+    "name": "Wire Fox Terrier",
+    "group": "Terrier Group",
+    "typicalWeightKg": 8,
+    "defaultCalories": {
+      "sedentary": 333,
+      "active": 466,
+      "very_active": 599
+    }
+  },
+  {
+    "name": "Wirehaired Pointing Griffon",
+    "group": "Sporting Group",
+    "typicalWeightKg": 23.5,
+    "defaultCalories": {
+      "sedentary": 747,
+      "active": 1046,
+      "very_active": 1345
+    }
+  },
+  {
+    "name": "Wirehaired Vizsla",
+    "group": "Sporting Group",
+    "typicalWeightKg": 25,
+    "defaultCalories": {
+      "sedentary": 783,
+      "active": 1096,
+      "very_active": 1409
+    }
+  },
+  {
+    "name": "Xoloitzcuintli",
+    "group": "Non-Sporting Group",
+    "typicalWeightKg": 19.5,
+    "defaultCalories": {
+      "sedentary": 650,
+      "active": 909,
+      "very_active": 1169
+    }
+  },
+  {
+    "name": "Yorkshire Terrier",
+    "group": "Toy Group",
+    "typicalWeightKg": 2.5,
+    "defaultCalories": {
+      "sedentary": 139,
+      "active": 195,
+      "very_active": 251
+    }
+  }
+]

@@ -44,6 +44,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useFonts, Outfit_700Bold, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
 import { Quicksand_400Regular, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
 import { COLORS } from '../theme/colors';
+import { LEDGER_MONO } from '../theme/typography';
 import { PetProfile } from '../types';
 import {
   fetchMyPets,
@@ -64,10 +65,9 @@ import ResponsiveContainer from '../components/ResponsiveContainer';
 import { useFeatureFlag } from '../hooks/useFeatureFlag';
 
 // DESIGN.md's brand faces: Outfit for display/headings, Quicksand for body copy.
-// TODO: DESIGN.md's Ledger Monospace Rule calls for IBM Plex Mono here; no
-// package for it is installed yet (scoped separately), so this still falls
-// back to the platform system monospace, same as before.
-const LEDGER_MONO = Platform.OS === 'ios' ? 'Courier' : 'monospace';
+// Ledger Monospace Rule now uses the shared Courier Prime token (see
+// theme/typography.ts) instead of falling back to the platform system
+// monospace, matching every other screen and the web frontend.
 const FONT_DISPLAY = 'Outfit_700Bold';
 const FONT_DISPLAY_SEMIBOLD = 'Outfit_600SemiBold';
 const FONT_BODY = 'Quicksand_400Regular';
