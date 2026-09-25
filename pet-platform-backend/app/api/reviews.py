@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Form, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, Form, File, UploadFile
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select, func
 
 from app.core.cache import cache
 from app.core.database import get_db
+from app.core.limiter import limiter
 from app.dependencies.auth import require_roles, get_current_user
 from app.models.enums import UserRole, ConsultationStatus
 from app.models.user import User
@@ -45,7 +46,9 @@ VALID_PURCHASE_STATUSES = [
     response_model=DoctorReviewResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("10/minute")
 def create_doctor_review(
+    request: Request,
     consultation_id: int,
     review_data: DoctorReviewCreate,
     db: Session = Depends(get_db),
@@ -135,7 +138,9 @@ def get_doctor_reviews(
     response_model=ProductReviewResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("10/minute")
 async def create_product_review(
+    request: Request,
     product_id: int,
     rating: int = Form(..., ge=1, le=5),
     comment: str | None = Form(None),

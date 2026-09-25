@@ -10,6 +10,7 @@ import {
   fetchAdminDoctors
 } from '../../api/admin';
 import { fetchProducts, fetchCategories, fetchCategoryById } from '../../api/products';
+import { fetchAdminSupportUnreadCount } from '../../api/support';
 import { 
   createProduct, 
   deactivateProduct, 
@@ -28,7 +29,7 @@ import {
 import type { CreateProductData, InventoryUpdate } from '../../api/productsAdmin';
 import { fetchRAGDocuments, uploadRAGDocument, deleteRAGDocument } from '../../api/chatbot';
 import { fetchAllBanners, createBanner, updateBanner, deleteBanner } from '../../api/banners';
-import { fetchAdminFeatures, updateAdminFeature } from '../../api/features';
+import { fetchAdminFeatures, updateAdminFeature, type FeatureFallbackBehavior } from '../../api/features';
 import { 
   fetchAdminCoupons, 
   createAdminCoupon, 
@@ -59,7 +60,8 @@ import {
   Tag,
   ChevronDown,
   ChevronUp,
-  Package
+  Package,
+  Headset
 } from 'lucide-react';
 
 
@@ -177,6 +179,12 @@ export const AdminDashboard: React.FC = () => {
   const { data: orders } = useQuery({
     queryKey: ['adminOrders'],
     queryFn: () => fetchAdminOrders(),
+  });
+
+  const { data: supportUnreadCount } = useQuery({
+    queryKey: ['adminSupportUnreadCount'],
+    queryFn: fetchAdminSupportUnreadCount,
+    refetchInterval: 60000,
   });
 
 
@@ -510,8 +518,8 @@ export const AdminDashboard: React.FC = () => {
   });
 
   const toggleFeatureMutation = useMutation({
-    mutationFn: ({ key, is_enabled }: { key: string; is_enabled: boolean }) =>
-      updateAdminFeature(key, is_enabled),
+    mutationFn: ({ key, is_enabled, fallback_behavior }: { key: string; is_enabled: boolean; fallback_behavior?: FeatureFallbackBehavior }) =>
+      updateAdminFeature(key, is_enabled, fallback_behavior),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminFeatures'] });
       queryClient.invalidateQueries({ queryKey: ['featureFlags'] });
@@ -608,6 +616,7 @@ export const AdminDashboard: React.FC = () => {
             const items = [
               { id: 'analytics', label: 'Analytics', icon: BarChart3 },
               { id: 'orders', label: 'Orders', icon: ClipboardList },
+              { id: 'support', label: 'Support', icon: Headset },
               { id: 'recipes', label: 'Recipes', icon: BookOpen },
               { id: 'coupons', label: 'Coupons & Offers', icon: Tag },
               { id: 'inventory', label: 'Inventory', icon: Boxes },
@@ -625,6 +634,8 @@ export const AdminDashboard: React.FC = () => {
                   onClick={() => {
                     if (item.id === 'orders') {
                       navigate('/admin/orders');
+                    } else if (item.id === 'support') {
+                      navigate('/admin/support');
                     } else {
                       setActiveTab(item.id as any);
                     }
@@ -637,6 +648,11 @@ export const AdminDashboard: React.FC = () => {
                 >
                   <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-turmeric' : ''}`} />
                   <span>{item.label}</span>
+                  {item.id === 'support' && !!supportUnreadCount && supportUnreadCount > 0 && (
+                    <span className="min-w-[16px] h-[16px] px-1 flex items-center justify-center bg-paprika text-white text-[8px] font-bold rounded-full">
+                      {supportUnreadCount > 9 ? '9+' : supportUnreadCount}
+                    </span>
+                  )}
                 </button>
               );
             });
@@ -2321,6 +2337,31 @@ export const AdminDashboard: React.FC = () => {
                           </div>
                         </div>
 
+                        {/* When disabled, show: hide / coming soon / unavailable */}
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="font-mono text-[9px] uppercase font-bold text-ink/60 shrink-0" htmlFor={`fallback-${feature.key}`}>
+                            When disabled, show:
+                          </label>
+                          <select
+                            id={`fallback-${feature.key}`}
+                            value={feature.fallback_behavior}
+                            disabled={isPending}
+                            onChange={(e) => {
+                              setTogglingKey(feature.key);
+                              toggleFeatureMutation.mutate({
+                                key: feature.key,
+                                is_enabled: feature.is_enabled,
+                                fallback_behavior: e.target.value as FeatureFallbackBehavior,
+                              });
+                            }}
+                            className="font-mono text-[9px] uppercase font-bold border border-cardboard rounded-xs px-1.5 py-1 bg-paper text-ink cursor-pointer disabled:opacity-50"
+                          >
+                            <option value="hide">Hide</option>
+                            <option value="coming_soon">Coming Soon</option>
+                            <option value="unavailable">Unavailable</option>
+                          </select>
+                        </div>
+
                         {/* Bottom: State & Interactive Switch */}
                         <div className="pt-3 border-t border-dashed border-cardboard border-opacity-35 flex items-center justify-between gap-3">
                           <div className="flex items-center space-x-2 min-w-0">
@@ -2338,7 +2379,13 @@ export const AdminDashboard: React.FC = () => {
                                 {feature.is_enabled ? 'Active / Visible' : 'Disabled / Hidden'}
                               </span>
                               <span className="font-mono text-[8.5px] text-ink/45 block">
-                                {feature.is_enabled ? 'Available to customers' : 'Temporarily suspended'}
+                                {feature.is_enabled
+                                  ? 'Available to customers'
+                                  : feature.fallback_behavior === 'hide'
+                                  ? 'Hidden entirely'
+                                  : feature.fallback_behavior === 'coming_soon'
+                                  ? 'Shown as "Coming Soon"'
+                                  : 'Shown as "Unavailable"'}
                               </span>
                             </div>
                           </div>

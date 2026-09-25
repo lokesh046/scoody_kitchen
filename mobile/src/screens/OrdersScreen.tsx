@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useFonts, Outfit_700Bold, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
 import { Quicksand_400Regular, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
+import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 import {
   Clock,
   MapPin,
@@ -97,7 +98,10 @@ const OrderCardItem = memo(function OrderCardItem({ order, onSelect, cardWidth }
             <View key={item.id || idx} style={styles.itemRow}>
               <View style={styles.itemThumb}>
                 {item.image_url ? (
-                  <Image source={{ uri: item.image_url }} style={styles.itemThumbImg} />
+                  <Image
+                    source={{ uri: getOptimizedImageUrl(item.image_url, IMAGE_SIZE.rowThumb, IMAGE_SIZE.rowThumb) }}
+                    style={styles.itemThumbImg}
+                  />
                 ) : (
                   <UtensilsCrossed size={14} color={COLORS.brandGold} />
                 )}

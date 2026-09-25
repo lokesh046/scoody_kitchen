@@ -68,6 +68,7 @@ import { BookingModal } from './vet/BookingModal';
 import { DoctorProfileModal } from './vet/DoctorProfileModal';
 import { FilterModal } from './vet/FilterModal';
 import { ReviewModal } from './vet/ReviewModal';
+import { NearbyVetsModal } from './vet/NearbyVetsModal';
 
 type ActiveTab = 'QUEUE' | 'DOCTORS';
 type ConsultationFilter = 'ALL' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
@@ -506,6 +507,7 @@ export default function VetScreen({ navigation, route }: any) {
 
   // Booking Modal State
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [showNearbyVetsModal, setShowNearbyVetsModal] = useState(false);
   const [bookingPetId, setBookingPetId] = useState<number | null>(null);
   const [selectedDateIndex, setSelectedDateIndex] = useState<number>(0);
   const [selectedTime, setSelectedTime] = useState<string>('');
@@ -1500,6 +1502,17 @@ export default function VetScreen({ navigation, route }: any) {
                     </View>
                   )}
                 </TouchableOpacity>
+
+                {/* Vets Near Me Trigger */}
+                <TouchableOpacity
+                  style={styles.filterTriggerBtn}
+                  onPress={() => setShowNearbyVetsModal(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Find vets near me"
+                >
+                  <MapPin size={16} color={COLORS.forestGreen} />
+                  <Text style={styles.filterTriggerBtnText}>Near Me</Text>
+                </TouchableOpacity>
               </View>
 
               {/* Dynamic Quick Dropdown Trigger Pills (Zero Hardcoding) */}
@@ -1805,6 +1818,13 @@ export default function VetScreen({ navigation, route }: any) {
         onChangeComment={setReviewComment}
         isSubmitting={isSubmittingReview}
         onSubmit={handleSubmitReview}
+      />
+
+      <NearbyVetsModal
+        isOpen={showNearbyVetsModal}
+        onClose={() => setShowNearbyVetsModal(false)}
+        onSelectDoctor={setSelectedDoctor}
+        onBookOnlineInstead={() => {}}
       />
 
       {/* Consultation Fee Payment (Razorpay) */}

@@ -1,6 +1,13 @@
 import apiClient from './client';
 
-export const fetchPublicFeatures = async (): Promise<Record<string, boolean>> => {
-  const response = await apiClient.get<Record<string, boolean>>('/features/public');
+export type FeatureFallbackBehavior = 'hide' | 'coming_soon' | 'unavailable';
+
+export interface PublicFeatureFlagState {
+  enabled: boolean;
+  fallback_behavior: FeatureFallbackBehavior;
+}
+
+export const fetchPublicFeatures = async (): Promise<Record<string, PublicFeatureFlagState>> => {
+  const response = await apiClient.get<Record<string, PublicFeatureFlagState>>('/features/public');
   return response.data;
 };

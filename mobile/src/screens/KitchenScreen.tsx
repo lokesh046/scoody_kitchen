@@ -54,6 +54,7 @@ import {
 } from '../api/reviews';
 import { useResponsive } from '../hooks/useResponsive';
 import ResponsiveContainer from '../components/ResponsiveContainer';
+import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 
 const DEFAULT_DOG_IMAGES = [
   'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600',
@@ -163,7 +164,11 @@ const RecipeCardItem = memo(function RecipeCardItem({
         onPressOut={handlePressOut}
         style={styles.imageContainer}
       >
-        <Image source={{ uri: displayImage }} style={styles.recipeImage} contentFit="cover" />
+        <Image
+          source={{ uri: getOptimizedImageUrl(displayImage, IMAGE_SIZE.productCard, IMAGE_SIZE.productCard) }}
+          style={styles.recipeImage}
+          contentFit="cover"
+        />
         {isOutOfStock && <View style={styles.imageOutOfStockDim} />}
 
         {/* Torn Edge Signature (DESIGN.md): a zigzag tear along the photo's
@@ -325,7 +330,11 @@ const RecipeReviewCard = memo(function RecipeReviewCard({
     >
       {/* Top Image with Badge */}
       <View style={styles.recipeReviewImgWrap}>
-        <Image source={{ uri: displayImg }} style={styles.recipeReviewImg as any} contentFit="cover" />
+        <Image
+          source={{ uri: getOptimizedImageUrl(displayImg, IMAGE_SIZE.reviewCard, IMAGE_SIZE.reviewCard) }}
+          style={styles.recipeReviewImg as any}
+          contentFit="cover"
+        />
         <View style={styles.recipeReviewBadge}>
           <Text style={styles.recipeReviewBadgeText}>🐾 Verified Meal</Text>
         </View>
@@ -709,7 +718,7 @@ export default function KitchenScreen({ navigation, route }: any) {
     setRefreshing(true);
     loadData();
     if (user) {
-      loadCart();
+      loadCart(true);
     }
   }, [loadData, user, loadCart]);
 

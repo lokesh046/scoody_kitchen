@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../api/client';
 import { resetTabPrefetch } from '../services/tabPrefetch';
+import { clearPushTokenOnLogout } from '../services/pushNotifications';
 import { getAccessToken, getRefreshToken, setAccessToken, setRefreshToken, clearTokens } from '../services/secureTokenStorage';
 
 export interface UserProfile {
@@ -78,6 +79,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
       // Ignore network errors during logout
     } finally {
+      await clearPushTokenOnLogout();
       delete apiClient.defaults.headers.common['Authorization'];
       await clearTokens();
       await AsyncStorage.multiRemove(['@auth_user', '@auth_guest']);

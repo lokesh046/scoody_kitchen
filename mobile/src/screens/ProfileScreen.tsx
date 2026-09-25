@@ -35,6 +35,7 @@ import {
   AlertCircle,
   LogIn,
   Bug,
+  Headset,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../theme/colors';
@@ -44,6 +45,7 @@ import { useAuthStore, UserProfile } from '../store/authStore';
 import { usePetStore } from '../store/petStore';
 import { fetchMyOrders, Order } from '../api/orders';
 import { fetchMyPets } from '../api/pets';
+import { fetchMySupportUnreadCount } from '../api/support';
 import { updateUserProfile, uploadAvatarImage } from '../api/auth';
 import { PhoneVerificationModal } from '../components/PhoneVerificationModal';
 import { useResponsive } from '../hooks/useResponsive';
@@ -246,17 +248,21 @@ const ProfileStatsMatrix = memo(function ProfileStatsMatrix({
 interface AccountHubMenuProps {
   ordersCount: number;
   petsCount: number;
+  supportUnreadCount: number;
   onNavigateOrders: () => void;
   onNavigatePets: () => void;
   onNavigateConsult: () => void;
+  onNavigateSupport: () => void;
 }
 
 const AccountHubMenu = memo(function AccountHubMenu({
   ordersCount,
   petsCount,
+  supportUnreadCount,
   onNavigateOrders,
   onNavigatePets,
   onNavigateConsult,
+  onNavigateSupport,
 }: AccountHubMenuProps) {
   return (
     <View style={styles.menuCard}>
@@ -334,6 +340,35 @@ const AccountHubMenu = memo(function AccountHubMenu({
           </View>
         </View>
         <ChevronRight size={18} color={COLORS.textLight} />
+      </TouchableOpacity>
+
+      <View style={styles.menuDivider} />
+
+      {/* Support Item */}
+      <TouchableOpacity
+        style={styles.menuItem}
+        onPress={onNavigateSupport}
+        activeOpacity={0.7}
+      >
+        <View style={styles.menuItemLeft}>
+          <View style={[styles.menuIconCircle, { backgroundColor: '#FBEFEA' }]}>
+            <Headset size={18} color="#C25E48" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.menuItemTitle}>Support</Text>
+            <Text style={styles.menuItemSub}>
+              Order issues, questions, or anything else
+            </Text>
+          </View>
+        </View>
+        <View style={styles.menuItemRight}>
+          {supportUnreadCount > 0 && (
+            <View style={styles.menuUnreadBadge}>
+              <Text style={styles.menuUnreadBadgeText}>{supportUnreadCount > 9 ? '9+' : supportUnreadCount}</Text>
+            </View>
+          )}
+          <ChevronRight size={18} color={COLORS.textLight} />
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -762,6 +797,7 @@ export default function ProfileScreen({ navigation }: any) {
   const { pets, setPets } = usePetStore();
 
   const [orders, setOrders] = useState<Order[]>([]);
+  const [supportUnreadCount, setSupportUnreadCount] = useState(0);
   const [, setLoadingOrders] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -785,9 +821,10 @@ export default function ProfileScreen({ navigation }: any) {
       }
       setLoadingOrders(true);
       try {
-        const [myOrders, myPets] = await Promise.allSettled([
+        const [myOrders, myPets, unreadCount] = await Promise.allSettled([
           fetchMyOrders(),
           pets.length === 0 ? fetchMyPets() : Promise.resolve(pets),
+          fetchMySupportUnreadCount(),
         ]);
 
         if (myOrders.status === 'fulfilled' && myOrders.value) {
@@ -795,6 +832,9 @@ export default function ProfileScreen({ navigation }: any) {
         }
         if (myPets.status === 'fulfilled' && myPets.value && pets.length === 0) {
           setPets(myPets.value);
+        }
+        if (unreadCount.status === 'fulfilled') {
+          setSupportUnreadCount(unreadCount.value);
         }
         profileLastFetchedRef.current = Date.now();
       } catch (e) {
@@ -908,6 +948,10 @@ export default function ProfileScreen({ navigation }: any) {
     navigation?.navigate('Consult');
   }, [navigation]);
 
+  const handleNavigateSupport = useCallback(() => {
+    navigation?.navigate('Support');
+  }, [navigation]);
+
   const { isTablet } = useResponsive();
 
   return (
@@ -960,9 +1004,11 @@ export default function ProfileScreen({ navigation }: any) {
           <AccountHubMenu
             ordersCount={orders.length}
             petsCount={pets.length}
+            supportUnreadCount={supportUnreadCount}
             onNavigateOrders={handleNavigateOrders}
             onNavigatePets={handleNavigatePets}
             onNavigateConsult={handleNavigateConsult}
+            onNavigateSupport={handleNavigateSupport}
           />
 
           {/* Veterinary Quality Commitment */}
@@ -1399,6 +1445,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: COLORS.forestGreen,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  menuUnreadBadge: {
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 5,
+    borderRadius: 10,
+    backgroundColor: '#C25E48',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuUnreadBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   menuDivider: {

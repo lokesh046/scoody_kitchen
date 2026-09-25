@@ -24,6 +24,22 @@ class ConsultationStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
+class SupportTicketStatus(str, Enum):
+    OPEN = "open"
+    IN_PROGRESS = "in_progress"
+    RESOLVED = "resolved"
+    CLOSED = "closed"
+
+
+class SupportTicketCategory(str, Enum):
+    ORDER_ISSUE = "order_issue"
+    CONSULTATION_ISSUE = "consultation_issue"
+    PRODUCT_ISSUE = "product_issue"
+    PAYMENT = "payment"
+    ACCOUNT = "account"
+    OTHER = "other"
+
+
 class HealthRecordType(str, Enum):
     GENERAL = "general"
     SYMPTOM = "symptom"

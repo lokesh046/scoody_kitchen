@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -44,11 +44,19 @@ export default function DoctorAvailabilityScreen() {
   const [newEnd, setNewEnd] = useState('17:00');
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
+  const lastFetchedRef = useRef(0);
+  const load = useCallback(async (force = false) => {
+    // Skip refetching if we already have a recent copy — avoids a redundant
+    // network round-trip every time this tab regains focus.
+    if (!force && Date.now() - lastFetchedRef.current < 12000) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const data = await getDoctorAvailabilities();
       setSlots(data);
+      lastFetchedRef.current = Date.now();
     } catch {
       Alert.alert('Error', 'Could not load your availability.');
     } finally {

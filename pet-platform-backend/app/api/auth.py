@@ -4,7 +4,6 @@ import jwt
 from jwt.exceptions import InvalidTokenError
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
-import os
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import hash_token
@@ -59,7 +58,7 @@ def _set_auth_cookies(response: Response, tokens: dict) -> None:
     )
 
 
-from app.core.limiter import limiter
+from app.core.limiter import limiter, rate_limit_redis_client
 
 
 @router.post(
@@ -439,14 +438,12 @@ def request_otp(
     requests directly, this pre-check verifies cooldown and hourly limits via Redis
     before letting the client trigger the Firebase SDK send operation.
     """
-    from app.core.cache import cache
-
-    # Safely get raw redis client
-    redis_client = cache.client
-    if not redis_client or not cache.redis_active:
-        import redis
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-        redis_client = redis.Redis.from_url(redis_url, decode_responses=True)
+    # OTP cooldown/count keys are rate-limit state, not cache — they must
+    # survive cache eviction under memory pressure, or a stampede that
+    # evicts them would let the phone/IP limits reset early. Uses the
+    # dedicated rate-limiter Redis client (same instance app/core/limiter.py
+    # uses for slowapi) instead of the shared cache client.
+    redis_client = rate_limit_redis_client
 
     phone_number = payload.phone_number
     ip_address = get_client_ip(request)

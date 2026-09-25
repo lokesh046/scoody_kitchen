@@ -9,6 +9,7 @@ import { CartDrawer } from '../../components/CartDrawer';
 import { Eyebrow } from '../../components/Eyebrow';
 import { useQuery } from '@tanstack/react-query';
 import { fetchMyPets } from '../../api/pets';
+import { fetchMySupportUnreadCount } from '../../api/support';
 import { Header } from '../../components/Header';
 import { 
   Phone, 
@@ -26,7 +27,8 @@ import {
   User,
   X,
   CheckCircle2,
-  Lock
+  Lock,
+  Headset
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
@@ -72,6 +74,13 @@ export const ProfilePage: React.FC = () => {
     queryKey: ['pets'],
     queryFn: fetchMyPets,
     enabled: !!accessToken,
+  });
+
+  const { data: supportUnreadCount } = useQuery({
+    queryKey: ['mySupportUnreadCount'],
+    queryFn: fetchMySupportUnreadCount,
+    enabled: !!accessToken,
+    refetchInterval: 60000,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -596,6 +605,25 @@ export const ProfilePage: React.FC = () => {
               <div>
                 <span className="font-body font-bold text-xs block">Recipe Orders</span>
                 <span className="font-mono text-[9px] uppercase opacity-70 text-ink">Tracking & History</span>
+              </div>
+            </button>
+
+            {/* Support */}
+            <button
+              onClick={() => navigate('/support')}
+              className="relative flex items-center space-x-3 p-4 border border-cardboard border-opacity-35 hover:border-turmeric bg-paper hover:bg-paperLight rounded-sm transition-all text-ink text-left cursor-pointer shadow-xs"
+            >
+              {!!supportUnreadCount && supportUnreadCount > 0 && (
+                <span className="absolute top-2 right-2 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-paprika text-white text-[9px] font-mono font-bold rounded-full">
+                  {supportUnreadCount > 9 ? '9+' : supportUnreadCount}
+                </span>
+              )}
+              <div className="p-2.5 bg-rose-50 rounded-sm border border-rose-200">
+                <Headset className="w-5 h-5 text-rose-700" />
+              </div>
+              <div>
+                <span className="font-body font-bold text-xs block">Support</span>
+                <span className="font-mono text-[9px] uppercase opacity-70 text-ink">Order & Consult Help</span>
               </div>
             </button>
 

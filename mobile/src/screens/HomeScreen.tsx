@@ -147,7 +147,7 @@ const CORE_SERVICES: CoreService[] = [
   {
     id: 'kitchen',
     badge: 'FARM FRESH',
-    title: 'Fresh Kitchen',
+    title: 'Shop Recipes',
     desc: 'Small-batch human-grade recipes cooked fresh daily at 4°C.',
     icon: UtensilsCrossed,
     color: COLORS.brandGold,
@@ -161,7 +161,7 @@ const CORE_SERVICES: CoreService[] = [
   {
     id: 'telehealth',
     badge: '1-ON-1 VET',
-    title: 'Vet Telehealth',
+    title: 'Vet Consults',
     desc: 'Certified holistic doctors online for video diet consultations.',
     icon: Stethoscope,
     color: COLORS.navy,
@@ -189,7 +189,7 @@ const CORE_SERVICES: CoreService[] = [
   {
     id: 'pets',
     badge: 'HEALTH LOGS',
-    title: 'Pet Health Diary',
+    title: 'Know Your Pet',
     desc: 'Manage medical history, vaccination calendar & allergy flags.',
     icon: PawPrint,
     color: COLORS.accentRed,
@@ -1252,19 +1252,6 @@ export default function HomeScreen({ navigation }: any) {
         }
       >
         <ResponsiveContainer>
-        {/* 2. Sub-Header Status Pills */}
-        <View style={styles.statusPillsRow}>
-          <View style={styles.statusPillLeft}>
-            <Sparkles size={13} color={COLORS.brandGold} />
-            <Text style={styles.statusPillLeftText}>SMALL-BATCH FARM FRESH</Text>
-          </View>
-
-          <View style={styles.statusPillRight}>
-            <View style={styles.livePulseDot} />
-            <Text style={styles.statusPillRightText}>Kitchen Warm & Prepping</Text>
-          </View>
-        </View>
-
         {/* 3. Search Bar with Filter Sliders */}
         <View style={styles.searchBarContainer}>
           <Search size={18} color={COLORS.textLight} />
@@ -2054,52 +2041,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: FONT_DISPLAY_SEMIBOLD,
     color: '#FFFFFF',
-  },
-
-  /* 2. Sub-Header Status Pills */
-  statusPillsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginTop: 6,
-    marginBottom: 10,
-    gap: 8,
-  },
-  statusPillLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FDF5EC',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  statusPillLeftText: {
-    fontSize: 10,
-    fontFamily: LEDGER_MONO,
-    color: '#B45309',
-    letterSpacing: 0.5,
-  },
-  statusPillRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#EFF6F1',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  livePulseDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: COLORS.forestGreen,
-  },
-  statusPillRightText: {
-    fontSize: 10,
-    fontFamily: LEDGER_MONO,
-    color: COLORS.sageIcon,
   },
 
   /* 3. Search Bar */

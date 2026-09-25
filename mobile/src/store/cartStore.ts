@@ -16,7 +16,7 @@ interface CartState {
   isSyncing: boolean;
   lastError: string | null;
 
-  loadCart: () => Promise<void>;
+  loadCart: (force?: boolean) => Promise<void>;
   addItem: (
     productId: number,
     quantity?: number,
@@ -38,6 +38,11 @@ interface CartState {
   getTotal: () => number;
 }
 
+// Module-level, not store state — this is a fetch-throttle implementation
+// detail, not something any component needs to read or re-render on.
+let lastCartFetchAt = 0;
+const CART_FETCH_THROTTLE_MS = 12000;
+
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   totalAmount: 0,
@@ -45,7 +50,14 @@ export const useCartStore = create<CartState>((set, get) => ({
   isSyncing: false,
   lastError: null,
 
-  loadCart: async () => {
+  loadCart: async (force = false) => {
+    // Skip refetching if we already have a recent copy — several screens
+    // call loadCart() on every focus (KitchenScreen's tab-switch sync), so
+    // without this a user bouncing between tabs re-hits the cart endpoint
+    // far more than the UI ever actually needs.
+    if (!force && Date.now() - lastCartFetchAt < CART_FETCH_THROTTLE_MS) {
+      return;
+    }
     set({ isLoading: true, lastError: null });
     try {
       const cart: CartResponse = await fetchServerCart();
@@ -53,6 +65,7 @@ export const useCartStore = create<CartState>((set, get) => ({
         items: cart.items || [],
         totalAmount: Number(cart.total_amount) || 0,
       });
+      lastCartFetchAt = Date.now();
     } catch (err: any) {
       // 401 occurs if unauthenticated/guest
       const status = err.response?.status;

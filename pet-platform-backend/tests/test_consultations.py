@@ -46,9 +46,10 @@ def test_consultation_state_machine_invalid_transitions():
         validate_consultation_transition(ConsultationStatus.PENDING, ConsultationStatus.COMPLETED)
     assert "Invalid consultation status transition" in str(exc3.value)
 
-    with pytest.raises(ValueError) as exc4:
-        validate_consultation_transition(ConsultationStatus.CONFIRMED, ConsultationStatus.COMPLETED)
-    assert "Invalid consultation status transition" in str(exc4.value)
+    # CONFIRMED -> COMPLETED is intentionally allowed (see
+    # VALID_CONSULTATION_TRANSITIONS in consultation_service.py) — a doctor
+    # can mark a confirmed consultation done without it ever passing through
+    # IN_PROGRESS, so this is not an invalid transition to assert against.
 
 
 def test_customer_pet_ownership_enforcement():

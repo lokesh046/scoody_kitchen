@@ -4,6 +4,7 @@ from app.services.pipeline import get_pipeline
 from app.services.security import (
     verify_authenticated_user,
     vision_rate_limiter,
+    vision_daily_scan_limiter,
     validate_image_magic_bytes,
 )
 
@@ -39,6 +40,9 @@ async def classify_pet(
 
     # 2. Enforce User-Based Rate Limiting (4 classifications per minute per user)
     vision_rate_limiter.check(user_identifier)
+
+    # 2b. Enforce the daily scan cap (7 classifications per rolling 24h per user)
+    vision_daily_scan_limiter.check_and_increment(user_identifier)
 
     # 2. Chunked Stream Read with Early Abort to prevent RAM Exhaustion
     chunks: list[bytes] = []

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   View,
   Animated,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { PawPrint, Sparkles } from 'lucide-react-native';
@@ -13,6 +14,9 @@ interface ScoobyAIFABProps {
   initialPrompt?: string;
   bottomOffset?: number;
   leftOffset?: number;
+  // Set when ai_chatbot is off but its fallback isn't "hide" — renders a
+  // muted, non-navigating version instead of the real FAB.
+  disabledFallback?: 'coming_soon' | 'unavailable';
 }
 
 // Was a ~175px-tall vertical strip anchored at a fixed percentage of the
@@ -31,6 +35,7 @@ export function ScoobyAIFAB({
   initialPrompt,
   bottomOffset = 96,
   leftOffset = 18,
+  disabledFallback,
 }: ScoobyAIFABProps) {
   const navigation = useNavigation<any>();
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -59,23 +64,38 @@ export function ScoobyAIFAB({
       ]}
     >
       <TouchableOpacity
-        style={styles.outerCircle}
-        onPress={() => navigation.navigate('Chatbot', { initialQuery: initialPrompt })}
+        style={[styles.outerCircle, disabledFallback && styles.outerCircleDisabled]}
+        onPress={() =>
+          disabledFallback
+            ? Alert.alert(
+                disabledFallback === 'coming_soon' ? 'Coming Soon' : 'Temporarily Unavailable',
+                disabledFallback === 'coming_soon'
+                  ? "The AI Nutrition Coach isn't available yet — check back soon!"
+                  : 'The AI Nutrition Coach is temporarily unavailable. Please check back later.'
+              )
+            : navigation.navigate('Chatbot', { initialQuery: initialPrompt })
+        }
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         activeOpacity={0.85}
         accessibilityRole="button"
-        accessibilityLabel="Open Scooby AI chat assistant"
+        accessibilityLabel={
+          disabledFallback
+            ? `Scooby AI chat assistant — ${disabledFallback === 'coming_soon' ? 'coming soon' : 'temporarily unavailable'}`
+            : 'Open Scooby AI chat assistant'
+        }
       >
-        <View style={styles.innerRing}>
+        <View style={[styles.innerRing, disabledFallback && styles.innerRingDisabled]}>
           <Sparkles size={21} color="#FFFFFF" strokeWidth={2.4} />
         </View>
 
         {/* Paw accent capsule, mirroring FloatingCartBadge's corner-badge
             convention instead of the old two-paw decorative flourish. */}
-        <View style={styles.pawCapsule}>
-          <PawPrint size={11} color="#FFFFFF" fill="#FFFFFF" />
-        </View>
+        {!disabledFallback && (
+          <View style={styles.pawCapsule}>
+            <PawPrint size={11} color="#FFFFFF" fill="#FFFFFF" />
+          </View>
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -100,6 +120,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
+  outerCircleDisabled: {
+    backgroundColor: '#A3A3A3',
+    opacity: 0.7,
+  },
   innerRing: {
     width: 44,
     height: 44,
@@ -109,6 +133,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
+  },
+  innerRingDisabled: {
+    borderColor: 'rgba(255,255,255,0.6)',
   },
   pawCapsule: {
     position: 'absolute',

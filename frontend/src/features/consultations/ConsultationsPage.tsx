@@ -1,14 +1,17 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query';
 import { formatNaiveDateTime } from '../../utils/date';
 import { fetchMyPets, fetchPetHealthRecords } from '../../api/pets';
-import { fetchIpLocation } from '../../api/geo';
+import { fetchIpLocation, lookupPincode } from '../../api/geo';
+import { API_BASE_URL } from '../../api/client';
 import { useAuthStore } from '../../store/auth';
-import { 
-  fetchDoctors, fetchDoctorSlots, 
+import {
+  fetchDoctors, fetchDoctorSlots,
   fetchMyConsultations, cancelConsultation,
-  fetchDoctorById, fetchDoctorAvailability, fetchNearbyDoctors,
+  fetchDoctorById, fetchDoctorAvailability,
+  fetchNearbyClinics, fetchClinicDetails, buildDirectionsUrl,
+  type NearbyClinicResult, type PlaceDetailsResponse,
   fetchConsultationById, createConsultationPaymentIntent,
   bookConsultationWithPayment
 } from '../../api/consultations';
@@ -16,11 +19,12 @@ import {
 import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
-import { 
+import { Map, MapMarker, MapControls, type MapRefHandle } from '../../components/ui/map';
+import {
   ArrowLeft, ArrowRight,
   Clock, Stethoscope, Loader2, AlertCircle, XCircle,
   Compass, Calendar as CalendarIcon, Star, Video,
-  CheckCircle2, ShieldCheck, ChevronRight, CreditCard, Receipt
+  CheckCircle2, ShieldCheck, ChevronRight, CreditCard, Receipt, MapPin, Navigation, Phone, Search
 } from 'lucide-react';
 import { submitDoctorReview } from '../../api/reviews';
 import { loadRazorpaySDK } from '../../utils/razorpay';
@@ -422,19 +426,39 @@ export const ConsultationsPage: React.FC = () => {
   const [bookingStep, setBookingStep] = useState<number>(1);
   const [isDirectBooking, setIsDirectBooking] = useState(false);
 
+  // Specialist Directory has two discovery modes — browsing our own vet
+  // ledger (search/filter grid) or finding vets near a location (registered
+  // + Google clinics). Kept as separate views behind a toggle rather than
+  // stacked, so neither one crowds out the other.
+  const [directoryView, setDirectoryView] = useState<'browse' | 'nearby'>('browse');
+
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCityFilter, setSelectedCityFilter] = useState('');
   const [selectedSpecializationFilter, setSelectedSpecializationFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'>('ALL');
 
-  // Nearby Vets Finder States
-  const [searchLat, setSearchLat] = useState<string>('');
-  const [searchLng, setSearchLng] = useState<string>('');
-  const searchRadius = 10;
-  const [_nearbyDocs, setNearbyDocs] = useState<any[]>([]);
+  // Nearby Vets Finder States ("Vets Near Me" — registered vets merged
+  // with real-world clinics from Google Places)
+  const mapRef = useRef<MapRefHandle | null>(null);
+  const [mapCoords, setMapCoords] = useState<{ lat: number; lng: number }>({ lat: 13.0827, lng: 80.2707 });
+  const [pincodeQuery, setPincodeQuery] = useState('');
+  const [isPincodeSearching, setIsPincodeSearching] = useState(false);
+  const [searchRadius, setSearchRadius] = useState<2 | 5 | 10>(5);
+  const [nearbyClinics, setNearbyClinics] = useState<NearbyClinicResult[]>([]);
+  const [nearbyRadiusUsed, setNearbyRadiusUsed] = useState<number | null>(null);
+  const [nearbyFallback, setNearbyFallback] = useState(false);
   const [isSearchingNearby, setIsSearchingNearby] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [hasSearchedNearby, setHasSearchedNearby] = useState(false);
+  const [nearbyResultsPage, setNearbyResultsPage] = useState(1);
+  const [showManualLocationControls, setShowManualLocationControls] = useState(false);
+  // Lazy details for Google-sourced clinics — fetched only when a clinic
+  // card is opened in the side drawer, cached by place_id so reopening
+  // doesn't re-fetch.
+  const [clinicDetailsCache, setClinicDetailsCache] = useState<Record<string, PlaceDetailsResponse>>({});
+  const [inspectingClinic, setInspectingClinic] = useState<NearbyClinicResult | null>(null);
+  const [isLoadingClinicDetails, setIsLoadingClinicDetails] = useState(false);
 
   // Doctor Detail Modal States
   const [inspectingDoctorId, setInspectingDoctorId] = useState<number | null>(null);
@@ -600,23 +624,60 @@ export const ConsultationsPage: React.FC = () => {
     }
   });
 
-  // Locate user automatically
-  const handleAutoLocate = () => {
+  // Core "Vets Near Me" search — merges registered vets with real-world
+  // clinics from Google Places (see /doctors/nearby-clinics). Shared by
+  // both the one-click "Find Vets Near Me" flow and the manual
+  // radius/coordinate controls, so there's exactly one place that knows
+  // how to call the endpoint.
+  const runNearbySearch = async (lat: number, lng: number, radius: 2 | 5 | 10) => {
+    setIsSearchingNearby(true);
+    setHasSearchedNearby(true);
+    setInspectingClinic(null);
+    setNearbyResultsPage(1);
+    try {
+      const data = await fetchNearbyClinics(lat, lng, radius);
+      setNearbyClinics(data.results);
+      setNearbyRadiusUsed(data.radius_km_used);
+      setNearbyFallback(data.fallback_to_registered_only);
+      if (data.results.length === 0) {
+        setSearchError('No clinics or specialists found within the specified radius.');
+      }
+    } catch (err: any) {
+      console.error('Nearby search failed:', err);
+      setSearchError(err.response?.data?.detail || 'Nearby search failed.');
+    } finally {
+      setIsSearchingNearby(false);
+    }
+  };
+
+  // Moves the map picker's pin (used by drag, click, "Locate Me", and
+  // pincode search alike) so there's exactly one place that keeps the map
+  // view and the marker position in sync.
+  const updateMapPin = (lat: number, lng: number) => {
+    setMapCoords({ lat, lng });
+    mapRef.current?.flyTo({ center: [lng, lat], zoom: 14, duration: 800 });
+  };
+
+  // The main "Find Vets Near Me" action — detects location (GPS, falling
+  // back to IP) and immediately searches with it, in one click, rather
+  // than making the user detect location and then separately press search.
+  const handleFindVetsNearMe = () => {
     setSearchError('');
 
     const fallbackToIp = async () => {
       try {
         const data = await fetchIpLocation();
-        
-        if (data.latitude !== undefined && data.longitude !== undefined) {
-          setSearchLat(Number(data.latitude).toFixed(6));
-          setSearchLng(Number(data.longitude).toFixed(6));
-        } else {
+        if (data.latitude === undefined || data.longitude === undefined) {
           throw new Error('Coordinates not found in IP payload');
         }
+        const lat = Number(data.latitude);
+        const lng = Number(data.longitude);
+        setMapCoords({ lat, lng });
+        setSearchError('🌐 Located approximately via secure IP Geolocation.');
+        await runNearbySearch(lat, lng, searchRadius);
       } catch (err: any) {
         console.error('IP Geolocation fallback failed:', err);
-        setSearchError('Could not capture location automatically. Please input coordinates manually.');
+        setSearchError('Could not capture location automatically. Please pick a location on the map below.');
       }
     };
 
@@ -627,8 +688,10 @@ export const ConsultationsPage: React.FC = () => {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setSearchLat(position.coords.latitude.toFixed(6));
-        setSearchLng(position.coords.longitude.toFixed(6));
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        setMapCoords({ lat, lng });
+        runNearbySearch(lat, lng, searchRadius);
       },
       (error) => {
         console.warn('Browser Geolocation failed, attempting IP-based fallback...', error);
@@ -638,54 +701,59 @@ export const ConsultationsPage: React.FC = () => {
     );
   };
 
-  const handleIpLocate = async () => {
+  // "Search this location" — runs the nearby search from wherever the map
+  // pin currently sits (after a drag, a map click, "Locate Me", or a
+  // pincode search below).
+  const handleSearchThisLocation = async () => {
+    setSearchError('');
+    await runNearbySearch(mapCoords.lat, mapCoords.lng, searchRadius);
+  };
+
+  // Pincode/zip search for the map picker — moves the pin to the looked-up
+  // location and searches it immediately, mirroring Checkout's own pincode
+  // lookup pattern for consistency across the app.
+  const handlePincodeSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pincodeQuery.trim()) {
+      setSearchError('Please enter a Pincode / Zip Code to search.');
+      return;
+    }
+
+    setIsPincodeSearching(true);
     setSearchError('');
     try {
-      const data = await fetchIpLocation();
-      
-      if (data.latitude !== undefined && data.longitude !== undefined) {
-        setSearchLat(Number(data.latitude).toFixed(6));
-        setSearchLng(Number(data.longitude).toFixed(6));
-        setSearchError('🌐 Located approximately via secure IP Geolocation.');
+      const results = await lookupPincode(pincodeQuery);
+      if (results && results.length > 0) {
+        const lat = parseFloat(results[0].lat);
+        const lng = parseFloat(results[0].lon);
+        updateMapPin(lat, lng);
+        await runNearbySearch(lat, lng, searchRadius);
       } else {
-        throw new Error('Coordinates not found in IP payload');
+        setSearchError('Pincode / Zip Code not found. Try dragging the pin instead.');
       }
-    } catch (err: any) {
-      console.error('IP Geolocation failed:', err);
-      setSearchError('Could not capture location via IP. Please input coordinates manually.');
+    } catch (err) {
+      console.error('Pincode lookup failed:', err);
+      setSearchError('Failed to search that pincode.');
+    } finally {
+      setIsPincodeSearching(false);
     }
   };
 
-  // Search Nearby Vets
-  const handleSearchNearby = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearchError('');
-    setIsSearchingNearby(true);
+  // Opens the clinic side drawer (same slide-in pattern as the doctor "View
+  // Bio & Shifts" drawer). Google clinics need a lazy Details fetch for
+  // phone/hours/photo — only called once per place_id, then cached.
+  const handleOpenClinicDrawer = async (clinic: NearbyClinicResult) => {
+    setInspectingClinic(clinic);
+    if (!clinic.place_id || clinicDetailsCache[clinic.place_id]) return;
 
-    const lat = parseFloat(searchLat);
-    const lng = parseFloat(searchLng);
-    if (isNaN(lat) || lat < -90 || lat > 90) {
-      setSearchError('Please enter a valid Latitude (-90 to 90).');
-      setIsSearchingNearby(false);
-      return;
-    }
-    if (isNaN(lng) || lng < -180 || lng > 180) {
-      setSearchError('Please enter a valid Longitude (-180 to 180).');
-      setIsSearchingNearby(false);
-      return;
-    }
-
+    setIsLoadingClinicDetails(true);
     try {
-      const data = await fetchNearbyDoctors(lat, lng, searchRadius);
-      setNearbyDocs(data);
-      if (data.length === 0) {
-        setSearchError('No clinics or specialists found within the specified radius.');
-      }
-    } catch (err: any) {
-      console.error('Nearby search failed:', err);
-      setSearchError(err.response?.data?.detail || 'Nearby search failed.');
+      const details = await fetchClinicDetails(clinic.place_id);
+      setClinicDetailsCache((prev) => ({ ...prev, [clinic.place_id!]: details }));
+    } catch (err) {
+      console.error('Failed to load clinic details:', err);
     } finally {
-      setIsSearchingNearby(false);
+      setIsLoadingClinicDetails(false);
     }
   };
 
@@ -908,6 +976,273 @@ export const ConsultationsPage: React.FC = () => {
     return consultations.filter((c: any) => c.status.toUpperCase() === status).length;
   };
 
+  // Vets Near Me — a real, visible section shown right at the top of the
+  // Specialist Directory (the page's default landing view), not buried
+  // inside the booking wizard where it's easy to never see at all.
+  const vetsNearMeSection = isGpsEnabled && (
+    <div className="border border-cardboard rounded-md bg-paperLight overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-dashed border-cardboard">
+        <div className="flex items-center gap-2">
+          <span className="w-7 h-7 rounded-full bg-turmeric/15 flex items-center justify-center shrink-0">
+            <Compass className="w-3.5 h-3.5 text-turmeric" />
+          </span>
+          <span className="font-mono text-[11px] uppercase font-bold text-turmeric tracking-wide">Vets Near Me</span>
+        </div>
+        {hasSearchedNearby && nearbyClinics.length > 0 && (
+          <span className="font-mono text-[9px] uppercase font-bold text-herb bg-herb/10 border border-herb/30 px-2 py-0.5 rounded-sm shrink-0">
+            {nearbyClinics.length} found
+          </span>
+        )}
+      </div>
+
+      <div className="p-4 space-y-3">
+      <button
+        type="button"
+        onClick={handleFindVetsNearMe}
+        disabled={isSearchingNearby}
+        className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[10px] uppercase py-3 font-bold rounded-sm flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer transition-colors"
+      >
+        {isSearchingNearby ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <>
+            <MapPin className="w-4 h-4" />
+            <span>Find Vets Near Me</span>
+          </>
+        )}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setShowManualLocationControls((v) => !v)}
+        className="w-full text-center font-mono text-[9px] uppercase font-bold text-ink/50 hover:text-ink/80 cursor-pointer"
+      >
+        {showManualLocationControls ? 'Hide manual search' : 'Search a different location'}
+      </button>
+
+      {showManualLocationControls && (
+        <div className="space-y-2.5 pt-1 border-t border-dashed border-cardboard border-opacity-40">
+          <form onSubmit={handlePincodeSearch} className="flex gap-2 pt-2">
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 text-ink/35 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search Pincode / Zip Code"
+                value={pincodeQuery}
+                onChange={(e) => setPincodeQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink text-xs focus:outline-none focus:border-turmeric"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={isPincodeSearching}
+              className="px-4 py-1.5 border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase font-bold rounded-sm disabled:opacity-50 cursor-pointer shrink-0"
+            >
+              {isPincodeSearching ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Search'}
+            </button>
+          </form>
+
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[8px] uppercase font-bold text-ink/40">
+              Drag the pin, click the map, or use Locate Me
+            </span>
+            <span className="font-mono text-[8px] text-ink/40">
+              [{mapCoords.lat.toFixed(4)}, {mapCoords.lng.toFixed(4)}]
+            </span>
+          </div>
+
+          <div
+            className="h-56 w-full border border-cardboard rounded-md relative overflow-hidden bg-paper"
+            style={{ zIndex: 1 }}
+          >
+            <Map
+              ref={mapRef}
+              center={[mapCoords.lng, mapCoords.lat]}
+              zoom={13}
+              className="w-full h-full min-h-[220px]"
+              onClick={(coords) => setMapCoords({ lat: coords.lat, lng: coords.lng })}
+            >
+              <MapControls
+                position="top-right"
+                showZoom={true}
+                showCompass={false}
+                showGeolocate={true}
+                isLocating={isSearchingNearby}
+                onGeolocate={(coords) => setMapCoords({ lat: coords.latitude, lng: coords.longitude })}
+              />
+              <MapMarker
+                position={[mapCoords.lng, mapCoords.lat]}
+                draggable={true}
+                onDragEnd={(coords) => setMapCoords({ lat: coords.lat, lng: coords.lng })}
+              >
+                <div className="flex flex-col items-center cursor-grab active:cursor-grabbing -translate-y-1/2">
+                  <MapPin className="w-7 h-7 text-turmeric fill-turmeric/20 drop-shadow-md" />
+                </div>
+              </MapMarker>
+            </Map>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[9px] uppercase font-bold text-ink/50 shrink-0">Radius:</span>
+            {([2, 5, 10] as const).map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => setSearchRadius(preset)}
+                className={`px-2.5 py-1 font-mono text-[9px] uppercase font-bold rounded-sm border cursor-pointer transition-colors ${
+                  searchRadius === preset
+                    ? 'bg-turmeric border-turmeric text-ink'
+                    : 'border-cardboard text-ink/70 hover:bg-paper'
+                }`}
+              >
+                {preset} km
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSearchThisLocation}
+            disabled={isSearchingNearby}
+            className="w-full bg-turmeric text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center disabled:opacity-50 cursor-pointer"
+          >
+            {isSearchingNearby ? <Loader2 className="w-3 h-3 animate-spin" /> : <span>Search This Location</span>}
+          </button>
+        </div>
+      )}
+
+      {searchError && (
+        <div className="text-[10px] text-paprika bg-rose-50 p-2 rounded-sm font-body">
+          {searchError}
+        </div>
+      )}
+
+      {hasSearchedNearby && nearbyClinics.length > 0 && (() => {
+        const NEARBY_PAGE_SIZE = 6;
+        const totalPages = Math.ceil(nearbyClinics.length / NEARBY_PAGE_SIZE) || 1;
+        const page = Math.min(nearbyResultsPage, totalPages);
+        const pagedClinics = nearbyClinics.slice((page - 1) * NEARBY_PAGE_SIZE, page * NEARBY_PAGE_SIZE);
+
+        return (
+        <div className="space-y-2 pt-1">
+          <span className="font-mono text-[9px] uppercase font-bold text-ink/50">
+            {nearbyClinics.length} found within {nearbyRadiusUsed ?? searchRadius} km
+          </span>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {pagedClinics.map((clinic, idx) => {
+              const key = clinic.source === 'registered' ? `reg-${clinic.doctor_id}` : `google-${clinic.place_id}`;
+              const isGoogle = clinic.source === 'google';
+
+              return (
+                <button
+                  key={key || idx}
+                  type="button"
+                  onClick={() =>
+                    isGoogle
+                      ? handleOpenClinicDrawer(clinic)
+                      : clinic.doctor_id && setSelectedDoctorId(clinic.doctor_id.toString())
+                  }
+                  className="text-left border border-cardboard rounded-md bg-paperLight p-3 hover:border-turmeric transition-colors cursor-pointer flex flex-col gap-1.5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-body text-[13px] font-bold text-ink truncate">
+                          {clinic.name || clinic.clinic_name || 'Unnamed clinic'}
+                        </span>
+                        <span
+                          className={`font-mono text-[7.5px] uppercase font-bold px-1.5 py-0.5 rounded-sm shrink-0 ${
+                            clinic.source === 'registered'
+                              ? 'bg-herb/15 text-herb'
+                              : 'bg-ink/10 text-ink/60'
+                          }`}
+                        >
+                          {clinic.source === 'registered' ? 'Registered' : 'Google'}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="font-mono text-[10px] text-ink/50 shrink-0 pt-0.5">
+                      {clinic.distance_km.toFixed(1)} km
+                    </span>
+                  </div>
+
+                  <p className="font-body text-[11px] text-ink/60 line-clamp-2">
+                    {clinic.address || clinic.specialization || ''}
+                  </p>
+
+                  {clinic.phone && (
+                    <p className="flex items-center gap-1.5 text-[11px] font-body text-ink/70">
+                      <Phone className="w-3 h-3 text-herb shrink-0" />
+                      {clinic.phone}
+                    </p>
+                  )}
+
+                  {clinic.opening_hours && clinic.opening_hours.length > 0 && (
+                    <p className="flex items-center gap-1.5 text-[11px] font-body text-ink/70">
+                      <Clock className="w-3 h-3 text-herb shrink-0" />
+                      <span className="truncate">{clinic.opening_hours[0]}</span>
+                    </p>
+                  )}
+
+                  {isGoogle && (
+                    <span className="mt-auto pt-1 font-mono text-[8px] uppercase font-bold text-turmeric">
+                      View details →
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-cardboard border-dashed pt-3 mt-1">
+              <button
+                type="button"
+                onClick={() => setNearbyResultsPage((prev) => Math.max(prev - 1, 1))}
+                disabled={page === 1}
+                className="bg-paper border border-cardboard text-ink px-3 py-1.5 text-[9px] font-mono font-bold uppercase rounded-sm hover:bg-paperLight disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              >
+                ← Previous
+              </button>
+              <span className="font-mono text-[9px] text-ink uppercase opacity-75">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setNearbyResultsPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={page === totalPages}
+                className="bg-paper border border-cardboard text-ink px-3 py-1.5 text-[9px] font-mono font-bold uppercase rounded-sm hover:bg-paperLight disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors"
+              >
+                Next →
+              </button>
+            </div>
+          )}
+
+          {nearbyClinics.some((c) => c.source === 'google') && (
+            <p className="font-mono text-[8px] text-ink/35 text-right pt-1">Powered by Google</p>
+          )}
+        </div>
+        );
+      })()}
+
+      {hasSearchedNearby && nearbyFallback && (
+        <div className="p-2.5 bg-turmeric/10 border border-turmeric border-opacity-40 rounded-sm text-[10px] font-body text-ink/80">
+          No nearby clinics found. Consider{' '}
+          <button
+            type="button"
+            onClick={() => setActiveSection('book')}
+            className="text-herb underline font-bold cursor-pointer"
+          >
+            booking an online consultation
+          </button>{' '}
+          instead.
+        </div>
+      )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
       {/* Full-width Navigation Header */}
@@ -1003,7 +1338,36 @@ export const ConsultationsPage: React.FC = () => {
         {/* 1. DIRECTORY SECTION */}
         {activeSection === 'directory' && (
           <div className="max-w-7xl mx-auto space-y-8 text-left animate-fade-in">
-            
+
+            {isGpsEnabled && (
+              <div className="inline-flex border border-cardboard rounded-md overflow-hidden bg-paperLight">
+                <button
+                  type="button"
+                  onClick={() => setDirectoryView('browse')}
+                  className={`flex items-center gap-1.5 px-4 py-2 font-mono text-[10px] uppercase font-bold tracking-wide cursor-pointer transition-colors ${
+                    directoryView === 'browse' ? 'bg-turmeric text-ink' : 'text-ink/50 hover:bg-paper'
+                  }`}
+                >
+                  <Stethoscope className="w-3.5 h-3.5" />
+                  Browse Our Vets
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDirectoryView('nearby')}
+                  className={`flex items-center gap-1.5 px-4 py-2 font-mono text-[10px] uppercase font-bold tracking-wide cursor-pointer transition-colors border-l border-cardboard ${
+                    directoryView === 'nearby' ? 'bg-turmeric text-ink' : 'text-ink/50 hover:bg-paper'
+                  }`}
+                >
+                  <Compass className="w-3.5 h-3.5" />
+                  Vets Near Me
+                </button>
+              </div>
+            )}
+
+            {directoryView === 'nearby' && vetsNearMeSection}
+
+            {directoryView === 'browse' && (
+              <>
             {/* Search & Filter Toolbar */}
             <div className="bg-paperLight border border-cardboard border-opacity-40 p-5 rounded-sm shadow-xs grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
               {/* Search Bar */}
@@ -1169,6 +1533,8 @@ export const ConsultationsPage: React.FC = () => {
                   );
                 })}
               </div>
+            )}
+              </>
             )}
           </div>
         )}
@@ -1616,71 +1982,6 @@ export const ConsultationsPage: React.FC = () => {
                           </button>
                         )}
                       </div>
-
-                      <hr className="border-t border-dashed border-cardboard border-opacity-35" />
-
-                      {/* GPS Locator Collapsible Tool (Feature Gated) */}
-                      {isGpsEnabled && (
-                        <details className="border border-cardboard border-dashed p-3 rounded-sm bg-paper/40 group">
-                        <summary className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide flex items-center justify-between cursor-pointer list-none">
-                          <span className="flex items-center space-x-1.5">
-                            <Compass className="w-3.5 h-3.5 text-turmeric" />
-                            <span>Optional: GPS & IP Nearby Clinic Filter</span>
-                          </span>
-                          <span className="text-ink/50 group-open:rotate-180 transition-transform">▼</span>
-                        </summary>
-                        
-                        <div className="pt-3 space-y-2.5">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                            <input
-                              type="text"
-                              placeholder="Latitude (e.g. 13.0827)"
-                              value={searchLat}
-                              onChange={(e) => setSearchLat(e.target.value)}
-                              className="px-3 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink text-xs focus:outline-none focus:border-turmeric"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Longitude (e.g. 80.2707)"
-                              value={searchLng}
-                              onChange={(e) => setSearchLng(e.target.value)}
-                              className="px-3 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink text-xs focus:outline-none focus:border-turmeric"
-                            />
-                          </div>
-                          
-                          <div className="flex space-x-2">
-                            <button
-                              type="button"
-                              onClick={handleAutoLocate}
-                              className="w-1/3 border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center cursor-pointer"
-                            >
-                              GPS Detect
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleIpLocate}
-                              className="w-1/3 border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center cursor-pointer"
-                            >
-                              IP Detect
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleSearchNearby}
-                              disabled={isSearchingNearby}
-                              className="w-1/3 bg-turmeric text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center disabled:opacity-50 cursor-pointer"
-                            >
-                              {isSearchingNearby ? <Loader2 className="w-3 h-3 animate-spin" /> : <span>Search Nearby</span>}
-                            </button>
-                          </div>
-
-                          {searchError && (
-                            <div className="text-[10px] text-paprika bg-rose-50 p-2 rounded-sm font-body">
-                              {searchError}
-                            </div>
-                          )}
-                        </div>
-                      </details>
-                      )}
 
                       {/* Doctor Select Cards */}
                       <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
@@ -2484,6 +2785,137 @@ export const ConsultationsPage: React.FC = () => {
                 </div>
               )}
 
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clinic Detail Drawer — same slide-in pattern as the doctor drawer
+          above, for a Google-sourced "Vets Near Me" result. */}
+      {inspectingClinic && (
+        <div className="fixed inset-0 z-50 overflow-hidden font-body animate-fade-in">
+          <div
+            onClick={() => setInspectingClinic(null)}
+            className="absolute inset-0 bg-ink bg-opacity-40 backdrop-blur-xs transition-opacity"
+          />
+
+          <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+            <div className="w-screen max-w-md bg-paperLight border-l border-cardboard shadow-2xl flex flex-col relative animate-slide-in-right">
+
+              <div className="absolute left-1.5 top-0 bottom-0 border-l border-dashed border-cardboard opacity-35"></div>
+
+              {/* Header */}
+              <div className="p-6 border-b border-cardboard border-opacity-40 flex justify-between items-center bg-paperLight pl-8">
+                <div className="text-left space-y-1 min-w-0">
+                  <Eyebrow label="CLINIC PROFILE" />
+                  <h3 className="font-display font-black text-xl text-ink truncate">
+                    {inspectingClinic.name || 'Clinic Detail'}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setInspectingClinic(null)}
+                  className="p-1 hover:bg-paper rounded-full text-ink opacity-70 hover:opacity-100 transition-colors cursor-pointer border-none bg-transparent shrink-0"
+                >
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-grow overflow-y-auto p-6 space-y-5 pl-8 text-left custom-scrollbar">
+                {(() => {
+                  const placeDetails = inspectingClinic.place_id ? clinicDetailsCache[inspectingClinic.place_id] : undefined;
+                  const isLoading = isLoadingClinicDetails && !placeDetails;
+                  const directionsUrl = buildDirectionsUrl(inspectingClinic);
+
+                  return (
+                    <>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono text-[9px] uppercase tracking-wider font-bold text-ink/60 bg-ink/10 px-2.5 py-0.5 rounded-sm">
+                          Google
+                        </span>
+                        <span className="font-mono text-[10px] text-ink/50">
+                          {inspectingClinic.distance_km.toFixed(1)} km away
+                        </span>
+                      </div>
+
+                      {isLoading ? (
+                        <div className="w-full aspect-[4/3] rounded-md border border-cardboard bg-paper flex items-center justify-center">
+                          <Loader2 className="w-6 h-6 text-turmeric animate-spin" />
+                        </div>
+                      ) : placeDetails?.photo_url ? (
+                        <img
+                          src={`${API_BASE_URL}${placeDetails.photo_url}`}
+                          alt={placeDetails.name || 'Clinic photo'}
+                          className="w-full aspect-[4/3] object-cover rounded-md border border-cardboard"
+                        />
+                      ) : null}
+
+                      {(inspectingClinic.address) && (
+                        <p className="font-body text-sm text-ink/80">{inspectingClinic.address}</p>
+                      )}
+
+                      {!isLoading && placeDetails?.phone && (
+                        <p className="flex items-center gap-2 text-sm font-body text-ink/80">
+                          <Phone className="w-4 h-4 text-herb shrink-0" />
+                          {placeDetails.phone}
+                        </p>
+                      )}
+
+                      {!isLoading && placeDetails?.opening_hours && placeDetails.opening_hours.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="flex items-center gap-2 text-[11px] font-mono uppercase font-bold text-ink/50">
+                            <Clock className="w-3.5 h-3.5 text-herb shrink-0" />
+                            Opening Hours
+                          </p>
+                          <div className="rounded-md border border-cardboard overflow-hidden divide-y divide-dashed divide-cardboard">
+                            {placeDetails.opening_hours.map((line, i) => {
+                              const separatorIndex = line.indexOf(':');
+                              const day = separatorIndex === -1 ? line : line.slice(0, separatorIndex);
+                              const hours = separatorIndex === -1 ? '' : line.slice(separatorIndex + 1).trim();
+                              const jsToday = new Date().getDay();
+                              const isToday = i === (jsToday === 0 ? 6 : jsToday - 1);
+                              return (
+                                <div
+                                  key={line}
+                                  className={`flex items-center justify-between gap-3 px-3 py-2 text-[12px] font-body ${
+                                    isToday ? 'bg-turmeric/10' : 'bg-paperLight'
+                                  }`}
+                                >
+                                  <span className={`shrink-0 ${isToday ? 'font-bold text-turmeric' : 'text-ink/70'}`}>
+                                    {day}
+                                    {isToday && <span className="ml-1.5 font-mono text-[8px] uppercase">Today</span>}
+                                  </span>
+                                  <span className={`font-mono text-right ${hours.toLowerCase() === 'closed' ? 'text-ink/35' : 'text-ink/70'}`}>
+                                    {hours}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {!isLoading && placeDetails && !placeDetails.phone && !placeDetails.photo_url && (!placeDetails.opening_hours || placeDetails.opening_hours.length === 0) && (
+                        <p className="text-sm font-body text-ink/40">No further details available from Google for this clinic.</p>
+                      )}
+
+                      {directionsUrl && (
+                        <a
+                          href={directionsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[10px] uppercase py-3 font-bold rounded-sm flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                        >
+                          <Navigation className="w-4 h-4" />
+                          Get Directions
+                        </a>
+                      )}
+
+                      <p className="font-mono text-[8px] text-ink/35 text-right">Powered by Google</p>
+                    </>
+                  );
+                })()}
+              </div>
             </div>
           </div>
         </div>

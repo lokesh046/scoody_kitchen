@@ -44,6 +44,7 @@ import {
   ChatProduct,
 } from '../api/chatbot';
 import { Image } from 'expo-image';
+import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 
 const QUICK_PROMPTS = [
   '🫐 Can dogs eat blueberries?',
@@ -201,7 +202,10 @@ const ProductSuggestionRow = memo(function ProductSuggestionRow({
           accessibilityLabel={`View ${product.name}`}
         >
           {product.image_url ? (
-            <Image source={{ uri: product.image_url }} style={styles.productCardImage} />
+            <Image
+              source={{ uri: getOptimizedImageUrl(product.image_url, IMAGE_SIZE.chatCard) }}
+              style={styles.productCardImage}
+            />
           ) : (
             <View style={styles.productCardImageFallback}>
               <ShoppingCart size={18} color={COLORS.brandGold} />

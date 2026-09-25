@@ -6,7 +6,7 @@ from app.core.database import get_db
 from app.dependencies.auth import require_role
 from app.models.enums import UserRole
 from app.models.user import User
-from app.schemas.feature_flag import FeatureFlagResponse, FeatureFlagUpdate
+from app.schemas.feature_flag import FeatureFlagResponse, FeatureFlagUpdate, PublicFeatureFlagState
 from app.services.feature_flag_service import (
     get_all_flags_admin,
     get_public_flags,
@@ -15,9 +15,10 @@ from app.services.feature_flag_service import (
 
 router = APIRouter(tags=["Feature Flags"])
 
-@router.get("/features/public", response_model=Dict[str, bool])
+@router.get("/features/public", response_model=Dict[str, PublicFeatureFlagState])
 def get_public_feature_flags(db: Session = Depends(get_db)):
-    """Public endpoint: Returns active feature states for frontend client rendering."""
+    """Public endpoint: Returns each feature's enabled state and disabled-state
+    fallback (hide / coming_soon / unavailable) for client rendering."""
     return get_public_flags(db)
 
 @router.get("/admin/features", response_model=List[FeatureFlagResponse])
@@ -40,6 +41,7 @@ def toggle_feature_flag(
         db=db,
         key=key,
         is_enabled=payload.is_enabled,
+        fallback_behavior=payload.fallback_behavior,
         admin_id=current_user.id,
     )
     if not flag:

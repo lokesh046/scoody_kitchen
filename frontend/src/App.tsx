@@ -22,6 +22,9 @@ const AssistantPage = lazy(() => import('./features/chatbot/AssistantPage').then
 const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 const AdminDoctorsPage = lazy(() => import('./features/admin/AdminDoctorsPage').then((m) => ({ default: m.AdminDoctorsPage })));
 const AdminOrdersPage = lazy(() => import('./features/admin/AdminOrdersPage'));
+const AdminSupportPage = lazy(() => import('./features/admin/AdminSupportPage'));
+const SupportPage = lazy(() => import('./features/support/SupportPage'));
+const SupportTicketPage = lazy(() => import('./features/support/SupportTicketPage'));
 const DoctorDashboard = lazy(() => import('./features/doctor/DoctorDashboard').then((m) => ({ default: m.DoctorDashboard })));
 const ProfilePage = lazy(() => import('./features/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const ApplyDoctorPage = lazy(() => import('./features/consultations/ApplyDoctorPage'));
@@ -159,9 +162,12 @@ export default function App() {
               <Route path="/apply-doctor" element={<RequireAuth><ApplyDoctorPage /></RequireAuth>} />
               <Route path="/onboarding" element={<OnboardingPage />} />
               <Route path="/assistant" element={<RequireAuth><AssistantPage /></RequireAuth>} />
+              <Route path="/support" element={<RequireAuth><SupportPage /></RequireAuth>} />
+              <Route path="/support/:ticketId" element={<RequireAuth><SupportTicketPage /></RequireAuth>} />
               <Route path="/admin" element={<RequireAuth adminOnly={true}><AdminDashboard /></RequireAuth>} />
               <Route path="/admin/doctors" element={<RequireAuth adminOnly={true}><AdminDoctorsPage /></RequireAuth>} />
               <Route path="/admin/orders" element={<RequireAuth adminOnly={true}><AdminOrdersPage /></RequireAuth>} />
+              <Route path="/admin/support" element={<RequireAuth adminOnly={true}><AdminSupportPage /></RequireAuth>} />
               <Route path="/doctor" element={<RequireAuth doctorOnly={true}><DoctorDashboard /></RequireAuth>} />
               <Route path="/doctor/dashboard" element={<RequireAuth doctorOnly={true}><DoctorDashboard /></RequireAuth>} />
             </Routes>

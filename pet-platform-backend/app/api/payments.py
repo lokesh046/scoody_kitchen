@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.limiter import limiter
 from app.dependencies.auth import get_current_user
 from app.models.user import User
 from app.schemas.payment import PaymentCreate, PaymentResponse, RazorpayVerifyRequest
@@ -23,7 +24,9 @@ router = APIRouter(
     response_model=PaymentResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("10/minute")
 def create_order_payment(
+    request: Request,
     order_id: int,
     payment_data: PaymentCreate,
     db: Session = Depends(get_db),
@@ -64,7 +67,9 @@ def create_order_payment(
     "/{order_id}/success",
     response_model=PaymentResponse,
 )
+@limiter.limit("10/minute")
 def simulate_payment_success(
+    request: Request,
     order_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -115,7 +120,9 @@ def simulate_payment_success(
     "/{order_id}/failure",
     response_model=PaymentResponse,
 )
+@limiter.limit("10/minute")
 def simulate_payment_failure(
+    request: Request,
     order_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -166,7 +173,9 @@ def simulate_payment_failure(
     "/razorpay/verify",
     response_model=PaymentResponse,
 )
+@limiter.limit("10/minute")
 def verify_razorpay(
+    request: Request,
     verify_data: RazorpayVerifyRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

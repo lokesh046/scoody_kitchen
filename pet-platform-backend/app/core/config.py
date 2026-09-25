@@ -5,7 +5,20 @@ class Setting(BaseSettings):
     DEBUG: bool = False
 
     DATABASE_URL: str = ""
+    # Cache only (app/core/cache.py). Split from Celery/rate-limiter storage
+    # below so a cache stampede can't starve or evict the task queue or rate
+    # limiter — see docker-compose.yml's redis/redis-celery/redis-limiter.
     REDIS_URL: str = "redis://localhost:6379/0"
+    # Celery broker + result backend (app/core/celery_app.py). Falls back to
+    # REDIS_URL's host on a different DB index for local dev without the
+    # full multi-container compose setup, but production should point this
+    # at its own instance — losing a queued task to cache eviction is a
+    # correctness bug, not just a slower request.
+    CELERY_REDIS_URL: str = "redis://localhost:6379/1"
+    # Rate-limiter counters (app/core/limiter.py, slowapi). Same reasoning:
+    # kept off the cache instance so a traffic spike hammering the cache
+    # can't also blind the rate limiter at the same time.
+    RATE_LIMIT_REDIS_URL: str = "redis://localhost:6379/2"
 
      # Per-worker-process pool size. Total connections opened against Postgres
     # is roughly WEB_CONCURRENCY x (DB_POOL_SIZE + DB_MAX_OVERFLOW), so keep
@@ -82,6 +95,10 @@ class Setting(BaseSettings):
 
     # Telehealth Timezone Setting
     DEFAULT_TIMEZONE: str = "Asia/Kolkata"
+
+    # Google Places API (New) — Vets Near Me. Server-side only, never sent
+    # to the client.
+    GOOGLE_PLACES_API_KEY: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

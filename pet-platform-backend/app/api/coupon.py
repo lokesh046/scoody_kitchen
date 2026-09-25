@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.limiter import limiter
 from app.schemas.coupon import CouponValidateRequest, CouponValidateResponse
 from app.services.coupon_service import validate_coupon_code
 
@@ -16,7 +17,9 @@ router = APIRouter(
     response_model=CouponValidateResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit("10/minute")
 def validate_coupon_endpoint(
+    request: Request,
     payload: CouponValidateRequest,
     db: Session = Depends(get_db),
 ):

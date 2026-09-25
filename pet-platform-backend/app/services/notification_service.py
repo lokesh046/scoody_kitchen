@@ -4,6 +4,7 @@ from sqlalchemy import select, func, update
 from sqlalchemy.orm import Session
 from app.models.notification import Notification
 from app.core.redis_pubsub import publish_notification_async, publish_notification_sync
+from app.services.push_token_service import get_push_tokens_for_user
 
 
 def create_notification(
@@ -48,6 +49,19 @@ def create_notification(
             publish_notification_sync(user_id, payload)
         except Exception:
             pass
+
+    # Push notification — the WebSocket publish above only reaches a client
+    # with the app open and connected right now; a push is what reaches a
+    # user who has closed or backgrounded the app. Dispatched as its own
+    # Celery task so a slow/failing push send never delays the request that
+    # triggered this notification (order update, support reply, etc.).
+    try:
+        tokens = get_push_tokens_for_user(db, user_id)
+        if tokens:
+            from app.tasks.notification_tasks import send_push_notifications_task
+            send_push_notifications_task.delay(tokens, title, message, {"link": link} if link else None)
+    except Exception:
+        pass
 
     return notification
 

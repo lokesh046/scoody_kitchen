@@ -3,8 +3,8 @@ from app.core.config import settings
 
 celery_app = Celery(
     "pet_platform_tasks",
-    broker=settings.REDIS_URL,
-    backend=settings.REDIS_URL,
+    broker=settings.CELERY_REDIS_URL,
+    backend=settings.CELERY_REDIS_URL,
     include=["app.tasks.notification_tasks"]
 )
 

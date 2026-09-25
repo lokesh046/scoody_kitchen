@@ -15,7 +15,9 @@ import { Eyebrow } from '../../components/Eyebrow';
 import { HomeBannerCarousel } from '../../components/HomeBannerCarousel';
 import { ReviewsCarousel } from '../../components/ReviewsCarousel';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
-import { useFeatureFlag } from '../../hooks/useFeatureFlag';
+import { useStructuredData } from '../../hooks/useStructuredData';
+import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
+import { FeaturePlaceholderCard } from '../../components/FeaturePlaceholderCard';
 
 interface QuickPreset {
   label: string;
@@ -36,6 +38,14 @@ export default function HomePage() {
     "Human-grade, small-batch pet food cooked under veterinary supervision. Transparent recipes for pet parents who care."
   );
 
+  useStructuredData({
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: "Scooby's Kitchen",
+    url: 'https://www.scoobyskitchen.com/',
+    logo: 'https://www.scoobyskitchen.com/images/scooby_logo.png',
+  });
+
   const navigate = useNavigate();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
@@ -44,6 +54,9 @@ export default function HomePage() {
   const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
+  const consultationsFallback = useFeatureFlagFallback('consultations_booking');
+  const chatbotFallback = useFeatureFlagFallback('ai_chatbot');
+  const shopFallback = useFeatureFlagFallback('shop_checkout');
 
   // Auth Store
   const { user } = useAuthStore();
@@ -67,6 +80,7 @@ export default function HomePage() {
   }, [productsData]);
 
   const handleAddToCart = async (productId: number) => {
+    if (!isShopEnabled) return; // safety net — RecipeCard's own button is already disabled in this case
     if (!user) {
       navigate('/login');
       return;
@@ -212,15 +226,19 @@ export default function HomePage() {
                   Veterinary-audited small batch recipes, cooked to biological perfection.
                 </p>
               </div>
-              {isShopEnabled && (
-                <button 
+              {isShopEnabled ? (
+                <button
                   onClick={() => navigate('/shop')}
                   className="font-mono text-xs uppercase font-bold text-turmeric hover:text-ink transition-colors flex items-center space-x-1.5 cursor-pointer group"
                 >
                   <span>View Full Product Ledger</span>
                   <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
                 </button>
-              )}
+              ) : shopFallback !== 'hide' ? (
+                <span className="font-mono text-xs uppercase font-bold text-ink opacity-40">
+                  {shopFallback === 'coming_soon' ? 'Ordering Coming Soon' : 'Ordering Temporarily Unavailable'}
+                </span>
+              ) : null}
             </div>
 
             {productsLoading ? (
@@ -240,6 +258,15 @@ export default function HomePage() {
                     key={product.id}
                     product={product}
                     onAddToCart={handleAddToCart}
+                    orderingDisabledLabel={
+                      isShopEnabled
+                        ? undefined
+                        : shopFallback === 'coming_soon'
+                        ? 'Coming Soon'
+                        : shopFallback === 'unavailable'
+                        ? 'Unavailable'
+                        : 'Ordering Unavailable'
+                    }
                   />
                 ))}
               </div>
@@ -441,11 +468,8 @@ export default function HomePage() {
                 onClick={() => navigate('/pets')}
                 className="border border-cardboard hover:border-turmeric hover-paperLift bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 cursor-pointer group shadow-sm transition-all duration-300 relative overflow-hidden"
               >
-                <div className="flex justify-between items-start">
-                  <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px] group-hover:border-turmeric transition-colors">
-                    <Database className="w-6 h-6 text-turmeric" />
-                  </div>
-                  <span className="font-mono text-[9px] uppercase tracking-widest text-cardboard font-bold">PORTAL // 01</span>
+                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px] group-hover:border-turmeric transition-colors">
+                  <Database className="w-6 h-6 text-turmeric" />
                 </div>
                 <h3 className="font-display text-xl font-bold uppercase tracking-tight text-ink">Pet Health Ledger</h3>
                 <p className="font-body text-xs sm:text-sm text-ink opacity-80 leading-relaxed">
@@ -457,16 +481,13 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {isConsultationsEnabled && (
-                <div 
+              {isConsultationsEnabled ? (
+                <div
                   onClick={() => navigate('/consultations')}
                   className="border border-cardboard hover:border-turmeric hover-paperLift bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 cursor-pointer group shadow-sm transition-all duration-300 relative overflow-hidden"
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px] group-hover:border-herb transition-colors">
-                      <Heart className="w-6 h-6 text-herb" />
-                    </div>
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-cardboard font-bold">CLINICAL // 02</span>
+                  <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px] group-hover:border-herb transition-colors">
+                    <Heart className="w-6 h-6 text-herb" />
                   </div>
                   <h3 className="font-display text-xl font-bold uppercase tracking-tight text-ink">Vet Consultations</h3>
                   <p className="font-body text-xs sm:text-sm text-ink opacity-80 leading-relaxed">
@@ -477,18 +498,22 @@ export default function HomePage() {
                     <span className="transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
                   </div>
                 </div>
-              )}
+              ) : consultationsFallback !== 'hide' ? (
+                <FeaturePlaceholderCard
+                  icon={Heart}
+                  title="Vet Consultations"
+                  description="Schedule direct video appointments with certified veterinarians to audit custom dietary plans."
+                  variant={consultationsFallback}
+                />
+              ) : null}
 
-              {isChatbotEnabled && (
-                <div 
+              {isChatbotEnabled ? (
+                <div
                   onClick={() => navigate('/assistant')}
                   className="border border-cardboard hover:border-turmeric hover-paperLift bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 cursor-pointer group shadow-sm transition-all duration-300 relative overflow-hidden"
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px] group-hover:border-turmeric transition-colors">
-                      <Sparkles className="w-6 h-6 text-turmeric" />
-                    </div>
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-cardboard font-bold">AI COACH // 03</span>
+                  <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px] group-hover:border-turmeric transition-colors">
+                    <Sparkles className="w-6 h-6 text-turmeric" />
                   </div>
                   <h3 className="font-display text-xl font-bold uppercase tracking-tight text-ink">AI Nutrition Coach</h3>
                   <p className="font-body text-xs sm:text-sm text-ink opacity-80 leading-relaxed">
@@ -499,7 +524,14 @@ export default function HomePage() {
                     <span className="transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
                   </div>
                 </div>
-              )}
+              ) : chatbotFallback !== 'hide' ? (
+                <FeaturePlaceholderCard
+                  icon={Sparkles}
+                  title="AI Nutrition Coach"
+                  description="Get instant dietary recommendations, ingredient breakdowns, and round-the-clock pet wellness guidance."
+                  variant={chatbotFallback}
+                />
+              ) : null}
             </div>
           </div>
         </section>

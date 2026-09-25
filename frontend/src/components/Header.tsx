@@ -16,7 +16,7 @@ import {
 import { useFeatureFlag } from '../hooks/useFeatureFlag';
 
 interface HeaderProps {
-  activeTab?: 'shop' | 'pets' | 'consultations' | 'orders' | 'assistant' | 'profile' | 'admin' | 'doctor' | 'apply-doctor';
+  activeTab?: 'shop' | 'pets' | 'consultations' | 'orders' | 'assistant' | 'profile' | 'admin' | 'doctor' | 'apply-doctor' | 'support';
   onCartToggle?: () => void;
 }
 

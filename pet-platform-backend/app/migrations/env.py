@@ -21,6 +21,9 @@ from app.models.doctor import Doctor
 from app.models.doctor_availability import DoctorAvailability
 from app.models.consultation import Consultation
 from app.models.health_record import HealthRecord
+from app.models.support_ticket import SupportTicket
+from app.models.support_message import SupportMessage
+from app.models.push_token import PushToken
 
 from alembic import context
 

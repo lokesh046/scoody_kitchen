@@ -7,18 +7,24 @@ import { useNavigate } from 'react-router-dom';
 interface RecipeCardProps {
   product: ProductResponse;
   onAddToCart?: (productId: number) => Promise<void> | void;
+  // Set when shop_checkout is off (e.g. "Coming Soon" / "Unavailable") —
+  // reuses the exact same disabled button treatment as a deactivated
+  // product, just with this label instead, so ordering being off reads the
+  // same way a single sold-out recipe already does.
+  orderingDisabledLabel?: string;
 }
 
-export const RecipeCard: React.FC<RecipeCardProps> = React.memo(({ product, onAddToCart }) => {
+export const RecipeCard: React.FC<RecipeCardProps> = React.memo(({ product, onAddToCart, orderingDisabledLabel }) => {
   const navigate = useNavigate();
   const ingredients = getIngredientsForProduct(product.id, product.name);
+  const isOrderingBlocked = !product.is_active || !!orderingDisabledLabel;
 
   const [isAdding, setIsAdding] = React.useState(false);
   const [isAdded, setIsAdded] = React.useState(false);
 
   const handleAdd = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!onAddToCart) return;
+    if (!onAddToCart || isOrderingBlocked) return;
     setIsAdding(true);
     const startTime = Date.now();
     try {
@@ -104,9 +110,9 @@ export const RecipeCard: React.FC<RecipeCardProps> = React.memo(({ product, onAd
         {/* Action Button */}
         <button
           onClick={handleAdd}
-          disabled={isAdding || !product.is_active}
+          disabled={isAdding || isOrderingBlocked}
           className={`w-full mt-5 font-body font-bold text-xs py-2.5 rounded-[4px] tracking-wide uppercase shadow-sm flex items-center justify-center space-x-1.5 transition-all duration-300 ${
-            !product.is_active
+            isOrderingBlocked
               ? 'bg-cardboard bg-opacity-35 text-ink text-opacity-50 cursor-not-allowed border border-cardboard border-opacity-30'
               : isAdded
               ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -125,6 +131,8 @@ export const RecipeCard: React.FC<RecipeCardProps> = React.memo(({ product, onAd
             <span>Added! 🐾</span>
           ) : !product.is_active ? (
             <span>Deactivated</span>
+          ) : orderingDisabledLabel ? (
+            <span>{orderingDisabledLabel}</span>
           ) : (
             <span>Shop the Recipe</span>
           )}

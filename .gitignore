@@ -26,8 +26,14 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 *.env
+*.env.bak
+.tunnel_logs/
 *service-account*.json
 firebase-service-account.json
+# Temporary private key material created (and normally self-deleted) by
+# init-letsencrypt.sh — ignored defensively in case the script is
+# interrupted before its own cleanup step runs.
+certbot-conf-data/
 
 # Temporary, scratch, and backup files
 .~lock.*#
@@ -55,6 +61,8 @@ chatbot-service/models/
 # Celery beat schedule files
 celerybeat-schedule*
 *.sqlite3
+*.rdb
+dump.rdb
 
 .agent/
 .impeccable/
@@ -72,3 +80,5 @@ chatbot-service/ARCHITECTURE_REVIEW.html
 chatbot-service/Scooby-Chatbot-Architecture.pdf
 mobile/android/
 mobile/ios/
+mobile/google-services.json
+mobile/GoogleService-Info.plist

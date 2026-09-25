@@ -19,6 +19,68 @@ export const fetchNearbyDoctors = async (lat: number, lng: number, radiusKm = 15
   return response.data;
 };
 
+// "Vets Near Me" — merges registered vets with real-world clinics from
+// Google Places. radiusKm must be one of the server's presets (2/5/10).
+export interface NearbyClinicResult {
+  source: 'registered' | 'google';
+  distance_km: number;
+  latitude: number | null;
+  longitude: number | null;
+  doctor_id: number | null;
+  name: string | null;
+  specialization: string | null;
+  consultation_fee: string | null;
+  profile_image_url: string | null;
+  average_rating: number | null;
+  review_count: number | null;
+  clinic_name: string | null;
+  address: string | null;
+  phone: string | null;
+  opening_hours: string[] | null;
+  place_id: string | null;
+}
+
+export interface NearbyClinicsResponse {
+  results: NearbyClinicResult[];
+  radius_km_used: number;
+  fallback_to_registered_only: boolean;
+}
+
+export interface PlaceDetailsResponse {
+  place_id: string;
+  name: string | null;
+  address: string | null;
+  phone: string | null;
+  opening_hours: string[] | null;
+  photo_url: string | null;
+}
+
+export const fetchNearbyClinics = async (
+  lat: number,
+  lng: number,
+  radiusKm: 2 | 5 | 10
+): Promise<NearbyClinicsResponse> => {
+  const response = await apiClient.get('/doctors/nearby-clinics', {
+    params: { latitude: lat, longitude: lng, radius_km: radiusKm },
+  });
+  return response.data;
+};
+
+export const fetchClinicDetails = async (placeId: string): Promise<PlaceDetailsResponse> => {
+  const response = await apiClient.get(`/doctors/nearby-clinics/${encodeURIComponent(placeId)}`);
+  return response.data;
+};
+
+// Google Maps "get directions" deep link — same shape as the web app's
+// helper, works for both registered vets (lat/lng from our own Clinic
+// record) and Google-sourced clinics (lat/lng from the Places response).
+export const buildDirectionsUrl = (clinic: NearbyClinicResult): string | null => {
+  if (clinic.latitude == null || clinic.longitude == null) return null;
+  const params = new URLSearchParams({ api: '1', destination: `${clinic.latitude},${clinic.longitude}` });
+  if (clinic.place_id) params.set('destination_place_id', clinic.place_id);
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+};
+
 export interface DoctorAvailabilityWindow {
   id: number;
   doctor_id: number;

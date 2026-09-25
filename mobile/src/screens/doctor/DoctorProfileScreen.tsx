@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -29,7 +29,16 @@ export default function DoctorProfileScreen() {
   const [isAvailable, setIsAvailable] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
+  const lastFetchedRef = useRef(0);
+  const load = useCallback(async (force = false) => {
+    // Skip refetching if we already have a recent copy — avoids a redundant
+    // network round-trip every time this tab regains focus. Also protects
+    // against wiping an in-progress edit (bio/fee) with server data on a
+    // quick tab-away-and-back.
+    if (!force && Date.now() - lastFetchedRef.current < 12000) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const data = await getDoctorProfile();
@@ -37,6 +46,7 @@ export default function DoctorProfileScreen() {
       setBio(data.bio || '');
       setFee(data.consultation_fee || '');
       setIsAvailable(data.is_available);
+      lastFetchedRef.current = Date.now();
     } catch {
       Alert.alert('Error', 'Could not load your doctor profile.');
     } finally {

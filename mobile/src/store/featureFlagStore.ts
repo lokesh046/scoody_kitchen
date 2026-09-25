@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import { fetchPublicFeatures } from '../api/features';
+import { fetchPublicFeatures, type PublicFeatureFlagState } from '../api/features';
 
 interface FeatureFlagState {
-  flags: Record<string, boolean>;
+  flags: Record<string, PublicFeatureFlagState>;
   isLoaded: boolean;
   fetchFlags: () => Promise<void>;
 }

@@ -11,7 +11,11 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 25000,
+  // Was 25s — under real backend load, that's 25 seconds of a frozen
+  // spinner before the user sees any error at all. Failing faster gives a
+  // much better "something's wrong" signal, and the retry below absorbs
+  // genuinely transient blips that a longer timeout was papering over.
+  timeout: 12000,
 });
 
 // Refresh token queue management
@@ -32,13 +36,50 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Response Interceptor: Silent token refresh on 401
+const RETRYABLE_DELAY_MS = 1000;
+
+function isTransientFailure(error: any): boolean {
+  // No response at all = the request never reached the server (dropped
+  // connection, DNS hiccup, timeout) — worth one retry. A 5xx means the
+  // server itself is struggling, which is also often transient under load.
+  if (!error.response) return true;
+  const status = error.response.status;
+  return status >= 500 && status < 600;
+}
+
+// Response Interceptor: transient-failure retry, 429 messaging, then 401 refresh
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
     if (!originalRequest) {
       return Promise.reject(error);
+    }
+
+    // Only GET requests are safe to silently retry — a POST/PATCH/DELETE
+    // might have actually succeeded server-side even though the response
+    // never made it back (a dropped connection after the write committed),
+    // and retrying those could create a duplicate ticket, order, or message.
+    const method = (originalRequest.method || 'get').toLowerCase();
+    if (method === 'get' && !originalRequest._retriedTransient && isTransientFailure(error)) {
+      originalRequest._retriedTransient = true;
+      await new Promise((resolve) => setTimeout(resolve, RETRYABLE_DELAY_MS));
+      try {
+        return await apiClient(originalRequest);
+      } catch (retryErr) {
+        return Promise.reject(retryErr);
+      }
+    }
+
+    // Normalize 429 messaging so every screen's existing
+    // `err?.response?.data?.detail || 'fallback text'` pattern automatically
+    // shows something specific, without needing to touch each call site —
+    // slowapi's default 429 body isn't guaranteed to carry a `detail` field.
+    if (error.response?.status === 429 && !error.response.data?.detail) {
+      error.response.data = {
+        ...(error.response.data || {}),
+        detail: "You're doing that a little too fast — please wait a moment and try again.",
+      };
     }
 
     const url = originalRequest.url || '';

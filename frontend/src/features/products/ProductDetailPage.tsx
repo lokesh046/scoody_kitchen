@@ -17,6 +17,7 @@ import { fetchProductReviews, submitProductReview, deleteProductReview, checkPro
 import type { ProductReview } from '../../api/reviews';
 
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
+import { useStructuredData } from '../../hooks/useStructuredData';
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -141,9 +142,43 @@ export const ProductDetailPage: React.FC = () => {
     }
   };
 
+  const productImage = product?.image_url || (product?.images && product.images.length > 0 ? product.images[0].image_url : undefined);
+
   useDocumentMetadata(
     product?.name || "Recipe Detail",
-    product?.description || "Browse veterinary-supervised ingredients and active nutritional formulas."
+    product?.description || "Browse veterinary-supervised ingredients and active nutritional formulas.",
+    productImage
+  );
+
+  useStructuredData(
+    product
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'Product',
+          name: product.name,
+          description: product.description || undefined,
+          image: productImage,
+          sku: product.sku,
+          offers: {
+            '@type': 'Offer',
+            priceCurrency: 'INR',
+            price: product.price,
+            availability: product.is_in_stock === false
+              ? 'https://schema.org/OutOfStock'
+              : 'https://schema.org/InStock',
+            url: window.location.origin + window.location.pathname,
+          },
+          ...(product.review_count && product.review_count > 0
+            ? {
+                aggregateRating: {
+                  '@type': 'AggregateRating',
+                  ratingValue: product.average_rating,
+                  reviewCount: product.review_count,
+                },
+              }
+            : {}),
+        }
+      : null
   );
 
   const availableWeights = product?.weight_options || [];

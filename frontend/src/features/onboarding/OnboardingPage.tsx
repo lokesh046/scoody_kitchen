@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ArrowRight, Activity, Sparkles, Heart, RefreshCw, ShoppingBag, Loader2 } from 'lucide-react';
@@ -7,6 +7,26 @@ import { fetchProducts } from '../../api/products';
 import { createPet } from '../../api/pets';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
+import { BREED_DATA, type AkcGroup } from '../../constants/breedData';
+
+// Same 7 real AKC groups mobile's MealPlannerScreen shows, in the same
+// order (Foundation Stock Service / Miscellaneous Class are excluded at
+// data-generation time — see mobile/scripts/generate-breed-data.mjs).
+const AKC_GROUPS: AkcGroup[] = [
+  'Sporting Group',
+  'Hound Group',
+  'Working Group',
+  'Terrier Group',
+  'Toy Group',
+  'Non-Sporting Group',
+  'Herding Group',
+];
+
+const KG_PER_LB = 0.45359237;
+
+// Ports mobile's ±15% tolerance verbatim, so the two platforms flag the
+// same dogs as above/below typical range for the same inputs.
+const WEIGHT_STATUS_TOLERANCE = 0.15;
 
 export const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -25,19 +45,21 @@ export const OnboardingPage: React.FC = () => {
   const [allergies, setAllergies] = useState<string[]>([]);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
 
-  // Custom breed query state
+  // Breed group + search state (same two-step flow as mobile's
+  // MealPlannerScreen: pick an AKC group first, then search within it)
+  const [selectedGroup, setSelectedGroup] = useState<AkcGroup | ''>('');
   const [breedQuery, setBreedQuery] = useState('');
   const [showBreedDropdown, setShowBreedDropdown] = useState(false);
 
-  const popularBreeds = [
-    'Golden Retriever', 'Labrador Retriever', 'German Shepherd', 
-    'French Bulldog', 'Beagle', 'Poodle', 'Indie Breed', 
-    'Rottweiler', 'Boxer', 'Siberian Husky', 'Chihuahua', 'Mixed Breed'
-  ];
+  const filteredBreeds = useMemo(() => {
+    if (!selectedGroup) return [];
+    const query = breedQuery.trim().toLowerCase();
+    return BREED_DATA.filter(
+      (b) => b.group === selectedGroup && (query === '' || b.name.toLowerCase().includes(query))
+    );
+  }, [selectedGroup, breedQuery]);
 
-  const filteredBreeds = breedQuery.trim() === ''
-    ? popularBreeds
-    : popularBreeds.filter(b => b.toLowerCase().includes(breedQuery.toLowerCase()));
+  const selectedBreedData = useMemo(() => BREED_DATA.find((b) => b.name === breed) || null, [breed]);
 
   // Fetch products to match a recipe
   const { data: productsData } = useQuery({
@@ -156,7 +178,7 @@ export const OnboardingPage: React.FC = () => {
 
   const isStepValid = () => {
     if (step === 1) return dogName.trim() !== '' && gender !== '' && neutered !== null;
-    if (step === 2) return breed.trim() !== '' && weight !== '' && Number(weight) > 0;
+    if (step === 2) return selectedGroup !== '' && breed.trim() !== '' && weight !== '' && Number(weight) > 0;
     if (step === 3) return activity !== '';
     return true;
   };
@@ -166,6 +188,21 @@ export const OnboardingPage: React.FC = () => {
 
   const recProduct = getRecommendedProduct();
   const calculatedCalories = calculateCalories();
+
+  // Compares the user's dog (real weight they entered) against that breed's
+  // precomputed default (typical weight for the breed, same activity
+  // level) — both run through the identical RER/MER formula, so they're
+  // directly comparable. ±15% tolerance: individual dogs of the same breed
+  // vary naturally, so only a real gap should surface a message.
+  const weightStatus: 'above' | 'below' | 'on-track' | null = (() => {
+    if (!selectedBreedData || !activity || !calculatedCalories) return null;
+    const breedDefault = selectedBreedData.defaultCalories[activity];
+    if (!breedDefault) return null;
+    const ratio = calculatedCalories / breedDefault;
+    if (ratio > 1 + WEIGHT_STATUS_TOLERANCE) return 'above';
+    if (ratio < 1 - WEIGHT_STATUS_TOLERANCE) return 'below';
+    return 'on-track';
+  })();
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full text-left">
@@ -331,41 +368,76 @@ export const OnboardingPage: React.FC = () => {
               </div>
 
               <div className="space-y-4 relative">
-                {/* Breed input */}
-                <div className="space-y-1.5 relative">
-                  <label className="font-mono text-[10px] uppercase font-bold text-ink block">Breed</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Search or type breed (e.g. Golden Retriever)"
-                    value={breedQuery}
-                    onChange={(e) => {
-                      setBreedQuery(e.target.value);
-                      setBreed(e.target.value);
-                      setShowBreedDropdown(true);
-                    }}
-                    onFocus={() => setShowBreedDropdown(true)}
-                    className="w-full px-3 py-2 border border-cardboard bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
-                  />
-                  {showBreedDropdown && filteredBreeds.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full mt-1 bg-paper border border-cardboard max-h-40 overflow-y-auto z-30 shadow-md">
-                      {filteredBreeds.map((b) => (
-                        <button
-                          key={b}
-                          type="button"
-                          onClick={() => {
-                            setBreed(b);
-                            setBreedQuery(b);
-                            setShowBreedDropdown(false);
-                          }}
-                          className="w-full text-left px-3 py-2 text-xs text-ink font-body hover:bg-paperLight transition-colors cursor-pointer border-b border-cardboard border-opacity-10 last:border-b-0"
-                        >
-                          {b}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                {/* Breed group + search */}
+                <div className="space-y-1.5">
+                  <label className="font-mono text-[10px] uppercase font-bold text-ink block">Breed Group (AKC)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {AKC_GROUPS.map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => {
+                          setSelectedGroup(g);
+                          setBreed('');
+                          setBreedQuery('');
+                          setShowBreedDropdown(false);
+                        }}
+                        className={`font-mono text-[9px] uppercase tracking-wider px-3 py-2 border font-bold cursor-pointer transition-colors ${
+                          selectedGroup === g
+                            ? 'bg-turmeric border-cardboard text-ink'
+                            : 'border-cardboard bg-paper text-ink opacity-75 hover:opacity-100'
+                        }`}
+                      >
+                        {g.replace(' Group', '')}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                {selectedGroup !== '' && (
+                  <div className="space-y-1.5 relative">
+                    <label className="font-mono text-[10px] uppercase font-bold text-ink block">Breed</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder={`Search ${selectedGroup.replace(' Group', '')} breeds (e.g. Golden Retriever)`}
+                      value={breedQuery}
+                      onChange={(e) => {
+                        setBreedQuery(e.target.value);
+                        setShowBreedDropdown(true);
+                        if (breed && e.target.value !== breed) setBreed('');
+                      }}
+                      onFocus={() => setShowBreedDropdown(true)}
+                      className="w-full px-3 py-2 border border-cardboard bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                    />
+                    {showBreedDropdown && filteredBreeds.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-paper border border-cardboard max-h-40 overflow-y-auto z-30 shadow-md">
+                        {filteredBreeds.map((b) => (
+                          <button
+                            key={b.name}
+                            type="button"
+                            onClick={() => {
+                              setBreed(b.name);
+                              setBreedQuery(b.name);
+                              setShowBreedDropdown(false);
+                            }}
+                            className="w-full text-left px-3 py-2 text-xs text-ink font-body hover:bg-paperLight transition-colors cursor-pointer border-b border-cardboard border-opacity-10 last:border-b-0 flex justify-between items-center gap-2"
+                          >
+                            <span>{b.name}</span>
+                            <span className="text-[10px] opacity-60 font-mono shrink-0">
+                              ~{Math.round(b.typicalWeightKg / KG_PER_LB)} lbs
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {breed !== '' && selectedBreedData && (
+                      <p className="text-[10px] text-ink opacity-60 font-mono">
+                        Selected: {breed} (typical adult weight ~{Math.round(selectedBreedData.typicalWeightKg / KG_PER_LB)} lbs)
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Age selector */}
                 <div className="grid grid-cols-2 gap-4">
@@ -533,39 +605,72 @@ export const OnboardingPage: React.FC = () => {
                 <div className="space-y-4 pt-1">
                   <div className="flex justify-between items-center pb-2 border-b border-dashed border-cardboard">
                     <div>
-                      <span className="font-mono text-[9px] uppercase font-bold text-turmeric block">// CALCULATOR OUTPUT</span>
-                      <span className="font-mono text-[8px] uppercase tracking-wider text-ink opacity-75">
+                      <span className="font-mono text-xs uppercase font-bold text-turmeric block">// CALCULATOR OUTPUT</span>
+                      <span className="font-mono text-xs uppercase tracking-wider text-ink opacity-75">
                         SUBJECT: {dogName || 'N/A'} ({weight} LBS, {breed})
                       </span>
                     </div>
-                    <Activity className="w-5 h-5 text-turmeric shrink-0" />
+                    <Activity className="w-6 h-6 text-turmeric shrink-0" />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-[10px] font-mono text-ink">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm font-mono text-ink">
                       <span>Resting Energy (RER):</span>
                       <span>{Math.round(70 * Math.pow((Number(weight) * 0.45359237), 0.75))} kcal</span>
                     </div>
-                    <div className="flex justify-between text-[10px] font-mono text-ink">
+                    <div className="flex justify-between text-sm font-mono text-ink">
                       <span>Activity Multiplier:</span>
                       <span>
                         {activity === 'sedentary' ? '1.0x (Sedentary)' : activity === 'very_active' ? '1.8x (Athletic)' : '1.4x (Active)'}
                       </span>
                     </div>
                     {allergies.length > 0 && (
-                      <div className="flex items-start justify-between text-[9px] font-mono text-paprika pt-1 border-t border-cardboard border-opacity-20 border-dashed">
+                      <div className="flex items-start justify-between text-xs font-mono text-paprika pt-1.5 border-t border-cardboard border-opacity-20 border-dashed">
                         <span>Exclusions:</span>
                         <span>{allergies.map(a => a.toUpperCase()).join(', ')}</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="flex justify-between items-center pt-2 border-t-2 border-dashed border-cardboard">
-                    <span className="font-mono text-[10px] text-ink uppercase font-bold">DAILY CALORIE DEMAND:</span>
-                    <span className="font-mono font-bold text-base text-ink">{calculatedCalories} kCal / day</span>
+                  <div className="flex justify-between items-center pt-3 border-t-2 border-dashed border-cardboard">
+                    <span className="font-mono text-sm text-ink uppercase font-bold">DAILY CALORIE DEMAND:</span>
+                    <span className="font-mono font-bold text-lg text-ink">{calculatedCalories} kCal / day</span>
                   </div>
+                  {selectedBreedData && activity !== '' && (
+                    <div className="flex justify-between text-sm font-mono text-ink opacity-75 pt-1.5">
+                      <span>{breed} Default:</span>
+                      <span>{selectedBreedData.defaultCalories[activity]} kcal</span>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {weightStatus && weightStatus !== 'on-track' && (
+                <div className="border border-paprika bg-paprika/5 p-4 text-left space-y-2">
+                  <h4 className="font-display font-bold text-sm text-ink">
+                    {weightStatus === 'above' ? 'Running Above Typical Range' : 'Running Below Typical Range'}
+                  </h4>
+                  <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
+                    {weightStatus === 'above'
+                      ? `${dogName || 'Your dog'}'s calorie need is higher than what's typical for a ${breed}. This isn't a diagnosis — individual dogs vary — but it may be worth monitoring portions or checking in with a vet.`
+                      : `${dogName || 'Your dog'}'s calorie need is lower than what's typical for a ${breed}. This isn't a diagnosis — individual dogs vary — but it may be worth checking in with a vet if you're unsure.`}
+                  </p>
+                  <button
+                    onClick={() => navigate('/consultations')}
+                    className="font-mono text-[9px] uppercase font-bold text-paprika hover:underline cursor-pointer"
+                  >
+                    Talk to a Vet &rarr;
+                  </button>
+                </div>
+              )}
+
+              {weightStatus === 'on-track' && (
+                <div className="border border-herb bg-herb/10 p-3 text-center">
+                  <span className="font-mono text-[10px] uppercase font-bold text-herb">
+                    &#10003; Right on track for a {breed}
+                  </span>
+                </div>
+              )}
 
               {/* Recommended Product Box */}
               {recProduct ? (
@@ -630,6 +735,7 @@ export const OnboardingPage: React.FC = () => {
                     setDogName('');
                     setGender('');
                     setNeutered(null);
+                    setSelectedGroup('');
                     setBreed('');
                     setBreedQuery('');
                     setWeight('');

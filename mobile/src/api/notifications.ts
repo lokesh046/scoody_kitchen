@@ -43,3 +43,11 @@ export const markAllNotificationsAsRead = async (): Promise<{ message: string }>
   const response = await apiClient.patch<{ message: string }>('/notifications/read-all');
   return response.data;
 };
+
+export const registerPushToken = async (expoPushToken: string, platform: 'ios' | 'android'): Promise<void> => {
+  await apiClient.post('/notifications/push-token', { expo_push_token: expoPushToken, platform });
+};
+
+export const unregisterPushToken = async (expoPushToken: string, platform: 'ios' | 'android'): Promise<void> => {
+  await apiClient.delete('/notifications/push-token', { data: { expo_push_token: expoPushToken, platform } });
+};

@@ -11,7 +11,7 @@ import {
   Sparkles, X, MessageSquare, Send, Mic, MicOff, 
   Trash2, ShieldAlert, Loader2, Paperclip, User
 } from 'lucide-react';
-import { useFeatureFlag } from '../hooks/useFeatureFlag';
+import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
 
 interface Message {
   id: string;
@@ -84,6 +84,7 @@ const renderFormattedText = (rawText: string) => {
 
 export const ChatbotWidget: React.FC = () => {
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
+  const chatbotFallback = useFeatureFlagFallback('ai_chatbot');
   const { user, accessToken } = useAuthStore();
   const navigate = useNavigate();
 
@@ -425,7 +426,27 @@ export const ChatbotWidget: React.FC = () => {
     setMessages([]);
   };
 
-  if (!isChatbotEnabled || !user) return null;
+  if (!user) return null;
+
+  if (!isChatbotEnabled) {
+    if (chatbotFallback === 'hide') return null;
+    // Minimal, static, non-interactive version of the collapsed tab below —
+    // deliberately independent of all the widget's own state (typing,
+    // sessions, recording, etc.), since none of it applies while disabled.
+    return (
+      <div className="z-50 font-body fixed top-1/2 right-0 -translate-y-1/2">
+        <div
+          className="bg-cardboard bg-opacity-35 text-ink opacity-60 rounded-l-2xl border border-cardboard border-r-0 shadow-lg cursor-default flex flex-col items-center justify-center py-4 px-2.5 select-none"
+          title={chatbotFallback === 'coming_soon' ? 'AI Assistant coming soon' : 'AI Assistant temporarily unavailable'}
+        >
+          <Sparkles className="w-3.5 h-3.5 mb-2" />
+          <span className="font-display font-bold text-[9px] uppercase tracking-widest [writing-mode:vertical-rl] leading-none">
+            {chatbotFallback === 'coming_soon' ? 'Coming Soon' : 'Unavailable'}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`z-50 font-body transition-all duration-300 ${isOpen ? 'fixed bottom-6 right-6' : 'fixed top-1/2 right-0 -translate-y-1/2'}`}>

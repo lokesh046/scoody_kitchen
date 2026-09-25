@@ -769,7 +769,7 @@ export default function CartScreen({ navigation }: any) {
         <ScrollView
           contentContainerStyle={styles.emptyContainer}
           refreshControl={
-            <RefreshControl refreshing={isLoading} onRefresh={loadCart} colors={[COLORS.forestGreen]} />
+            <RefreshControl refreshing={isLoading} onRefresh={() => loadCart(true)} colors={[COLORS.forestGreen]} />
           }
         >
           <View style={styles.emptyIconBox}>
@@ -794,7 +794,7 @@ export default function CartScreen({ navigation }: any) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollBody}
           refreshControl={
-            <RefreshControl refreshing={isLoading} onRefresh={loadCart} colors={[COLORS.forestGreen]} />
+            <RefreshControl refreshing={isLoading} onRefresh={() => loadCart(true)} colors={[COLORS.forestGreen]} />
           }
         >
           <ResponsiveContainer maxWidth={920}>

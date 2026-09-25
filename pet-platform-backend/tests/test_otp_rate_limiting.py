@@ -60,7 +60,7 @@ def test_otp_rate_limiting_allowed():
     mock_redis = MockRedisClient()
 
     # Case 1: First request should be allowed
-    with patch("app.core.cache.cache.client", mock_redis), patch("app.core.cache.cache.redis_active", True):
+    with patch("app.api.auth.rate_limit_redis_client", mock_redis):
         res = client.post("/auth/request-otp", json={"phone_number": "+919876543210"})
         assert res.status_code == 200
         assert res.json()["allowed"] is True
@@ -72,7 +72,7 @@ def test_otp_rate_limiting_cooldown():
     mock_redis.cooldown_ttl = 24  # Simulate active cooldown of 24 seconds
 
     # Case 2: Cooldown active should trigger 429
-    with patch("app.core.cache.cache.client", mock_redis), patch("app.core.cache.cache.redis_active", True):
+    with patch("app.api.auth.rate_limit_redis_client", mock_redis):
         res = client.post("/auth/request-otp", json={"phone_number": "+919876543210"})
         assert res.status_code == 429
         assert "Please wait 24 seconds" in res.json()["detail"]
@@ -84,7 +84,7 @@ def test_otp_rate_limiting_hourly_cap():
     mock_redis.phone_ttl = 2520  # 42 minutes remaining
 
     # Case 3: Hourly cap reached should trigger 429
-    with patch("app.core.cache.cache.client", mock_redis), patch("app.core.cache.cache.redis_active", True):
+    with patch("app.api.auth.rate_limit_redis_client", mock_redis):
         res = client.post("/auth/request-otp", json={"phone_number": "+919876543210"})
         assert res.status_code == 429
         assert "Too many attempts for this number. Try again in 42 minutes." in res.json()["detail"]

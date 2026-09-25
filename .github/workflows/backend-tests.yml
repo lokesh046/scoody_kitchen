@@ -1,0 +1,76 @@
+name: Backend tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pet-platform-backend/**"
+      - ".github/workflows/backend-tests.yml"
+  pull_request:
+    paths:
+      - "pet-platform-backend/**"
+      - ".github/workflows/backend-tests.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pet-platform-backend
+
+    # Ephemeral, empty Postgres + Redis for this job only — tests never
+    # touch the real Neon database or the real deployed Redis instances.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: pet_platform_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+psycopg://ci:ci@localhost:5432/pet_platform_test
+      # Split by role, same as production (docker-compose.yml) — just three
+      # DB indices on one throwaway container here since this Redis only
+      # lives for the duration of the job.
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_REDIS_URL: redis://localhost:6379/1
+      RATE_LIMIT_REDIS_URL: redis://localhost:6379/2
+      JWT_SECRET_KEY: ci-test-jwt-secret
+      INTERNAL_SERVICE_API_KEY: ci-test-internal-key
+      MCP_INTERNAL_SECRET: ci-test-mcp-secret
+      CHATBOT_INTERNAL_SECRET: ci-test-chatbot-secret
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Run database migrations
+        run: uv run alembic upgrade head
+
+      - name: Run tests
+        run: uv run pytest

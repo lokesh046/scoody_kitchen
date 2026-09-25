@@ -1,3 +1,5 @@
+import httpx
+
 from app.core.celery_app import celery_app
 from app.core.config import settings
 from app.core.database import SessionLocal
@@ -7,6 +9,42 @@ from app.services.email_service import send_order_update_email
 import logging
 
 logger = logging.getLogger(__name__)
+
+EXPO_PUSH_API_URL = "https://exp.host/--/api/v2/push/send"
+
+
+@celery_app.task(name="app.tasks.notification_tasks.send_push_notifications_task")
+def send_push_notifications_task(
+    tokens: list[str],
+    title: str,
+    body: str,
+    data: dict | None = None,
+) -> bool:
+    """Fires a batch push via Expo's push API. Runs as its own Celery task
+    (called from create_notification) so a slow or failing push send never
+    delays the request that triggered the underlying notification — losing
+    a push is a missed alert, not a correctness problem, so failures here
+    are logged and swallowed rather than retried or surfaced upstream.
+    """
+    if not tokens:
+        return False
+
+    messages = [
+        {"to": token, "title": title, "body": body, "data": data or {}, "sound": "default"}
+        for token in tokens
+    ]
+    try:
+        with httpx.Client(timeout=10) as client:
+            response = client.post(
+                EXPO_PUSH_API_URL,
+                json=messages,
+                headers={"Content-Type": "application/json", "Accept": "application/json"},
+            )
+            response.raise_for_status()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send push notifications: {e}")
+        return False
 
 
 @celery_app.task(name="app.tasks.notification_tasks.dispatch_order_notifications_task")

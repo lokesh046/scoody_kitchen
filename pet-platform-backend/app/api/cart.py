@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.limiter import limiter
 from app.dependencies.auth import get_current_user
 from app.models.user import User
 
@@ -50,7 +51,9 @@ def get_my_cart(
     response_model=CartResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("30/minute")
 def add_product_to_cart(
+    request: Request,
     item_data: CartItemCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(
@@ -90,7 +93,9 @@ def add_product_to_cart(
     "/items/{item_id}",
     response_model=CartResponse,
 )
+@limiter.limit("30/minute")
 def update_my_cart_item(
+    request: Request,
     item_id: int,
     item_data: CartItemUpdate,
     db: Session = Depends(get_db),
@@ -129,7 +134,9 @@ def update_my_cart_item(
     "/items/{item_id}",
     response_model=CartResponse,
 )
+@limiter.limit("30/minute")
 def remove_item_from_cart(
+    request: Request,
     item_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(
@@ -165,7 +172,9 @@ def remove_item_from_cart(
 @router.delete(
     "",
 )
+@limiter.limit("10/minute")
 def clear_my_cart(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(
         get_current_user

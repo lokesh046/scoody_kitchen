@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { LucideIcon } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
 import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD } from '../theme/typography';
 import { useTourStore } from '../store/tourStore';
+import { TAB_BAR_CONTENT_HEIGHT, TAB_BAR_TOP_PADDING } from '../constants/layout';
 
 export interface TourStep {
   /** Omit for a centered, non-spotlight step (e.g. the opening/closing card). */
@@ -37,6 +39,12 @@ export default function AppTour({ steps }: AppTourProps) {
   const stepIndex = useTourStore((s) => s.stepIndex);
   const nextStep = useTourStore((s) => s.nextStep);
   const endTour = useTourStore((s) => s.endTour);
+  // Safe to call here even though AppTour renders outside any SafeAreaView
+  // (see the note below on why) — useSafeAreaInsets reads from the
+  // SafeAreaProvider at the app root regardless of nesting depth; it's only
+  // wrapping IN a SafeAreaView that would wrongly offset these window-space
+  // coordinates.
+  const insets = useSafeAreaInsets();
 
   const [rect, setRect] = useState<Rect | null>(null);
   const [isReady, setIsReady] = useState(false);
@@ -108,8 +116,25 @@ export default function AppTour({ steps }: AppTourProps) {
       const holeBottom = rect.y + rect.height + SPOTLIGHT_PADDING;
       const holeLeft = rect.x - SPOTLIGHT_PADDING;
       const holeWidth = rect.width + SPOTLIGHT_PADDING * 2;
-      // Place the callout on whichever side of the hole has more room.
-      const placeBelow = rect.y < SCREEN_HEIGHT / 2;
+
+      // The bug: this used to compare rect.y against raw SCREEN_HEIGHT / 2,
+      // which has no idea the bottom tab bar exists — a spotlighted element
+      // in the lower half of the screen (e.g. "Scan & Diagnose") would still
+      // get its callout placed "below", landing the CTA row underneath or
+      // behind the tab bar. Fixed by measuring the room actually available
+      // on each side, with the tab bar's real footprint subtracted from the
+      // bottom edge, and picking whichever side has more of it.
+      const tabBarHeight = TAB_BAR_CONTENT_HEIGHT + TAB_BAR_TOP_PADDING + Math.max(insets.bottom, 8);
+      const safeBottom = SCREEN_HEIGHT - tabBarHeight;
+      const safeTop = insets.top + 12;
+      const spaceBelow = safeBottom - holeBottom;
+      const spaceAbove = holeTop - safeTop;
+      const placeBelow = spaceBelow >= spaceAbove;
+      // Belt-and-suspenders: even on the chosen side, never let the callout
+      // start (or its bottom-anchor sit) somewhere that would still push it
+      // into the tab bar's zone or off the top of the screen.
+      const calloutTop = Math.min(holeBottom + 16, Math.max(safeBottom - 200, safeTop));
+      const calloutBottom = Math.max(SCREEN_HEIGHT - holeTop + 16, tabBarHeight + 16);
 
       return (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -140,7 +165,7 @@ export default function AppTour({ steps }: AppTourProps) {
           <View
             style={[
               styles.calloutWrap,
-              placeBelow ? { top: holeBottom + 16 } : { bottom: SCREEN_HEIGHT - holeTop + 16 },
+              placeBelow ? { top: calloutTop } : { bottom: calloutBottom },
             ]}
             pointerEvents="box-none"
           >

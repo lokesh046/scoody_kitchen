@@ -88,11 +88,17 @@ def seed_default_flags_if_missing(db: Session) -> None:
     if added:
         db.commit()
 
-def get_public_flags(db: Session) -> Dict[str, bool]:
-    """Return dictionary of {feature_key: is_enabled} for frontend clients."""
+def get_public_flags(db: Session) -> Dict[str, Dict[str, object]]:
+    """
+    Return {feature_key: {enabled, fallback_behavior}} for frontend clients.
+    Enriched from a plain {key: bool} shape so clients can render a
+    "coming soon" or "temporarily unavailable" placeholder instead of just
+    hiding a disabled feature, while still reading `.enabled` for the
+    common case that doesn't care about the fallback.
+    """
     seed_default_flags_if_missing(db)
     flags = db.query(FeatureFlag).all()
-    return {f.key: f.is_enabled for f in flags}
+    return {f.key: {"enabled": f.is_enabled, "fallback_behavior": f.fallback_behavior} for f in flags}
 
 def get_all_flags_admin(db: Session) -> List[FeatureFlag]:
     """Return all feature flags with complete metadata for Admin Dashboard."""
@@ -103,14 +109,19 @@ def update_feature_flag(
     db: Session,
     key: str,
     is_enabled: bool,
+    fallback_behavior: Optional[str] = None,
     admin_id: Optional[int] = None,
 ) -> Optional[FeatureFlag]:
-    """Toggle a feature flag on or off. Updates timestamp and auditing admin id."""
+    """Toggle a feature flag on or off, and optionally set its disabled-state
+    fallback (hide / coming_soon / unavailable). Updates timestamp and
+    auditing admin id."""
     seed_default_flags_if_missing(db)
     flag = db.query(FeatureFlag).filter(FeatureFlag.key == key).first()
     if not flag:
         return None
     flag.is_enabled = is_enabled
+    if fallback_behavior is not None:
+        flag.fallback_behavior = fallback_behavior
     flag.updated_at = datetime.utcnow()
     if admin_id:
         flag.updated_by_id = admin_id

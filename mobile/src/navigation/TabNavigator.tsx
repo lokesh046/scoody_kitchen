@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
@@ -24,14 +24,11 @@ import FloatingCartBadge from '../components/FloatingCartBadge';
 import { useCartStore } from '../store/cartStore';
 
 import { useResponsive } from '../hooks/useResponsive';
-import { useFeatureFlag } from '../hooks/useFeatureFlag';
+import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
+import { TAB_BAR_CONTENT_HEIGHT, TAB_BAR_TOP_PADDING } from '../constants/layout';
 
 const Tab = createBottomTabNavigator();
 
-// Height of the tab bar's icon+label content, excluding top padding and the
-// device-specific bottom safe-area inset (home indicator / gesture bar / nav buttons).
-const TAB_BAR_CONTENT_HEIGHT = 48;
-const TAB_BAR_TOP_PADDING = 8;
 
 export default function TabNavigator() {
   const totalCartItems = useCartStore((state) => state.getTotalItems());
@@ -41,6 +38,30 @@ export default function TabNavigator() {
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
   const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  const chatbotFallback = useFeatureFlagFallback('ai_chatbot');
+  const shopFallback = useFeatureFlagFallback('shop_checkout');
+  const consultationsFallback = useFeatureFlagFallback('consultations_booking');
+
+  // Split into `options` additions and `listeners` since Tab.Screen takes
+  // those as separate sibling props, not one merged object.
+  const disabledTabOptions = (fallback: 'coming_soon' | 'unavailable') => ({
+    tabBarBadge: fallback === 'coming_soon' ? 'SOON' : '!',
+    tabBarBadgeStyle: { backgroundColor: COLORS.textLight, fontSize: 8 },
+    tabBarIconStyle: { opacity: 0.4 },
+    tabBarActiveTintColor: COLORS.textLight,
+  });
+
+  const disabledTabListeners = (fallback: 'coming_soon' | 'unavailable', featureName: string) => ({
+    tabPress: (e: any) => {
+      e.preventDefault();
+      Alert.alert(
+        fallback === 'coming_soon' ? 'Coming Soon' : 'Temporarily Unavailable',
+        fallback === 'coming_soon'
+          ? `${featureName} isn't available yet — check back soon!`
+          : `${featureName} is temporarily unavailable. Please check back later.`
+      );
+    },
+  });
 
   // Always leave at least a small breathing gap, then add whatever the device
   // reports for its home indicator / gesture pill / on-screen nav buttons so
@@ -96,8 +117,13 @@ export default function TabNavigator() {
             tabBarIcon: ({ color, focused }) => (
               <UtensilsCrossed size={20} color={color} strokeWidth={focused ? 2.5 : 1.8} />
             ),
-            ...(isShopEnabled ? {} : { tabBarButton: () => null }),
+            ...(isShopEnabled
+              ? {}
+              : shopFallback !== 'hide'
+              ? disabledTabOptions(shopFallback)
+              : { tabBarButton: () => null }),
           }}
+          listeners={!isShopEnabled && shopFallback !== 'hide' ? disabledTabListeners(shopFallback, 'Shop') : undefined}
         />
 
         {/* 3. My Orders Tab */}
@@ -138,8 +164,17 @@ export default function TabNavigator() {
             tabBarIcon: ({ color, focused }) => (
               <Stethoscope size={20} color={color} strokeWidth={focused ? 2.5 : 1.8} />
             ),
-            ...(isConsultationsEnabled ? {} : { tabBarButton: () => null }),
+            ...(isConsultationsEnabled
+              ? {}
+              : consultationsFallback !== 'hide'
+              ? disabledTabOptions(consultationsFallback)
+              : { tabBarButton: () => null }),
           }}
+          listeners={
+            !isConsultationsEnabled && consultationsFallback !== 'hide'
+              ? disabledTabListeners(consultationsFallback, 'Vet Consultations')
+              : undefined
+          }
         />
 
         {/* 6. Profile Tab */}
@@ -191,7 +226,11 @@ export default function TabNavigator() {
 
       {/* Persistent Scooby AI Floating Button — bottom-left, mirroring
           FloatingCartBadge's bottom-right anchoring so the two never collide. */}
-      {isChatbotEnabled && <ScoobyAIFAB bottomOffset={tabBarHeight + 16} />}
+      {isChatbotEnabled ? (
+        <ScoobyAIFAB bottomOffset={tabBarHeight + 16} />
+      ) : chatbotFallback !== 'hide' ? (
+        <ScoobyAIFAB bottomOffset={tabBarHeight + 16} disabledFallback={chatbotFallback} />
+      ) : null}
 
       {/* Floating Cart Badge with Count (Only shows when not in Cart and cart has items) */}
       <FloatingCartBadge

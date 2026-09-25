@@ -6,13 +6,14 @@ from app.dependencies.auth import get_current_user, require_admin
 from app.models.user import User
 from app.core.config import settings
 from app.core.websocket_manager import manager
-from app.schemas.notification import NotificationResponse, NotificationUnreadCountResponse
+from app.schemas.notification import NotificationResponse, NotificationUnreadCountResponse, PushTokenRegister
 from app.services.notification_service import (
     get_user_notifications,
     get_unread_notifications_count,
     mark_as_read,
     mark_all_read,
 )
+from app.services.push_token_service import register_push_token, delete_push_token
 from pydantic import BaseModel, Field
 
 router = APIRouter(
@@ -63,6 +64,29 @@ async def get_websocket_user(db: Session, token: str | None) -> User | None:
         return user
     except Exception:
         return None
+
+
+@router.post("/push-token", status_code=status.HTTP_204_NO_CONTENT)
+def register_my_push_token(
+    payload: PushTokenRegister,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    register_push_token(db, current_user.id, payload.expo_push_token, payload.platform)
+
+
+@router.delete("/push-token", status_code=status.HTTP_204_NO_CONTENT)
+def unregister_my_push_token(
+    payload: PushTokenRegister,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    # Deletes by token value alone, not scoped to current_user — deliberate:
+    # this runs on logout, and if a race let another account's registration
+    # briefly own this device's token, the logging-out user should still be
+    # able to clear it rather than keep receiving pushes for an account
+    # they're no longer signed into.
+    delete_push_token(db, payload.expo_push_token)
 
 
 @router.get("", response_model=list[NotificationResponse])

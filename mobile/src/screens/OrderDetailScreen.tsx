@@ -33,6 +33,7 @@ import { COLORS } from '../theme/colors';
 import { fetchOrderById, fetchOrderTracking, Order, OrderItem, OrderTrackingResponse } from '../api/orders';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import { getStatusBadgeStyle } from '../utils/orderStatus';
+import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 import { LEDGER_MONO, FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_BODY_BOLD } from '../theme/typography';
 
 // Determine milestone step index (0-3) outside component
@@ -178,7 +179,7 @@ const OrderItemRow = memo(function OrderItemRow({ item }: OrderItemRowProps) {
       <View style={styles.itemImageContainer}>
         {item.image_url ? (
           <Image
-            source={{ uri: item.image_url }}
+            source={{ uri: getOptimizedImageUrl(item.image_url, IMAGE_SIZE.cardThumb, IMAGE_SIZE.cardThumb) }}
             style={styles.itemImage}
             contentFit="cover"
           />

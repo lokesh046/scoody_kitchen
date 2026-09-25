@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.limiter import limiter
 from app.dependencies.auth import require_roles
 from app.models.enums import ConsultationStatus, UserRole
 from app.models.user import User
@@ -41,7 +42,9 @@ router = APIRouter(
     "/create-payment-intent",
     response_model=ConsultationPaymentIntentResponse,
 )
+@limiter.limit("10/minute")
 def get_consultation_payment_intent(
+    request: Request,
     intent_data: ConsultationPaymentIntentRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.DOCTOR)),
@@ -65,7 +68,9 @@ def get_consultation_payment_intent(
     response_model=ConsultationResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("10/minute")
 def book_consultation_paid(
+    request: Request,
     data: ConsultationBookWithPayment,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.DOCTOR)),
@@ -89,7 +94,9 @@ def book_consultation_paid(
     response_model=ConsultationResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("10/minute")
 def book_consultation(
+    request: Request,
     create_data: ConsultationCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.DOCTOR)),
@@ -269,7 +276,9 @@ def get_my_consultation_audit(
     "/{consultation_id}/cancel",
     response_model=ConsultationResponse,
 )
+@limiter.limit("10/minute")
 def cancel_my_consultation(
+    request: Request,
     consultation_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.CUSTOMER, UserRole.ADMIN, UserRole.DOCTOR)),

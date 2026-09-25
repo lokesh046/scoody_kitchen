@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Search, PawPrint, X } from 'lucide-react';
+import { Search, PawPrint, X, Clock, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { fetchProducts, fetchCategories, fetchCategoryById } from '../../api/products';
@@ -12,6 +12,7 @@ import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
 
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
+import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
 
 export default function ShopPage() {
   useDocumentMetadata(
@@ -23,10 +24,12 @@ export default function ShopPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
-  
+
   const [isCartOpen, setIsCartOpen] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
   const { user } = useAuthStore();
+  const isShopEnabled = useFeatureFlag('shop_checkout', true);
+  const shopFallback = useFeatureFlagFallback('shop_checkout');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -36,6 +39,7 @@ export default function ShopPage() {
   }, [search]);
 
   const handleAddToCart = useCallback(async (productId: number) => {
+    if (!isShopEnabled) return; // safety net — RecipeCard's own button is already disabled in this case
     if (!user) {
       navigate('/login');
       return;
@@ -45,7 +49,15 @@ export default function ShopPage() {
     } catch (err) {
       console.error('Failed to add item to cart:', err);
     }
-  }, [user, navigate, addItem]);
+  }, [isShopEnabled, user, navigate, addItem]);
+
+  const orderingDisabledLabel = isShopEnabled
+    ? undefined
+    : shopFallback === 'coming_soon'
+    ? 'Coming Soon'
+    : shopFallback === 'unavailable'
+    ? 'Unavailable'
+    : 'Ordering Unavailable';
 
   // Queries with optimized caching and debounced keys
   const { data: productsData, isLoading: productsLoading, error: productsError } = useQuery({
@@ -162,6 +174,22 @@ export default function ShopPage() {
 
       {/* Shop / Feed Section */}
       <section className="space-y-8" id="product-ledger-heading">
+        {!isShopEnabled && (
+          <div
+            className={`flex items-center gap-2.5 px-4 py-3 rounded-sm border font-mono text-xs font-bold ${
+              shopFallback === 'coming_soon'
+                ? 'bg-turmeric bg-opacity-10 border-turmeric text-turmeric'
+                : 'bg-paprika bg-opacity-10 border-paprika text-paprika'
+            }`}
+          >
+            {shopFallback === 'coming_soon' ? <Clock className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+            <span>
+              {shopFallback === 'coming_soon'
+                ? "Ordering isn't open yet — browse the catalog, but checkout is coming soon."
+                : 'Ordering is temporarily unavailable. You can still browse the catalog.'}
+            </span>
+          </div>
+        )}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-cardboard pb-6 gap-4">
           <div className="text-left">
             <h3 className="font-display text-2xl font-bold text-ink">
@@ -321,6 +349,7 @@ export default function ShopPage() {
                 key={product.id}
                 product={product}
                 onAddToCart={handleAddToCart}
+                orderingDisabledLabel={orderingDisabledLabel}
               />
             ))}
           </div>

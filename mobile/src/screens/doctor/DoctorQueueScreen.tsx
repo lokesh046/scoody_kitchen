@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -31,7 +31,14 @@ export default function DoctorQueueScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const lastFetchedRef = useRef(0);
   const load = useCallback(async (isRefresh = false) => {
+    // Skip refetching if we already have a recent copy — avoids a redundant
+    // network round-trip every time this tab regains focus.
+    if (!isRefresh && Date.now() - lastFetchedRef.current < 12000) {
+      setLoading(false);
+      return;
+    }
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     try {
@@ -40,6 +47,7 @@ export default function DoctorQueueScreen({ navigation }: any) {
       items.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
       setConsultations(items);
       setError(null);
+      lastFetchedRef.current = Date.now();
     } catch (err: any) {
       setError(err?.response?.data?.detail || 'Could not load your consultation queue.');
     } finally {

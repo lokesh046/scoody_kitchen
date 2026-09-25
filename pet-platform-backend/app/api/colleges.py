@@ -23,7 +23,7 @@ def search_colleges(
     """
     Search colleges by name with case-insensitive trigram similarity.
     Minimum search text length is 2 characters. Returns top 10 matches.
-    Fuzzy results are cached in Redis/Memory for 1 hour to reduce database load.
+    Fuzzy results are cached in Redis/Memory for 24 hours to reduce database load.
     """
     # 1. Normalize query and state parameters
     query_clean = q.strip().lower()
@@ -85,9 +85,14 @@ def search_colleges(
         for c in colleges
     ]
     
-    # 7. Write to cache with 1 hour TTL
+    # 7. Write to cache with a 24-hour TTL. College data is read-only from
+    # the API (no create/update/delete endpoint exists) and only queried
+    # during doctor applications, so it's safe to cache far longer than
+    # typical data — long enough to meaningfully cut DB load, short enough
+    # to self-correct within a day if the underlying table is ever edited
+    # directly (e.g. a manual accreditation status change).
     try:
-        cache.set(cache_key, results, ttl_seconds=3600)
+        cache.set(cache_key, results, ttl_seconds=86400)
     except Exception as exc:
         logger.warning("Cache write failed for key '%s': %s", cache_key, exc)
         
