@@ -140,6 +140,8 @@ app.add_middleware(
         "http://192.168.1.6:8081",
         "https://scoobys-kitchen.com",
         "https://www.scoobys-kitchen.com",
+        "https://hearthandone.com",
+        "https://www.hearthandone.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
