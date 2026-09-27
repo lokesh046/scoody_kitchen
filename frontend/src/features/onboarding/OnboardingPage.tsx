@@ -9,6 +9,8 @@ import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { BREED_DATA, type AkcGroup } from '../../constants/breedData';
 
+import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
+
 // Same 7 real AKC groups mobile's MealPlannerScreen shows, in the same
 // order (Foundation Stock Service / Miscellaneous Class are excluded at
 // data-generation time — see mobile/scripts/generate-breed-data.mjs).
@@ -32,6 +34,9 @@ export const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const addItem = useCartStore((state) => state.addItem);
+
+  const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
+  const mealPlannerFallback = useFeatureFlagFallback('shop_meal_planner');
 
   const [step, setStep] = useState(0);
   const [dogName, setDogName] = useState('');
@@ -203,6 +208,40 @@ export const OnboardingPage: React.FC = () => {
     if (ratio < 1 - WEIGHT_STATUS_TOLERANCE) return 'below';
     return 'on-track';
   })();
+
+  if (!isMealPlannerEnabled) {
+    return (
+      <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full text-left">
+        <Header />
+        <main className="flex-grow flex items-center justify-center py-16 px-4 md:px-8">
+          <div className="max-w-md w-full bg-paperLight border border-cardboard p-8 text-center space-y-5 shadow-md rounded-[16px]">
+            <div className="w-14 h-14 bg-paper border border-dashed border-cardboard rounded-[12px] flex items-center justify-center mx-auto">
+              <Sparkles className="w-7 h-7 text-turmeric" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="font-display font-black text-2xl uppercase tracking-tight text-ink">
+                Diet Planner Unavailable
+              </h2>
+              <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
+                {mealPlannerFallback === 'coming_soon'
+                  ? 'Our custom canine meal planning tool is launching soon. Check back shortly!'
+                  : 'The meal planning tool is temporarily undergoing maintenance.'}
+              </p>
+            </div>
+            <div className="pt-2">
+              <button
+                onClick={() => navigate('/shop')}
+                className="inline-flex items-center space-x-2 bg-turmeric text-ink font-mono text-[10px] uppercase font-bold px-5 py-2.5 rounded-[8px] hover:bg-opacity-90 transition-all cursor-pointer shadow-xs active:scale-98"
+              >
+                <span>Explore Recipes</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full text-left">

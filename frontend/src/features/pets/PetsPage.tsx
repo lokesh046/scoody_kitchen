@@ -17,9 +17,9 @@ import {
   ArrowLeft, PawPrint, 
   Trash2, Scale, Loader2, AlertCircle,
   Heart, Award, Cake, Save, FileText, X, Activity,
-  Plus, Camera, Scan, CheckCircle2, RefreshCw
+  Plus, Camera, Scan, CheckCircle2, RefreshCw, Database, ArrowRight
 } from 'lucide-react';
-import { useFeatureFlag } from '../../hooks/useFeatureFlag';
+import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
 import { PetHeritagePassport } from '../../components/PetHeritagePassport';
 
 const mapRecordType = (type: string | undefined | null): string => {
@@ -58,6 +58,8 @@ export const PetsPage: React.FC = () => {
 
   // Pet Profile Image states
   const isPhotoUploadEnabled = useFeatureFlag('pets_photo_upload', true);
+  const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
+  const knowYourPetFallback = useFeatureFlagFallback('pets_know_your_pet');
   const [petImageUrl, setPetImageUrl] = useState('');
   const [isUploadingRegImage, setIsUploadingRegImage] = useState(false);
   const [editPetImageUrl, setEditPetImageUrl] = useState('');
@@ -464,6 +466,40 @@ export const PetsPage: React.FC = () => {
       }
     });
   };
+
+  if (!isKnowYourPetEnabled) {
+    return (
+      <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
+        <Header activeTab="pets" onCartToggle={() => setIsCartOpen(true)} />
+        <main className="flex-grow flex items-center justify-center py-16 px-4 md:px-8">
+          <div className="max-w-md w-full bg-paperLight border border-cardboard p-8 text-center space-y-5 shadow-md rounded-[16px]">
+            <div className="w-14 h-14 bg-paper border border-dashed border-cardboard rounded-[12px] flex items-center justify-center mx-auto">
+              <Database className="w-7 h-7 text-turmeric" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="font-display font-black text-2xl uppercase tracking-tight text-ink">
+                Pet Ledger Unavailable
+              </h2>
+              <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
+                {knowYourPetFallback === 'coming_soon'
+                  ? 'Our companion health passport & pet registry is launching soon. Check back shortly!'
+                  : 'The companion pet ledger is temporarily undergoing maintenance.'}
+              </p>
+            </div>
+            <div className="pt-2">
+              <button
+                onClick={() => navigate('/shop')}
+                className="inline-flex items-center space-x-2 bg-turmeric text-ink font-mono text-[10px] uppercase font-bold px-5 py-2.5 rounded-[8px] hover:bg-opacity-90 transition-all cursor-pointer shadow-xs active:scale-98"
+              >
+                <span>Browse Recipes</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">

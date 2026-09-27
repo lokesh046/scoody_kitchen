@@ -16,6 +16,8 @@ export const HomeBannerCarousel: React.FC = () => {
   // Feature Flags
   const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
+  const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
+  const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
 
   // Fetch banners from API
   const { data: banners, isLoading } = useQuery({
@@ -72,6 +74,8 @@ export const HomeBannerCarousel: React.FC = () => {
     .filter((b: any) => {
       if (b.link_url === '/consultations' && !isConsultationsEnabled) return false;
       if (b.link_url === '/shop' && !isShopEnabled) return false;
+      if (b.link_url === '/pets' && !isKnowYourPetEnabled) return false;
+      if (b.link_url === '/onboarding' && !isMealPlannerEnabled) return false;
       return true;
     })
     .map((b: any, index: number) => {

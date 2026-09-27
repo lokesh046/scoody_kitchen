@@ -54,9 +54,13 @@ export default function HomePage() {
   const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
+  const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
+  const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
   const consultationsFallback = useFeatureFlagFallback('consultations_booking');
   const chatbotFallback = useFeatureFlagFallback('ai_chatbot');
   const shopFallback = useFeatureFlagFallback('shop_checkout');
+  const mealPlannerFallback = useFeatureFlagFallback('shop_meal_planner');
+  const knowYourPetFallback = useFeatureFlagFallback('pets_know_your_pet');
 
   // Auth Store
   const { user } = useAuthStore();
@@ -272,183 +276,197 @@ export default function HomePage() {
               </div>
             )}
           </div>
-        </section>
+        </section>        {/* Interactive Recipe Calculator Section */}
+        {isMealPlannerEnabled ? (
+          <section 
+            className="bg-paperLight py-16 md:py-24 px-4 sm:px-6 md:px-8 border-b border-cardboard border-opacity-35 relative" 
+            id="fit-calculator" 
+            style={{ backgroundImage: 'radial-gradient(#EBE0D0 1.2px, transparent 1.2px)', backgroundSize: '16px 16px' }}
+          >
+            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center text-left relative z-10">
+              <div className="lg:col-span-5 space-y-5 animate-fade-in-up">
+                <Eyebrow label="METABOLIC SIZING ENGINE" />
+                <h2 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl uppercase tracking-tight text-ink leading-tight">
+                  Recipe Fit Calculator
+                </h2>
+                <p className="font-body text-sm text-ink opacity-80 leading-relaxed">
+                  Pet nutrition is directly proportional to body mass and daily energy output. Pick your dog's size or enter their exact weight to calculate targeted caloric requirements in real time.
+                </p>
 
-        {/* Interactive Recipe Calculator Section */}
-        <section 
-          className="bg-paperLight py-16 md:py-24 px-4 sm:px-6 md:px-8 border-b border-cardboard border-opacity-35 relative" 
-          id="fit-calculator" 
-          style={{ backgroundImage: 'radial-gradient(#EBE0D0 1.2px, transparent 1.2px)', backgroundSize: '16px 16px' }}
-        >
-          <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center text-left relative z-10">
-            <div className="lg:col-span-5 space-y-5 animate-fade-in-up">
-              <Eyebrow label="METABOLIC SIZING ENGINE" />
-              <h2 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl uppercase tracking-tight text-ink leading-tight">
-                Recipe Fit Calculator
-              </h2>
-              <p className="font-body text-sm text-ink opacity-80 leading-relaxed">
-                Pet nutrition is directly proportional to body mass and daily energy output. Pick your dog's size or enter their exact weight to calculate targeted caloric requirements in real time.
-              </p>
-
-              {/* Quick Size Presets */}
-              <div className="space-y-2 pt-2">
-                <span className="font-mono text-[10px] uppercase font-bold text-ink opacity-70 block">
-                  Quick Size Presets:
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {DOG_PRESETS.map((preset) => {
-                    const isSelected = Number(dogWeight) === preset.weight && activityLevel === preset.activity;
-                    return (
-                      <button
-                        key={preset.label}
-                        type="button"
-                        onClick={() => handleApplyPreset(preset)}
-                        className={`font-mono text-[10px] uppercase px-3 py-1.5 rounded-[8px] transition-all cursor-pointer font-bold border ${
-                          isSelected
-                            ? 'bg-turmeric text-ink border-turmeric shadow-xs scale-102'
-                            : 'bg-paper text-ink opacity-85 border-cardboard hover:border-turmeric hover:opacity-100'
-                        }`}
-                      >
-                        {preset.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="border border-dashed border-cardboard/70 p-3 space-y-1 font-mono text-[11px] text-ink opacity-75 bg-paper/60 rounded-xl">
-                <p>Formula base: RER = 70 × (weight_kg)⁰·⁷⁵</p>
-                <p>Output MER = RER × activity_multiplier</p>
-              </div>
-
-              <div className="pt-2">
-                <button 
-                  onClick={() => navigate('/onboarding')}
-                  className="inline-flex items-center space-x-2 bg-turmeric text-ink hover:bg-opacity-95 font-mono text-[10px] uppercase font-bold px-5 py-3 rounded-[10px] tracking-wider transition-all hover-bounce cursor-pointer shadow-xs active:scale-98"
-                >
-                  <span>Step-by-Step Diet Planner</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div className="lg:col-span-7 bg-paper border border-cardboard p-6 sm:p-8 rounded-[20px] relative shadow-md">
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="font-mono text-[10px] uppercase font-bold text-ink opacity-85 block">Dog's Name (Optional)</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. Scooby" 
-                      value={dogName}
-                      onChange={(e) => setDogName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 border border-cardboard rounded-[10px] bg-paperLight font-body text-sm text-ink focus:outline-hidden focus:border-turmeric focus:ring-2 focus:ring-turmeric/20 transition-all"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="font-mono text-[10px] uppercase font-bold text-ink opacity-85 block">Weight (lbs)</label>
-                    <input 
-                      type="number" 
-                      placeholder="e.g. 35" 
-                      value={dogWeight}
-                      onChange={(e) => setDogWeight(e.target.value !== '' ? Number(e.target.value) : '')}
-                      min="1"
-                      className="w-full px-3.5 py-2.5 border border-cardboard rounded-[10px] bg-paperLight font-body text-sm text-ink focus:outline-hidden focus:border-turmeric focus:ring-2 focus:ring-turmeric/20 transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="font-mono text-[10px] uppercase font-bold text-ink opacity-85 block">Daily Activity Output</label>
-                  <select 
-                    value={activityLevel}
-                    onChange={(e: any) => setActivityLevel(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-cardboard rounded-[10px] bg-paperLight font-body text-sm text-ink focus:outline-hidden focus:border-turmeric focus:ring-2 focus:ring-turmeric/20 transition-all cursor-pointer"
-                  >
-                    <option value="sedentary">Sedentary (Couches & Relaxed Walks)</option>
-                    <option value="active">Active (Daily Runs, Fetch & Playtime)</option>
-                    <option value="very_active">Working / Sporting (Constant Agility & Training)</option>
-                  </select>
-                </div>
-              </div>
-
-              {calcResult && (
-                <div className="mt-6 border-t-2 border-dashed border-cardboard pt-6 space-y-4 animate-fade-in-up">
-                  {/* Thermal Diagnostic Output Box */}
-                  <div className="bg-paperLight p-5 sm:p-6 border border-cardboard rounded-[14px] shadow-xs relative">
-                    <div className="flex justify-between items-center pb-3 border-b border-dashed border-cardboard">
-                      <div className="text-left">
-                        <span className="font-mono text-[10px] uppercase font-bold text-turmeric block flex items-center space-x-1.5">
-                          <span className="w-2 h-2 rounded-full bg-turmeric animate-pulse inline-block" />
-                          <span>DIAGNOSTIC OUTPUT</span>
-                        </span>
-                        <span className="font-mono text-[9px] uppercase tracking-wider text-ink opacity-65">
-                          SUBJECT: {dogName.trim() ? dogName.trim().toUpperCase() : 'CANINE COMPANION'} ({dogWeight} LBS)
-                        </span>
-                      </div>
-                      <Activity className="w-5 h-5 text-turmeric shrink-0" />
-                    </div>
-
-                    <div className="flex justify-between items-center pt-3">
-                      <span className="font-mono text-xs text-ink uppercase font-bold">Target Daily Demand:</span>
-                      <span className="font-mono font-black text-xl sm:text-2xl text-ink">
-                        {calcResult.calories} <span className="text-sm font-semibold opacity-70">kCal / day</span>
-                      </span>
-                    </div>
-                  </div>
-
-                  {calcResult.recommendedProduct && (
-                    <div className="space-y-2.5">
-                      <span className="font-mono text-[10px] uppercase font-bold text-herb block">
-                        RECOMMENDED RECIPE FORMULATION:
-                      </span>
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border border-cardboard p-4 gap-4 bg-paperLight rounded-[14px] shadow-xs hover:border-turmeric transition-colors">
-                        <div className="flex items-center space-x-3 text-left">
-                          <img 
-                            src={calcResult.recommendedProduct.image_url || 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&q=80&w=200'} 
-                            alt={calcResult.recommendedProduct.name} 
-                            width={56}
-                            height={56}
-                            className="w-14 h-14 object-cover border border-cardboard rounded-[8px] shrink-0"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&q=80&w=200';
-                            }}
-                          />
-                          <div>
-                            <h4 className="font-display font-bold text-sm text-ink">{calcResult.recommendedProduct.name}</h4>
-                            <p className="font-mono text-xs text-turmeric font-bold">₹{parseFloat(calcResult.recommendedProduct.price).toFixed(2)} per lb</p>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => {
-                            if (calcResult.recommendedProduct) {
-                              handleAddRecommended(calcResult.recommendedProduct.id);
-                            }
-                          }}
-                          disabled={isAddingRecommended}
-                          className={`font-mono text-[10px] font-bold uppercase px-4 py-2.5 rounded-[8px] transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${
-                            isAddedRecommended
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-turmeric text-ink hover:bg-opacity-90 hover-bounce shadow-xs active:scale-98'
+                {/* Quick Size Presets */}
+                <div className="space-y-2 pt-2">
+                  <span className="font-mono text-[10px] uppercase font-bold text-ink opacity-70 block">
+                    Quick Size Presets:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {DOG_PRESETS.map((preset) => {
+                      const isSelected = Number(dogWeight) === preset.weight && activityLevel === preset.activity;
+                      return (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => handleApplyPreset(preset)}
+                          className={`font-mono text-[10px] uppercase px-3 py-1.5 rounded-[8px] transition-all cursor-pointer font-bold border ${
+                            isSelected
+                              ? 'bg-turmeric text-ink border-turmeric shadow-xs scale-102'
+                              : 'bg-paper text-ink opacity-85 border-cardboard hover:border-turmeric hover-opacity-100'
                           }`}
                         >
-                          {isAddedRecommended ? (
-                            <>
-                              <Check className="w-3.5 h-3.5 text-white" />
-                              <span>Added! 🐾</span>
-                            </>
-                          ) : (
-                            <span>Add Recommended</span>
-                          )}
+                          {preset.label}
                         </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="border border-dashed border-cardboard/70 p-3 space-y-1 font-mono text-[11px] text-ink opacity-75 bg-paper/60 rounded-xl">
+                  <p>Formula base: RER = 70 × (weight_kg)⁰·⁷⁵</p>
+                  <p>Output MER = RER × activity_multiplier</p>
+                </div>
+
+                <div className="pt-2">
+                  <button 
+                    onClick={() => navigate('/onboarding')}
+                    className="inline-flex items-center space-x-2 bg-turmeric text-ink hover:bg-opacity-95 font-mono text-[10px] uppercase font-bold px-5 py-3 rounded-[10px] tracking-wider transition-all hover-bounce cursor-pointer shadow-xs active:scale-98"
+                  >
+                    <span>Step-by-Step Diet Planner</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="lg:col-span-7 bg-paper border border-cardboard p-6 sm:p-8 rounded-[20px] relative shadow-md">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="font-mono text-[10px] uppercase font-bold text-ink opacity-85 block">Dog's Name (Optional)</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Scooby" 
+                        value={dogName}
+                        onChange={(e) => setDogName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 border border-cardboard rounded-[10px] bg-paperLight font-body text-sm text-ink focus:outline-hidden focus:border-turmeric focus:ring-2 focus:ring-turmeric/20 transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="font-mono text-[10px] uppercase font-bold text-ink opacity-85 block">Weight (lbs)</label>
+                      <input 
+                        type="number" 
+                        placeholder="e.g. 35" 
+                        value={dogWeight}
+                        onChange={(e) => setDogWeight(e.target.value !== '' ? Number(e.target.value) : '')}
+                        min="1"
+                        className="w-full px-3.5 py-2.5 border border-cardboard rounded-[10px] bg-paperLight font-body text-sm text-ink focus:outline-hidden focus:border-turmeric focus:ring-2 focus:ring-turmeric/20 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-mono text-[10px] uppercase font-bold text-ink opacity-85 block">Daily Activity Output</label>
+                    <select 
+                      value={activityLevel}
+                      onChange={(e: any) => setActivityLevel(e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-cardboard rounded-[10px] bg-paperLight font-body text-sm text-ink focus:outline-hidden focus:border-turmeric focus:ring-2 focus:ring-turmeric/20 transition-all cursor-pointer"
+                    >
+                      <option value="sedentary">Sedentary (Couches & Relaxed Walks)</option>
+                      <option value="active">Active (Daily Runs, Fetch & Playtime)</option>
+                      <option value="very_active">Working / Sporting (Constant Agility & Training)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {calcResult && (
+                  <div className="mt-6 border-t-2 border-dashed border-cardboard pt-6 space-y-4 animate-fade-in-up">
+                    {/* Thermal Diagnostic Output Box */}
+                    <div className="bg-paperLight p-5 sm:p-6 border border-cardboard rounded-[14px] shadow-xs relative">
+                      <div className="flex justify-between items-center pb-3 border-b border-dashed border-cardboard">
+                        <div className="text-left">
+                          <span className="font-mono text-[10px] uppercase font-bold text-turmeric block flex items-center space-x-1.5">
+                            <span className="w-2 h-2 rounded-full bg-turmeric animate-pulse inline-block" />
+                            <span>DIAGNOSTIC OUTPUT</span>
+                          </span>
+                          <span className="font-mono text-[9px] uppercase tracking-wider text-ink opacity-65">
+                            SUBJECT: {dogName.trim() ? dogName.trim().toUpperCase() : 'CANINE COMPANION'} ({dogWeight} LBS)
+                          </span>
+                        </div>
+                        <Activity className="w-5 h-5 text-turmeric shrink-0" />
+                      </div>
+
+                      <div className="flex justify-between items-center pt-3">
+                        <span className="font-mono text-xs text-ink uppercase font-bold">Target Daily Demand:</span>
+                        <span className="font-mono font-black text-xl sm:text-2xl text-ink">
+                          {calcResult.calories} <span className="text-sm font-semibold opacity-70">kCal / day</span>
+                        </span>
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
+
+                    {calcResult.recommendedProduct && (
+                      <div className="space-y-2.5">
+                        <span className="font-mono text-[10px] uppercase font-bold text-herb block">
+                          RECOMMENDED RECIPE FORMULATION:
+                        </span>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border border-cardboard p-4 gap-4 bg-paperLight rounded-[14px] shadow-xs hover:border-turmeric transition-colors">
+                          <div className="flex items-center space-x-3 text-left">
+                            <img 
+                              src={calcResult.recommendedProduct.image_url || 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&q=80&w=200'} 
+                              alt={calcResult.recommendedProduct.name} 
+                              width={56}
+                              height={56}
+                              className="w-14 h-14 object-cover border border-cardboard rounded-[8px] shrink-0"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&q=80&w=200';
+                              }}
+                            />
+                            <div>
+                              <h4 className="font-display font-bold text-sm text-ink">{calcResult.recommendedProduct.name}</h4>
+                              <p className="font-mono text-xs text-turmeric font-bold">₹{parseFloat(calcResult.recommendedProduct.price).toFixed(2)} per lb</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              if (calcResult.recommendedProduct) {
+                                handleAddRecommended(calcResult.recommendedProduct.id);
+                              }
+                            }}
+                            disabled={isAddingRecommended}
+                            className={`font-mono text-[10px] font-bold uppercase px-4 py-2.5 rounded-[8px] transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${
+                              isAddedRecommended
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-turmeric text-ink hover:bg-opacity-90 hover-bounce shadow-xs active:scale-98'
+                            }`}
+                          >
+                            {isAddedRecommended ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-white" />
+                                <span>Added! 🐾</span>
+                              </>
+                            ) : (
+                              <span>Add Recommended</span>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        ) : mealPlannerFallback !== 'hide' ? (
+          <section className="bg-paperLight py-12 px-4 sm:px-6 md:px-8 border-b border-cardboard border-opacity-35 text-center">
+            <div className="max-w-xl mx-auto space-y-3">
+              <Eyebrow label="METABOLIC SIZING ENGINE" />
+              <h3 className="font-display font-bold text-2xl uppercase tracking-tight text-ink opacity-70">
+                Customized Canine Meal Planner
+              </h3>
+              <p className="font-body text-sm text-ink opacity-60">
+                {mealPlannerFallback === 'coming_soon'
+                  ? 'Our interactive recipe calculator and personalized meal planning tool are launching soon.'
+                  : 'The meal planning tool is temporarily unavailable while undergoing maintenance.'}
+              </p>
+            </div>
+          </section>
+        ) : null}
 
         {/* Feature Service Cards Section */}
         <section className="bg-paper py-16 md:py-24 px-4 sm:px-6 md:px-8 border-b border-cardboard border-opacity-35">
@@ -464,22 +482,31 @@ export default function HomePage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-              <div 
-                onClick={() => navigate('/pets')}
-                className="border border-cardboard hover:border-turmeric hover-paperLift bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 cursor-pointer group shadow-sm transition-all duration-300 relative overflow-hidden"
-              >
-                <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px] group-hover:border-turmeric transition-colors">
-                  <Database className="w-6 h-6 text-turmeric" />
+              {isKnowYourPetEnabled ? (
+                <div 
+                  onClick={() => navigate('/pets')}
+                  className="border border-cardboard hover:border-turmeric hover-paperLift bg-paperLight p-6 sm:p-8 rounded-[16px] space-y-4 cursor-pointer group shadow-sm transition-all duration-300 relative overflow-hidden"
+                >
+                  <div className="w-12 h-12 flex items-center justify-center border border-dashed border-cardboard bg-paper rounded-[12px] group-hover:border-turmeric transition-colors">
+                    <Database className="w-6 h-6 text-turmeric" />
+                  </div>
+                  <h3 className="font-display text-xl font-bold uppercase tracking-tight text-ink">Pet Health Ledger</h3>
+                  <p className="font-body text-xs sm:text-sm text-ink opacity-80 leading-relaxed">
+                    Log your pet's diagnostics, allergen sensitivities, weight trends, and profile details in one secure database.
+                  </p>
+                  <div className="flex items-center space-x-1.5 font-mono text-xs uppercase font-bold text-turmeric pt-2">
+                    <span>Manage Health Logs</span>
+                    <span className="transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
+                  </div>
                 </div>
-                <h3 className="font-display text-xl font-bold uppercase tracking-tight text-ink">Pet Health Ledger</h3>
-                <p className="font-body text-xs sm:text-sm text-ink opacity-80 leading-relaxed">
-                  Log your pet's diagnostics, allergen sensitivities, weight trends, and profile details in one secure database.
-                </p>
-                <div className="flex items-center space-x-1.5 font-mono text-xs uppercase font-bold text-turmeric pt-2">
-                  <span>Manage Health Logs</span>
-                  <span className="transition-transform duration-200 group-hover:translate-x-1">&rarr;</span>
-                </div>
-              </div>
+              ) : knowYourPetFallback !== 'hide' ? (
+                <FeaturePlaceholderCard
+                  icon={Database}
+                  title="Pet Health Ledger"
+                  description="Log your pet's diagnostics, allergen sensitivities, weight trends, and profile details in one secure database."
+                  variant={knowYourPetFallback}
+                />
+              ) : null}
 
               {isConsultationsEnabled ? (
                 <div
@@ -563,11 +590,21 @@ export default function HomePage() {
 
             {/* Quick Links Navigation Ledger */}
             <div className="flex flex-wrap justify-center gap-4 sm:gap-8 font-mono text-[11px] uppercase tracking-wider text-turmeric font-bold pt-2 border-t border-b border-cardboard/20 py-4 w-full max-w-2xl">
-              <button onClick={() => navigate('/shop')} className="hover:text-white transition-colors cursor-pointer">Shop Meals</button>
-              <button onClick={() => navigate('/pets')} className="hover:text-white transition-colors cursor-pointer">Pet Ledger</button>
-              <button onClick={() => navigate('/consultations')} className="hover:text-white transition-colors cursor-pointer">Telehealth</button>
-              <button onClick={() => navigate('/assistant')} className="hover:text-white transition-colors cursor-pointer">AI Coach</button>
-              <button onClick={() => navigate('/onboarding')} className="hover:text-white transition-colors cursor-pointer">Diet Planner</button>
+              {isShopEnabled && (
+                <button onClick={() => navigate('/shop')} className="hover:text-white transition-colors cursor-pointer">Shop Meals</button>
+              )}
+              {isKnowYourPetEnabled && (
+                <button onClick={() => navigate('/pets')} className="hover:text-white transition-colors cursor-pointer">Pet Ledger</button>
+              )}
+              {isConsultationsEnabled && (
+                <button onClick={() => navigate('/consultations')} className="hover:text-white transition-colors cursor-pointer">Telehealth</button>
+              )}
+              {isChatbotEnabled && (
+                <button onClick={() => navigate('/assistant')} className="hover:text-white transition-colors cursor-pointer">AI Coach</button>
+              )}
+              {isMealPlannerEnabled && (
+                <button onClick={() => navigate('/onboarding')} className="hover:text-white transition-colors cursor-pointer">Diet Planner</button>
+              )}
             </div>
 
             <p className="font-mono text-[10px] uppercase tracking-wider text-cardboard opacity-75">
