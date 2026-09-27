@@ -67,6 +67,20 @@ DEFAULT_FLAGS = [
         "category": "ai",
         "is_enabled": True,
     },
+    {
+        "key": "shop_meal_planner",
+        "name": "Customized Canine Meal Planner",
+        "description": "Enables the interactive pet meal planning quiz and personalized diet recommendation tool.",
+        "category": "shop",
+        "is_enabled": True,
+    },
+    {
+        "key": "pets_know_your_pet",
+        "name": "Know Your Pet & Health Passport",
+        "description": "Enables pet profiles, breed encyclopedias, vaccination calendars, and health passports.",
+        "category": "pets",
+        "is_enabled": True,
+    },
 ]
 
 def seed_default_flags_if_missing(db: Session) -> None:

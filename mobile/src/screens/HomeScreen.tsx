@@ -60,6 +60,7 @@ import { BrandHeader } from '../components/BrandLogo';
 import { fetchUnreadCount } from '../api/notifications';
 import { BASE_URL } from '../api/client';
 import { useResponsive } from '../hooks/useResponsive';
+import { useFeatureFlag } from '../hooks/useFeatureFlag';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -516,6 +517,9 @@ export default function HomeScreen({ navigation }: any) {
   const { user } = useAuthStore();
   const { pets } = usePetStore();
   const { items, addItem, updateQuantity, removeItem, getTotalItems } = useCartStore();
+
+  const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
+  const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
 
   const [banners, setBanners] = useState<HeroBanner[]>(HERO_BANNERS);
   const [products, setProducts] = useState<Product[]>([]);
@@ -1342,14 +1346,14 @@ export default function HomeScreen({ navigation }: any) {
             a field journal: one weight, one hairline divider between rows,
             no per-row colour or badge competing for attention. */}
         <View style={styles.serviceLedger}>
-          {CORE_SERVICES.map((srv, i) => {
+          {CORE_SERVICES.filter((srv) => srv.id !== 'pets' || isKnowYourPetEnabled).map((srv, i, arr) => {
             const IconComp = srv.icon;
             return (
               <TouchableOpacity
                 key={srv.id}
                 style={[
                   styles.serviceRow,
-                  i === CORE_SERVICES.length - 1 && styles.serviceRowLast,
+                  i === arr.length - 1 && styles.serviceRowLast,
                 ]}
                 onPress={() => {
                   if (srv.actionType === 'navigate' && srv.target) {
@@ -1440,26 +1444,28 @@ export default function HomeScreen({ navigation }: any) {
         {/* Meal Planner entry — mirrors web's persistent "Meal Planner"
             nav item / Home CTA (frontend/src/features/onboarding), a diet
             quiz usable any time rather than a first-run/signup gate. */}
-        <View style={styles.mealPlannerCard}>
-          <View style={styles.mealPlannerIconCircle}>
-            <Sparkles size={22} color={COLORS.brandGold} />
+        {isMealPlannerEnabled && (
+          <View style={styles.mealPlannerCard}>
+            <View style={styles.mealPlannerIconCircle}>
+              <Sparkles size={22} color={COLORS.brandGold} />
+            </View>
+            <View style={styles.mealPlannerTextCol}>
+              <Text style={styles.mealPlannerTitle}>Meal Planner</Text>
+              <Text style={styles.mealPlannerSubtitle}>
+                Get a personalized recipe recommendation in 90 seconds.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.mealPlannerBtn}
+              onPress={() => handleNavigateScreen('MealPlanner')}
+              activeOpacity={0.88}
+              accessibilityRole="button"
+              accessibilityLabel="Open meal planner"
+            >
+              <ArrowRight size={18} color="#FFFFFF" />
+            </TouchableOpacity>
           </View>
-          <View style={styles.mealPlannerTextCol}>
-            <Text style={styles.mealPlannerTitle}>Meal Planner</Text>
-            <Text style={styles.mealPlannerSubtitle}>
-              Get a personalized recipe recommendation in 90 seconds.
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.mealPlannerBtn}
-            onPress={() => handleNavigateScreen('MealPlanner')}
-            activeOpacity={0.88}
-            accessibilityRole="button"
-            accessibilityLabel="Open meal planner"
-          >
-            <ArrowRight size={18} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+        )}
 
         {/* 7. Vet Consultation Card (Dark Forest Green). "Telehealth
             Apothecary" wasn't the right name for what this is — it's a vet

@@ -56,11 +56,13 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
   const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
+  const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
+  const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
 
   const navLinks = [
-    { id: 'onboarding', label: 'Meal Planner 🥗', path: '/onboarding' },
+    ...(isMealPlannerEnabled ? [{ id: 'onboarding', label: 'Meal Planner 🥗', path: '/onboarding' }] : []),
     ...(isShopEnabled ? [{ id: 'shop', label: 'Shop Recipes', path: '/shop' }] : []),
-    { id: 'pets', label: 'Know Your Pet', path: '/pets' },
+    ...(isKnowYourPetEnabled ? [{ id: 'pets', label: 'Know Your Pet', path: '/pets' }] : []),
     ...(isConsultationsEnabled ? [{ id: 'consultations', label: 'Vet Consults', path: '/consultations' }] : []),
     { id: 'orders', label: 'My Orders', path: '/orders' },
     ...(isChatbotEnabled ? [{ id: 'assistant', label: 'AI Assistant 🐾', path: '/assistant' }] : []),
