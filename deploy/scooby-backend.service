@@ -1,0 +1,44 @@
+# systemd unit for the FastAPI backend, run with gunicorn + uvicorn workers
+# (production mode — not the `uvicorn --reload` dev command you run locally).
+#
+# Install:
+#   sudo cp deploy/scooby-backend.service /etc/systemd/system/scooby-backend.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now scooby-backend
+#
+# Logs:
+#   journalctl -u scooby-backend -f
+#
+# After a `git pull` to deploy new code:
+#   sudo systemctl restart scooby-backend
+
+[Unit]
+Description=Scooby's Kitchen FastAPI backend
+After=network.target
+
+[Service]
+Type=notify
+# Match this to the actual deploy path on the VPS.
+WorkingDirectory=/var/www/scoobys-kitchen/pet-platform-backend
+EnvironmentFile=/var/www/scoobys-kitchen/pet-platform-backend/.env
+
+# 3 workers is a deliberate, conservative choice for a 2 vCPU box — not the
+# textbook (2*CPU)+1=5. Each worker opens its own DB_POOL_SIZE (10) +
+# DB_MAX_OVERFLOW (5) = 15 connections (app/core/config.py), so 3 workers
+# tops out at 45 concurrent DB connections against Neon. Check that number
+# against your Neon plan's connection limit (use the pooled/PgBouncer
+# connection string, not the direct one, if you go higher) before raising
+# --workers.
+ExecStart=/var/www/scoobys-kitchen/pet-platform-backend/.venv/bin/gunicorn \
+    app.main:app \
+    --workers 3 \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --bind 127.0.0.1:8000 \
+    --access-logfile - \
+    --error-logfile -
+
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -44,7 +44,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
-import { FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
+import { FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_DISPLAY_BLACK, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { usePetStore } from '../store/petStore';
@@ -76,7 +76,6 @@ const DEFAULT_DOG_IMAGES = [
 
 interface HeroBanner {
   id: string;
-  badge: string;
   title: string;
   subtitle: string;
   ctaText: string;
@@ -87,7 +86,6 @@ interface HeroBanner {
 const HERO_BANNERS: HeroBanner[] = [
   {
     id: '1',
-    badge: 'Family Owned • Since 2016',
     title: 'Hearth & Hound: Small-Batch Nutrition',
     subtitle: 'Wholesome Chicken & Sweet Potato recipes hand-crafted with human-grade ingredients.',
     ctaText: 'Explore Kitchen',
@@ -96,7 +94,6 @@ const HERO_BANNERS: HeroBanner[] = [
   },
   {
     id: '2',
-    badge: '100% Transparent',
     title: 'Honest Ingredients. Zero Filler.',
     subtitle: 'Every batch contains zero corn, wheat, soy, or synthetic preservatives. Tested by nutritionists.',
     ctaText: 'Explore Recipes',
@@ -105,16 +102,14 @@ const HERO_BANNERS: HeroBanner[] = [
   },
   {
     id: '3',
-    badge: 'Farm Fresh',
-    title: 'Farm-To-Bowl Holistic Meals',
-    subtitle: 'Real whole-food chicken and farm-fresh sweet potatoes slow-cooked daily to nurture vitality.',
+    title: 'Farm-To-Freezer Holistic Meals',
+    subtitle: 'Real whole-food chicken and sweet potatoes, cooked once and flash-frozen to lock in nutrition — no preservatives needed.',
     ctaText: 'Explore Menu',
     targetScreen: 'Shop',
     bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521315/scooby_kitchen/nji85annhntaovsycm9q.jpg',
   },
   {
     id: '4',
-    badge: 'High Protein',
     title: 'Raptor: All-Meat Diet',
     subtitle: 'Pure primal nutrition engineered for athletic endurance, lean muscle, and digestive resilience.',
     ctaText: 'View Recipe',
@@ -125,78 +120,43 @@ const HERO_BANNERS: HeroBanner[] = [
 
 interface CoreService {
   id: string;
-  badge: string;
   title: string;
   desc: string;
   icon: any;
-  color: string;
-  bg: string;
-  borderColor: string;
-  badgeBg: string;
-  badgeColor: string;
   actionType: 'navigate' | 'vision' | 'chatbot';
   target?: string;
 }
 
-// Each category is themed from one of DESIGN.md's four confirmed brand
-// hues (turmeric/ochre, navy, sage, and the existing accentRed alert
-// color) instead of unrelated generic amber/emerald/blue/red — Forest
-// Green is deliberately left out of this grid entirely, since the Canopy
-// Stamp Rule reserves it for real CTAs/warnings, not passive category tiles.
 const CORE_SERVICES: CoreService[] = [
   {
     id: 'kitchen',
-    badge: 'FARM FRESH',
     title: 'Shop Recipes',
-    desc: 'Small-batch human-grade recipes cooked fresh daily at 4°C.',
+    desc: 'Small-batch, human-grade recipes, blast-frozen for freshness.',
     icon: UtensilsCrossed,
-    color: COLORS.brandGold,
-    bg: '#F9F6F4',
-    borderColor: '#E3D6CA',
-    badgeBg: '#EEE6DD',
-    badgeColor: '#684521',
     actionType: 'navigate',
     target: 'Shop',
   },
   {
     id: 'telehealth',
-    badge: '1-ON-1 VET',
     title: 'Vet Consults',
     desc: 'Certified holistic doctors online for video diet consultations.',
     icon: Stethoscope,
-    color: COLORS.navy,
-    bg: COLORS.navyTintBg,
-    borderColor: COLORS.navyTintBorder,
-    badgeBg: COLORS.navyTintBadgeBg,
-    badgeColor: COLORS.navyTintText,
     actionType: 'navigate',
     target: 'Consult',
   },
   {
     id: 'orders',
-    badge: 'TRACK ORDERS',
     title: 'My Orders',
     desc: 'Real-time kitchen delivery tracking & 1-tap fast reordering.',
     icon: Package,
-    color: COLORS.sageIcon,
-    bg: COLORS.sageTintBg,
-    borderColor: COLORS.sageTintBorder,
-    badgeBg: COLORS.sageTintBadgeBg,
-    badgeColor: COLORS.sageTintText,
     actionType: 'navigate',
     target: 'Orders',
   },
   {
     id: 'pets',
-    badge: 'HEALTH LOGS',
     title: 'Know Your Pet',
     desc: 'Manage medical history, vaccination calendar & allergy flags.',
     icon: PawPrint,
-    color: COLORS.accentRed,
-    bg: '#F9F5F4',
-    borderColor: '#E2CECA',
-    badgeBg: '#EEE0DD',
-    badgeColor: '#672F22',
     actionType: 'navigate',
     target: 'Pets',
   },
@@ -245,8 +205,10 @@ const BannerSlideItem = memo(function BannerSlideItem({
         />
 
         <View style={styles.bannerContent}>
-          {/* Headline */}
-          <Text style={styles.bannerTitle}>{item.title}</Text>
+          {/* Headline — capped at 2 lines: banner copy can come from the
+              admin-managed banners API, and an uncapped title would silently
+              overflow this card's fixed height with no ellipsis. */}
+          <Text style={styles.bannerTitle} numberOfLines={2}>{item.title}</Text>
 
           {/* Subtitle */}
           <Text style={styles.bannerSub} numberOfLines={2}>
@@ -468,13 +430,18 @@ const ReviewCardItem = memo(function ReviewCardItem({
             review.type === 'doctor' ? styles.doctorTypeBadge : styles.productTypeBadge,
           ]}
         >
+          {review.type === 'doctor' ? (
+            <Stethoscope size={9} color={COLORS.navy} strokeWidth={2.4} />
+          ) : (
+            <UtensilsCrossed size={9} color={COLORS.sageTintText} strokeWidth={2.4} />
+          )}
           <Text
             style={[
               styles.reviewTypeBadgeText,
               review.type === 'doctor' ? styles.doctorTypeText : styles.productTypeText,
             ]}
           >
-            {review.type === 'doctor' ? '🩺 Vet Consult' : '🐾 Fresh Meal'}
+            {review.type === 'doctor' ? 'Vet Consult' : 'Fresh Meal'}
           </Text>
         </View>
       </View>
@@ -760,17 +727,10 @@ export default function HomeScreen({ navigation }: any) {
 
       // 1. Process Banners
       if (bannersRes.status === 'fulfilled' && bannersRes.value && bannersRes.value.length > 0) {
-        const defaultBadges = [
-          '🌸 New Spring Release',
-          'Family Owned • Since 2016',
-          '100% Veterinary Audited',
-          'Fresh Daily Batch',
-        ];
-        const mapped: HeroBanner[] = bannersRes.value.map((b, idx) => {
+        const mapped: HeroBanner[] = bannersRes.value.map((b) => {
           const isConsultation = (b.link_url || '').includes('consult');
           return {
             id: String(b.id),
-            badge: defaultBadges[idx % defaultBadges.length],
             title: b.title || 'Hand-crafted fresh meals & herbal supplements',
             subtitle:
               b.subtitle ||
@@ -1320,18 +1280,12 @@ export default function HomeScreen({ navigation }: any) {
             alongside the hero banner. */}
         {belowFoldReady && (
         <>
-        {/* 5. Scooby Core Care & App Features Section */}
-        <View style={styles.sectionHeaderRow}>
-          <View>
-            <Text style={styles.sectionTitle}>Scooby Care & Services</Text>
-            <Text style={styles.sectionSubtitle}>
-              Integrated AI diagnostics, fresh kitchen & telehealth
-            </Text>
-          </View>
-          <View style={styles.platformBadge}>
-            <Sparkles size={11} color={COLORS.brandGold} />
-            <Text style={styles.platformBadgeText}>AI ECOSYSTEM</Text>
-          </View>
+        {/* 5. Scooby Core Care & App Features Section — a plain heading,
+            no badge: the rows below already show what's on offer, so a
+            "AI ECOSYSTEM" chip and a restating subtitle were saying the
+            same thing twice. */}
+        <View style={styles.sectionHeaderRowPlain}>
+          <Text style={styles.sectionTitleLarge}>Scooby Care & Services</Text>
         </View>
 
         {/* Feature Spotlight: AI Pet Vision Scanner. Reads through a
@@ -1384,20 +1338,18 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </TouchableOpacity>
 
-        {/* Core Services — Ledger Index. Each service is a full-width tab
-            row (not a same-size icon+heading+text tile) so the description
-            always has room to wrap in full instead of being clipped by a
-            narrow grid column; the colored index tab riffs on DESIGN.md's
-            own notebook Spine Motif rather than a generic accent border. */}
+        {/* Core Services — a plain ruled list, like a table of contents in
+            a field journal: one weight, one hairline divider between rows,
+            no per-row colour or badge competing for attention. */}
         <View style={styles.serviceLedger}>
-          {CORE_SERVICES.map((srv) => {
+          {CORE_SERVICES.map((srv, i) => {
             const IconComp = srv.icon;
             return (
               <TouchableOpacity
                 key={srv.id}
                 style={[
-                  styles.serviceLedgerRow,
-                  { backgroundColor: srv.bg, borderColor: srv.borderColor },
+                  styles.serviceRow,
+                  i === CORE_SERVICES.length - 1 && styles.serviceRowLast,
                 ]}
                 onPress={() => {
                   if (srv.actionType === 'navigate' && srv.target) {
@@ -1408,31 +1360,18 @@ export default function HomeScreen({ navigation }: any) {
                     navigation.navigate('Chatbot');
                   }
                 }}
-                activeOpacity={0.85}
+                activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel={`${srv.title}: ${srv.desc}`}
               >
-                <View style={[styles.serviceLedgerTab, { backgroundColor: srv.color }]} />
+                <IconComp size={20} color={COLORS.textCoffee} strokeWidth={1.75} />
 
-                <View style={[styles.serviceLedgerIconWrap, { borderColor: srv.color }]}>
-                  <IconComp size={19} color={srv.color} strokeWidth={2.2} />
+                <View style={styles.serviceRowBody}>
+                  <Text style={styles.serviceRowTitle}>{srv.title}</Text>
+                  <Text style={styles.serviceRowDesc} numberOfLines={1}>{srv.desc}</Text>
                 </View>
 
-                <View style={styles.serviceLedgerBody}>
-                  <View style={styles.serviceLedgerTitleRow}>
-                    <Text style={styles.serviceLedgerTitle}>{srv.title}</Text>
-                    <View style={[styles.serviceMiniBadge, { backgroundColor: srv.badgeBg }]}>
-                      <Text style={[styles.serviceMiniBadgeText, { color: srv.badgeColor }]}>
-                        {srv.badge}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.serviceLedgerDesc}>{srv.desc}</Text>
-                </View>
-
-                <View style={[styles.serviceLedgerArrow, { backgroundColor: srv.color }]}>
-                  <ArrowRight size={15} color="#FFFFFF" strokeWidth={2.4} />
-                </View>
+                <ChevronRight size={18} color={COLORS.textMuted} />
               </TouchableOpacity>
             );
           })}
@@ -1611,9 +1550,12 @@ export default function HomeScreen({ navigation }: any) {
                 accessibilityState={{ selected: reviewFilter === 'product' }}
                 accessibilityLabel={`Meal reviews, ${productReviewsCount}`}
               >
-                <Text style={[styles.reviewFilterText, reviewFilter === 'product' && styles.reviewFilterTextActive]}>
-                  🐾 Meals ({productReviewsCount})
-                </Text>
+                <View style={styles.reviewFilterContent}>
+                  <UtensilsCrossed size={12} color={reviewFilter === 'product' ? '#FFFFFF' : COLORS.textMuted} strokeWidth={2.2} />
+                  <Text style={[styles.reviewFilterText, reviewFilter === 'product' && styles.reviewFilterTextActive]}>
+                    Meals ({productReviewsCount})
+                  </Text>
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -1624,34 +1566,53 @@ export default function HomeScreen({ navigation }: any) {
                 accessibilityState={{ selected: reviewFilter === 'doctor' }}
                 accessibilityLabel={`Vet reviews, ${doctorReviewsCount}`}
               >
-                <Text style={[styles.reviewFilterText, reviewFilter === 'doctor' && styles.reviewFilterTextActive]}>
-                  🩺 Vets ({doctorReviewsCount})
-                </Text>
+                <View style={styles.reviewFilterContent}>
+                  <Stethoscope size={12} color={reviewFilter === 'doctor' ? '#FFFFFF' : COLORS.textMuted} strokeWidth={2.2} />
+                  <Text style={[styles.reviewFilterText, reviewFilter === 'doctor' && styles.reviewFilterTextActive]}>
+                    Vets ({doctorReviewsCount})
+                  </Text>
+                </View>
               </TouchableOpacity>
             </View>
 
-            <FlatList
-              key={reviewFilter}
-              ref={reviewListRef}
-              data={infiniteReviews}
-              keyExtractor={reviewKeyExtractor}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.reviewsListScroll}
-              onScrollBeginDrag={() => {
-                isReviewDraggingRef.current = true;
-              }}
-              onScrollEndDrag={() => {
-                isReviewDraggingRef.current = false;
-              }}
-              onMomentumScrollEnd={onReviewScrollEnd}
-              renderItem={renderReviewItem}
-              getItemLayout={getReviewItemLayout}
-              initialNumToRender={3}
-              maxToRenderPerBatch={3}
-              windowSize={3}
-              removeClippedSubviews={Platform.OS === 'android'}
-            />
+            {filteredReviews.length === 0 ? (
+              // A filter tab with a real, non-zero count (e.g. "Vets (0)"
+              // never shows) can't happen from the pill counts themselves,
+              // but the two categories are independently sized — an app
+              // with product reviews and zero vet reviews yet is a normal
+              // state, not a bug, so it gets a message instead of a blank
+              // horizontal strip.
+              <View style={styles.reviewsEmptyState}>
+                <Text style={styles.reviewsEmptyStateText}>
+                  {reviewFilter === 'doctor'
+                    ? 'No vet consultation reviews yet.'
+                    : 'No recipe reviews yet.'}
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                key={reviewFilter}
+                ref={reviewListRef}
+                data={infiniteReviews}
+                keyExtractor={reviewKeyExtractor}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.reviewsListScroll}
+                onScrollBeginDrag={() => {
+                  isReviewDraggingRef.current = true;
+                }}
+                onScrollEndDrag={() => {
+                  isReviewDraggingRef.current = false;
+                }}
+                onMomentumScrollEnd={onReviewScrollEnd}
+                renderItem={renderReviewItem}
+                getItemLayout={getReviewItemLayout}
+                initialNumToRender={3}
+                maxToRenderPerBatch={3}
+                windowSize={3}
+                removeClippedSubviews={Platform.OS === 'android'}
+              />
+            )}
           </View>
         )}
 
@@ -1793,6 +1754,11 @@ export default function HomeScreen({ navigation }: any) {
                         : styles.productTypeBadge,
                     ]}
                   >
+                    {selectedReviewModal.type === 'doctor' ? (
+                      <Stethoscope size={10} color={COLORS.navy} strokeWidth={2.4} />
+                    ) : (
+                      <UtensilsCrossed size={10} color={COLORS.sageTintText} strokeWidth={2.4} />
+                    )}
                     <Text
                       style={[
                         styles.reviewTypeBadgeText,
@@ -1801,7 +1767,7 @@ export default function HomeScreen({ navigation }: any) {
                           : styles.productTypeText,
                       ]}
                     >
-                      {selectedReviewModal.type === 'doctor' ? '🩺 Vet Consult' : '🐾 Fresh Meal'}
+                      {selectedReviewModal.type === 'doctor' ? 'Vet Consult' : 'Fresh Meal'}
                     </Text>
                   </View>
                 </View>
@@ -2167,22 +2133,15 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginTop: 1,
   },
-  platformBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
+  sectionHeaderRowPlain: {
+    paddingHorizontal: 16,
+    marginBottom: 14,
   },
-  platformBadgeText: {
-    fontSize: 9.5,
-    fontFamily: LEDGER_MONO,
-    color: '#92400E',
-    letterSpacing: 0.5,
+  sectionTitleLarge: {
+    fontSize: 20,
+    fontFamily: FONT_DISPLAY_BLACK,
+    color: COLORS.textCoffee,
+    letterSpacing: -0.6,
   },
 
   /* Feature Spotlight: AI Pet Vision Scanner — a camera-viewfinder motif
@@ -2276,91 +2235,34 @@ const styles = StyleSheet.create({
   serviceLedger: {
     paddingHorizontal: 16,
     marginBottom: 22,
-    gap: 10,
   },
-  serviceLedgerRow: {
+  // A plain ruled list — a table of contents, not a stack of tinted
+  // tiles. One hairline dashed divider between rows, no per-row colour.
+  serviceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 8,
-    paddingVertical: 13,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    gap: 12,
-    shadowColor: COLORS.textCoffee,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    gap: 14,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.kraftBorder,
+    borderStyle: 'dashed',
   },
-  // A die-cut index tab riffing on DESIGN.md's notebook Spine Motif —
-  // poking out past the card's own left edge like a filing divider,
-  // instead of a flat inline accent border.
-  serviceLedgerTab: {
-    position: 'absolute',
-    left: -8,
-    top: '50%',
-    marginTop: -15,
-    width: 16,
-    height: 30,
-    borderTopLeftRadius: 8,
-    borderBottomLeftRadius: 8,
-    borderTopRightRadius: 3,
-    borderBottomRightRadius: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: -1, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 2,
-    elevation: 3,
+  serviceRowLast: {
+    borderBottomWidth: 0,
   },
-  serviceLedgerIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 1.5,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  serviceLedgerBody: {
+  serviceRowBody: {
     flex: 1,
-    gap: 3,
+    gap: 2,
   },
-  serviceLedgerTitleRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 7,
-  },
-  serviceLedgerTitle: {
-    fontSize: 14,
+  serviceRowTitle: {
+    fontSize: 15,
     fontFamily: FONT_DISPLAY_SEMIBOLD,
     color: COLORS.textCoffee,
   },
-  serviceMiniBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2.5,
-    borderRadius: 6,
-  },
-  serviceMiniBadgeText: {
-    fontSize: 8,
-    fontFamily: LEDGER_MONO,
-    letterSpacing: 0.4,
-  },
-  serviceLedgerDesc: {
-    fontSize: 11.5,
+  serviceRowDesc: {
+    fontSize: 12,
     fontFamily: FONT_BODY,
     color: COLORS.textMuted,
-    lineHeight: 16,
-  },
-  serviceLedgerArrow: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
   },
 
   /* 6. Kitchen Favorites */
@@ -2574,7 +2476,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  /* 7. Telehealth Apothecary Card */
+  /* 7. Meal Planner CTA & Vet Consultation Card */
   mealPlannerCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2705,6 +2607,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.forestGreen,
     borderColor: COLORS.forestGreen,
   },
+  reviewFilterContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
   reviewFilterText: {
     fontSize: 11,
     fontFamily: LEDGER_MONO,
@@ -2717,6 +2624,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 14,
     marginBottom: 24,
+  },
+  reviewsEmptyState: {
+    marginHorizontal: 16,
+    marginBottom: 24,
+    paddingVertical: 22,
+    borderRadius: 16,
+    backgroundColor: COLORS.cardAlt,
+    borderWidth: 1,
+    borderColor: COLORS.kraftBorder,
+    alignItems: 'center',
+  },
+  reviewsEmptyStateText: {
+    fontSize: 12,
+    fontFamily: FONT_BODY,
+    color: COLORS.textMuted,
   },
   reviewCard: {
     width: 250,
@@ -2748,6 +2670,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     left: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 6,
@@ -2902,6 +2827,9 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   reviewModalBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 3.5,
     borderRadius: 6,

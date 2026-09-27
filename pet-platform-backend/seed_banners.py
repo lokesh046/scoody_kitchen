@@ -26,8 +26,8 @@ VALUES
     TRUE
 ),
 (
-    'Farm-To-Bowl Fresh Holistic Meals',
-    'Real whole-food chicken and farm-fresh sweet potatoes slow-cooked daily to nurture mind, body, and vitality.',
+    'Farm-To-Freezer Holistic Meals',
+    'Real whole-food chicken and sweet potatoes, cooked once and flash-frozen to lock in nutrition — no preservatives needed.',
     'https://res.cloudinary.com/utnenyxi/image/upload/v1788521315/scooby_kitchen/nji85annhntaovsycm9q.jpg',
     '/shop',
     3,

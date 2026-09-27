@@ -11,7 +11,7 @@
 // requested weight or synthetically re-bold it. Apply only
 // `fontFamily: <TOKEN>` on a style and drop any `fontWeight` on that style.
 
-import { Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
+import { Outfit_600SemiBold, Outfit_700Bold, Outfit_900Black } from '@expo-google-fonts/outfit';
 import { Quicksand_400Regular, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
 import { CourierPrime_400Regular } from '@expo-google-fonts/courier-prime';
 
@@ -21,6 +21,9 @@ export const FONT_DISPLAY = 'Outfit_700Bold';
 // A lighter display weight for headline-tier text that shouldn't compete
 // with a page's primary heading (e.g. an empty-state title).
 export const FONT_DISPLAY_SEMIBOLD = 'Outfit_600SemiBold';
+// A heavier display weight for a section heading that wants to stand apart
+// from the generic bold-headline default used everywhere else.
+export const FONT_DISPLAY_BLACK = 'Outfit_900Black';
 // DESIGN.md "Body: Regular, weight 400" — descriptions, notes, reviews,
 // ordinary UI copy.
 export const FONT_BODY = 'Quicksand_400Regular';
@@ -40,6 +43,7 @@ export const LEDGER_MONO = 'CourierPrime_400Regular';
 export const FONT_ASSETS = {
   Outfit_600SemiBold,
   Outfit_700Bold,
+  Outfit_900Black,
   Quicksand_400Regular,
   Quicksand_700Bold,
   CourierPrime_400Regular,
