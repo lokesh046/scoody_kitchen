@@ -51,7 +51,7 @@ async def health_agent_node(state: dict[str, Any], config: RunnableConfig | None
         return {
             "messages": messages + [{"role": "assistant", "content": emergency_reply}],
             "is_emergency": True,
-            "sources": ["Scooby Emergency Vet Protocol"],
+            "sources": ["Hearth & One Emergency Vet Protocol"],
         }
 
     # 2. Retrieve Grounding Docs from Vector Store (RAG)
@@ -72,7 +72,7 @@ async def health_agent_node(state: dict[str, Any], config: RunnableConfig | None
                 context_str = "\n\nReference Context:\n" + "\n\n".join([f"--- [{d['title']}] ---\n{d['content']}" for d in docs])
             
             prompt = (
-                "You are Scooby Kitchen's AI Veterinary Health Advisor. Provide safe, empathetic, "
+                "You are Hearth & One's AI Veterinary Health Advisor. Provide safe, empathetic, "
                 "and helpful general pet health guidance for the user's inquiry.\n"
                 "CRITICAL: Keep your response short, concise, and direct (maximum 4 sentences or a few short bullet points).\n"
                 f"{context_str}\n\n"
@@ -127,7 +127,7 @@ async def health_agent_node(state: dict[str, Any], config: RunnableConfig | None
         base_reply = str(base_reply)
 
     full_reply = base_reply + MEDICAL_DISCLAIMER
-    sources = [d["title"] for d in docs] if docs else ["Scooby Veterinary Guidance"]
+    sources = [d["title"] for d in docs] if docs else ["Hearth & One Veterinary Guidance"]
     
     return {
         "messages": messages + [{"role": "assistant", "content": full_reply}],

@@ -48,7 +48,7 @@ async def knowledge_agent_node(state: dict[str, Any], config: RunnableConfig | N
     # 2. Edge Case Fix #12: Anti-Hallucination Check
     if not docs:
         fallback_reply = (
-            "I am Scooby Kitchen's AI Assistant. I don't have specific official information "
+            "I am Hearth & One's AI Assistant. I don't have specific official information "
             "on that topic in my knowledge base. For safety reasons, please consult our support "
             "team or a licensed veterinarian for specialized guidance."
         )
@@ -68,7 +68,7 @@ async def knowledge_agent_node(state: dict[str, Any], config: RunnableConfig | N
             llm = get_llm_with_fallback(model_name="gemini/gemini-3.1-flash-lite", temperature=0.2)
 
             prompt = (
-                f"You are Scooby Kitchen's AI Pet Assistant. Answer the customer's question strictly "
+                f"You are Hearth & One's AI Pet Assistant. Answer the customer's question strictly "
                 f"using the provided reference context below. Do NOT hallucinate or guess instructions.\n"
                 f"CRITICAL: Keep your response short, concise, and direct (maximum 4 sentences or a few short bullet points).\n\n"
                 f"Reference Context:\n{context_str}\n\n"

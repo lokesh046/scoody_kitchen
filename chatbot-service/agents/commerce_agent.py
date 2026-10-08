@@ -294,7 +294,7 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
                     await session_memory.aclear_pending_action(session_id)
                 return {
                     "messages": [{"role": "assistant", "content": reply}],
-                    "sources": ["Scooby Order Service"],
+                    "sources": ["Hearth & One Order Service"],
                     "pending_action": None,
                     "pending_action_args": None,
                 }
@@ -372,7 +372,7 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
                     await session_memory.aclear_pending_action(session_id)
                 return {
                     "messages": [{"role": "assistant", "content": reply}],
-                    "sources": ["Scooby Vet Booking Service"],
+                    "sources": ["Hearth & One Vet Booking Service"],
                     "pending_action": None,
                     "pending_action_args": None,
                 }
@@ -405,7 +405,7 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
                     await session_memory.aclear_pending_action(session_id)
                 return {
                     "messages": [{"role": "assistant", "content": reply}],
-                    "sources": ["Scooby Vet Booking Service"],
+                    "sources": ["Hearth & One Vet Booking Service"],
                     "pending_action": None,
                     "pending_action_args": None,
                 }
@@ -430,7 +430,7 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
                     await session_memory.aclear_pending_action(session_id)
                 return {
                     "messages": [{"role": "assistant", "content": reply}],
-                    "sources": ["Scooby FastMCP Tool Engine"],
+                    "sources": ["Hearth & One FastMCP Tool Engine"],
                     "pending_action": None,
                     "pending_action_args": None,
                 }
@@ -438,7 +438,13 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
     # 4. Native ChatLiteLLM Tool Binding Execution Loop
     if GEMINI_API_KEY and mcp_tools:
         try:
-            llm = get_llm_with_fallback(model_name="gemini/gemini-3.1-flash-lite", temperature=0.1)
+            # reasoning_effort="low": these ReAct steps are mechanical tool-call
+            # decisions (not open-ended analysis) — measured directly that the
+            # Hostinger tier's default reasoning effort burns ~900 hidden
+            # tokens (~6s) deciding something this simple, vs ~190 tokens
+            # (~2.6s) at "low" for the same decision. No effect on the Gemini
+            # fallback chain, which doesn't take this parameter.
+            llm = get_llm_with_fallback(model_name="gemini/gemini-3.1-flash-lite", temperature=0.1, reasoning_effort="low")
             
             def bind_tools_to_runnable(runnable, tools):
                 if hasattr(runnable, "runnable") and hasattr(runnable, "fallbacks"):
@@ -456,11 +462,12 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
                 current_time_str = datetime.now(timezone.utc).isoformat()
                 messages_input: list[BaseMessage] = [
                     SystemMessage(content=(
-                        "You are Scooby Kitchen's AI Commerce Assistant. "
+                        "You are Hearth & One's AI Commerce Assistant. "
                         "Answer customer requests about products, orders, and bookings. "
                         f"Current Date and Time: {current_time_str}\n"
                         "To book a consultation: You MUST call 'tool_book_consultation' directly using 'pet_name' and 'doctor_name' arguments when the user provides names instead of IDs. Do NOT look up IDs first, and do NOT ask for confirmation or generate the confirmation prompt yourself; the system will automatically intercept your tool call and present the confirmation gate to the user."
                         "\nWhenever the customer asks about products, recipes, the catalog, or 'what do you have/sell' — even vaguely — you MUST call 'tool_search_products' to fetch real results before answering. Never describe or invent products from memory; always look them up first."
+                        "\nIMPORTANT for product search: 'search' only matches literal text in product names/descriptions, not attributes/claims that may not appear there (e.g. 'grain-free', 'organic', 'low-fat'). If the customer's term is a specific attribute rather than a product name, call 'tool_search_products' TWICE in this same turn — once with their exact term, once with just the general category (e.g. 'dog food', 'treats') — so you have a useful fallback result ready immediately instead of needing another turn to retry after an empty result."
                         "\nCRITICAL: Tools may list a 'mcp_call_token' or 'session_user_id' argument — these are internal security fields the system fills in automatically right before the tool runs. You never have a value for them and must NEVER ask the customer to provide one, mention them by name, or treat them as missing information. Just call the tool; only ask the customer for arguments that are genuinely about their own request (e.g. an order number, a pet name, a date)."
                         "\nCRITICAL: Keep your response short, concise, and clear (maximum 3 sentences or a few brief bullet points)."
                     )),
@@ -808,7 +815,7 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
                         f"Order #{data.get('order_id', order_id)} is currently "
                         f"**{data.get('status', 'unknown')}** — Total: ${data.get('total_amount', 'N/A')}."
                     )
-                return {"messages": [{"role": "assistant", "content": reply}], "sources": ["Scooby Order Service"]}
+                return {"messages": [{"role": "assistant", "content": reply}], "sources": ["Hearth & One Order Service"]}
         else:
             t_key = "tool_get_my_orders" if "tool_get_my_orders" in tools_by_name else "get_my_orders"
             if t_key in tools_by_name:
@@ -832,7 +839,7 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
                             for o in orders
                         ]
                         reply = "Here are your past and current orders:\n" + "\n".join(lines)
-                return {"messages": [{"role": "assistant", "content": reply}], "sources": ["Scooby Order Service"]}
+                return {"messages": [{"role": "assistant", "content": reply}], "sources": ["Hearth & One Order Service"]}
 
     elif "product" in query_lower or "search" in query_lower:
         t_key = "tool_search_products" if "tool_search_products" in tools_by_name else "search_products"
@@ -852,7 +859,7 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
                 reply = "I couldn't find any products matching that search. Try a different term, or ask me what categories we carry."
             return {
                 "messages": [{"role": "assistant", "content": reply}],
-                "sources": ["Scooby Product Catalog"],
+                "sources": ["Hearth & One Product Catalog"],
                 "products": products,
             }
 
@@ -870,7 +877,7 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
                     "Here are available vet consultation slots:\n" + _format_items_generic(slots)
                     if slots else "There are no available vet consultation slots right now."
                 )
-            return {"messages": [{"role": "assistant", "content": reply}], "sources": ["Scooby Vet Service"]}
+            return {"messages": [{"role": "assistant", "content": reply}], "sources": ["Hearth & One Vet Service"]}
 
     elif "pet" in query_lower or "pets" in query_lower:
         t_key = "tool_get_my_pets" if "tool_get_my_pets" in tools_by_name else "get_my_pets"
@@ -891,7 +898,7 @@ async def commerce_agent_node(state: dict[str, Any], config: RunnableConfig | No
                     "Here are your registered pets:\n" + _format_items_generic(pets)
                     if pets else "You don't have any registered pets yet."
                 )
-            return {"messages": [{"role": "assistant", "content": reply}], "sources": ["Scooby Pet Service"]}
+            return {"messages": [{"role": "assistant", "content": reply}], "sources": ["Hearth & One Pet Service"]}
 
     reply = "I can assist with your orders, product catalog search, and vet consultation bookings. How can I help you today?"
     return {"messages": [{"role": "assistant", "content": reply}]}

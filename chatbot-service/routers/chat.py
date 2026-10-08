@@ -63,7 +63,7 @@ async def chat_endpoint(
                 reply=warning_text,
                 status="success",
                 session_id=request_data.session_id,
-                sources=["Scooby Guardrails Engine"],
+                sources=["Hearth & One Guardrails Engine"],
             )
         raise exc
     safety_duration = (time.perf_counter() - start_safety) * 1000.0
@@ -224,7 +224,7 @@ async def chat_stream_endpoint(
         if exc.status_code == 400 and "Security Violation" in exc.detail:
             async def graceful_safety_stream_generator():
                 warning_text = "🛡️ [Safety Notice] I'm sorry, but your message was flagged by our safety system as a potential instruction override or security concern. I cannot fulfill this request."
-                yield f"data: {json.dumps({'type': 'sources', 'sources': ['Scooby Guardrails Engine']})}\n\n"
+                yield f"data: {json.dumps({'type': 'sources', 'sources': ['Hearth & One Guardrails Engine']})}\n\n"
                 yield f"data: {json.dumps({'type': 'token', 'content': warning_text})}\n\n"
                 yield f"data: {json.dumps({'type': 'done', 'session_id': request_data.session_id, 'status': 'success'})}\n\n"
             return StreamingResponse(graceful_safety_stream_generator(), media_type="text/event-stream")

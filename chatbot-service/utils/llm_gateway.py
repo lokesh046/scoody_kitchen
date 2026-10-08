@@ -24,6 +24,14 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_PRIMARY_MODEL = os.getenv("OPENROUTER_PRIMARY_MODEL", "meta-llama/llama-3.3-70b-instruct")
 
+# Hostinger AI Router: same shape as the OpenRouter tier above (OpenAI-compatible
+# endpoint, credit-based billing), checked first so it takes priority over
+# OpenRouter whenever its key is set. Gated the same way — fully inactive with
+# no behavior change unless HOSTINGER_AI_ROUTER_API_KEY is configured.
+HOSTINGER_AI_ROUTER_API_KEY = os.getenv("HOSTINGER_AI_ROUTER_API_KEY")
+HOSTINGER_AI_ROUTER_BASE_URL = "https://router.hostinger.com/v1"
+HOSTINGER_AI_ROUTER_MODEL = os.getenv("HOSTINGER_AI_ROUTER_MODEL", "deepseek-v4.1-flash")
+
 # Per-attempt ceiling for a single Gemini call. Without this, a hung request
 # has no upper bound — it waits on whatever the underlying SDK/httpx client
 # defaults to, which can be far longer than any user will tolerate.
@@ -52,12 +60,22 @@ class LiteLLMGateway:
         model_name: str = "gemini/gemini-3.1-flash-lite",
         fallback_models: list[str] | None = None,
         temperature: float = 0.2,
+        reasoning_effort: str | None = None,
     ):
         self.model_name = model_name
         self.fallback_models = fallback_models or [
             "gemini/gemini-3.1-pro-preview",
         ]
         self.temperature = temperature
+        # Only applies to the Hostinger tier below — Gemini has no equivalent
+        # knob via this integration. Measured directly: DeepSeek v4.1 Flash's
+        # default reasoning effort burned 893 hidden "reasoning" tokens (6s)
+        # deciding something a plain tool-call pick doesn't need that for;
+        # "low" cut that to 192 tokens (2.6s) for the same decision. Callers
+        # with mechanical, low-ambiguity decisions (e.g. commerce_agent's
+        # ReAct tool-call steps) should pass "low"; leave unset (provider
+        # default) for anything that benefits from deeper reasoning.
+        self.reasoning_effort = reasoning_effort
 
     def _build_gemini_chain(self) -> Any | None:
         """Build the existing Gemini primary+fallback chain. Returns None if
@@ -95,7 +113,32 @@ class LiteLLMGateway:
 
     def get_langchain_llm(self) -> Any:
         """Return a LangChain ChatModel instance with native with_fallbacks() failover."""
-        # 0. OpenRouter as primary, existing Gemini chain as its fallback —
+        # 0. Hostinger AI Router as primary, existing Gemini chain as its
+        # fallback — only when HOSTINGER_AI_ROUTER_API_KEY is configured.
+        # Checked before OpenRouter so it takes priority when both are set.
+        if HOSTINGER_AI_ROUTER_API_KEY and "gemini" in self.model_name.lower():
+            try:
+                from langchain_openai import ChatOpenAI
+                hostinger_kwargs: dict[str, Any] = {}
+                if self.reasoning_effort:
+                    hostinger_kwargs["reasoning_effort"] = self.reasoning_effort
+                primary = ChatOpenAI(
+                    model=HOSTINGER_AI_ROUTER_MODEL,
+                    api_key=HOSTINGER_AI_ROUTER_API_KEY,
+                    base_url=HOSTINGER_AI_ROUTER_BASE_URL,
+                    temperature=self.temperature,
+                    timeout=LLM_TIMEOUT_SECONDS,
+                    max_retries=LLM_MAX_RETRIES,
+                    **hostinger_kwargs,
+                )
+                gemini_fallback_chain = self._build_gemini_chain()
+                if gemini_fallback_chain is not None:
+                    return primary.with_fallbacks([gemini_fallback_chain])
+                return primary
+            except Exception as e:
+                logger.warning("Failed to initialize Hostinger AI Router primary, falling back: %s", e)
+
+        # 1. OpenRouter as primary, existing Gemini chain as its fallback —
         # only when OPENROUTER_API_KEY is configured (see module docstring
         # comment above). bind_tools() on this object still works normally;
         # ChatOpenAI supports the same tool-calling interface commerce_agent
@@ -118,13 +161,13 @@ class LiteLLMGateway:
             except Exception as e:
                 logger.warning("Failed to initialize OpenRouter primary, falling back to Gemini-primary: %s", e)
 
-        # 1. Direct High-Performance Google GenAI integration (Recommended for Gemini)
+        # 2. Direct High-Performance Google GenAI integration (Recommended for Gemini)
         if "gemini" in self.model_name.lower():
             gemini_chain = self._build_gemini_chain()
             if gemini_chain is not None:
                 return gemini_chain
 
-        # 2. Fallback to LiteLLM for non-Gemini models
+        # 3. Fallback to LiteLLM for non-Gemini models
         if ChatLiteLLM is not None:
             try:
                 primary_llm = ChatLiteLLM(
@@ -205,6 +248,7 @@ def get_llm_with_fallback(
     model_name: str = "gemini/gemini-3.1-flash-lite",
     fallback_model_name: str = "gemini/gemini-3.1-pro-preview",
     temperature: float = 0.2,
+    reasoning_effort: str | None = None,
 ) -> Any:
     """Return LangChain ChatLiteLLM model instance configured with native with_fallbacks() strategy."""
     gateway = LiteLLMGateway(
@@ -213,5 +257,6 @@ def get_llm_with_fallback(
             fallback_model_name,
         ],
         temperature=temperature,
+        reasoning_effort=reasoning_effort,
     )
     return gateway.get_langchain_llm()
