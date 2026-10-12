@@ -30,3 +30,22 @@ export const useFeatureFlagFallback = (key: string): FeatureFallbackBehavior => 
   }
   return flags[key].fallback_behavior;
 };
+
+export type RouteGateResult =
+  | { blocked: false }
+  | { blocked: true; fallback: FeatureFallbackBehavior };
+
+// For routes that are entirely one feature (e.g. /onboarding is entirely
+// the meal planner, /assistant is entirely the chatbot) rather than a page
+// with a few optional sections. Unlike useFeatureFlagFallback, this never
+// defaults to a "blocked" state while loading or on error -- treating the
+// whole route as blocked during that brief window (rather than just one
+// placeholder card) would flash every visitor into a wrong/unavailable
+// page on every load, including when the feature is actually enabled.
+export const useRouteFeatureGate = (key: string): RouteGateResult => {
+  const { data: flags, isLoading, isError } = useFeatureFlags();
+  if (isLoading || isError || !flags || flags[key] === undefined || flags[key].enabled) {
+    return { blocked: false };
+  }
+  return { blocked: true, fallback: flags[key].fallback_behavior };
+};

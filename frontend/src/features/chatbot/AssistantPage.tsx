@@ -9,6 +9,8 @@ import {
 } from '../../api/chatbot';
 import type { ChatProduct } from '../../api/chatbot';
 import { Header } from '../../components/Header';
+import { RouteUnavailable } from '../../components/RouteUnavailable';
+import { useRouteFeatureGate } from '../../hooks/useFeatureFlag';
 import {
   PawPrint,
   Mic, MicOff, Trash2, ShieldAlert, Check, X,
@@ -88,6 +90,10 @@ export const AssistantPage: React.FC = () => {
   const { user, accessToken } = useAuthStore();
   const navigate = useNavigate();
   const [isCartOpen, setIsCartOpen] = useState(false);
+  // This whole page IS the AI assistant (unlike HomePage, which only has a
+  // small card for it), so a direct visit while ai_chatbot is off shows a
+  // full-page message instead of a broken/empty chat UI.
+  const pageGate = useRouteFeatureGate('ai_chatbot');
 
   // Chat State
   const [messages, setMessages] = useState<Message[]>([]);
@@ -128,7 +134,7 @@ export const AssistantPage: React.FC = () => {
 
   // Dropdown States
   const [isTopDropdownOpen, setIsTopDropdownOpen] = useState(false);
-  const [selectedMode, setSelectedMode] = useState('Scooby Recipe Chat');
+  const [selectedMode, setSelectedMode] = useState('Hearth & One Recipe Chat');
 
   // Emergency Alert State
   const [showEmergencyAlert, setShowEmergencyAlert] = useState(false);
@@ -434,6 +440,17 @@ export const AssistantPage: React.FC = () => {
     setMessages([]);
   };
 
+  if (pageGate.blocked) {
+    return (
+      <RouteUnavailable
+        variant={pageGate.fallback === 'coming_soon' ? 'coming_soon' : 'unavailable'}
+        activeTab="assistant"
+        title="AI Assistant Temporarily Unavailable"
+        description="Our AI nutrition and pet-care assistant is paused right now. Check back soon, or browse the shop in the meantime."
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
       {/* Full-width Top Navigation Header bar */}
@@ -459,10 +476,10 @@ export const AssistantPage: React.FC = () => {
                   SELECT ASSISTANT MODE
                 </div>
                 <button
-                  onClick={() => { setSelectedMode('Scooby Recipe Chat'); setIsTopDropdownOpen(false); }}
+                  onClick={() => { setSelectedMode('Hearth & One Recipe Chat'); setIsTopDropdownOpen(false); }}
                   className="w-full text-left px-4 py-2.5 text-xs font-body hover:bg-paper text-ink block border-b border-cardboard border-opacity-20"
                 >
-                  <span className="font-bold block text-ink">Scooby Recipe Chat 🍳</span>
+                  <span className="font-bold block text-ink">Hearth & One Recipe Chat 🍳</span>
                   <span className="text-[9px] text-cardboard font-mono">NUTRITION & RECIPES</span>
                 </button>
                 <button
@@ -534,7 +551,7 @@ export const AssistantPage: React.FC = () => {
           {messages.length === 0 ? (
             <div className="text-center py-24 space-y-3">
               <PawPrint className="w-12 h-12 text-cardboard mx-auto stroke-1 animate-float-slow" />
-              <h4 className="font-display font-bold text-ink text-base">Ask Anything About Scooby's Kitchen</h4>
+              <h4 className="font-display font-bold text-ink text-base">Ask Anything About Hearth & One</h4>
               <p className="font-body text-xs text-ink opacity-70 max-w-sm mx-auto">
                 Type questions to query inventory, track placed orders, cancel active orders, or get diagnostic recipe advice.
               </p>
@@ -560,7 +577,7 @@ export const AssistantPage: React.FC = () => {
                   <div className="flex flex-col space-y-1">
                     <span className={`font-mono text-[9px] uppercase text-cardboard font-bold ${msg.role === 'user' ? 'text-right' : 'text-left'
                       }`}>
-                      {msg.role === 'user' ? 'CUSTOMER' : 'SCOOBY ASSISTANT'}
+                      {msg.role === 'user' ? 'CUSTOMER' : 'HEARTH & ONE ASSISTANT'}
                     </span>
 
                     <div className={`p-4 border shadow-xs rounded-sm ${
@@ -585,7 +602,7 @@ export const AssistantPage: React.FC = () => {
                       ) : msg.isStreaming && !msg.content ? (
                         <div className="flex items-center space-x-2 py-2">
                           <span className="font-mono text-[9px] uppercase tracking-wider text-herb animate-pulse">
-                            Consulting Scooby's Recipe Ledger...
+                            Consulting Hearth & One's Recipe Ledger...
                           </span>
                           <div className="flex space-x-1">
                             <span className="w-1.5 h-1.5 bg-turmeric rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
@@ -725,7 +742,7 @@ export const AssistantPage: React.FC = () => {
             <textarea
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder={selectedImage ? "Describe pet symptoms or upload details..." : "Ask Scooby's assistant a question..."}
+              placeholder={selectedImage ? "Describe pet symptoms or upload details..." : "Ask Hearth & One's assistant a question..."}
               className="w-full min-h-[44px] max-h-[140px] resize-none border-0 bg-transparent font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:ring-0 py-1"
               disabled={isStreaming}
               onKeyDown={(e) => {
@@ -788,14 +805,14 @@ export const AssistantPage: React.FC = () => {
 
           {/* Claude style footnote */}
           <p className="mt-3 text-center text-ink opacity-40 font-mono text-[8px] uppercase tracking-wider select-none">
-            Scooby AI is an assistant and can make mistakes. Please double-check veterinary diagnoses.
+            Hearth & One AI is an assistant and can make mistakes. Please double-check veterinary diagnoses.
           </p>
         </div>
 
       </main>
       {/* Footer */}
       <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 font-mono text-[9px] uppercase tracking-wider w-full">
-        © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
+        © {new Date().getFullYear()} Hearth & One. All rights reserved.
       </footer>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>

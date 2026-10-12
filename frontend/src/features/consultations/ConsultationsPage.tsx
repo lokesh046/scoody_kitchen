@@ -28,7 +28,8 @@ import {
 } from 'lucide-react';
 import { submitDoctorReview } from '../../api/reviews';
 import { loadRazorpaySDK } from '../../utils/razorpay';
-import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
+import { useFeatureFlag, useRouteFeatureGate } from '../../hooks/useFeatureFlag';
+import { RouteUnavailable } from '../../components/RouteUnavailable';
 import {
   DoctorAvatar,
   SuggestedDoctorsList,
@@ -63,7 +64,7 @@ export const ConsultationsPage: React.FC = () => {
   // the "Vet Consults" nav link's visibility (see Header.tsx), so a direct
   // URL visit is blocked consistently with the nav link being hidden,
   // rather than only hiding the nav link while the route stays reachable.
-  const pageFallback = useFeatureFlagFallback('consultations_booking');
+  const pageGate = useRouteFeatureGate('consultations_booking');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewSubmitError, setReviewSubmitError] = useState<string | null>(null);
   const [reviewSubmitSuccess, setReviewSubmitSuccess] = useState(false);
@@ -927,26 +928,14 @@ export const ConsultationsPage: React.FC = () => {
     </div>
   );
 
-  if (pageFallback === 'unavailable') {
+  if (pageGate.blocked) {
     return (
-      <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
-        <Header activeTab="consultations" onCartToggle={() => setIsCartOpen(true)} />
-        <main className="flex-grow max-w-3xl w-full mx-auto px-4 py-24 text-center space-y-5">
-          <div className="w-16 h-16 mx-auto flex items-center justify-center border border-dashed border-cardboard bg-cardboard bg-opacity-35 rounded-[16px]">
-            <AlertCircle className="w-8 h-8 text-paprika" />
-          </div>
-          <h1 className="font-display font-black text-2xl sm:text-3xl text-ink">Vet Consultations Temporarily Unavailable</h1>
-          <p className="font-body text-sm text-ink opacity-60 max-w-md mx-auto leading-relaxed">
-            We've paused veterinary consultations for now. Check back soon, or explore the shop in the meantime.
-          </p>
-          <button
-            onClick={() => navigate('/shop')}
-            className="font-mono text-xs uppercase tracking-wider font-bold text-paper bg-ink px-5 py-2.5 rounded-sm hover:bg-opacity-90 transition-colors"
-          >
-            Return to Shop
-          </button>
-        </main>
-      </div>
+      <RouteUnavailable
+        variant={pageGate.fallback === 'coming_soon' ? 'coming_soon' : 'unavailable'}
+        activeTab="consultations"
+        title="Vet Consultations Temporarily Unavailable"
+        description="We've paused veterinary consultations for now. Check back soon, or explore the shop in the meantime."
+      />
     );
   }
 

@@ -31,6 +31,7 @@ const ApplyDoctorPage = lazy(() => import('./features/consultations/ApplyDoctorP
 const OnboardingPage = lazy(() => import('./features/onboarding/OnboardingPage').then((m) => ({ default: m.OnboardingPage })));
 const BlogListPage = lazy(() => import('./features/blog/BlogListPage').then((m) => ({ default: m.BlogListPage })));
 const BlogPostPage = lazy(() => import('./features/blog/BlogPostPage').then((m) => ({ default: m.BlogPostPage })));
+const NotFoundPage = lazy(() => import('./components/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
 
 function RouteLoadingFallback() {
   return (
@@ -174,6 +175,7 @@ export default function App() {
               <Route path="/admin/support" element={<RequireAuth adminOnly={true}><AdminSupportPage /></RequireAuth>} />
               <Route path="/doctor" element={<RequireAuth doctorOnly={true}><DoctorDashboard /></RequireAuth>} />
               <Route path="/doctor/dashboard" element={<RequireAuth doctorOnly={true}><DoctorDashboard /></RequireAuth>} />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
           <ChatbotWidget />
