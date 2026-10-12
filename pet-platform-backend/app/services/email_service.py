@@ -37,12 +37,12 @@ def _get_base_email_template(title: str, content_html: str) -> str:
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto;">
                                 <tr>
                                     <td align="center" style="width: 64px; height: 64px; background-color: #FAF6EC; border: 1.5px solid #D09E6B; border-radius: 50%; padding: 4px;">
-                                        <img src="{logo_url}" alt="Scooby's Kitchen Logo" width="56" height="56" style="display: block; width: 56px; height: 56px; object-fit: contain; margin: 0 auto; border: 0;" />
+                                        <img src="{logo_url}" alt="Hearth & One Logo" width="56" height="56" style="display: block; width: 56px; height: 56px; object-fit: contain; margin: 0 auto; border: 0;" />
                                     </td>
                                 </tr>
                             </table>
                             <h1 style="color: #FFFFFF; font-size: 20px; font-weight: 900; letter-spacing: -0.5px; margin: 12px 0 2px 0; text-transform: uppercase;">
-                                Scooby's Kitchen
+                                Hearth & One
                             </h1>
                             <p style="color: #D09E6B; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; margin: 0; text-transform: uppercase; font-family: monospace;">
                                 Honest Small-Batch Pet Cooking
@@ -64,7 +64,7 @@ def _get_base_email_template(title: str, content_html: str) -> str:
                                 Veterinary-Supervised Formulations • Zero Starch Fillers
                             </p>
                             <p style="font-size: 10px; color: #888888; margin: 0; font-family: monospace;">
-                                © Scooby's Kitchen. All rights reserved.
+                                © Hearth & One. All rights reserved.
                             </p>
                         </td>
                     </tr>
@@ -85,14 +85,14 @@ def send_magic_link_email(
     frontend_base = settings.FRONTEND_URL.rstrip("/")
     magic_link_url = f"{frontend_base}/auth/magic-link/verify?token={raw_token}"
 
-    subject = f"🐾 {otp_code} is your Scooby's Kitchen Login OTP & Link"
+    subject = f"🐾 {otp_code} is your Hearth & One Login OTP & Link"
     
     content = f"""
         <h2 style="color: #362820; font-size: 18px; font-weight: 800; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: -0.3px;">
             Passwordless Security Login
         </h2>
         <p style="font-size: 13px; line-height: 1.6; color: #4A3B32; margin: 0 0 20px 0;">
-            Hello, click the button below to instantly sign in to your Scooby's Kitchen account. This link is valid for 10 minutes.
+            Hello, click the button below to instantly sign in to your Hearth & One account. This link is valid for 10 minutes.
         </p>
         
         <!-- Action Button -->
@@ -100,7 +100,7 @@ def send_magic_link_email(
             <tr>
                 <td align="center">
                     <a href="{magic_link_url}" style="background-color: #D09E6B; color: #362820; font-size: 13px; font-weight: 800; text-decoration: none; padding: 14px 28px; border-radius: 8px; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 2px 6px rgba(208, 158, 107, 0.4);">
-                        Log In to Scooby's Kitchen
+                        Log In to Hearth & One
                     </a>
                 </td>
             </tr>
@@ -120,7 +120,7 @@ def send_magic_link_email(
         </p>
     """
 
-    html_content = _get_base_email_template("Scooby's Kitchen Login", content)
+    html_content = _get_base_email_template("Hearth & One Login", content)
 
     # Always log magic link URL and OTP code to server console for dev testing
     logger.info("==================================================")
@@ -135,7 +135,7 @@ def send_magic_link_email(
 
     try:
         sender_email = settings.EMAILS_FROM or settings.SMTP_USER
-        from_header = f"Scooby's Kitchen <{sender_email}>" if "<" not in (sender_email or "") else sender_email
+        from_header = f"Hearth & One <{sender_email}>" if "<" not in (sender_email or "") else sender_email
 
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
@@ -168,7 +168,7 @@ def send_doctor_verification_email(
     to_email: str,
     first_name: str,
 ) -> bool:
-    subject = "🐾 Your Scooby's Kitchen Veterinary Account is Verified!"
+    subject = "🐾 Your Hearth & One Veterinary Account is Verified!"
     dashboard_url = f"{settings.FRONTEND_URL.rstrip('/')}/doctor/dashboard"
 
     content = f"""
@@ -206,7 +206,7 @@ def send_doctor_verification_email(
 
     try:
         sender_email = settings.EMAILS_FROM or settings.SMTP_USER
-        from_header = f"Scooby's Kitchen <{sender_email}>" if "<" not in (sender_email or "") else sender_email
+        from_header = f"Hearth & One <{sender_email}>" if "<" not in (sender_email or "") else sender_email
 
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
@@ -235,7 +235,7 @@ def send_order_update_email(
     title: str,
     message: str,
 ) -> bool:
-    subject = f"🐾 Scooby's Kitchen: {title}"
+    subject = f"🐾 Hearth & One: {title}"
     orders_url = f"{settings.FRONTEND_URL.rstrip('/')}/orders"
 
     content = f"""
@@ -265,7 +265,7 @@ def send_order_update_email(
         </table>
     """
 
-    html_content = _get_base_email_template(f"Scooby's Kitchen: {title}", content)
+    html_content = _get_base_email_template(f"Hearth & One: {title}", content)
 
     logger.info("==================================================")
     logger.info(f"ORDER UPDATE EMAIL TO: {to_email}")
@@ -279,7 +279,7 @@ def send_order_update_email(
 
     try:
         sender_email = settings.EMAILS_FROM or settings.SMTP_USER
-        from_header = f"Scooby's Kitchen <{sender_email}>" if "<" not in (sender_email or "") else sender_email
+        from_header = f"Hearth & One <{sender_email}>" if "<" not in (sender_email or "") else sender_email
 
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
@@ -302,6 +302,75 @@ def send_order_update_email(
         return False
 
 
+def send_newsletter_welcome_email(to_email: str) -> bool:
+    subject = "🐾 Welcome to the Hearth & One Journal"
+    blog_url = f"{settings.FRONTEND_URL.rstrip('/')}/blog"
+
+    content = f"""
+        <h2 style="color: #362820; font-size: 18px; font-weight: 800; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: -0.3px;">
+            You're on the list!
+        </h2>
+        <p style="font-size: 13px; line-height: 1.6; color: #4A3B32; margin: 0 0 20px 0;">
+            Thanks for subscribing. We'll send you our best notes on dog nutrition, feeding, and everyday
+            health as we publish them — practical guidance, not fluff.
+        </p>
+
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 24px 0;">
+            <tr>
+                <td align="center">
+                    <a href="{blog_url}" style="background-color: #D09E6B; color: #362820; font-size: 13px; font-weight: 800; text-decoration: none; padding: 14px 28px; border-radius: 8px; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 2px 6px rgba(208, 158, 107, 0.4);">
+                        Read the Journal
+                    </a>
+                </td>
+            </tr>
+        </table>
+
+        <p style="font-size: 11px; color: #888888; line-height: 1.5; margin: 0; text-align: center;">
+            Didn't sign up for this? You can safely ignore this email.
+        </p>
+    """
+
+    html_content = _get_base_email_template("Welcome to the Journal", content)
+
+    logger.info("==================================================")
+    logger.info(f"NEWSLETTER WELCOME EMAIL TO: {to_email}")
+    logger.info("==================================================")
+
+    if not settings.SMTP_HOST or not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        logger.warning("SMTP settings not configured. Newsletter welcome email logged above.")
+        return True
+
+    try:
+        sender_email = settings.EMAILS_FROM or settings.SMTP_USER
+        from_header = f"Hearth & One <{sender_email}>" if "<" not in (sender_email or "") else sender_email
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = from_header
+        msg["To"] = to_email
+        msg["Reply-To"] = sender_email
+
+        msg.attach(MIMEText(f"Thanks for subscribing to the Hearth & One Journal: {blog_url}", "plain"))
+        msg.attach(MIMEText(html_content, "html"))
+
+        def _send():
+            try:
+                with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+                    server.starttls()
+                    server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                    server.send_message(msg)
+                logger.info(f"Newsletter welcome email successfully sent to {to_email}")
+            except Exception as exc:
+                logger.error(f"Failed to send newsletter welcome email to {to_email}: {exc}")
+
+        import threading
+        threading.Thread(target=_send, daemon=True).start()
+        return True
+    except Exception as exc:
+        logger.error(f"Failed to prepare newsletter welcome email for {to_email}: {exc}")
+        return False
+
+
 def send_consultation_invoice_email(
     to_email: str,
     customer_name: str | None,
@@ -314,7 +383,7 @@ def send_consultation_invoice_email(
     consultation_id: int,
     meeting_link: str | None = None,
 ) -> bool:
-    subject = f"🧾 Scooby's Kitchen: Consultation Invoice & Appointment Receipt (#{consultation_id})"
+    subject = f"🧾 Hearth & One: Consultation Invoice & Appointment Receipt (#{consultation_id})"
     consultations_url = meeting_link or f"{settings.FRONTEND_URL.rstrip('/')}/consultations"
 
     content = f"""
@@ -384,7 +453,7 @@ def send_consultation_invoice_email(
 
     try:
         sender_email = settings.EMAILS_FROM or settings.SMTP_USER
-        from_header = f"Scooby's Kitchen <{sender_email}>" if "<" not in (sender_email or "") else sender_email
+        from_header = f"Hearth & One <{sender_email}>" if "<" not in (sender_email or "") else sender_email
 
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
