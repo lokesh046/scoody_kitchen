@@ -30,7 +30,15 @@ def route_intent(query: str) -> str:
 
     if GEMINI_API_KEY:
         try:
-            llm = get_llm_with_fallback(model_name="gemini/gemini-3.1-flash-lite", temperature=0.0)
+            # reasoning_effort="low": this is a mechanical 3-way classification,
+            # the same kind of low-ambiguity decision commerce_agent's ReAct
+            # steps already pass this for (see its own comment) — without it,
+            # the Hostinger AI Router tier burns its default (much higher)
+            # reasoning-token budget on every message the local classifier
+            # can't confidently handle, which is most short/ambiguous ones.
+            llm = get_llm_with_fallback(
+                model_name="gemini/gemini-3.1-flash-lite", temperature=0.0, reasoning_effort="low"
+            )
             prompt = (
                 "Classify the following customer query into exactly ONE of three category names:\n"
                 "1. 'health_agent' (for pet medical symptoms, illness, fever, bleeding, or health concerns)\n"
