@@ -50,7 +50,10 @@ const SITE_URL = (process.env.SITE_URL || '').replace(/\/$/, '');
 // every product page (fetched live below). Everything else in App.tsx sits
 // behind RequireAuth or is an admin/doctor tool — never meant to be
 // crawled, so never worth the extra build time to prerender.
-const STATIC_ROUTES = ['/', '/shop', '/onboarding'];
+// Trailing slash on everything but '/' — matches what nginx serves
+// directly for these prerendered routes without a redirect (see the same
+// comment in generate-sitemap.js for why that distinction matters).
+const STATIC_ROUTES = ['/', '/shop/', '/onboarding/', '/blog/'];
 
 async function fetchAllProductIds() {
   const ids = [];
@@ -112,6 +115,24 @@ async function writeRoute(outDir, routePath, html) {
   console.log(`prerender: wrote ${routePath} -> ${path.relative(process.cwd(), outFile)}`);
 }
 
+async function fetchAllPublishedBlogSlugs() {
+  const slugs = [];
+  try {
+    const res = await fetch(`${API_BASE_URL}/blog/`);
+    if (!res.ok) {
+      console.error(`prerender: failed to fetch blog posts: HTTP ${res.status}`);
+      return slugs;
+    }
+    const data = await res.json();
+    for (const item of data || []) {
+      slugs.push(item.slug);
+    }
+  } catch (err) {
+    console.error(`prerender: could not reach ${API_BASE_URL} for blog posts (${err.message}) — will prerender without blog pages.`);
+  }
+  return slugs;
+}
+
 async function main() {
   if (!SITE_URL) {
     console.warn('prerender: SITE_URL is not set — skipping prerendering (fine for local dev builds).');
@@ -128,7 +149,12 @@ async function main() {
 
   const outDir = path.resolve(process.cwd(), 'dist');
   const productIds = await fetchAllProductIds();
-  const routes = [...STATIC_ROUTES, ...productIds.map((id) => `/product/${id}`)];
+  const blogSlugs = await fetchAllPublishedBlogSlugs();
+  const routes = [
+    ...STATIC_ROUTES,
+    ...productIds.map((id) => `/product/${id}/`),
+    ...blogSlugs.map((slug) => `/blog/${slug}/`),
+  ];
 
   const server = await preview({
     preview: { port: PRERENDER_PORT, host: '127.0.0.1', strictPort: true },
@@ -156,7 +182,7 @@ async function main() {
     await writeRoute(outDir, route, rewritten);
   }
 
-  console.log(`prerender: done — ${routes.length} route(s) prerendered (${productIds.length} product page(s)).`);
+  console.log(`prerender: done — ${routes.length} route(s) prerendered (${productIds.length} product page(s), ${blogSlugs.length} blog post(s)).`);
 }
 
 main().catch((err) => {

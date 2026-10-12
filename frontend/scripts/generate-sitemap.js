@@ -21,11 +21,17 @@ const API_BASE_URL = (process.env.API_BASE_URL || process.env.VITE_API_BASE_URL 
 
 const STATIC_PAGES = [
   { path: '/', changefreq: 'daily', priority: '1.0' },
-  { path: '/shop', changefreq: 'daily', priority: '0.9' },
+  // Trailing slash matches what nginx actually serves directly for these
+  // prerendered routes (dist/shop/index.html etc.) — the no-slash form
+  // 301s to this one, and advertising a URL that immediately redirects as
+  // the sitemap/canonical URL is what caused Google to log a "Redirect
+  // error" and refuse to index it, rather than just following the hop.
+  { path: '/shop/', changefreq: 'daily', priority: '0.9' },
   // The "Meal Planner" diet quiz (folder name is legacy — see
   // frontend/src/features/onboarding) is a public tool, not a signup gate,
   // so it belongs in the sitemap like any other page.
-  { path: '/onboarding', changefreq: 'weekly', priority: '0.6' },
+  { path: '/onboarding/', changefreq: 'weekly', priority: '0.6' },
+  { path: '/blog/', changefreq: 'daily', priority: '0.8' },
 ];
 
 function urlEntry(loc, changefreq, priority) {
@@ -60,6 +66,24 @@ async function fetchAllProductIds() {
   return ids;
 }
 
+async function fetchAllPublishedBlogSlugs() {
+  const slugs = [];
+  try {
+    const res = await fetch(`${API_BASE_URL}/blog/`);
+    if (!res.ok) {
+      console.error(`generate-sitemap: failed to fetch blog posts: HTTP ${res.status}`);
+      return slugs;
+    }
+    const data = await res.json();
+    for (const item of data || []) {
+      slugs.push(item.slug);
+    }
+  } catch (err) {
+    console.error(`generate-sitemap: could not reach ${API_BASE_URL} for blog posts (${err.message}) — sitemap will omit blog pages.`);
+  }
+  return slugs;
+}
+
 async function main() {
   if (!SITE_URL) {
     console.warn('generate-sitemap: SITE_URL is not set — skipping sitemap generation (fine for local dev builds).');
@@ -70,7 +94,12 @@ async function main() {
 
   const productIds = await fetchAllProductIds();
   for (const id of productIds) {
-    entries.push(urlEntry(`${SITE_URL}/product/${id}`, 'weekly', '0.8'));
+    entries.push(urlEntry(`${SITE_URL}/product/${id}/`, 'weekly', '0.8'));
+  }
+
+  const blogSlugs = await fetchAllPublishedBlogSlugs();
+  for (const slug of blogSlugs) {
+    entries.push(urlEntry(`${SITE_URL}/blog/${slug}/`, 'monthly', '0.7'));
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join('\n')}\n</urlset>\n`;
@@ -79,7 +108,7 @@ async function main() {
   const path = await import('node:path');
   const outPath = path.resolve(process.cwd(), 'public', 'sitemap.xml');
   await fs.writeFile(outPath, xml, 'utf-8');
-  console.log(`generate-sitemap: wrote ${entries.length} URL(s) (${productIds.length} product page(s)) to ${outPath}`);
+  console.log(`generate-sitemap: wrote ${entries.length} URL(s) (${productIds.length} product page(s), ${blogSlugs.length} blog post(s)) to ${outPath}`);
 }
 
 main().catch((err) => {

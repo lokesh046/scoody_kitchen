@@ -22,5 +22,4 @@ Disallow: /assistant
 Disallow: /admin
 Disallow: /doctor
 
-# Replace with your real production domain.
-Sitemap: https://www.scoobyskitchen.com/sitemap.xml
+Sitemap: https://hearthandone.com/sitemap.xml

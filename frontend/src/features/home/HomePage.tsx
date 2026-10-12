@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Heart, Shield, Sparkles, ChevronRight, 
+import {
+  Heart, Shield, Sparkles, ChevronRight,
   Activity, Database, ArrowRight, Check
 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
@@ -18,6 +18,10 @@ import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
 import { FeaturePlaceholderCard } from '../../components/FeaturePlaceholderCard';
+import { FAQSection, FAQ_QUERY_KEY } from '../../components/FAQSection';
+import { JournalPreviewSection } from '../../components/JournalPreviewSection';
+import { fetchActiveFaqs } from '../../api/faqs';
+import type { FAQResponse } from '../../types/faq';
 
 interface QuickPreset {
   label: string;
@@ -38,12 +42,41 @@ export default function HomePage() {
     "Human-grade, small-batch pet food cooked under veterinary supervision. Transparent recipes for pet parents who care."
   );
 
+  // Shares react-query's cache with FAQSection's own useQuery call (same
+  // key) so this doesn't fire a second network request just to build the
+  // FAQPage structured-data block below.
+  const { data: faqsForSchema = [] } = useQuery<FAQResponse[]>({
+    queryKey: FAQ_QUERY_KEY,
+    queryFn: fetchActiveFaqs,
+    staleTime: 1000 * 60 * 10,
+  });
+
+  // useStructuredData only supports one JSON-LD block per page (fixed
+  // script id), so Organization and FAQPage are combined into a single
+  // @graph instead of each feature calling the hook independently.
   useStructuredData({
     '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: "Scooby's Kitchen",
-    url: 'https://www.scoobyskitchen.com/',
-    logo: 'https://www.scoobyskitchen.com/images/scooby_logo.png',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        name: "Hearth & One",
+        url: 'https://hearthandone.com/',
+        logo: 'https://hearthandone.com/images/scooby_logo.png',
+      },
+      ...(faqsForSchema.length > 0
+        ? [{
+            '@type': 'FAQPage',
+            mainEntity: faqsForSchema.map((faq) => ({
+              '@type': 'Question',
+              name: faq.question,
+              acceptedAnswer: {
+                '@type': 'Answer',
+                text: faq.answer,
+              },
+            })),
+          }]
+        : []),
+    ],
   });
 
   const navigate = useNavigate();
@@ -565,14 +598,18 @@ export default function HomePage() {
 
         {/* Let our #Scoobysfam speak for us Carousel */}
         <ReviewsCarousel />
-        
+
+        <JournalPreviewSection />
+
+        <FAQSection />
+
         {/* Polished Footer with Navigation Ledger */}
         <footer className="py-14 bg-ink text-paper px-4 sm:px-6 md:px-8 border-t border-cardboard border-opacity-20 text-center">
           <div className="max-w-7xl mx-auto space-y-8 flex flex-col items-center">
             <div className="w-16 h-16 sm:w-20 sm:h-20 logo-medallion flex items-center justify-center p-1 overflow-hidden mb-1 shadow-lg">
               <img
                 src="/scooby-logo-256.png"
-                alt="Scooby's Kitchen Logo"
+                alt="Hearth & One Logo"
                 width={80}
                 height={80}
                 className="w-full h-full object-contain select-none"
@@ -581,7 +618,7 @@ export default function HomePage() {
             
             <div className="space-y-2">
               <p className="font-display font-black text-2xl text-paper tracking-tight">
-                Scooby's Kitchen
+                Hearth & One
               </p>
               <p className="font-body text-xs max-w-md mx-auto leading-relaxed text-paper opacity-75">
                 Transparent small-batch pet wellness, human-grade meal formulations, and clinical telemedicine.
@@ -607,8 +644,22 @@ export default function HomePage() {
               )}
             </div>
 
+            <a
+              href="https://www.instagram.com/hearth__and__hound/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Hearth & One on Instagram"
+              className="flex items-center justify-center w-10 h-10 rounded-full border border-cardboard border-opacity-30 text-paper hover:text-turmeric hover:border-turmeric transition-colors"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+              </svg>
+            </a>
+
             <p className="font-mono text-[10px] uppercase tracking-wider text-cardboard opacity-75">
-              © {new Date().getFullYear()} Scooby's Kitchen. Crafted with care for pet parents everywhere.
+              © {new Date().getFullYear()} Hearth & One. Crafted with care for pet parents everywhere.
             </p>
           </div>
         </footer>

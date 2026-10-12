@@ -29,6 +29,8 @@ const DoctorDashboard = lazy(() => import('./features/doctor/DoctorDashboard').t
 const ProfilePage = lazy(() => import('./features/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const ApplyDoctorPage = lazy(() => import('./features/consultations/ApplyDoctorPage'));
 const OnboardingPage = lazy(() => import('./features/onboarding/OnboardingPage').then((m) => ({ default: m.OnboardingPage })));
+const BlogListPage = lazy(() => import('./features/blog/BlogListPage').then((m) => ({ default: m.BlogListPage })));
+const BlogPostPage = lazy(() => import('./features/blog/BlogPostPage').then((m) => ({ default: m.BlogPostPage })));
 
 function RouteLoadingFallback() {
   return (
@@ -36,7 +38,7 @@ function RouteLoadingFallback() {
       <div className="text-center space-y-3">
         <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
         <p className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold">
-          Loading Scooby Kitchen... 🐾
+          Loading Hearth & One... 🐾
         </p>
       </div>
     </div>
@@ -161,6 +163,8 @@ export default function App() {
               <Route path="/consultations/room/:id" element={<RequireAuth><VideoCallPage /></RequireAuth>} />
               <Route path="/apply-doctor" element={<RequireAuth><ApplyDoctorPage /></RequireAuth>} />
               <Route path="/onboarding" element={<OnboardingPage />} />
+              <Route path="/blog" element={<BlogListPage />} />
+              <Route path="/blog/:slug" element={<BlogPostPage />} />
               <Route path="/assistant" element={<RequireAuth><AssistantPage /></RequireAuth>} />
               <Route path="/support" element={<RequireAuth><SupportPage /></RequireAuth>} />
               <Route path="/support/:ticketId" element={<RequireAuth><SupportTicketPage /></RequireAuth>} />
