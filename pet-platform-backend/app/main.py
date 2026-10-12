@@ -34,6 +34,9 @@ from app.api.internal import router as internal_router
 from app.api.doctor_applications import router as doctor_applications_router
 from app.api.colleges import router as colleges_router
 from app.api.banner import router as banners_router
+from app.api.faq import router as faqs_router
+from app.api.blog import router as blog_router
+from app.api.newsletter import router as newsletter_router
 from app.api.notification import router as notification_router
 from app.api.reviews import router as reviews_router
 from app.api.feature_flags import router as feature_flags_router
@@ -131,8 +134,6 @@ app.add_middleware(
         "http://127.0.0.1:8081",
         "http://localhost:19006",
         "http://127.0.0.1:19006",
-        "https://scoobys-kitchen.com",
-        "https://www.scoobys-kitchen.com",
         "https://hearthandone.com",
         "https://www.hearthandone.com",
         "https://api.hearthandone.com",
@@ -204,6 +205,9 @@ app.include_router(internal_router)
 app.include_router(doctor_applications_router)
 app.include_router(colleges_router)
 app.include_router(banners_router)
+app.include_router(faqs_router)
+app.include_router(blog_router)
+app.include_router(newsletter_router)
 app.include_router(notification_router)
 app.include_router(reviews_router)
 app.include_router(feature_flags_router)
