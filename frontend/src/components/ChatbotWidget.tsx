@@ -461,7 +461,7 @@ export const ChatbotWidget: React.FC = () => {
             <div className="flex items-center space-x-2">
               <Sparkles className="w-4 h-4 text-turmeric shrink-0" />
               <div>
-                <h4 className="font-display font-bold text-xs text-ink">Scooby's AI Help</h4>
+                <h4 className="font-display font-bold text-xs text-ink">Hearth & One's AI Help</h4>
                 <div className="flex items-center space-x-1.5">
                   <span className="font-mono text-[7px] uppercase font-bold text-herb">STREAM TOKEN CHAT</span>
                   <span className="font-mono text-[7px] uppercase font-bold tracking-wider flex items-center">
@@ -517,7 +517,7 @@ export const ChatbotWidget: React.FC = () => {
             {messages.length === 0 ? (
               <div className="text-center py-20 space-y-2">
                 <MessageSquare className="w-10 h-10 text-cardboard mx-auto stroke-1" />
-                <h5 className="font-display font-bold text-ink text-xs">Ask Scooby's Kitchen AI</h5>
+                <h5 className="font-display font-bold text-ink text-xs">Ask Hearth & One AI</h5>
                 <p className="font-body text-[10px] text-ink opacity-70 max-w-[200px] mx-auto">
                   Get delivery diagnostics, order status updates, or veterinarian booking timings.
                 </p>
@@ -537,7 +537,7 @@ export const ChatbotWidget: React.FC = () => {
                     </div>
                   ) : (
                     <div className="w-6 h-6 rounded-full border border-cardboard overflow-hidden shadow-sm shrink-0 mr-2 bg-white flex items-center justify-center p-0.5">
-                      <img src="/scooby-avatar.jpg" alt="Scooby AI Logo" className="w-full h-full object-contain" />
+                      <img src="/scooby-avatar.jpg" alt="Hearth & One AI Logo" className="w-full h-full object-contain" />
                     </div>
                   )}
 

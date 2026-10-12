@@ -11,14 +11,14 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchMyPets } from '../../api/pets';
 import { fetchMySupportUnreadCount } from '../../api/support';
 import { Header } from '../../components/Header';
-import { 
-  Phone, 
-  UserCheck, 
-  ArrowLeft, 
-  Loader2, 
-  BookOpen, 
-  FileText, 
-  Stethoscope, 
+import {
+  Phone,
+  UserCheck,
+  ArrowLeft,
+  Loader2,
+  BookOpen,
+  FileText,
+  Stethoscope,
   FolderHeart,
   PawPrint,
   ShieldCheck,
@@ -28,14 +28,31 @@ import {
   X,
   CheckCircle2,
   Lock,
-  Headset
+  Headset,
+  Clock,
+  AlertCircle
 } from 'lucide-react';
+import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
 
 export const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user, accessToken, setAuth, clearAuth } = useAuthStore();
   const clearCart = useCartStore((state) => state.clear);
+  const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  const consultationsFallback = useFeatureFlagFallback('consultations_booking');
+
+  const handleNavigateConsultations = () => {
+    if (!isConsultationsEnabled) {
+      alert(
+        consultationsFallback === 'coming_soon'
+          ? "Vet consultations aren't open yet — check back soon."
+          : 'Vet consultations are temporarily unavailable.'
+      );
+      return;
+    }
+    navigate('/consultations');
+  };
   
   const [isCartOpen, setIsCartOpen] = useState(false);
 
@@ -581,18 +598,32 @@ export const ProfilePage: React.FC = () => {
             </button>
 
             {/* View Consultations */}
-            <button
-              onClick={() => navigate('/consultations')}
-              className="flex items-center space-x-3 p-4 border border-cardboard border-opacity-35 hover:border-turmeric bg-paper hover:bg-paperLight rounded-sm transition-all text-ink text-left cursor-pointer shadow-xs"
-            >
-              <div className="p-2.5 bg-blue-50 rounded-sm border border-blue-200">
-                <Stethoscope className="w-5 h-5 text-blue-700" />
-              </div>
-              <div>
-                <span className="font-body font-bold text-xs block">Vet Consultations</span>
-                <span className="font-mono text-[9px] uppercase opacity-70 text-ink">Tele-Health Hub</span>
-              </div>
-            </button>
+            {(isConsultationsEnabled || consultationsFallback !== 'hide') && (
+              <button
+                onClick={handleNavigateConsultations}
+                className={`flex items-center space-x-3 p-4 border border-cardboard border-opacity-35 rounded-sm transition-all text-left shadow-xs ${
+                  isConsultationsEnabled
+                    ? 'hover:border-turmeric bg-paper hover:bg-paperLight text-ink cursor-pointer'
+                    : 'bg-paper text-ink opacity-50 cursor-pointer'
+                }`}
+              >
+                <div className="p-2.5 bg-blue-50 rounded-sm border border-blue-200">
+                  <Stethoscope className="w-5 h-5 text-blue-700" />
+                </div>
+                <div>
+                  <span className="font-body font-bold text-xs flex items-center gap-1.5">
+                    Vet Consultations
+                    {!isConsultationsEnabled && (
+                      <span className="inline-flex items-center gap-1 font-mono text-[8px] uppercase font-bold px-1.5 py-0.5 rounded-sm bg-cardboard bg-opacity-35 text-ink">
+                        {consultationsFallback === 'coming_soon' ? <Clock className="w-2.5 h-2.5" /> : <AlertCircle className="w-2.5 h-2.5" />}
+                        {consultationsFallback === 'coming_soon' ? 'Soon' : 'Paused'}
+                      </span>
+                    )}
+                  </span>
+                  <span className="font-mono text-[9px] uppercase opacity-70 text-ink">Tele-Health Hub</span>
+                </div>
+              </button>
+            )}
 
             {/* View Orders */}
             <button
@@ -691,7 +722,7 @@ export const ProfilePage: React.FC = () => {
       {/* Footer */}
       <footer className="mt-auto border-t border-cardboard border-opacity-30 py-6 text-center text-ink opacity-60 w-full">
         <p className="font-mono text-[10px] uppercase tracking-wider">
-          © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
+          © {new Date().getFullYear()} Hearth & One. All rights reserved.
         </p>
       </footer>
 

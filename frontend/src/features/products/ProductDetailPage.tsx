@@ -5,9 +5,9 @@ import { fetchProductById } from '../../api/products';
 import { useAuthStore } from '../../store/auth';
 import { IngredientLedger, getIngredientsForProduct } from '../../components/IngredientLedger';
 import { Eyebrow } from '../../components/Eyebrow';
-import { 
+import {
   ArrowLeft, Bone, ShoppingCart,
-  Minus, Plus, ShieldCheck, Heart, AlertCircle,
+  Minus, Plus, ShieldCheck, Heart, AlertCircle, Clock,
   Star, Camera, ChevronLeft, ChevronRight, CheckCircle, Trash2, X
 } from 'lucide-react';
 import { useCartStore } from '../../store/cart';
@@ -18,6 +18,7 @@ import type { ProductReview } from '../../api/reviews';
 
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
+import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -32,6 +33,8 @@ export const ProductDetailPage: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [isAdded, setIsAdded] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
+  const isShopEnabled = useFeatureFlag('shop_checkout', true);
+  const shopFallback = useFeatureFlagFallback('shop_checkout');
 
   // Parse ID
   const productId = id ? parseInt(id, 10) : NaN;
@@ -217,6 +220,7 @@ export const ProductDetailPage: React.FC = () => {
   };
 
   const handleAddToCart = async () => {
+    if (!isShopEnabled) return; // safety net — the button below is already disabled in this case
     if (!user) {
       // Redirect unauthenticated user to login
       navigate('/login');
@@ -329,7 +333,7 @@ export const ProductDetailPage: React.FC = () => {
         {/* Footer */}
         <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
           <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">
-            © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
+            © {new Date().getFullYear()} Hearth & One. All rights reserved.
           </p>
         </footer>
       </div>
@@ -357,7 +361,7 @@ export const ProductDetailPage: React.FC = () => {
   }
 
   const ingredients = getIngredientsForProduct(product.id, product.name);
-  const imageUrl = product.image_url || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="300" height="200" fill="%23FAF6EC"/><path d="M 0,20 L 300,20 M 0,40 L 300,40 M 0,60 L 300,60 M 0,80 L 300,80 M 0,100 L 300,100 M 0,120 L 300,120 M 0,140 L 300,140 M 0,160 L 300,160 M 0,180 L 300,180" stroke="%23C9BB9C" stroke-width="0.5" stroke-dasharray="2,2"/><g transform="translate(110, 45)" fill="none" stroke="%234B6B3A" stroke-width="2"><path d="M10 50 L70 50 L60 25 L20 25 Z" stroke-linejoin="round"/><ellipse cx="40" cy="25" rx="20" ry="5"/><circle cx="35" cy="21" r="2" fill="%234B6B3A"/><circle cx="45" cy="22" r="2.5" fill="%234B6B3A"/><circle cx="40" cy="19" r="1.5" fill="%234B6B3A"/><path d="M 12 10 Q 5 5 0 10 Q -5 15 0 20 Q 5 25 12 20 L 68 20 Q 75 25 80 20 Q 85 15 80 10 Q 75 5 68 10 Z" transform="translate(-5, -20) rotate(-15 40 25)"/></g><text x="50%" y="80%" font-family="monospace" font-size="11" font-weight="bold" fill="%232E2418" dominant-baseline="middle" text-anchor="middle">🐾 SCOOBY’S KITCHEN 🐾</text><text x="50%" y="90%" font-family="monospace" font-size="9" fill="%234B6B3A" dominant-baseline="middle" text-anchor="middle">Canine Tested Recipe</text></svg>';
+  const imageUrl = product.image_url || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="300" height="200" fill="%23FAF6EC"/><path d="M 0,20 L 300,20 M 0,40 L 300,40 M 0,60 L 300,60 M 0,80 L 300,80 M 0,100 L 300,100 M 0,120 L 300,120 M 0,140 L 300,140 M 0,160 L 300,160 M 0,180 L 300,180" stroke="%23C9BB9C" stroke-width="0.5" stroke-dasharray="2,2"/><g transform="translate(110, 45)" fill="none" stroke="%234B6B3A" stroke-width="2"><path d="M10 50 L70 50 L60 25 L20 25 Z" stroke-linejoin="round"/><ellipse cx="40" cy="25" rx="20" ry="5"/><circle cx="35" cy="21" r="2" fill="%234B6B3A"/><circle cx="45" cy="22" r="2.5" fill="%234B6B3A"/><circle cx="40" cy="19" r="1.5" fill="%234B6B3A"/><path d="M 12 10 Q 5 5 0 10 Q -5 15 0 20 Q 5 25 12 20 L 68 20 Q 75 25 80 20 Q 85 15 80 10 Q 75 5 68 10 Z" transform="translate(-5, -20) rotate(-15 40 25)"/></g><text x="50%" y="80%" font-family="monospace" font-size="11" font-weight="bold" fill="%232E2418" dominant-baseline="middle" text-anchor="middle">🐾 HEARTH & ONE 🐾</text><text x="50%" y="90%" font-family="monospace" font-size="9" fill="%234B6B3A" dominant-baseline="middle" text-anchor="middle">Canine Tested Recipe</text></svg>';
   const currentDisplayImage = selectedImage || imageUrl;
   
   const isOutOfStock = activeVariantStock !== null 
@@ -496,6 +500,23 @@ export const ProductDetailPage: React.FC = () => {
               </div>
             )}
 
+            {!isShopEnabled && (
+              <div
+                className={`flex items-center gap-2.5 px-4 py-3 rounded-sm border font-mono text-xs font-bold mb-4 ${
+                  shopFallback === 'coming_soon'
+                    ? 'bg-turmeric bg-opacity-10 border-turmeric text-turmeric'
+                    : 'bg-paprika bg-opacity-10 border-paprika text-paprika'
+                }`}
+              >
+                {shopFallback === 'coming_soon' ? <Clock className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+                <span>
+                  {shopFallback === 'coming_soon'
+                    ? "Ordering isn't open yet — checkout is coming soon."
+                    : 'Ordering is temporarily unavailable.'}
+                </span>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Eyebrow label="NUTRITIONAL COMPOSITION LEDGER" />
               <h2 className="font-display font-bold text-3xl text-ink leading-tight">
@@ -618,9 +639,9 @@ export const ProductDetailPage: React.FC = () => {
               {/* Add to Cart CTA */}
               <button
                 onClick={handleAddToCart}
-                disabled={isOutOfStock || isAdding || !product.is_active}
+                disabled={isOutOfStock || isAdding || !product.is_active || !isShopEnabled}
                 className={`flex-grow font-body font-bold text-xs uppercase py-3.5 px-6 rounded-sm tracking-wide transition-all duration-300 shadow-sm flex items-center justify-center space-x-2 ${
-                  !product.is_active
+                  !product.is_active || !isShopEnabled
                     ? 'bg-cardboard bg-opacity-35 text-ink text-opacity-50 cursor-not-allowed border border-cardboard border-opacity-30'
                     : isAdded
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -640,7 +661,17 @@ export const ProductDetailPage: React.FC = () => {
                 ) : (
                   <>
                     <ShoppingCart className="w-4 h-4" />
-                    <span>{!product.is_active ? 'Unavailable' : isOutOfStock ? 'Sold Out' : 'Shop the Recipe'}</span>
+                    <span>
+                      {!product.is_active
+                        ? 'Unavailable'
+                        : isOutOfStock
+                        ? 'Sold Out'
+                        : !isShopEnabled
+                        ? shopFallback === 'coming_soon'
+                          ? 'Coming Soon'
+                          : 'Unavailable'
+                        : 'Shop the Recipe'}
+                    </span>
                   </>
                 )}
               </button>
@@ -1213,7 +1244,7 @@ export const ProductDetailPage: React.FC = () => {
     {/* Footer */}
     <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
       <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">
-        © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
+        © {new Date().getFullYear()} Hearth & One. All rights reserved.
       </p>
       <p className="font-body text-xs mt-1 max-w-md mx-auto leading-relaxed">
         Tested and crafted with love for pet parents who care about what goes in the bowl.

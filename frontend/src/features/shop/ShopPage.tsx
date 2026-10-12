@@ -121,7 +121,7 @@ export default function ShopPage() {
               </div>
 
               <p className="font-body text-sm md:text-base text-paper opacity-85 leading-relaxed max-w-xl">
-                We formulated Scooby's Kitchen because transparency shouldn't require a magnifying glass. 
+                We formulated Hearth & One because transparency shouldn't require a magnifying glass.
                 We cook human-grade pet meals in documented small batches. No synthetic powders, 
                 no rendering plant meals, and no hidden starches. Just real food prepared for families 
                 who hold their dogs' nutrition to the same standards as their own.
@@ -360,7 +360,7 @@ export default function ShopPage() {
       {/* Footer */}
       <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
         <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">
-          © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
+          © {new Date().getFullYear()} Hearth & One. All rights reserved.
         </p>
         <p className="font-body text-xs mt-1 max-w-md mx-auto leading-relaxed">
           Tested and crafted with love for pet parents who care about what goes in the bowl.

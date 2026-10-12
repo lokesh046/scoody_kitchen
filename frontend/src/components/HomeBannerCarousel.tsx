@@ -31,7 +31,7 @@ export const HomeBannerCarousel: React.FC = () => {
       id: -1,
       badge: "Family Owned • Since 2016",
       pretitle: "Welcome to",
-      title: "THE SCOOBY'S FAM",
+      title: "THE HEARTH & ONE FAM",
       subtitle: "Come be a part of our family's quest for delighted and thriving pets! We craft unique pet meals infused with care and premium ingredients, striving to turn each nibble into a source of joy for your furry companions overall well being.",
       tagline: "Our Recipes are crafted to nurture their Mind, Body and Spirit!",
       image_url: "https://res.cloudinary.com/utnenyxi/image/upload/v1788521361/scooby_kitchen/zfmzprttuoojru2qleeh.jpg",

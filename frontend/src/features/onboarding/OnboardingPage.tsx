@@ -50,18 +50,24 @@ export const OnboardingPage: React.FC = () => {
   const [allergies, setAllergies] = useState<string[]>([]);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
 
-  // Breed group + search state (same two-step flow as mobile's
-  // MealPlannerScreen: pick an AKC group first, then search within it)
+  // Breed group + search state. Most pet parents don't know their dog's AKC
+  // group off the top of their head — requiring it to be picked correctly
+  // before the breed search even matched anything left them stuck with an
+  // empty dropdown and no way out. Typing a breed name now searches the full
+  // dataset regardless of whichever group happens to be selected; picking a
+  // group without typing anything still narrows browsing to that group, for
+  // people who do know it (mirrors mobile's MealPlannerScreen fix).
   const [selectedGroup, setSelectedGroup] = useState<AkcGroup | ''>('');
   const [breedQuery, setBreedQuery] = useState('');
   const [showBreedDropdown, setShowBreedDropdown] = useState(false);
 
   const filteredBreeds = useMemo(() => {
-    if (!selectedGroup) return [];
     const query = breedQuery.trim().toLowerCase();
-    return BREED_DATA.filter(
-      (b) => b.group === selectedGroup && (query === '' || b.name.toLowerCase().includes(query))
-    );
+    if (query) {
+      return BREED_DATA.filter((b) => b.name.toLowerCase().includes(query));
+    }
+    if (!selectedGroup) return [];
+    return BREED_DATA.filter((b) => b.group === selectedGroup);
   }, [selectedGroup, breedQuery]);
 
   const selectedBreedData = useMemo(() => BREED_DATA.find((b) => b.name === breed) || null, [breed]);
@@ -276,7 +282,7 @@ export const OnboardingPage: React.FC = () => {
                 <Sparkles className="w-8 h-8 text-turmeric" />
               </div>
               <div className="space-y-2">
-                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Scooby's Kitchen Nutritionist</span>
+                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Hearth & One Nutritionist</span>
                 <h2 className="font-display font-black text-3xl uppercase tracking-tight text-ink leading-none">
                   Tailor the Perfect Recipe
                 </h2>
@@ -407,9 +413,64 @@ export const OnboardingPage: React.FC = () => {
               </div>
 
               <div className="space-y-4 relative">
-                {/* Breed group + search */}
+                {/* Breed search leads — most people know their dog's breed
+                    name, not its AKC group. Picking a result below sets the
+                    group automatically, so nobody has to guess it correctly
+                    first just to find their own dog's breed. */}
+                <div className="space-y-1.5 relative">
+                  <label className="font-mono text-[10px] uppercase font-bold text-ink block">Breed</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Search any breed (e.g. Golden Retriever)"
+                    value={breedQuery}
+                    onChange={(e) => {
+                      setBreedQuery(e.target.value);
+                      setShowBreedDropdown(true);
+                      if (breed && e.target.value !== breed) setBreed('');
+                    }}
+                    onFocus={() => setShowBreedDropdown(true)}
+                    className="w-full px-3 py-2 border border-cardboard bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                  />
+                  {showBreedDropdown && filteredBreeds.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-paper border border-cardboard max-h-40 overflow-y-auto z-30 shadow-md">
+                      {filteredBreeds.map((b) => (
+                        <button
+                          key={b.name}
+                          type="button"
+                          onClick={() => {
+                            setBreed(b.name);
+                            setBreedQuery(b.name);
+                            setShowBreedDropdown(false);
+                            setSelectedGroup(b.group);
+                          }}
+                          className="w-full text-left px-3 py-2 text-xs text-ink font-body hover:bg-paperLight transition-colors cursor-pointer border-b border-cardboard border-opacity-10 last:border-b-0 flex justify-between items-center gap-2"
+                        >
+                          <span>{b.name}</span>
+                          <span className="text-[10px] opacity-60 font-mono shrink-0">
+                            ~{Math.round(b.typicalWeightKg / KG_PER_LB)} lbs
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {showBreedDropdown && breedQuery.trim() !== '' && filteredBreeds.length === 0 && (
+                    <p className="text-[10px] text-ink opacity-60 font-mono">
+                      No breed matches "{breedQuery.trim()}" — check the spelling and try again.
+                    </p>
+                  )}
+                  {breed !== '' && selectedBreedData && (
+                    <p className="text-[10px] text-ink opacity-60 font-mono">
+                      Selected: {breed} (typical adult weight ~{Math.round(selectedBreedData.typicalWeightKg / KG_PER_LB)} lbs)
+                    </p>
+                  )}
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="font-mono text-[10px] uppercase font-bold text-ink block">Breed Group (AKC)</label>
+                  <p className="text-[10px] text-ink opacity-60 font-body -mt-1 mb-1">
+                    {breed ? 'Set automatically from the breed above.' : "Not sure? Just search your dog's breed above instead."}
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {AKC_GROUPS.map((g) => (
                       <button
@@ -432,51 +493,6 @@ export const OnboardingPage: React.FC = () => {
                     ))}
                   </div>
                 </div>
-
-                {selectedGroup !== '' && (
-                  <div className="space-y-1.5 relative">
-                    <label className="font-mono text-[10px] uppercase font-bold text-ink block">Breed</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder={`Search ${selectedGroup.replace(' Group', '')} breeds (e.g. Golden Retriever)`}
-                      value={breedQuery}
-                      onChange={(e) => {
-                        setBreedQuery(e.target.value);
-                        setShowBreedDropdown(true);
-                        if (breed && e.target.value !== breed) setBreed('');
-                      }}
-                      onFocus={() => setShowBreedDropdown(true)}
-                      className="w-full px-3 py-2 border border-cardboard bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
-                    />
-                    {showBreedDropdown && filteredBreeds.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full mt-1 bg-paper border border-cardboard max-h-40 overflow-y-auto z-30 shadow-md">
-                        {filteredBreeds.map((b) => (
-                          <button
-                            key={b.name}
-                            type="button"
-                            onClick={() => {
-                              setBreed(b.name);
-                              setBreedQuery(b.name);
-                              setShowBreedDropdown(false);
-                            }}
-                            className="w-full text-left px-3 py-2 text-xs text-ink font-body hover:bg-paperLight transition-colors cursor-pointer border-b border-cardboard border-opacity-10 last:border-b-0 flex justify-between items-center gap-2"
-                          >
-                            <span>{b.name}</span>
-                            <span className="text-[10px] opacity-60 font-mono shrink-0">
-                              ~{Math.round(b.typicalWeightKg / KG_PER_LB)} lbs
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {breed !== '' && selectedBreedData && (
-                      <p className="text-[10px] text-ink opacity-60 font-mono">
-                        Selected: {breed} (typical adult weight ~{Math.round(selectedBreedData.typicalWeightKg / KG_PER_LB)} lbs)
-                      </p>
-                    )}
-                  </div>
-                )}
 
                 {/* Age selector */}
                 <div className="grid grid-cols-2 gap-4">

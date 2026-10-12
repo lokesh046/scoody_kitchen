@@ -16,7 +16,7 @@ import {
 import { useFeatureFlag } from '../hooks/useFeatureFlag';
 
 interface HeaderProps {
-  activeTab?: 'shop' | 'pets' | 'consultations' | 'orders' | 'assistant' | 'profile' | 'admin' | 'doctor' | 'apply-doctor' | 'support';
+  activeTab?: 'shop' | 'pets' | 'consultations' | 'orders' | 'assistant' | 'profile' | 'admin' | 'doctor' | 'apply-doctor' | 'support' | 'blog';
   onCartToggle?: () => void;
 }
 
@@ -66,6 +66,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
     ...(isConsultationsEnabled ? [{ id: 'consultations', label: 'Vet Consults', path: '/consultations' }] : []),
     { id: 'orders', label: 'My Orders', path: '/orders' },
     ...(isChatbotEnabled ? [{ id: 'assistant', label: 'AI Assistant 🐾', path: '/assistant' }] : []),
+    { id: 'blog', label: 'Journal', path: '/blog' },
   ];
 
   return (
@@ -83,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
               <div className="w-12 h-12 sm:w-13 sm:h-13 md:w-14 md:h-14 lg:w-15 lg:h-15 logo-medallion flex items-center justify-center p-1 overflow-hidden shrink-0 shadow-md">
                 <img
                   src="/scooby-logo.png"
-                  alt="Scooby's Kitchen Logo"
+                  alt="Hearth & One Logo"
                   width={60}
                   height={60}
                   className="w-full h-full object-contain select-none pointer-events-none"
@@ -93,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
             </div>
             <div className="min-w-0">
               <h1 className="font-display font-black text-base sm:text-xl lg:text-2xl tracking-tight text-paper group-hover:text-turmeric transition-colors leading-tight truncate">
-                Scooby's Kitchen
+                Hearth & One
               </h1>
               <p className="font-mono text-[8px] sm:text-[9px] uppercase tracking-wider text-turmeric opacity-90 hidden sm:block truncate">
                 Human-Grade Pet Cooking
@@ -252,7 +253,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
                 <div className="w-12 h-12 logo-medallion flex items-center justify-center p-1 overflow-hidden shrink-0 shadow-md">
                   <img
                     src="/scooby-logo-256.png"
-                    alt="Scooby's Kitchen Logo"
+                    alt="Hearth & One Logo"
                     width={48}
                     height={48}
                     className="w-full h-full object-contain select-none pointer-events-none"
@@ -260,7 +261,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
                   />
                 </div>
                 <div>
-                  <h4 className="font-display font-black text-lg text-ink leading-tight">Scooby's Kitchen</h4>
+                  <h4 className="font-display font-black text-lg text-ink leading-tight">Hearth & One</h4>
                   <span className="font-mono text-[8.5px] uppercase tracking-wider text-herb font-bold">Ledger Menu</span>
                 </div>
               </div>
