@@ -137,6 +137,7 @@ app.add_middleware(
         "https://hearthandone.com",
         "https://www.hearthandone.com",
         "https://api.hearthandone.com",
+        "https://beta.hearthandone.com",
         settings.FRONTEND_URL,
     ],
     allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.0\.2\.2)(:\d+)?",
