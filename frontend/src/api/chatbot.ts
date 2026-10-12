@@ -113,7 +113,16 @@ export const streamChat = async (
     });
 
     if (!response.ok) {
-      throw new Error(`SSE stream error: ${response.statusText}`);
+      if (response.status === 429) {
+        throw new Error("You're sending messages a bit too quickly. Please wait a moment and try again.");
+      }
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Your session has expired. Please log in again to continue chatting.');
+      }
+      if (response.status >= 500) {
+        throw new Error("Something went wrong on our end. Please try again in a moment.");
+      }
+      throw new Error('Something went wrong sending your message. Please try again.');
     }
 
     const reader = response.body?.getReader();
