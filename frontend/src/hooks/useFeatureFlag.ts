@@ -1,6 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchPublicFeatures, type FeatureFallbackBehavior } from '../api/features';
 
+// Build-time only, set via VITE_FORCE_FLAGS_ENABLED=true for the beta
+// deployment's build command -- never read from a runtime value (a user
+// query param, a header, anything fetched over the network), so there is
+// no way for this to end up enabled in a production build by anything a
+// visitor does. Production's build command never sets it, so it is always
+// false there regardless of this file's content.
+const FORCE_FLAGS_ENABLED = import.meta.env.VITE_FORCE_FLAGS_ENABLED === 'true';
+
 export const useFeatureFlags = () => {
   return useQuery({
     queryKey: ['featureFlags'],
@@ -13,6 +21,7 @@ export const useFeatureFlags = () => {
 
 export const useFeatureFlag = (key: string, defaultEnabled = true): boolean => {
   const { data: flags, isError } = useFeatureFlags();
+  if (FORCE_FLAGS_ENABLED) return true;
   if (isError || !flags || flags[key] === undefined) {
     return defaultEnabled;
   }
@@ -25,6 +34,7 @@ export const useFeatureFlag = (key: string, defaultEnabled = true): boolean => {
 // flags haven't loaded yet, so a placeholder never flashes over real content.
 export const useFeatureFlagFallback = (key: string): FeatureFallbackBehavior => {
   const { data: flags, isError } = useFeatureFlags();
+  if (FORCE_FLAGS_ENABLED) return 'hide';
   if (isError || !flags || flags[key] === undefined || flags[key].enabled) {
     return 'hide';
   }
@@ -44,6 +54,7 @@ export type RouteGateResult =
 // page on every load, including when the feature is actually enabled.
 export const useRouteFeatureGate = (key: string): RouteGateResult => {
   const { data: flags, isLoading, isError } = useFeatureFlags();
+  if (FORCE_FLAGS_ENABLED) return { blocked: false };
   if (isLoading || isError || !flags || flags[key] === undefined || flags[key].enabled) {
     return { blocked: false };
   }
