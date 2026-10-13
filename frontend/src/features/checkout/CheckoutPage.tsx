@@ -12,7 +12,7 @@ import type { PaymentResponse } from '../../api/payments';
 import { loadRazorpaySDK } from '../../utils/razorpay';
 import { auth } from '../../api/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
-import { verifyFirebasePhoneToken, requestOtpPreCheck } from '../../api/auth';
+import { verifyFirebasePhoneToken, requestOtpPreCheck, sendWhatsAppOtp, verifyWhatsAppOtp } from '../../api/auth';
 import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
@@ -239,6 +239,9 @@ export const CheckoutPage: React.FC = () => {
 
   const [cooldownCountdown, setCooldownCountdown] = useState(0);
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
+  // WhatsApp is the primary channel; falls back to Firebase SMS if the user
+  // can't receive WhatsApp or a send fails.
+  const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
 
   // Manage SMS resend cooldown timer countdown
   useEffect(() => {
@@ -474,13 +477,32 @@ export const CheckoutPage: React.FC = () => {
     setVerifyError(null);
     setVerificationCode('');
     setVerificationStep(1);
+    setVerificationChannel('whatsapp');
     setIsVerifyingPhone(true);
   };
 
-  const handleSendOtp = async () => {
+  const handleSendOtp = async (channel: 'whatsapp' | 'sms' = verificationChannel) => {
     setIsVerifyingLoading(true);
     setVerifyError(null);
     const fullPhone = `+91${phone}`;
+
+    if (channel === 'whatsapp') {
+      try {
+        await sendWhatsAppOtp(fullPhone);
+        setVerificationStep(2);
+        setCooldownCountdown(60);
+      } catch (err: any) {
+        console.error('Error sending WhatsApp OTP:', err);
+        setVerifyError(
+          err.response?.data?.detail ||
+          "Couldn't send a WhatsApp code. You can try SMS instead below."
+        );
+      } finally {
+        setIsVerifyingLoading(false);
+      }
+      return;
+    }
+
     try {
       const rateLimitResponse = await requestOtpPreCheck(fullPhone);
       if (rateLimitResponse.attempts_remaining !== undefined) {
@@ -505,8 +527,8 @@ export const CheckoutPage: React.FC = () => {
     } catch (err: any) {
       console.error('Error sending OTP:', err);
       setVerifyError(
-        err.response?.data?.detail || 
-        err.message || 
+        err.response?.data?.detail ||
+        err.message ||
         'Failed to send SMS code. Please check credentials and format.'
       );
       if (recaptchaVerifier) {
@@ -519,6 +541,12 @@ export const CheckoutPage: React.FC = () => {
     }
   };
 
+  const handleTrySmsInstead = () => {
+    setVerificationChannel('sms');
+    setVerifyError(null);
+    handleSendOtp('sms');
+  };
+
   const handleVerifyOtp = async () => {
     if (!verificationCode) {
       setVerifyError('Please enter the 6-digit OTP code.');
@@ -526,19 +554,21 @@ export const CheckoutPage: React.FC = () => {
     }
     setIsVerifyingLoading(true);
     setVerifyError(null);
+    const fullPhone = `+91${phone}`;
     try {
-      let idToken = '';
-      if (verificationCode === '111111') {
-        idToken = 'test_firebase_token';
+      let updatedUser;
+
+      if (verificationChannel === 'whatsapp') {
+        updatedUser = await verifyWhatsAppOtp(fullPhone, verificationCode);
       } else {
         if (!confirmResult) {
           throw new Error('Verification session has expired. Please send OTP again.');
         }
         const userCredential = await confirmResult.confirm(verificationCode);
-        idToken = await userCredential.user.getIdToken();
+        const idToken = await userCredential.user.getIdToken();
+        updatedUser = await verifyFirebasePhoneToken(idToken);
       }
 
-      const updatedUser = await verifyFirebasePhoneToken(idToken);
       setAuth(updatedUser, accessToken);
       setIsVerifyingPhone(false);
       setErrorMessage('');
@@ -674,7 +704,7 @@ export const CheckoutPage: React.FC = () => {
             key: session.razorpay_key_id,
             amount: Math.round(parseFloat(session.amount) * 100),
             currency: 'INR',
-            name: "Scooby's Kitchen",
+            name: "Hearth & One",
             description: `Order Subscription #${placedOrder.id}`,
             order_id: session.razorpay_order_id,
             handler: async (response: any) => {
@@ -1518,7 +1548,7 @@ export const CheckoutPage: React.FC = () => {
                   REGISTRY PHONE VERIFICATION
                 </span>
                 <h3 className="font-display font-black text-2xl text-ink uppercase tracking-tight">
-                  SMS Authentication
+                  {verificationChannel === 'whatsapp' ? 'WhatsApp Verification' : 'SMS Authentication'}
                 </h3>
               </div>
               <button 
@@ -1538,10 +1568,10 @@ export const CheckoutPage: React.FC = () => {
             {verificationStep === 1 ? (
               <div className="space-y-4">
                 <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
-                  We will send a one-time verification code to your registered profile number: 
+                  We'll send a one-time verification code via WhatsApp to your registered profile number:
                   <strong className="text-ink ml-1 font-mono">+91 {phone}</strong>.
                 </p>
-                
+
                 <p className="font-mono text-[10px] text-herb opacity-80">
                   * The country prefix (+91) is statically applied to your contact number.
                 </p>
@@ -1549,29 +1579,27 @@ export const CheckoutPage: React.FC = () => {
                 <div className="pt-2 flex flex-col gap-2">
                   <button
                     type="button"
-                    onClick={handleSendOtp}
+                    onClick={() => handleSendOtp('whatsapp')}
                     disabled={isVerifyingLoading}
                     className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs py-3.5 rounded-none tracking-wide uppercase transition-colors disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer border-0"
                   >
                     {isVerifyingLoading ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Sending SMS OTP...</span>
+                        <span>Sending WhatsApp code...</span>
                       </>
                     ) : (
-                      <span>Send Verification Code</span>
+                      <span>Send Code via WhatsApp</span>
                     )}
                   </button>
-                  
+
                   <button
                     type="button"
-                    onClick={() => {
-                      setVerificationStep(2);
-                      setVerifyError("Local test mode enabled. Input '111111' to mock verification success.");
-                    }}
-                    className="w-full bg-paper hover:bg-paperLight text-ink font-mono text-[10px] py-2 rounded-none border border-cardboard border-opacity-50 uppercase tracking-wider cursor-pointer transition-colors"
+                    onClick={handleTrySmsInstead}
+                    disabled={isVerifyingLoading}
+                    className="w-full font-mono text-[10px] py-2 text-ink opacity-60 hover:opacity-100 uppercase tracking-wider cursor-pointer transition-opacity disabled:opacity-30"
                   >
-                    ⚡ Local Sandbox Bypass (Bypass SMS)
+                    Can't receive WhatsApp? Send via SMS instead
                   </button>
                 </div>
               </div>
@@ -1613,7 +1641,7 @@ export const CheckoutPage: React.FC = () => {
                   ) : (
                     <button
                       type="button"
-                      onClick={handleSendOtp}
+                      onClick={() => handleSendOtp()}
                       disabled={isVerifyingLoading}
                       className="w-1/3 border border-cardboard bg-transparent hover:bg-paper font-mono text-[11px] uppercase py-3 rounded-none tracking-wide text-ink cursor-pointer transition-colors"
                     >
@@ -1646,7 +1674,7 @@ export const CheckoutPage: React.FC = () => {
       {/* Footer */}
       <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
         <p className="font-mono text-[9px] uppercase tracking-wider">
-          © {new Date().getFullYear()} Scooby's Kitchen. All rights reserved.
+          © {new Date().getFullYear()} Hearth & One. All rights reserved.
         </p>
       </footer>
     </div>

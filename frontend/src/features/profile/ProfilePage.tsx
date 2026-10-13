@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
-import { logoutUser, updateUserProfile, uploadAvatarImage, verifyFirebasePhoneToken, requestOtpPreCheck } from '../../api/auth';
+import { logoutUser, updateUserProfile, uploadAvatarImage, verifyFirebasePhoneToken, requestOtpPreCheck, sendWhatsAppOtp, verifyWhatsAppOtp } from '../../api/auth';
 import { auth } from '../../api/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { CartDrawer } from '../../components/CartDrawer';
@@ -156,6 +156,9 @@ export const ProfilePage: React.FC = () => {
 
   const [cooldownCountdown, setCooldownCountdown] = useState(0);
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
+  // WhatsApp is the primary channel; falls back to Firebase SMS if the user
+  // can't receive WhatsApp or a send fails.
+  const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
 
   // Manage SMS resend cooldown timer countdown
   useEffect(() => {
@@ -180,13 +183,34 @@ export const ProfilePage: React.FC = () => {
     setVerifyError(null);
     setVerificationCode('');
     setVerificationStep(1);
+    setVerificationChannel('whatsapp');
     setIsVerifyingPhone(true);
   };
 
-  const handleSendOtp = async () => {
+  const handleSendOtp = async (channel: 'whatsapp' | 'sms' = verificationChannel) => {
     setIsVerifyingLoading(true);
     setVerifyError(null);
     const fullPhone = `+91${phone}`;
+
+    if (channel === 'whatsapp') {
+      try {
+        const result = await sendWhatsAppOtp(fullPhone);
+        setVerificationStep(2);
+        setCooldownCountdown(60);
+        void result;
+      } catch (err: any) {
+        console.error('Error sending WhatsApp OTP:', err);
+        setVerifyError(
+          err.response?.data?.detail ||
+          "Couldn't send a WhatsApp code. You can try SMS instead below."
+        );
+      } finally {
+        setIsVerifyingLoading(false);
+      }
+      return;
+    }
+
+    // SMS fallback (Firebase Phone Auth, client-side SDK send)
     try {
       // 1. Backend precheck gate
       const rateLimitResponse = await requestOtpPreCheck(fullPhone);
@@ -213,8 +237,8 @@ export const ProfilePage: React.FC = () => {
     } catch (err: any) {
       console.error('Error sending OTP:', err);
       setVerifyError(
-        err.response?.data?.detail || 
-        err.message || 
+        err.response?.data?.detail ||
+        err.message ||
         'Failed to send SMS code. Please check your credentials and format.'
       );
       if (recaptchaVerifier) {
@@ -227,6 +251,12 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
+  const handleTrySmsInstead = () => {
+    setVerificationChannel('sms');
+    setVerifyError(null);
+    handleSendOtp('sms');
+  };
+
   const handleVerifyOtp = async () => {
     if (!verificationCode) {
       setVerifyError('Please enter the 6-digit OTP code.');
@@ -234,28 +264,28 @@ export const ProfilePage: React.FC = () => {
     }
     setIsVerifyingLoading(true);
     setVerifyError(null);
+    const fullPhone = `+91${phone}`;
+
     try {
-      let idToken = '';
-      
-      // Support bypass token for local sandbox test
-      if (verificationCode === '111111') {
-        idToken = 'test_firebase_token';
+      let updatedUser;
+
+      if (verificationChannel === 'whatsapp') {
+        updatedUser = await verifyWhatsAppOtp(fullPhone, verificationCode);
       } else {
         if (!confirmResult) {
           throw new Error('Verification session has expired. Please send OTP again.');
         }
         const userCredential = await confirmResult.confirm(verificationCode);
-        idToken = await userCredential.user.getIdToken();
+        const idToken = await userCredential.user.getIdToken();
+        updatedUser = await verifyFirebasePhoneToken(idToken);
       }
 
-      const updatedUser = await verifyFirebasePhoneToken(idToken);
-      
       setAuth(updatedUser, accessToken);
       setSuccessMsg('Phone number verified! Profile updated.');
       setTimeout(() => setSuccessMsg(null), 4000);
       setIsVerifyingPhone(false);
       setIsEditingPhone(false);
-      
+
       if (recaptchaVerifier) {
         try {
           recaptchaVerifier.clear();
@@ -743,7 +773,7 @@ export const ProfilePage: React.FC = () => {
                   REGISTRY PHONE VERIFICATION
                 </span>
                 <h3 className="font-display font-black text-xl text-ink">
-                  SMS Authentication
+                  {verificationChannel === 'whatsapp' ? 'WhatsApp Verification' : 'SMS Verification'}
                 </h3>
               </div>
               <button 
@@ -764,10 +794,10 @@ export const ProfilePage: React.FC = () => {
             {verificationStep === 1 ? (
               <div className="space-y-4">
                 <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
-                  We will send a one-time verification code to your registered profile number: 
+                  We'll send a one-time verification code via WhatsApp to your registered profile number:
                   <strong className="text-ink ml-1 font-mono">+91 {phone}</strong>.
                 </p>
-                
+
                 <p className="font-mono text-[9px] text-herb opacity-80">
                   * Statically applied prefix (+91) for Indian telecommunication carriers.
                 </p>
@@ -775,29 +805,27 @@ export const ProfilePage: React.FC = () => {
                 <div className="pt-2 flex flex-col gap-2">
                   <button
                     type="button"
-                    onClick={handleSendOtp}
+                    onClick={() => handleSendOtp('whatsapp')}
                     disabled={isVerifyingLoading}
                     className="w-full bg-herb hover:bg-herb/90 text-white font-body font-bold text-xs py-3 rounded-sm tracking-wider uppercase transition-colors disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer shadow-xs"
                   >
                     {isVerifyingLoading ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Sending SMS OTP...</span>
+                        <span>Sending WhatsApp code...</span>
                       </>
                     ) : (
-                      <span>Send Verification Code</span>
+                      <span>Send Code via WhatsApp</span>
                     )}
                   </button>
-                  
+
                   <button
                     type="button"
-                    onClick={() => {
-                      setVerificationStep(2);
-                      setVerifyError("Local test mode enabled. Input '111111' to mock verification success.");
-                    }}
-                    className="w-full bg-paperLight hover:bg-paper text-ink font-mono text-[9px] py-2 rounded-sm border border-cardboard border-opacity-40 uppercase tracking-wider cursor-pointer transition-colors"
+                    onClick={handleTrySmsInstead}
+                    disabled={isVerifyingLoading}
+                    className="w-full font-mono text-[9px] py-2 text-ink opacity-60 hover:opacity-100 uppercase tracking-wider cursor-pointer transition-opacity disabled:opacity-30"
                   >
-                    ⚡ Local Sandbox Bypass (Bypass SMS)
+                    Can't receive WhatsApp? Send via SMS instead
                   </button>
                 </div>
               </div>
@@ -839,7 +867,7 @@ export const ProfilePage: React.FC = () => {
                   ) : (
                     <button
                       type="button"
-                      onClick={handleSendOtp}
+                      onClick={() => handleSendOtp()}
                       disabled={isVerifyingLoading}
                       className="w-1/3 border border-cardboard bg-transparent hover:bg-paperLight font-mono text-[9px] uppercase py-2.5 rounded-sm tracking-wider text-ink cursor-pointer transition-colors"
                     >

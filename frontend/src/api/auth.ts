@@ -109,3 +109,21 @@ export const requestOtpPreCheck = async (phoneNumber: string): Promise<{ allowed
   });
   return response.data;
 };
+
+// WhatsApp OTP -- primary phone-verification channel. Fully backend-owned
+// (unlike the Firebase flow above, where the SDK sends the SMS client-side),
+// so there's no separate "pre-check" step: send-otp itself is the real send.
+export const sendWhatsAppOtp = async (phoneNumber: string): Promise<{ sent: boolean; expires_in: number }> => {
+  const response = await apiClient.post('/auth/whatsapp/send-otp', {
+    phone_number: phoneNumber,
+  });
+  return response.data;
+};
+
+export const verifyWhatsAppOtp = async (phoneNumber: string, code: string): Promise<UserResponse> => {
+  const response = await apiClient.post('/auth/whatsapp/verify-otp', {
+    phone_number: phoneNumber,
+    code,
+  });
+  return response.data;
+};
