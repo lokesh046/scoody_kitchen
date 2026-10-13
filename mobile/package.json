@@ -7,7 +7,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "ts:check": "tsc --noEmit"
+    "ts:check": "tsc --noEmit",
+    "test": "jest"
   },
   "dependencies": {
     "@expo-google-fonts/courier-prime": "^0.4.1",
@@ -57,10 +58,19 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@react-native/jest-preset": "^0.86.3",
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.2.4",
     "babel-plugin-transform-remove-console": "^6.9.4",
     "babel-preset-expo": "~57.0.0",
+    "jest": "^30.5.2",
+    "jest-expo": "^57.0.6",
+    "react-test-renderer": "19.2.3",
     "typescript": "~6.0.3"
   },
-  "private": true
+  "private": true,
+  "jest": {
+    "preset": "jest-expo"
+  }
 }
