@@ -1189,7 +1189,13 @@ export const CheckoutPage: React.FC = () => {
                       )}
                     </div>
                     <div className="flex space-x-2">
-                      <div className="flex-grow flex items-center border border-cardboard rounded-none bg-paper focus-within:border-turmeric focus-within:ring-1 focus-within:ring-turmeric transition-colors">
+                      <div
+                        className={`flex-grow flex items-center border rounded-none bg-paper focus-within:ring-1 transition-colors ${
+                          phone.length > 0 && phone.length < 10
+                            ? 'border-paprika focus-within:border-paprika focus-within:ring-paprika'
+                            : 'border-cardboard focus-within:border-turmeric focus-within:ring-turmeric'
+                        }`}
+                      >
                         <div className="pl-3 pr-2 flex items-center space-x-1 border-r border-cardboard border-opacity-35 select-none">
                           <span className="font-mono text-xs font-bold text-ink">+91</span>
                         </div>
@@ -1200,21 +1206,38 @@ export const CheckoutPage: React.FC = () => {
                           value={phone}
                           onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
                           placeholder="9876543210"
+                          aria-invalid={phone.length > 0 && phone.length < 10}
                           className="w-full px-3 py-2 bg-transparent font-mono text-xs text-ink placeholder-cardboard focus:outline-none disabled:opacity-85"
                           disabled={isSubmitting || user?.is_phone_verified}
                           required
                         />
+                        {phone.length > 0 && (
+                          <span
+                            className={`pr-3 font-mono text-[9px] font-bold select-none ${
+                              phone.length < 10 ? 'text-paprika' : 'text-herb'
+                            }`}
+                          >
+                            {phone.length}/10
+                          </span>
+                        )}
                       </div>
                       {!user?.is_phone_verified && (
                         <button
                           type="button"
                           onClick={handleStartPhoneVerification}
-                          className="bg-ink hover:bg-opacity-95 text-paperLight font-mono text-[9px] uppercase font-bold px-4 py-2 border border-cardboard cursor-pointer shrink-0 transition-colors shadow-xs"
+                          disabled={phone.length !== 10}
+                          title={phone.length !== 10 ? 'Enter all 10 digits to verify' : undefined}
+                          className="bg-ink hover:bg-opacity-95 text-paperLight font-mono text-[9px] uppercase font-bold px-4 py-2 border border-cardboard cursor-pointer shrink-0 transition-colors shadow-xs disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-opacity-100"
                         >
-                          Verify SMS
+                          Verify Phone
                         </button>
                       )}
                     </div>
+                    {phone.length > 0 && phone.length < 10 && (
+                      <p className="font-mono text-[9px] text-paprika font-bold">
+                        {10 - phone.length} more digit{10 - phone.length === 1 ? '' : 's'} needed.
+                      </p>
+                    )}
                   </div>
                 </div>
 

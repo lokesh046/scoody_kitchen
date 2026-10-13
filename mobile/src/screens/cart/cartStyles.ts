@@ -645,6 +645,15 @@ export const styles = StyleSheet.create({
     color: COLORS.textCoffee,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
+  phoneInputFlexIncomplete: {
+    borderColor: COLORS.brandGold,
+  },
+  phoneIncompleteHelper: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.brandGold,
+    marginTop: 4,
+  },
   verifyPhoneBtn: {
     backgroundColor: COLORS.brandGold,
     borderRadius: 10,
@@ -652,6 +661,9 @@ export const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  verifyPhoneBtnDisabled: {
+    opacity: 0.4,
   },
   verifyPhoneBtnText: {
     fontSize: 11,

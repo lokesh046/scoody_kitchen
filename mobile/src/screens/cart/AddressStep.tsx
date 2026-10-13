@@ -177,20 +177,31 @@ export const AddressStep = memo(function AddressStep({
             placeholderTextColor={COLORS.textLight}
             keyboardType="phone-pad"
             maxLength={10}
-            style={styles.phoneInputFlex}
+            style={[
+              styles.phoneInputFlex,
+              phone.length > 0 && phone.length < 10 && styles.phoneInputFlexIncomplete,
+            ]}
           />
           {!user?.is_phone_verified && (
             <TouchableOpacity
-              style={styles.verifyPhoneBtn}
-              onPress={onVerifyPhone}
+              style={[styles.verifyPhoneBtn, phone.length !== 10 && styles.verifyPhoneBtnDisabled]}
+              onPress={() => {
+                if (phone.length !== 10) return;
+                onVerifyPhone();
+              }}
               activeOpacity={0.8}
               accessibilityRole="button"
               accessibilityLabel="Verify phone via SMS"
             >
-              <Text style={styles.verifyPhoneBtnText}>Verify via SMS</Text>
+              <Text style={styles.verifyPhoneBtnText}>Verify Phone</Text>
             </TouchableOpacity>
           )}
         </View>
+        {phone.length > 0 && phone.length < 10 && (
+          <Text style={styles.phoneIncompleteHelper}>
+            {10 - phone.length} more digit{10 - phone.length === 1 ? '' : 's'} needed.
+          </Text>
+        )}
       </View>
 
       {/* Step 2 Primary Action Bar */}

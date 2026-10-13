@@ -531,7 +531,13 @@ export const ProfilePage: React.FC = () => {
                   )}
                 </div>
                 <div className="flex space-x-2">
-                  <div className="relative flex-grow flex items-center border border-cardboard rounded-sm bg-paper focus-within:border-turmeric transition-colors">
+                  <div
+                    className={`relative flex-grow flex items-center border rounded-sm bg-paper transition-colors ${
+                      phone.length > 0 && phone.length < 10
+                        ? 'border-paprika focus-within:border-paprika'
+                        : 'border-cardboard focus-within:border-turmeric'
+                    }`}
+                  >
                     <div className="pl-3 pr-2 flex items-center space-x-1.5 border-r border-cardboard border-opacity-30 select-none">
                       <Phone className="w-3.5 h-3.5 text-cardboard" />
                       <span className="font-mono text-xs font-bold text-ink">+91</span>
@@ -543,8 +549,18 @@ export const ProfilePage: React.FC = () => {
                       value={phone}
                       onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
                       disabled={user?.is_phone_verified && !isEditingPhone}
+                      aria-invalid={phone.length > 0 && phone.length < 10}
                       className="w-full px-3 py-2 bg-transparent font-mono text-xs text-ink placeholder-cardboard focus:outline-none disabled:opacity-85"
                     />
+                    {phone.length > 0 && (
+                      <span
+                        className={`pr-3 font-mono text-[9px] font-bold select-none ${
+                          phone.length < 10 ? 'text-paprika' : 'text-emerald-700'
+                        }`}
+                      >
+                        {phone.length}/10
+                      </span>
+                    )}
                   </div>
                   {user?.is_phone_verified && !isEditingPhone ? (
                     <button
@@ -571,13 +587,20 @@ export const ProfilePage: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleStartPhoneVerification}
-                        className="bg-ink hover:bg-opacity-90 text-paper font-mono text-[9px] uppercase font-bold px-3.5 py-2 rounded-sm cursor-pointer transition-colors shadow-xs"
+                        disabled={phone.length !== 10}
+                        title={phone.length !== 10 ? 'Enter all 10 digits to verify' : undefined}
+                        className="bg-ink hover:bg-opacity-90 text-paper font-mono text-[9px] uppercase font-bold px-3.5 py-2 rounded-sm cursor-pointer transition-colors shadow-xs disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-opacity-100"
                       >
-                        Verify via SMS
+                        Verify Phone
                       </button>
                     </div>
                   )}
                 </div>
+                {phone.length > 0 && phone.length < 10 && (
+                  <p className="font-mono text-[9px] text-paprika font-bold">
+                    {10 - phone.length} more digit{10 - phone.length === 1 ? '' : 's'} needed.
+                  </p>
+                )}
               </div>
 
               {/* Submit */}
