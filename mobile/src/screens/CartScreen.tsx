@@ -27,7 +27,6 @@ import { useAuthStore } from '../store/authStore';
 import { useNetworkStore, isNetworkError } from '../store/networkStore';
 import { checkoutOrder, Order } from '../api/orders';
 import { verifyRazorpayPayment } from '../api/payments';
-import { verifyPhoneWithToken } from '../api/auth';
 import { validateCoupon, CouponValidateResponse } from '../api/coupons';
 import RazorpayModal from '../components/RazorpayModal';
 import { PhoneVerificationModal } from '../components/PhoneVerificationModal';
@@ -490,18 +489,17 @@ export default function CartScreen({ navigation }: any) {
       longitude: coords.longitude,
     });
 
-    // Auto-verify phone if needed to satisfy backend constraint
+    // Backend requires a verified phone before it will create an order.
     if (!user.is_phone_verified) {
-      try {
-        const updated = await verifyPhoneWithToken('test_firebase_token');
-        updateUser({
-          ...user,
-          phone: updated.phone || `+91${cleanPhone}`,
-          is_phone_verified: true,
-        });
-      } catch {
-        // proceed
-      }
+      Alert.alert(
+        'Phone Verification Required',
+        'Please verify your contact number before placing an order.',
+        [
+          { text: 'Not Now', style: 'cancel' },
+          { text: 'Verify Now', onPress: () => setIsPhoneModalVisible(true) },
+        ]
+      );
+      return;
     }
 
     setIsCheckingOut(true);

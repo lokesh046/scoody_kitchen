@@ -21,7 +21,7 @@ import {
   AlertCircle,
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
-import { requestOtpPreCheck, verifyPhoneWithToken } from '../api/auth';
+import { requestOtpPreCheck, verifyPhoneWithToken, sendWhatsAppOtp, verifyWhatsAppOtp } from '../api/auth';
 import { UserProfile } from '../store/authStore';
 import { FIREBASE_CONFIG } from '../config/firebase';
 import { useResponsive } from '../hooks/useResponsive';
@@ -48,6 +48,9 @@ export function PhoneVerificationModal({
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
   const [cooldownCountdown, setCooldownCountdown] = useState(0);
   const [sessionInfo, setSessionInfo] = useState<string | null>(null);
+  // WhatsApp is the primary channel; falls back to Firebase SMS if the user
+  // can't receive WhatsApp or a send fails.
+  const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
 
   const timerRef = useRef<any>(null);
 
@@ -59,6 +62,7 @@ export function PhoneVerificationModal({
       setInfoNotice(null);
       setIsLoading(false);
       setSessionInfo(null);
+      setVerificationChannel('whatsapp');
     }
   }, [visible, phone]);
 
@@ -89,11 +93,29 @@ export function PhoneVerificationModal({
 
   const fullPhoneNumber = `+91${displayDigits}`;
 
-  const handleSendOtp = async () => {
+  const handleSendOtp = async (channel: 'whatsapp' | 'sms' = verificationChannel) => {
     setIsLoading(true);
     setErrorMsg(null);
     setInfoNotice(null);
 
+    if (channel === 'whatsapp') {
+      try {
+        await sendWhatsAppOtp(fullPhoneNumber);
+        setStep(2);
+        setCooldownCountdown(60);
+      } catch (err: any) {
+        console.log('WhatsApp OTP request error:', err.response?.data || err.message);
+        setErrorMsg(
+          err.response?.data?.detail ||
+          "Couldn't send a WhatsApp code. You can try SMS instead below."
+        );
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // SMS fallback (Firebase Phone Auth via REST Identity Toolkit)
     try {
       // 1. Backend rate limit & cooldown pre-check gate
       const precheck = await requestOtpPreCheck(fullPhoneNumber);
@@ -102,25 +124,20 @@ export function PhoneVerificationModal({
       }
 
       // 2. Request OTP via Firebase REST Identity Toolkit
-      try {
-        const fbRes = await fetch(
-          `https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key=${FIREBASE_CONFIG.apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              phoneNumber: fullPhoneNumber,
-            }),
-          }
-        );
-
-        const fbData = await fbRes.json();
-        if (fbData.sessionInfo) {
-          setSessionInfo(fbData.sessionInfo);
+      const fbRes = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key=${FIREBASE_CONFIG.apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phoneNumber: fullPhoneNumber,
+          }),
         }
-      } catch (fbErr) {
-        // Fallback for development/sandbox
-        console.log('Firebase send code note:', fbErr);
+      );
+
+      const fbData = await fbRes.json();
+      if (fbData.sessionInfo) {
+        setSessionInfo(fbData.sessionInfo);
       }
 
       setStep(2);
@@ -137,6 +154,12 @@ export function PhoneVerificationModal({
     }
   };
 
+  const handleTrySmsInstead = () => {
+    setVerificationChannel('sms');
+    setErrorMsg(null);
+    handleSendOtp('sms');
+  };
+
   const handleVerifyOtp = async () => {
     if (!verificationCode || verificationCode.length < 6) {
       setErrorMsg('Please enter the complete 6-digit OTP code.');
@@ -147,34 +170,33 @@ export function PhoneVerificationModal({
     setErrorMsg(null);
 
     try {
-      let idToken = 'test_firebase_token';
+      let updatedUser: UserProfile;
 
-      // If user entered real code and session exists, verify with Firebase
-      if (verificationCode !== '111111' && sessionInfo) {
-        try {
-          const verifyRes = await fetch(
-            `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPhoneNumber?key=${FIREBASE_CONFIG.apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                sessionInfo,
-                code: verificationCode,
-              }),
-            }
-          );
-          const verifyData = await verifyRes.json();
-          if (verifyData.idToken) {
-            idToken = verifyData.idToken;
-          }
-        } catch (confirmErr) {
-          console.log('Firebase confirmation note:', confirmErr);
+      if (verificationChannel === 'whatsapp') {
+        updatedUser = await verifyWhatsAppOtp(fullPhoneNumber, verificationCode);
+      } else {
+        if (!sessionInfo) {
+          throw new Error('Verification session has expired. Please send the OTP again.');
         }
+        const verifyRes = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPhoneNumber?key=${FIREBASE_CONFIG.apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionInfo,
+              code: verificationCode,
+            }),
+          }
+        );
+        const verifyData = await verifyRes.json();
+        if (!verifyData.idToken) {
+          throw new Error(verifyData.error?.message || 'Incorrect OTP code. Please try again.');
+        }
+        updatedUser = await verifyPhoneWithToken(verifyData.idToken);
       }
 
-      // 3. Send verified idToken to backend to update user profile & mark verified
-      const updatedUser = await verifyPhoneWithToken(idToken);
-      Alert.alert('Phone Verified ✓', 'Your contact phone number has been verified in your account ledger.');
+      Alert.alert('Phone Verified', 'Your contact phone number has been verified in your account ledger.');
       onSuccess(updatedUser);
       onClose();
     } catch (err: any) {
@@ -187,12 +209,6 @@ export function PhoneVerificationModal({
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleSandboxBypass = () => {
-    setStep(2);
-    setVerificationCode('111111');
-    setInfoNotice("Local test mode enabled. Code '111111' filled for sandbox bypass.");
   };
 
   return (
@@ -224,7 +240,9 @@ export function PhoneVerificationModal({
                 <ShieldCheck size={11} color="#C2410C" />
                 <Text style={styles.tagBadgeText}>REGISTRY PHONE VERIFICATION</Text>
               </View>
-              <Text style={styles.title}>SMS Authentication</Text>
+              <Text style={styles.title}>
+                {verificationChannel === 'whatsapp' ? 'WhatsApp Verification' : 'SMS Authentication'}
+              </Text>
             </View>
 
             <TouchableOpacity
@@ -256,7 +274,7 @@ export function PhoneVerificationModal({
           {step === 1 ? (
             <View style={styles.body}>
               <Text style={styles.description}>
-                We will send a one-time verification code to your registered profile number:{' '}
+                We'll send a one-time verification code via WhatsApp to your registered profile number:{' '}
                 <Text style={styles.phoneHighlight}>+91 {displayDigits}</Text>.
               </Text>
 
@@ -267,28 +285,28 @@ export function PhoneVerificationModal({
               <View style={styles.actionColumn}>
                 <TouchableOpacity
                   style={[styles.primaryBtn, isLoading && styles.btnDisabled]}
-                  onPress={handleSendOtp}
+                  onPress={() => handleSendOtp('whatsapp')}
                   disabled={isLoading}
                   activeOpacity={0.85}
                 >
                   {isLoading ? (
                     <View style={styles.rowCentered}>
                       <ActivityIndicator size="small" color="#FFFFFF" />
-                      <Text style={styles.primaryBtnText}>Sending SMS OTP...</Text>
+                      <Text style={styles.primaryBtnText}>Sending WhatsApp code...</Text>
                     </View>
                   ) : (
-                    <Text style={styles.primaryBtnText}>Send Verification Code</Text>
+                    <Text style={styles.primaryBtnText}>Send Code via WhatsApp</Text>
                   )}
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.sandboxBtn}
-                  onPress={handleSandboxBypass}
+                  onPress={handleTrySmsInstead}
+                  disabled={isLoading}
                   activeOpacity={0.8}
                 >
-                  <Zap size={13} color="#715D52" />
                   <Text style={styles.sandboxBtnText}>
-                    ⚡ Local Sandbox Bypass (Bypass SMS)
+                    Can't receive WhatsApp? Send via SMS instead
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -331,7 +349,7 @@ export function PhoneVerificationModal({
                 ) : (
                   <TouchableOpacity
                     style={styles.resendBtn}
-                    onPress={handleSendOtp}
+                    onPress={() => handleSendOtp()}
                     disabled={isLoading}
                     activeOpacity={0.8}
                   >
@@ -364,7 +382,7 @@ export function PhoneVerificationModal({
           {/* Footer Ledger Note */}
           <View style={styles.footerNote}>
             <Text style={styles.footerNoteText}>
-              SCOOBY KITCHEN • ENCRYPTED TELE-AUTH PROTOCOL
+              HEARTH & ONE • ENCRYPTED TELE-AUTH PROTOCOL
             </Text>
           </View>
         </SafeAreaView>
