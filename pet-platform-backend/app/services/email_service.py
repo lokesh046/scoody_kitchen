@@ -122,14 +122,21 @@ def send_magic_link_email(
 
     html_content = _get_base_email_template("Hearth & One Login", content)
 
-    # Always log magic link URL and OTP code to server console for dev testing
-    logger.info("==================================================")
-    logger.info(f"MAGIC LINK GENERATED FOR: {to_email}")
-    logger.info(f"MAGIC LINK URL: {magic_link_url}")
-    logger.info(f"6-DIGIT OTP CODE: {otp_code}")
-    logger.info("==================================================")
+    smtp_configured = bool(settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASSWORD)
 
-    if not settings.SMTP_HOST or not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+    # Log the raw token/OTP only in local dev, or as a last-resort fallback
+    # when SMTP isn't configured anywhere (including production) and this
+    # console log is the only way the code reaches anyone -- never log a
+    # live login credential to production logs when email is actually
+    # being delivered.
+    if settings.DEBUG or not smtp_configured:
+        logger.info("==================================================")
+        logger.info(f"MAGIC LINK GENERATED FOR: {to_email}")
+        logger.info(f"MAGIC LINK URL: {magic_link_url}")
+        logger.info(f"6-DIGIT OTP CODE: {otp_code}")
+        logger.info("==================================================")
+
+    if not smtp_configured:
         logger.warning("SMTP settings not configured. Magic link logged to console above.")
         return True
 
