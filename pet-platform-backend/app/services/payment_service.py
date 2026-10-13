@@ -160,11 +160,7 @@ def verify_razorpay_payment(
         raise ValueError("Payment is no longer pending")
 
     if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
-        # Fallback for manual local sandbox simulation (only allowed when DEBUG is True)
-        if settings.DEBUG and razorpay_signature == "test_signature":
-            pass
-        else:
-            raise ValueError("Razorpay credentials are not configured on server")
+        raise ValueError("Razorpay credentials are not configured on server")
     else:
         try:
             import hmac
