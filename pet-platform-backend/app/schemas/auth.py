@@ -68,6 +68,26 @@ class OTPRequest(BaseModel):
         return v
 
 
+class WhatsAppVerifyOTP(BaseModel):
+    phone_number: str
+    code: str
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        import re
+        if not re.match(r"^\+[1-9]\d{1,14}$", v):
+            raise ValueError("Phone number must be in E.164 format (e.g. +919876543210)")
+        return v
+
+    @field_validator("code")
+    @classmethod
+    def validate_code(cls, v: str) -> str:
+        if not v.isdigit() or len(v) != 6:
+            raise ValueError("Code must be exactly 6 digits")
+        return v
+
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str | None = None
 

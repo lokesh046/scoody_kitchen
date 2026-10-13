@@ -1,4 +1,8 @@
 from datetime import datetime, timezone
+import hashlib
+import hmac
+import json
+import secrets
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status, File, UploadFile
 import jwt
 from jwt.exceptions import InvalidTokenError
@@ -22,6 +26,7 @@ from app.schemas.auth import (
     UserUpdate,
     FirebaseVerifyPhonePayload,
     OTPRequest,
+    WhatsAppVerifyOTP,
 )
 from app.services.auth_service import (
     authenticate_google_user,
@@ -33,6 +38,7 @@ from app.services.auth_service import (
     verify_magic_link_token,
     update_user_profile,
 )
+from app.services.whatsapp import normalize_phone_to_whatsapp_format, send_whatsapp_otp, WhatsAppSendError
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -383,14 +389,10 @@ def verify_firebase_phone(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        # Check for mock token in local debug environment
-        if settings.DEBUG and payload.id_token == "test_firebase_token":
-            phone_number = "+919876543210"
-        else:
-            from firebase_admin import auth as firebase_auth
-            decoded_token = firebase_auth.verify_id_token(payload.id_token)
-            phone_number = decoded_token.get("phone_number")
-            
+        from firebase_admin import auth as firebase_auth
+        decoded_token = firebase_auth.verify_id_token(payload.id_token)
+        phone_number = decoded_token.get("phone_number")
+
         if not phone_number:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -507,3 +509,155 @@ def request_otp(
     attempts_remaining = max(0, MAX_PER_PHONE_PER_HOUR - (current_count + 1))
 
     return {"allowed": True, "attempts_remaining": attempts_remaining}
+
+
+# --- WhatsApp OTP phone verification -------------------------------------
+# Primary phone-verification channel: unlike the Firebase flow above (where
+# the SDK sends the SMS client-side and the backend only rate-limits +
+# verifies a token afterwards), this is fully server-owned -- the backend
+# generates the code, hashes and stores it, sends it via Meta's Cloud API,
+# and verifies the submission itself. Same purpose as verify_firebase_phone
+# (confirm current_user's phone), not a signup path: both endpoints below
+# require an authenticated user.
+
+WHATSAPP_OTP_COOLDOWN_SECONDS = 60
+WHATSAPP_OTP_MAX_PER_PHONE_PER_HOUR = 5
+WHATSAPP_OTP_MAX_PER_IP_PER_HOUR = 10
+WHATSAPP_OTP_MAX_ATTEMPTS = 5
+
+
+def _hash_whatsapp_otp(code: str) -> str:
+    if not settings.WHATSAPP_OTP_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="WhatsApp verification is not configured on this server.",
+        )
+    return hmac.new(
+        settings.WHATSAPP_OTP_SECRET.encode("utf-8"),
+        code.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+@router.post("/whatsapp/send-otp", status_code=status.HTTP_200_OK)
+async def send_whatsapp_otp_endpoint(
+    request: Request,
+    payload: OTPRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Generate a 6-digit code, store its hash in Redis, and send it to
+    current_user's phone via WhatsApp. Never returns the code itself."""
+    redis_client = rate_limit_redis_client
+    phone_number = payload.phone_number
+    ip_address = get_client_ip(request)
+
+    cooldown_key = f"wa_otp_cooldown:{phone_number}"
+    phone_count_key = f"wa_otp_count:{phone_number}"
+    ip_count_key = f"wa_otp_ip_count:{ip_address}"
+    otp_record_key = f"wa_otp:{phone_number}"
+
+    pipe_read = redis_client.pipeline()
+    pipe_read.ttl(cooldown_key)
+    pipe_read.get(phone_count_key)
+    pipe_read.ttl(phone_count_key)
+    pipe_read.get(ip_count_key)
+    pipe_read.ttl(ip_count_key)
+    cooldown_ttl, phone_count, phone_ttl, ip_count, ip_ttl = pipe_read.execute()
+
+    if cooldown_ttl > 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Please wait {cooldown_ttl} seconds before requesting another code",
+        )
+    if phone_count is not None and int(phone_count) >= WHATSAPP_OTP_MAX_PER_PHONE_PER_HOUR:
+        wait_minutes = max(1, phone_ttl // 60) if phone_ttl > 0 else 60
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many attempts for this number. Try again in {wait_minutes} minutes.",
+        )
+    if ip_count is not None and int(ip_count) >= WHATSAPP_OTP_MAX_PER_IP_PER_HOUR:
+        wait_minutes = max(1, ip_ttl // 60) if ip_ttl > 0 else 60
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many attempts for this IP address. Try again in {wait_minutes} minutes.",
+        )
+
+    code = f"{secrets.randbelow(900000) + 100000}"
+    code_hash = _hash_whatsapp_otp(code)
+
+    try:
+        await send_whatsapp_otp(phone_number, code)
+    except WhatsAppSendError:
+        # Full error already logged server-side inside send_whatsapp_otp.
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Couldn't send the verification code. Please try again in a moment.",
+        )
+
+    # Sending a new OTP replaces any previous one for this number -- SET
+    # overwrites the key outright rather than merging, so a stale record
+    # (and its attempt count) never lingers past a fresh send.
+    record = json.dumps({"hash": code_hash, "attempts": 0})
+    pipe_write = redis_client.pipeline()
+    pipe_write.set(otp_record_key, record, ex=settings.OTP_EXPIRY_SECONDS)
+    pipe_write.set(cooldown_key, "1", ex=WHATSAPP_OTP_COOLDOWN_SECONDS)
+    pipe_write.incr(phone_count_key)
+    if phone_count is None:
+        pipe_write.expire(phone_count_key, 3600)
+    pipe_write.incr(ip_count_key)
+    if ip_count is None:
+        pipe_write.expire(ip_count_key, 3600)
+    pipe_write.execute()
+
+    return {"sent": True, "expires_in": settings.OTP_EXPIRY_SECONDS}
+
+
+@router.post(
+    "/whatsapp/verify-otp",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+)
+def verify_whatsapp_otp_endpoint(
+    payload: WhatsAppVerifyOTP,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Verify a code sent via send_whatsapp_otp_endpoint. On success, marks
+    current_user's phone as verified -- same effect as verify_firebase_phone,
+    different channel."""
+    redis_client = rate_limit_redis_client
+    otp_record_key = f"wa_otp:{payload.phone_number}"
+
+    raw_record = redis_client.get(otp_record_key)
+    if raw_record is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This code has expired or wasn't found. Please request a new one.",
+        )
+
+    record = json.loads(raw_record)
+    if record["attempts"] >= WHATSAPP_OTP_MAX_ATTEMPTS:
+        redis_client.delete(otp_record_key)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many incorrect attempts. Please request a new code.",
+        )
+
+    submitted_hash = _hash_whatsapp_otp(payload.code)
+    if not hmac.compare_digest(submitted_hash, record["hash"]):
+        record["attempts"] += 1
+        ttl = redis_client.ttl(otp_record_key)
+        redis_client.set(otp_record_key, json.dumps(record), ex=max(ttl, 1))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect code. Please try again.",
+        )
+
+    redis_client.delete(otp_record_key)
+
+    current_user.phone = normalize_phone_to_whatsapp_format(payload.phone_number)
+    current_user.is_phone_verified = True
+    db.commit()
+    db.refresh(current_user)
+
+    return current_user

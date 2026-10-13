@@ -37,6 +37,13 @@ class Setting(BaseSettings):
     MCP_INTERNAL_SECRET: str | None = None
     CHATBOT_INTERNAL_SECRET: str | None = None
 
+    # Shared secret for the n8n blog-automation pipeline — a plain header
+    # check (X-Automation-Key), not JWT, since n8n isn't a logged-in admin
+    # user and doesn't hold a session. Separate from the internal JWT keys
+    # above since this is a simpler external-automation credential, not
+    # service-to-service auth between our own microservices.
+    BLOG_AUTOMATION_API_KEY: str | None = None
+
     
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30 # 30 minutes
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7 # 7 days
@@ -83,6 +90,23 @@ class Setting(BaseSettings):
     # Firebase Admin SDK Configuration
     FIREBASE_CREDENTIALS_PATH: str = "firebase-service-account.json"
 
+    # WhatsApp Cloud API (Meta) -- primary phone-verification channel.
+    # Firebase Phone Auth above stays as the fallback when this isn't
+    # configured or a send fails.
+    WHATSAPP_TOKEN: str | None = None
+    WHATSAPP_PHONE_NUMBER_ID: str | None = None
+    WHATSAPP_TEMPLATE_NAME: str = "hearthandone_otp"
+    WHATSAPP_TEMPLATE_LANG: str = "en"
+    WHATSAPP_API_VERSION: str = "v25.0"
+    OTP_EXPIRY_SECONDS: int = 600
+    # HMAC key for hashing WhatsApp OTP codes at rest -- deliberately
+    # separate from hash_token()'s plain SHA-256 (used for magic-link
+    # tokens, which are long/high-entropy). A 6-digit OTP has only 1e6
+    # possible values, so a plain hash is brute-forceable offline from a
+    # DB read alone; keying the hash with a server-only secret makes that
+    # infeasible without also having this secret.
+    WHATSAPP_OTP_SECRET: str | None = None
+
     # Jitsi JaaS (8x8 Video) Configuration
     JAAS_APP_ID: str | None = None
     JAAS_API_KEY_ID: str | None = None
@@ -95,6 +119,15 @@ class Setting(BaseSettings):
 
     # Telehealth Timezone Setting
     DEFAULT_TIMEZONE: str = "Asia/Kolkata"
+
+    # WhatsApp Business Platform (Meta Cloud API) — webhook receiver config.
+    # WHATSAPP_VERIFY_TOKEN is a secret you choose yourself and enter in the
+    # Meta App Dashboard's webhook setup screen; Meta echoes it back on the
+    # GET verification handshake so we can confirm the request is really
+    # from a webhook subscription you configured, not a stranger. Separate
+    # from WHATSAPP_APP_SECRET, which signs the actual POST payloads.
+    WHATSAPP_VERIFY_TOKEN: str | None = None
+    WHATSAPP_APP_SECRET: str | None = None
 
     # Google Places API (New) — Vets Near Me. Server-side only, never sent
     # to the client.
