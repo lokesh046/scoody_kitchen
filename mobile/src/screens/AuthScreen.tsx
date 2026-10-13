@@ -18,7 +18,6 @@ import {
   PawPrint,
   Mail,
   User,
-  Phone,
   ShieldCheck,
   CheckCircle2,
   ArrowRight,
@@ -50,7 +49,6 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
   // Form Fields
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
-  const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
 
   // UI States
@@ -141,7 +139,6 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
     try {
       const payload: any = { email: cleanEmail };
       if (firstName.trim()) payload.first_name = firstName.trim();
-      if (phone.trim()) payload.phone = phone.trim();
 
       await apiClient.post('/auth/magic-link', payload);
       setSuccessMsg(`6-digit verification code sent to ${cleanEmail}`);
@@ -338,23 +335,6 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
                       />
                     </View>
                   </View>
-
-                  {mode === 'register' && (
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>Phone Number (Optional)</Text>
-                      <View style={styles.inputWrapper}>
-                        <Phone size={18} color={COLORS.textMuted} />
-                        <TextInput
-                          placeholder="+91 98765 43210"
-                          placeholderTextColor={COLORS.textLight}
-                          value={phone}
-                          onChangeText={setPhone}
-                          keyboardType="phone-pad"
-                          style={styles.textInput}
-                        />
-                      </View>
-                    </View>
-                  )}
 
                   <TouchableOpacity
                     style={[styles.submitBtn, isBusy && styles.submitBtnDisabled]}

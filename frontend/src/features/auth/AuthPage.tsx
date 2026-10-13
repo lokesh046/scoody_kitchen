@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/auth';
 import { registerUser, requestMagicLink, verifyMagicCode, fetchCurrentUser, authenticateGoogle } from '../../api/auth';
 import { createPet } from '../../api/pets';
 import { Eyebrow } from '../../components/Eyebrow';
-import { Key, Mail, Phone, User, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Key, Mail, User, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { DogViewer3D } from '../../components/DogViewer3D';
 
 declare global {
@@ -155,7 +155,6 @@ export const AuthPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
 
   // OTP Verification Mode
   const [isOtpMode, setIsOtpMode] = useState(false);
@@ -278,7 +277,6 @@ export const AuthPage: React.FC = () => {
           email,
           first_name: firstName || undefined,
           last_name: lastName || undefined,
-          phone: phone || undefined,
         });
         setSuccessMsg(res.message || 'Verification code sent! Please check your terminal console / email.');
       } else {
@@ -363,14 +361,14 @@ export const AuthPage: React.FC = () => {
           <div className="w-20 h-20 sm:w-24 sm:h-24 logo-medallion flex items-center justify-center p-1 overflow-hidden mb-1 shadow-md">
             <img
               src="/scooby-logo-256.png"
-              alt="Scooby's Kitchen Logo"
+              alt="Hearth & One Logo"
               width={96}
               height={96}
               className="w-full h-full object-contain select-none"
             />
           </div>
           <div>
-            <h2 className="font-display font-black text-2xl text-ink">Scooby's Kitchen</h2>
+            <h2 className="font-display font-black text-2xl text-ink">Hearth & One</h2>
             <p className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold">
               Recipe Notebook Security Ledger
             </p>
@@ -466,23 +464,6 @@ export const AuthPage: React.FC = () => {
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                         placeholder="Doe"
-                        className="w-full pl-9 pr-4 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Phone */}
-                  <div className="space-y-1 animate-fade-in-up" style={{ animationDelay: '150ms', animationFillMode: 'both' }}>
-                    <label className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold block">
-                      Phone Number
-                    </label>
-                    <div className="relative">
-                      <Phone className="w-3.5 h-3.5 text-cardboard absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="+1 (555) 000-0000"
                         className="w-full pl-9 pr-4 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                       />
                     </div>
