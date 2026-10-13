@@ -191,7 +191,7 @@ export const AddressStep = memo(function AddressStep({
               }}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Verify phone via SMS"
+              accessibilityLabel="Verify phone number"
             >
               <Text style={styles.verifyPhoneBtnText}>Verify Phone</Text>
             </TouchableOpacity>

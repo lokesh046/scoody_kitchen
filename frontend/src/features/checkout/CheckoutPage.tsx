@@ -1180,7 +1180,7 @@ export const CheckoutPage: React.FC = () => {
                       {user?.is_phone_verified ? (
                         <span className="font-mono text-[8px] text-herb font-bold flex items-center space-x-1 uppercase tracking-wider">
                           <ShieldCheck className="w-3.5 h-3.5" />
-                          <span>Verified via SMS</span>
+                          <span>Phone Verified</span>
                         </span>
                       ) : (
                         <span className="font-mono text-[8px] text-paprika font-bold uppercase tracking-wider">
@@ -1540,7 +1540,7 @@ export const CheckoutPage: React.FC = () => {
                   }}
                   className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs py-3.5 rounded-none tracking-wide uppercase transition-colors flex items-center justify-center space-x-2 cursor-pointer border-0"
                 >
-                  <span>Verify Contact Number via SMS</span>
+                  <span>Verify Contact Number</span>
                 </button>
                 
                 <button

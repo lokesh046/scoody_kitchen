@@ -522,7 +522,7 @@ export const ProfilePage: React.FC = () => {
                   {(user?.is_phone_verified && !isEditingPhone) ? (
                     <span className="font-mono text-[9px] text-emerald-700 font-bold flex items-center space-x-1">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Verified via SMS ✓</span>
+                      <span>Phone Verified ✓</span>
                     </span>
                   ) : (
                     <span className="font-mono text-[9px] text-amber-800 font-bold">
