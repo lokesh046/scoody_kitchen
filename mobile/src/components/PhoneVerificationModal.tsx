@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Platform,
   Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -51,19 +52,39 @@ export function PhoneVerificationModal({
   // WhatsApp is the primary channel; falls back to Firebase SMS if the user
   // can't receive WhatsApp or a send fails.
   const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
+  // When the sent code is still valid, closing the modal by accident (the X,
+  // a backdrop tap, the system back gesture) and reopening it should resume
+  // the OTP-entry step instead of silently discarding the code and forcing
+  // a resend -- null means "no code in flight, start from step 1."
+  const [otpExpiresAt, setOtpExpiresAt] = useState<number | null>(null);
 
   const timerRef = useRef<any>(null);
+  const prevPhoneRef = useRef(phone);
 
   useEffect(() => {
-    if (visible) {
-      setStep(1);
-      setVerificationCode('');
+    if (!visible) return;
+
+    const phoneChanged = prevPhoneRef.current !== phone;
+    prevPhoneRef.current = phone;
+    const resumingPendingOtp =
+      step === 2 && !phoneChanged && otpExpiresAt !== null && Date.now() < otpExpiresAt;
+
+    if (resumingPendingOtp) {
+      // Just clear transient banners; keep the step, code, and channel as-is.
       setErrorMsg(null);
       setInfoNotice(null);
       setIsLoading(false);
-      setSessionInfo(null);
-      setVerificationChannel('whatsapp');
+      return;
     }
+
+    setStep(1);
+    setVerificationCode('');
+    setErrorMsg(null);
+    setInfoNotice(null);
+    setIsLoading(false);
+    setSessionInfo(null);
+    setVerificationChannel('whatsapp');
+    setOtpExpiresAt(null);
   }, [visible, phone]);
 
   // Cooldown countdown timer (30s)
@@ -100,9 +121,10 @@ export function PhoneVerificationModal({
 
     if (channel === 'whatsapp') {
       try {
-        await sendWhatsAppOtp(fullPhoneNumber);
+        const result = await sendWhatsAppOtp(fullPhoneNumber);
         setStep(2);
         setCooldownCountdown(60);
+        setOtpExpiresAt(Date.now() + (result.expires_in || 300) * 1000);
       } catch (err: any) {
         console.log('WhatsApp OTP request error:', err.response?.data || err.message);
         setErrorMsg(
@@ -142,6 +164,7 @@ export function PhoneVerificationModal({
 
       setStep(2);
       setCooldownCountdown(30);
+      setOtpExpiresAt(Date.now() + 5 * 60 * 1000);
     } catch (err: any) {
       console.log('OTP request error:', err.response?.data || err.message);
       const detail =
@@ -196,6 +219,7 @@ export function PhoneVerificationModal({
         updatedUser = await verifyPhoneWithToken(verifyData.idToken);
       }
 
+      setOtpExpiresAt(null);
       Alert.alert('Phone Verified', 'Your contact phone number has been verified in your account ledger.');
       onSuccess(updatedUser);
       onClose();
@@ -218,180 +242,189 @@ export function PhoneVerificationModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={isTablet ? modalOverlayStyle : styles.overlay}>
-        <TouchableOpacity
-          style={isTablet ? StyleSheet.absoluteFill : styles.backdrop}
-          activeOpacity={1}
-          onPress={onClose}
-        />
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoider}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
+      >
+        <View style={isTablet ? modalOverlayStyle : styles.overlay}>
+          <TouchableOpacity
+            style={isTablet ? StyleSheet.absoluteFill : styles.backdrop}
+            activeOpacity={1}
+            onPress={onClose}
+          />
 
-        <SafeAreaView
-          edges={isTablet ? [] : ['bottom']}
-          style={[
-            styles.card,
-            isTablet && modalSheetContainerStyle,
-            isTablet && { maxWidth: 480, alignSelf: 'center', borderRadius: 24, borderWidth: 1 },
-          ]}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <View>
-              <View style={styles.tagBadge}>
-                <ShieldCheck size={11} color="#C2410C" />
-                <Text style={styles.tagBadgeText}>REGISTRY PHONE VERIFICATION</Text>
-              </View>
-              <Text style={styles.title}>
-                {verificationChannel === 'whatsapp' ? 'WhatsApp Verification' : 'SMS Authentication'}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={styles.closeBtn}
-              onPress={onClose}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              activeOpacity={0.7}
-            >
-              <X size={18} color="#2C1810" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Notices */}
-          {errorMsg && (
-            <View style={styles.errorBanner}>
-              <AlertCircle size={14} color="#B91C1C" />
-              <Text style={styles.errorText}>{errorMsg}</Text>
-            </View>
-          )}
-
-          {infoNotice && (
-            <View style={styles.infoBanner}>
-              <Zap size={14} color="#0D9488" />
-              <Text style={styles.infoText}>{infoNotice}</Text>
-            </View>
-          )}
-
-          {/* Step 1: Destination confirmation & Send */}
-          {step === 1 ? (
-            <View style={styles.body}>
-              <Text style={styles.description}>
-                We'll send a one-time verification code via WhatsApp to your registered profile number:{' '}
-                <Text style={styles.phoneHighlight}>+91 {displayDigits}</Text>.
-              </Text>
-
-              <Text style={styles.carrierNote}>
-                * Statically applied prefix (+91) for Indian telecommunication carriers.
-              </Text>
-
-              <View style={styles.actionColumn}>
-                <TouchableOpacity
-                  style={[styles.primaryBtn, isLoading && styles.btnDisabled]}
-                  onPress={() => handleSendOtp('whatsapp')}
-                  disabled={isLoading}
-                  activeOpacity={0.85}
-                >
-                  {isLoading ? (
-                    <View style={styles.rowCentered}>
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                      <Text style={styles.primaryBtnText}>Sending WhatsApp code...</Text>
-                    </View>
-                  ) : (
-                    <Text style={styles.primaryBtnText}>Send Code via WhatsApp</Text>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.sandboxBtn}
-                  onPress={handleTrySmsInstead}
-                  disabled={isLoading}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.sandboxBtnText}>
-                    Can't receive WhatsApp? Send via SMS instead
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            /* Step 2: 6-Digit OTP Entry */
-            <View style={styles.body}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>ENTER 6-DIGIT OTP CODE</Text>
-                <TextInput
-                  style={styles.otpInput}
-                  value={verificationCode}
-                  onChangeText={(val) => setVerificationCode(val.replace(/\D/g, ''))}
-                  placeholder="123456"
-                  placeholderTextColor="#A8998C"
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  autoFocus
-                />
-              </View>
-
-              <Text style={styles.codeSubNote}>
-                Enter the verification code sent to your phone. Code is valid for 5 minutes.
-              </Text>
-
-              {attemptsRemaining !== null && (
-                <Text style={styles.attemptsText}>
-                  HOURLY ATTEMPTS REMAINING: {attemptsRemaining} OF 3
+          <SafeAreaView
+            edges={isTablet ? [] : ['bottom']}
+            style={[
+              styles.card,
+              isTablet && modalSheetContainerStyle,
+              isTablet && { maxWidth: 480, alignSelf: 'center', borderRadius: 24, borderWidth: 1 },
+            ]}
+          >
+            {/* Header */}
+            <View style={styles.header}>
+              <View>
+                <View style={styles.tagBadge}>
+                  <ShieldCheck size={11} color="#C2410C" />
+                  <Text style={styles.tagBadgeText}>REGISTRY PHONE VERIFICATION</Text>
+                </View>
+                <Text style={styles.title}>
+                  {verificationChannel === 'whatsapp' ? 'WhatsApp Verification' : 'SMS Authentication'}
                 </Text>
-              )}
+              </View>
 
-              <View style={styles.otpActionRow}>
-                {cooldownCountdown > 0 ? (
-                  <View style={styles.resendBtnDisabled}>
-                    <Clock size={12} color="#A8998C" />
-                    <Text style={styles.resendBtnTextDisabled}>
-                      Resend ({cooldownCountdown}s)
-                    </Text>
-                  </View>
-                ) : (
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={onClose}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                activeOpacity={0.7}
+              >
+                <X size={18} color="#2C1810" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Notices */}
+            {errorMsg && (
+              <View style={styles.errorBanner}>
+                <AlertCircle size={14} color="#B91C1C" />
+                <Text style={styles.errorText}>{errorMsg}</Text>
+              </View>
+            )}
+
+            {infoNotice && (
+              <View style={styles.infoBanner}>
+                <Zap size={14} color="#0D9488" />
+                <Text style={styles.infoText}>{infoNotice}</Text>
+              </View>
+            )}
+
+            {/* Step 1: Destination confirmation & Send */}
+            {step === 1 ? (
+              <View style={styles.body}>
+                <Text style={styles.description}>
+                  We'll send a one-time verification code via WhatsApp to your registered profile number:{' '}
+                  <Text style={styles.phoneHighlight}>+91 {displayDigits}</Text>.
+                </Text>
+
+                <Text style={styles.carrierNote}>
+                  * Statically applied prefix (+91) for Indian telecommunication carriers.
+                </Text>
+
+                <View style={styles.actionColumn}>
                   <TouchableOpacity
-                    style={styles.resendBtn}
-                    onPress={() => handleSendOtp()}
+                    style={[styles.primaryBtn, isLoading && styles.btnDisabled]}
+                    onPress={() => handleSendOtp('whatsapp')}
+                    disabled={isLoading}
+                    activeOpacity={0.85}
+                  >
+                    {isLoading ? (
+                      <View style={styles.rowCentered}>
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                        <Text style={styles.primaryBtnText}>Sending WhatsApp code...</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.primaryBtnText}>Send Code via WhatsApp</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.sandboxBtn}
+                    onPress={handleTrySmsInstead}
                     disabled={isLoading}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.resendBtnText}>Resend</Text>
+                    <Text style={styles.sandboxBtnText}>
+                      Can't receive WhatsApp? Send via SMS instead
+                    </Text>
                   </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              /* Step 2: 6-Digit OTP Entry */
+              <View style={styles.body}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>ENTER 6-DIGIT OTP CODE</Text>
+                  <TextInput
+                    style={styles.otpInput}
+                    value={verificationCode}
+                    onChangeText={(val) => setVerificationCode(val.replace(/\D/g, ''))}
+                    placeholder="123456"
+                    placeholderTextColor="#A8998C"
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    autoFocus
+                  />
+                </View>
+
+                <Text style={styles.codeSubNote}>
+                  Enter the verification code sent to your phone. Code is valid for 5 minutes.
+                </Text>
+
+                {attemptsRemaining !== null && (
+                  <Text style={styles.attemptsText}>
+                    HOURLY ATTEMPTS REMAINING: {attemptsRemaining} OF 3
+                  </Text>
                 )}
 
-                <TouchableOpacity
-                  style={[styles.verifyBtn, isLoading && styles.btnDisabled]}
-                  onPress={handleVerifyOtp}
-                  disabled={isLoading}
-                  activeOpacity={0.85}
-                >
-                  {isLoading ? (
-                    <View style={styles.rowCentered}>
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                      <Text style={styles.primaryBtnText}>Verifying OTP...</Text>
+                <View style={styles.otpActionRow}>
+                  {cooldownCountdown > 0 ? (
+                    <View style={styles.resendBtnDisabled}>
+                      <Clock size={12} color="#A8998C" />
+                      <Text style={styles.resendBtnTextDisabled}>
+                        Resend ({cooldownCountdown}s)
+                      </Text>
                     </View>
                   ) : (
-                    <View style={styles.rowCentered}>
-                      <CheckCircle2 size={15} color="#FFFFFF" />
-                      <Text style={styles.primaryBtnText}>Verify Code</Text>
-                    </View>
+                    <TouchableOpacity
+                      style={styles.resendBtn}
+                      onPress={() => handleSendOtp()}
+                      disabled={isLoading}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.resendBtnText}>Resend</Text>
+                    </TouchableOpacity>
                   )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
 
-          {/* Footer Ledger Note */}
-          <View style={styles.footerNote}>
-            <Text style={styles.footerNoteText}>
-              HEARTH & ONE • ENCRYPTED TELE-AUTH PROTOCOL
-            </Text>
-          </View>
-        </SafeAreaView>
-      </View>
+                  <TouchableOpacity
+                    style={[styles.verifyBtn, isLoading && styles.btnDisabled]}
+                    onPress={handleVerifyOtp}
+                    disabled={isLoading}
+                    activeOpacity={0.85}
+                  >
+                    {isLoading ? (
+                      <View style={styles.rowCentered}>
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                        <Text style={styles.primaryBtnText}>Verifying OTP...</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.rowCentered}>
+                        <CheckCircle2 size={15} color="#FFFFFF" />
+                        <Text style={styles.primaryBtnText}>Verify Code</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* Footer Ledger Note */}
+            <View style={styles.footerNote}>
+              <Text style={styles.footerNoteText}>
+                HEARTH & ONE • ENCRYPTED TELE-AUTH PROTOCOL
+              </Text>
+            </View>
+          </SafeAreaView>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoider: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(23, 35, 61, 0.65)',

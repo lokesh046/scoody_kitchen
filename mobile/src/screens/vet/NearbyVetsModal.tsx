@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker } from 'react-native-maps';
@@ -286,6 +288,10 @@ export function NearbyVetsModal({ isOpen, onClose, onSelectDoctor, onBookOnlineI
   return (
     <>
     <Modal visible={isOpen} animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Vets Near Me</Text>
@@ -450,6 +456,7 @@ export function NearbyVetsModal({ isOpen, onClose, onSelectDoctor, onBookOnlineI
           />
         )}
       </SafeAreaView>
+      </KeyboardAvoidingView>
     </Modal>
 
     {/* Clinic Detail — full-screen, same information the web app's side

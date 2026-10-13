@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import {
   X,
@@ -125,6 +125,11 @@ export function BookingModal({
 
   return (
     <Modal visible={!!doctor} transparent animationType="slide">
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
+      >
       <View style={isTablet ? modalOverlayStyle : styles.modalOverlay}>
         <View style={[styles.modalSheet, isTablet && modalSheetContainerStyle]}>
           {/* Modal Header */}
@@ -441,6 +446,7 @@ export function BookingModal({
           )}
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

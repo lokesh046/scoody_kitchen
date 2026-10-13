@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, TextInput, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Modal, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { X, Star } from 'lucide-react-native';
 import { COLORS } from '../../theme/colors';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -30,6 +30,11 @@ export function ReviewModal({
 
   return (
     <Modal visible={isOpen} transparent animationType="slide">
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
+      >
       <View style={isTablet ? modalOverlayStyle : styles.modalOverlay}>
         <View style={[styles.reviewModalSheet, isTablet && modalSheetContainerStyle]}>
           <View style={styles.reviewModalHeaderRow}>
@@ -80,6 +85,7 @@ export function ReviewModal({
           </TouchableOpacity>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

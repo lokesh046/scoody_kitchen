@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { StatusBar, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useEffect, useCallback } from 'react';
+import { StatusBar, View, Text, TouchableOpacity, ActivityIndicator, AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -7,6 +7,7 @@ import { useFonts } from 'expo-font';
 import { Sentry, isSentryEnabled } from './src/services/sentry';
 import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD } from './src/theme/typography';
 import { useAuthStore } from './src/store/authStore';
+import { fetchCurrentUser } from './src/api/auth';
 import { useFeatureFlagStore } from './src/store/featureFlagStore';
 import { useNetworkStore } from './src/store/networkStore';
 import { prefetchTabData } from './src/services/tabPrefetch';
@@ -29,7 +30,7 @@ const Stack = createNativeStackNavigator();
 const navigationRef = createNavigationContainerRef();
 
 function App() {
-  const { user, isGuest, isHydrated, hydrateAuth } = useAuthStore();
+  const { user, isGuest, isHydrated, hydrateAuth, updateUser } = useAuthStore();
   const fetchFlags = useFeatureFlagStore((state) => state.fetchFlags);
   const initNetwork = useNetworkStore((state) => state.init);
   const [fontsLoaded] = useFonts(FONT_ASSETS);
@@ -38,6 +39,35 @@ function App() {
     hydrateAuth();
     fetchFlags();
   }, [hydrateAuth, fetchFlags]);
+
+  // The signed-in profile is cached locally (AsyncStorage) so the app opens
+  // instantly, but that means changes made elsewhere -- the website, an
+  // admin action -- never reach the app on their own. Re-pull /auth/me once
+  // we know who's signed in, and again every time the app comes back to the
+  // foreground, so it stays in sync without needing a logout/login.
+  const refreshUser = useCallback(async () => {
+    if (!user) return;
+    try {
+      const freshUser = await fetchCurrentUser();
+      await updateUser(freshUser);
+    } catch {
+      // Offline or a transient API error -- keep showing the cached profile.
+    }
+  }, [user, updateUser]);
+
+  useEffect(() => {
+    if (!isHydrated || !user) return;
+    refreshUser();
+  }, [isHydrated, user?.id]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        refreshUser();
+      }
+    });
+    return () => subscription.remove();
+  }, [refreshUser]);
 
   useEffect(() => {
     const unsubscribe = initNetwork();

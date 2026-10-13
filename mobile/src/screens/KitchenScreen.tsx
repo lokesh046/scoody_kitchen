@@ -13,6 +13,7 @@ import {
   RefreshControl,
   Alert,
   Animated,
+  KeyboardAvoidingView,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Image } from 'expo-image';
@@ -1326,6 +1327,11 @@ export default function KitchenScreen({ navigation, route }: any) {
         animationType="slide"
         onRequestClose={() => setWriteReviewVisible(false)}
       >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
+        >
         <View style={isTablet ? modalOverlayStyle : styles.writeReviewOverlay}>
           <View style={[styles.writeReviewCard, isTablet && modalSheetContainerStyle]}>
             <View style={styles.writeReviewHeader}>
@@ -1446,6 +1452,7 @@ export default function KitchenScreen({ navigation, route }: any) {
             </ScrollView>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
