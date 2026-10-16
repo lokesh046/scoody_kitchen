@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Heart, Shield, Sparkles, ChevronRight,
   Activity, Database, ArrowRight, Check
@@ -659,7 +659,8 @@ export default function HomePage() {
             </a>
 
             <p className="font-mono text-[10px] uppercase tracking-wider text-cardboard opacity-75">
-              © {new Date().getFullYear()} Hearth & One. Crafted with care for pet parents everywhere.
+              © {new Date().getFullYear()} Hearth & One. Crafted with care for pet parents everywhere. ·{' '}
+              <Link to="/privacy" className="hover:text-turmeric transition-colors">Privacy Policy</Link>
             </p>
           </div>
         </footer>

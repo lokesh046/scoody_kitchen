@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import DOMPurify from 'dompurify';
 import { ArrowLeft, AlertCircle, Calendar } from 'lucide-react';
@@ -150,7 +150,8 @@ export const BlogPostPage: React.FC = () => {
 
       <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
         <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">
-          © {new Date().getFullYear()} Hearth & One. All rights reserved.
+          © {new Date().getFullYear()} Hearth & One. All rights reserved. ·{' '}
+          <Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link>
         </p>
       </footer>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />

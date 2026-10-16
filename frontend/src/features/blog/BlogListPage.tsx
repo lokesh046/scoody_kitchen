@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, Calendar } from 'lucide-react';
 import { fetchPublishedBlogPosts } from '../../api/blog';
@@ -134,7 +134,8 @@ export const BlogListPage: React.FC = () => {
 
       <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
         <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">
-          © {new Date().getFullYear()} Hearth & One. All rights reserved.
+          © {new Date().getFullYear()} Hearth & One. All rights reserved. ·{' '}
+          <Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link>
         </p>
       </footer>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />

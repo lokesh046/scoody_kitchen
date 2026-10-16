@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { logoutUser, updateUserProfile, uploadAvatarImage, verifyFirebasePhoneToken, requestOtpPreCheck, sendWhatsAppOtp, verifyWhatsAppOtp } from '../../api/auth';
@@ -775,7 +775,8 @@ export const ProfilePage: React.FC = () => {
       {/* Footer */}
       <footer className="mt-auto border-t border-cardboard border-opacity-30 py-6 text-center text-ink opacity-60 w-full">
         <p className="font-mono text-[10px] uppercase tracking-wider">
-          © {new Date().getFullYear()} Hearth & One. All rights reserved.
+          © {new Date().getFullYear()} Hearth & One. All rights reserved. ·{' '}
+          <Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link>
         </p>
       </footer>
 

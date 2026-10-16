@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Map, MapMarker, MapControls, type MapRefHandle } from '../../components/ui/map';
 import { fetchIpLocation, reverseGeocode as apiReverseGeocode, lookupPincode as apiLookupPincode } from '../../api/geo';
 import { useAuthStore } from '../../store/auth';
@@ -1697,7 +1697,8 @@ export const CheckoutPage: React.FC = () => {
       {/* Footer */}
       <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
         <p className="font-mono text-[9px] uppercase tracking-wider">
-          © {new Date().getFullYear()} Hearth & One. All rights reserved.
+          © {new Date().getFullYear()} Hearth & One. All rights reserved. ·{' '}
+          <Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link>
         </p>
       </footer>
     </div>

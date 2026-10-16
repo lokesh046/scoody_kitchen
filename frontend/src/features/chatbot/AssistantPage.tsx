@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth';
 import { cancelOrder } from '../../api/orders';
 import { cancelConsultation } from '../../api/consultations';
@@ -812,7 +812,8 @@ export const AssistantPage: React.FC = () => {
       </main>
       {/* Footer */}
       <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 font-mono text-[9px] uppercase tracking-wider w-full">
-        © {new Date().getFullYear()} Hearth & One. All rights reserved.
+        © {new Date().getFullYear()} Hearth & One. All rights reserved. ·{' '}
+        <Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link>
       </footer>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>

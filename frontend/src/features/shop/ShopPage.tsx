@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Search, PawPrint, X, Clock, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
@@ -360,7 +360,8 @@ export default function ShopPage() {
       {/* Footer */}
       <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
         <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">
-          © {new Date().getFullYear()} Hearth & One. All rights reserved.
+          © {new Date().getFullYear()} Hearth & One. All rights reserved. ·{' '}
+          <Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link>
         </p>
         <p className="font-body text-xs mt-1 max-w-md mx-auto leading-relaxed">
           Tested and crafted with love for pet parents who care about what goes in the bowl.
