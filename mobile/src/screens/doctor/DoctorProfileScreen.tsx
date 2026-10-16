@@ -14,13 +14,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { LogOut, Stethoscope } from 'lucide-react-native';
+import { LogOut, Lock, Stethoscope } from 'lucide-react-native';
 import { COLORS } from '../../theme/colors';
 import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD } from '../../theme/typography';
 import { getDoctorProfile, updateDoctorProfile, DoctorResponse } from '../../api/doctor';
 import { useAuthStore } from '../../store/authStore';
 
-export default function DoctorProfileScreen() {
+interface DoctorProfileScreenProps {
+  navigation?: any;
+}
+
+export default function DoctorProfileScreen({ navigation }: DoctorProfileScreenProps) {
   const { user, logout } = useAuthStore();
   const [profile, setProfile] = useState<DoctorResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -165,6 +169,16 @@ export default function DoctorProfileScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={styles.privacyBtn}
+            onPress={() => navigation?.navigate('PrivacyPolicy')}
+            accessibilityRole="button"
+            accessibilityLabel="Privacy Policy"
+          >
+            <Lock size={15} color={COLORS.textMuted} />
+            <Text style={styles.privacyBtnText}>Privacy Policy</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.logoutBtn}
             onPress={handleLogout}
             accessibilityRole="button"
@@ -244,4 +258,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   logoutBtnText: { fontSize: 12.5, fontFamily: FONT_BODY_BOLD, color: COLORS.ctaBrown },
+  privacyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: COLORS.kraftBorder,
+    borderRadius: 12,
+    paddingVertical: 12,
+  },
+  privacyBtnText: { fontSize: 12.5, fontFamily: FONT_BODY_BOLD, color: COLORS.textMuted },
 });

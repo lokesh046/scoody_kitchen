@@ -22,6 +22,7 @@ import MealPlannerScreen from './src/screens/MealPlannerScreen';
 import DoctorConsultationDetailScreen from './src/screens/doctor/DoctorConsultationDetailScreen';
 import SupportScreen from './src/screens/SupportScreen';
 import SupportTicketScreen from './src/screens/SupportTicketScreen';
+import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import OfflineBanner from './src/components/OfflineBanner';
 import { COLORS } from './src/theme/colors';
 import { FONT_ASSETS } from './src/theme/typography';
@@ -158,6 +159,7 @@ function App() {
           <Stack.Screen name="DoctorConsultationDetail" component={DoctorConsultationDetailScreen} />
           <Stack.Screen name="Support" component={SupportScreen} />
           <Stack.Screen name="SupportTicket" component={SupportTicketScreen} />
+          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
           <Stack.Screen
             name="VideoCall"
             component={VideoCallScreen}
