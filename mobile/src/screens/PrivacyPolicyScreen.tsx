@@ -224,11 +224,11 @@ export default function PrivacyPolicyScreen({ navigation }: PrivacyPolicyScreenP
         <View style={styles.contactTable}>
           <View style={styles.contactRow}>
             <Text style={styles.contactLabel}>Grievance Officer</Text>
-            <Text style={styles.contactValue}>[Name — to be filled in before publication]</Text>
+            <Text style={styles.contactValue}>Yeswanth S</Text>
           </View>
           <View style={styles.contactRow}>
             <Text style={styles.contactLabel}>Email</Text>
-            <Text style={styles.contactValue}>privacy@hearthandone.com (placeholder)</Text>
+            <Text style={styles.contactValue}>support@hearthandone.com</Text>
           </View>
           <View style={styles.contactRow}>
             <Text style={styles.contactLabel}>Registered Address</Text>

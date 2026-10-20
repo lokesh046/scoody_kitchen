@@ -295,13 +295,11 @@ export const PrivacyPolicyPage: React.FC = () => {
                 <tbody>
                   <tr className="border-b border-cardboard">
                     <td className="bg-ink text-paper font-bold px-4 py-2.5 w-1/3">Grievance Officer</td>
-                    <td className="px-4 py-2.5 text-ink">[Name — to be filled in before publication]</td>
+                    <td className="px-4 py-2.5 text-ink">Yeswanth S</td>
                   </tr>
                   <tr className="border-b border-cardboard">
                     <td className="bg-ink text-paper font-bold px-4 py-2.5">Email</td>
-                    <td className="px-4 py-2.5 text-ink">
-                      privacy@hearthandone.com <span className="italic opacity-70">(placeholder — confirm before publication)</span>
-                    </td>
+                    <td className="px-4 py-2.5 text-ink">support@hearthandone.com</td>
                   </tr>
                   <tr className="border-b border-cardboard">
                     <td className="bg-ink text-paper font-bold px-4 py-2.5">Registered Address</td>
