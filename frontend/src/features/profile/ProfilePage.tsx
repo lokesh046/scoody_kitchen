@@ -58,11 +58,11 @@ export const ProfilePage: React.FC = () => {
 
   const formatPhoneForState = (rawPhone?: string | null) => {
     if (!rawPhone) return '';
-    const clean = rawPhone.trim().replace(/[\s\-\(\)]/g, '');
-    if (clean.startsWith('+91')) {
-      return clean.slice(3);
-    }
-    return clean;
+    // Takes the last 10 digits regardless of how a country code prefix was
+    // stored ("+91...", "91...", or none) -- more bulletproof than matching
+    // a specific prefix shape, which missed the no-plus-sign case.
+    const digitsOnly = rawPhone.replace(/\D/g, '');
+    return digitsOnly.slice(-10);
   };
 
   // Form State

@@ -46,14 +46,13 @@ export function PhoneVerificationGate() {
   const shouldShow = !!user && user.is_phone_verified === false;
 
   useEffect(() => {
+    // Takes the last 10 digits regardless of how a country code prefix was
+    // stored ("+91...", "91...", or none) -- more bulletproof than matching
+    // specific prefix shapes, which previously missed edge cases and let an
+    // extra "91" slip through to get double-prefixed on send.
     if (shouldShow && user?.phone) {
-      const clean = user.phone.trim().replace(/[\s\-\(\)]/g, '');
-      const digits = clean.startsWith('+91')
-        ? clean.slice(3)
-        : clean.startsWith('91') && clean.length === 12
-        ? clean.slice(2)
-        : clean;
-      setPhoneDigits(digits);
+      const digitsOnly = user.phone.replace(/\D/g, '');
+      setPhoneDigits(digitsOnly.slice(-10));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldShow]);

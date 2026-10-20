@@ -32,10 +32,15 @@ export const PhoneVerificationGate: React.FC = () => {
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
 
   // Pre-fill from the user's existing profile phone, if any (e.g. a
-  // previous unverified attempt) -- otherwise start blank.
+  // previous unverified attempt) -- otherwise start blank. Takes the last
+  // 10 digits regardless of how a country code prefix was stored ("+91...",
+  // "91...", or none at all) -- stripping only a literal "+91" missed the
+  // no-plus-sign case and left the extra "91" in place, which then got a
+  // second "+91" prepended on send, corrupting the stored number.
   useEffect(() => {
     if (user?.phone) {
-      setPhone(user.phone.replace(/^\+91/, ''));
+      const digitsOnly = user.phone.replace(/\D/g, '');
+      setPhone(digitsOnly.slice(-10));
     }
   }, [user?.phone]);
 
