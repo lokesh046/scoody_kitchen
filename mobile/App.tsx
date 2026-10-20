@@ -25,6 +25,7 @@ import SupportTicketScreen from './src/screens/SupportTicketScreen';
 import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
 import TermsScreen from './src/screens/TermsScreen';
 import OfflineBanner from './src/components/OfflineBanner';
+import { PhoneVerificationGate } from './src/components/PhoneVerificationGate';
 import { COLORS } from './src/theme/colors';
 import { FONT_ASSETS } from './src/theme/typography';
 
@@ -137,6 +138,7 @@ function App() {
   return (
     <SafeAreaProvider>
       <OfflineBanner />
+      <PhoneVerificationGate />
       <NavigationContainer ref={navigationRef}>
         <StatusBar barStyle="dark-content" backgroundColor={COLORS.canvas} />
         <Stack.Navigator

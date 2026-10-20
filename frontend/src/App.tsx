@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 import { useCartStore } from './store/cart';
 import { RequireAuth } from './components/RequireAuth';
 import { ChatbotWidget } from './components/ChatbotWidget';
+import { PhoneVerificationGate } from './components/PhoneVerificationGate';
 
 // Route-level code splitting via React.lazy
 const HomePage = lazy(() => import('./features/home/HomePage'));
@@ -148,6 +149,7 @@ export default function App() {
         <SessionProvider>
           <AuthEventListener />
           <WebSocketNotificationListener />
+          <PhoneVerificationGate />
           <Suspense fallback={<RouteLoadingFallback />}>
             <Routes>
               <Route path="/" element={<HomePage />} />
