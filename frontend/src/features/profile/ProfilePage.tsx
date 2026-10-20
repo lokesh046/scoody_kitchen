@@ -776,7 +776,8 @@ export const ProfilePage: React.FC = () => {
       <footer className="mt-auto border-t border-cardboard border-opacity-30 py-6 text-center text-ink opacity-60 w-full">
         <p className="font-mono text-[10px] uppercase tracking-wider">
           © {new Date().getFullYear()} Hearth & One. All rights reserved. ·{' '}
-          <Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link>
+          <Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link>{' '}
+          · <Link to="/terms" className="hover:text-turmeric hover:opacity-100 transition-colors">Terms & Conditions</Link>
         </p>
       </footer>
 

@@ -32,6 +32,7 @@ const OnboardingPage = lazy(() => import('./features/onboarding/OnboardingPage')
 const BlogListPage = lazy(() => import('./features/blog/BlogListPage').then((m) => ({ default: m.BlogListPage })));
 const BlogPostPage = lazy(() => import('./features/blog/BlogPostPage').then((m) => ({ default: m.BlogPostPage })));
 const PrivacyPolicyPage = lazy(() => import('./features/legal/PrivacyPolicyPage').then((m) => ({ default: m.PrivacyPolicyPage })));
+const TermsPage = lazy(() => import('./features/legal/TermsPage').then((m) => ({ default: m.TermsPage })));
 const NotFoundPage = lazy(() => import('./components/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
 
 function RouteLoadingFallback() {
@@ -168,6 +169,7 @@ export default function App() {
               <Route path="/blog" element={<BlogListPage />} />
               <Route path="/blog/:slug" element={<BlogPostPage />} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
               <Route path="/assistant" element={<RequireAuth><AssistantPage /></RequireAuth>} />
               <Route path="/support" element={<RequireAuth><SupportPage /></RequireAuth>} />
               <Route path="/support/:ticketId" element={<RequireAuth><SupportTicketPage /></RequireAuth>} />

@@ -19,6 +19,7 @@ import {
 import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
+import { FeaturePrivacyNote } from '../../components/FeaturePrivacyNote';
 import { Map, MapMarker, MapControls, type MapRefHandle } from '../../components/ui/map';
 import {
   ArrowLeft,
@@ -704,6 +705,11 @@ export const ConsultationsPage: React.FC = () => {
       >
         {showManualLocationControls ? 'Hide manual search' : 'Search a different location'}
       </button>
+
+      <FeaturePrivacyNote>
+        With your permission, we use your device location to find nearby clinics via Google Places. You
+        can decline and search by pincode instead.
+      </FeaturePrivacyNote>
 
       {showManualLocationControls && (
         <div className="space-y-2.5 pt-1 border-t border-dashed border-cardboard border-opacity-40">

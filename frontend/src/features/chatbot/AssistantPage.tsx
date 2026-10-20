@@ -9,6 +9,7 @@ import {
 } from '../../api/chatbot';
 import type { ChatProduct } from '../../api/chatbot';
 import { Header } from '../../components/Header';
+import { FeaturePrivacyNote } from '../../components/FeaturePrivacyNote';
 import { RouteUnavailable } from '../../components/RouteUnavailable';
 import { useRouteFeatureGate } from '../../hooks/useFeatureFlag';
 import {
@@ -529,6 +530,13 @@ export const AssistantPage: React.FC = () => {
           </div>
         </div>
 
+        <div className="mb-6">
+          <FeaturePrivacyNote>
+            Your messages and your pet's profile are sent to Google's Gemini (with OpenRouter as a reliability
+            fallback) to generate a reply, and aren't used to train the AI on your personal data.
+          </FeaturePrivacyNote>
+        </div>
+
         {/* Emergency health warning banner */}
         {showEmergencyAlert && (
           <div className="bg-red-50 border border-turmeric p-4 rounded-xl mb-6 flex items-start space-x-3 text-paprika font-body text-xs text-left animate-pulse">
@@ -813,7 +821,8 @@ export const AssistantPage: React.FC = () => {
       {/* Footer */}
       <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 font-mono text-[9px] uppercase tracking-wider w-full">
         © {new Date().getFullYear()} Hearth & One. All rights reserved. ·{' '}
-        <Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link>
+        <Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link>{' '}
+        · <Link to="/terms" className="hover:text-turmeric hover:opacity-100 transition-colors">Terms & Conditions</Link>
       </footer>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>

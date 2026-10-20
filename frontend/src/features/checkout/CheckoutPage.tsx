@@ -16,6 +16,7 @@ import { verifyFirebasePhoneToken, requestOtpPreCheck, sendWhatsAppOtp, verifyWh
 import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
+import { FeaturePrivacyNote } from '../../components/FeaturePrivacyNote';
 import { 
   ArrowLeft, 
   MapPin, ShieldCheck, Truck, Loader2, AlertCircle, ShoppingCart, Compass, Tag
@@ -871,6 +872,12 @@ export const CheckoutPage: React.FC = () => {
                 </div>
               </div>
 
+              <FeaturePrivacyNote>
+                Payment is processed directly by Razorpay — we never see or store your card, UPI, or bank
+                details. Your name, address, and phone are shared with our shipping partners only to deliver
+                this order.
+              </FeaturePrivacyNote>
+
               {paymentMethod === 'CARD' && (
                 <div className="space-y-4">
                   <div className="space-y-1.5">
@@ -1698,7 +1705,8 @@ export const CheckoutPage: React.FC = () => {
       <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
         <p className="font-mono text-[9px] uppercase tracking-wider">
           © {new Date().getFullYear()} Hearth & One. All rights reserved. ·{' '}
-          <Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link>
+          <Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link>{' '}
+          · <Link to="/terms" className="hover:text-turmeric hover:opacity-100 transition-colors">Terms & Conditions</Link>
         </p>
       </footer>
     </div>

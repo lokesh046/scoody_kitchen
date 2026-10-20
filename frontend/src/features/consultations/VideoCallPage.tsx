@@ -9,6 +9,7 @@ import { submitDoctorReview } from '../../api/reviews';
 import { updateConsultationStatus, getDoctorConsultationById, getPetHealthRecords } from '../../api/doctor';
 import { createHealthRecord } from '../../api/pets';
 import { Eyebrow } from '../../components/Eyebrow';
+import { FeaturePrivacyNote } from '../../components/FeaturePrivacyNote';
 import { 
   Loader2, ShieldAlert, Clock, CheckCircle, 
   ArrowLeft, FileText, Star, Video
@@ -561,6 +562,10 @@ export const VideoCallPage: React.FC = () => {
             <span className="font-mono text-[10px] uppercase text-cardboard font-bold block mb-1">Time Remaining until Open</span>
             <span className="font-mono text-2xl font-black text-ink">{formatTimer(timeUntilStart)}</span>
           </div>
+          <FeaturePrivacyNote>
+            This session, your stated reason for the visit, and any resulting notes are visible only to you,
+            your veterinarian, and authorized staff who need them to operate the service.
+          </FeaturePrivacyNote>
           <button
             onClick={() => navigate('/consultations')}
             className="w-full border border-cardboard hover:bg-paper text-ink font-mono text-[10px] uppercase font-bold py-3 tracking-wider rounded-sm transition-colors"

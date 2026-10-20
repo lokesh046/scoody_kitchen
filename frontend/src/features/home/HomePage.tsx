@@ -660,7 +660,8 @@ export default function HomePage() {
 
             <p className="font-mono text-[10px] uppercase tracking-wider text-cardboard opacity-75">
               © {new Date().getFullYear()} Hearth & One. Crafted with care for pet parents everywhere. ·{' '}
-              <Link to="/privacy" className="hover:text-turmeric transition-colors">Privacy Policy</Link>
+              <Link to="/privacy" className="hover:text-turmeric transition-colors">Privacy Policy</Link>{' '}
+              · <Link to="/terms" className="hover:text-turmeric transition-colors">Terms & Conditions</Link>
             </p>
           </div>
         </footer>

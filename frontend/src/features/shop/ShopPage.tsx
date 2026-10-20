@@ -361,7 +361,8 @@ export default function ShopPage() {
       <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
         <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">
           © {new Date().getFullYear()} Hearth & One. All rights reserved. ·{' '}
-          <Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link>
+          <Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link>{' '}
+          · <Link to="/terms" className="hover:text-turmeric hover:opacity-100 transition-colors">Terms & Conditions</Link>
         </p>
         <p className="font-body text-xs mt-1 max-w-md mx-auto leading-relaxed">
           Tested and crafted with love for pet parents who care about what goes in the bowl.
