@@ -38,9 +38,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { captureRef } from 'react-native-view-shot';
 import * as MediaLibrary from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
+import { useNavigation } from '@react-navigation/native';
+import { Sentry, isSentryEnabled } from '../services/sentry';
 import { COLORS } from '../theme/colors';
 import { classifyPetPhoto, ClassificationResponse, BreedHeritage } from '../api/vision';
 import PassportContent, { PassportFormat } from './PassportContent';
+import { FeaturePrivacyNote } from './FeaturePrivacyNote';
 
 interface PetVisionModalProps {
   visible: boolean;
@@ -58,6 +61,7 @@ export default function PetVisionModal({
   onClose,
   onApplyPetDetails,
 }: PetVisionModalProps) {
+  const navigation = useNavigation();
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [result, setResult] = useState<ClassificationResponse | null>(null);
@@ -201,11 +205,25 @@ export default function PetVisionModal({
     if (!result?.heritage) return;
     setIsExportingPassport(true);
     try {
-      // Let the off-screen passport view commit its layout (format toggle,
-      // image decode) before rasterizing it — capturing on the same tick as
-      // a state change can grab a stale frame.
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      const uri = await captureRef(passportRef, { format: 'png', quality: 1 });
+      // The off-screen passport view needs to finish committing its layout
+      // (format toggle, image decode) before rasterizing it — capturing too
+      // early grabs a zero-size view, which throws on Android. How long
+      // that takes varies by device speed and image decode time, so retry
+      // with backoff instead of trusting a single fixed delay.
+      let uri: string | undefined;
+      let captureErr: unknown;
+      for (const delay of [150, 350, 600, 1000]) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        try {
+          uri = await captureRef(passportRef, { format: 'png', quality: 1 });
+          break;
+        } catch (err) {
+          captureErr = err;
+        }
+      }
+      if (!uri) {
+        throw captureErr ?? new Error('Passport capture produced no image after retries');
+      }
 
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== 'granted') {
@@ -222,6 +240,9 @@ export default function PetVisionModal({
       }
     } catch (err) {
       console.warn('Passport export error:', err);
+      if (isSentryEnabled) {
+        Sentry.captureException(err, { tags: { context: 'export_passport' } });
+      }
       Alert.alert('Export Failed', 'Could not export the passport. Please try again.');
     } finally {
       setIsExportingPassport(false);
@@ -341,6 +362,15 @@ export default function PetVisionModal({
             </View>
           )}
 
+          {!result && !isScanning && (
+            <View style={{ marginTop: 14 }}>
+              <FeaturePrivacyNote
+                text="Your photo is analyzed by our own on-device breed model — only the resulting breed label, not the photo, is sent to Gemini to generate care insights."
+                onPressFullPolicy={() => navigation.navigate('PrivacyPolicy' as never)}
+              />
+            </View>
+          )}
+
           {/* Scanning Progress Banner */}
           {isScanning && (
             <View style={styles.scanningBanner}>
@@ -431,7 +461,7 @@ export default function PetVisionModal({
                   </View>
 
                   <View style={styles.recipeRecommendation}>
-                    <Text style={styles.recipeRecLabel}>Recommended Scooby Kitchen Pouch:</Text>
+                    <Text style={styles.recipeRecLabel}>Recommended Hearth & One Pouch:</Text>
                     <View style={styles.recipeRecBadge}>
                       <Award size={14} color={COLORS.forestGreen} />
                       <Text style={styles.recipeRecText}>
@@ -631,11 +661,11 @@ export default function PetVisionModal({
           {/* Quick Feature Points when no results */}
           {!result && !isScanning && (
             <View style={styles.infoSection}>
-              <Text style={styles.infoSectionHeading}>How Pet Vision AI Works</Text>
+              <Text style={styles.infoSectionHeading}>What Pet Vision Gives You</Text>
               <View style={styles.infoPoint}>
                 <View style={styles.infoDot} />
                 <Text style={styles.infoPointText}>
-                  Sub-second in-memory ONNX + Gemini 3.1 Flash neural classification.
+                  Instant breed identification — know exactly what your companion is, in seconds.
                 </Text>
               </View>
               <View style={styles.infoPoint}>
@@ -647,7 +677,7 @@ export default function PetVisionModal({
               <View style={styles.infoPoint}>
                 <View style={styles.infoDot} />
                 <Text style={styles.infoPointText}>
-                  Generates an immediate nutritional blueprint tailored to breed metabolism and coat health.
+                  A personalized nutrition blueprint tailored to your dog's breed, metabolism, and coat health — ready immediately.
                 </Text>
               </View>
             </View>

@@ -30,10 +30,12 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAccessToken } from '../services/secureTokenStorage';
 import { COLORS } from '../theme/colors';
+import { FONT_DISPLAY, FONT_BODY } from '../theme/typography';
 import { useAuthStore } from '../store/authStore';
 import { usePetStore } from '../store/petStore';
 import { useCartStore } from '../store/cartStore';
 import { BrandMedallion } from '../components/BrandLogo';
+import { FeaturePrivacyNote } from '../components/FeaturePrivacyNote';
 import { useResponsive } from '../hooks/useResponsive';
 import { refreshAuthTokenSilently } from '../api/client';
 import {
@@ -47,11 +49,11 @@ import { Image } from 'expo-image';
 import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 
 const QUICK_PROMPTS = [
-  '🫐 Can dogs eat blueberries?',
-  '🍲 Transition to fresh cooked food?',
-  '🩺 Best recipe for skin allergies?',
-  '⚖️ Daily calorie needs for my dog',
-  '🥦 Safe vegetables & toxic foods list',
+  'Can dogs eat blueberries?',
+  'Transition to fresh cooked food?',
+  'Best recipe for skin allergies?',
+  'Daily calorie needs for my dog',
+  'Safe vegetables & toxic foods list',
 ];
 
 // Helper to format timestamp like WhatsApp ("05:42 PM")
@@ -116,7 +118,7 @@ function TypingIndicator({ statusText }: { statusText?: string }) {
           <Animated.View style={[styles.dot, { opacity: dot3, transform: [{ scale: dot3 }] }]} />
         </View>
         <Text style={styles.typingText}>
-          {statusText || 'Scooby is consulting veterinary ledger...'}
+          {statusText || 'Hearth & One is consulting veterinary ledger...'}
         </Text>
       </View>
     </View>
@@ -305,7 +307,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
             {
               id: 'welcome_1',
               role: 'assistant',
-              content: `Woof! I'm **Scooby AI**, your certified canine nutrition and veterinary health companion. 🐾${petGreeting}\n\nAsk me anything about fresh cooked recipes, canine allergies, safe foods, or symptoms!`,
+              content: `Woof! I'm **Hearth & One AI**, your certified canine nutrition and veterinary health companion. 🐾${petGreeting}\n\nAsk me anything about fresh cooked recipes, canine allergies, safe foods, or symptoms!`,
               timestamp: new Date().toISOString(),
             },
           ]);
@@ -316,7 +318,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
           {
             id: 'welcome_fallback',
             role: 'assistant',
-            content: `Woof! I'm **Scooby AI**, your veterinary diet & wellness assistant. 🐾\n\nHow can I help your pup today?`,
+            content: `Woof! I'm **Hearth & One AI**, your veterinary diet & wellness assistant. 🐾\n\nHow can I help your pup today?`,
             timestamp: new Date().toISOString(),
           },
         ]);
@@ -365,7 +367,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
   const handleClearHistory = () => {
     Alert.alert(
       'Clear Conversation',
-      'Are you sure you want to reset this chat with Scooby?',
+      'Are you sure you want to reset this chat with Hearth & One?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -423,7 +425,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
       content: '',
       timestamp: new Date().toISOString(),
       isStreaming: true,
-      statusText: 'Scooby is consulting veterinary ledger...',
+      statusText: 'Hearth & One is consulting veterinary ledger...',
     };
 
     setMessages((prev) => [...prev, userMessage, assistantMessage]);
@@ -515,7 +517,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
                   ...msg,
                   content:
                     accumulatedContent ||
-                    `⚠️ ${errorDetail || 'Scooby AI service temporarily unreachable. Please check your connection.'}`,
+                    `⚠️ ${errorDetail || 'Hearth & One AI service temporarily unreachable. Please check your connection.'}`,
                   isStreaming: false,
                   statusText: undefined,
                 }
@@ -591,7 +593,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
           {/* Assistant Sender Name Pill */}
           {!isUser && (
             <View style={styles.assistantHeaderRow}>
-              <Text style={styles.assistantSenderName}>Scooby AI</Text>
+              <Text style={styles.assistantSenderName}>Hearth & One AI</Text>
               <View style={styles.verifiedPill}>
                 <ShieldCheck size={11} color={COLORS.forestGreen} />
                 <Text style={styles.verifiedText}>Vet Verified</Text>
@@ -612,7 +614,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
               {item.sources.slice(0, 2).map((source, sIdx) => (
                 <View key={`src-${sIdx}`} style={styles.sourcePill}>
                   <Text style={styles.sourcePillText} numberOfLines={1}>
-                    📚 {source.trim()}
+                    {source.trim()}
                   </Text>
                 </View>
               ))}
@@ -665,14 +667,14 @@ export default function ChatbotScreen({ navigation, route }: any) {
             {/* Title & Subtitle Info */}
             <View style={styles.headerInfo}>
               <View style={styles.headerTitleRow}>
-                <Text style={styles.headerTitle}>Scooby AI Nutritionist</Text>
+                <Text style={styles.headerTitle}>Hearth & One AI Nutritionist</Text>
                 <Sparkles size={14} color="#F6D365" />
               </View>
               <Text style={styles.headerSubtitle} numberOfLines={1}>
                 {isSending
                   ? 'typing...'
                   : activePet
-                  ? `🐾 Companion: ${activePet.name} (${activePet.breed || 'Dog'})`
+                  ? `Companion: ${activePet.name} (${activePet.breed || 'Dog'})`
                   : 'online • Veterinary Knowledge AI'}
               </Text>
             </View>
@@ -723,7 +725,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
                 <View style={styles.authLockIcon}>
                   <Lock size={32} color={COLORS.forestGreen} strokeWidth={2.2} />
                 </View>
-                <Text style={styles.authGateTitle}>Sign In to Consult Scooby AI</Text>
+                <Text style={styles.authGateTitle}>Sign In to Consult Hearth & One AI</Text>
                 <Text style={styles.authGateSubtitle}>
                   Certified canine nutrition and veterinary health advice is strictly personalized to registered pet parents to protect your account and ensure certified recommendations.
                 </Text>
@@ -749,7 +751,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
               {activePet && (
                 <View style={styles.petContextBanner}>
                   <Text style={styles.petContextText}>
-                    🐶 Advice tailored for{' '}
+                    Advice tailored for{' '}
                     <Text style={styles.petContextBold}>{activePet.name}</Text>
                     {activePet.weight_kg ? ` (${activePet.weight_kg}kg)` : ''}
                   </Text>
@@ -763,6 +765,13 @@ export default function ChatbotScreen({ navigation, route }: any) {
                   <Text style={styles.dateSeparatorText}>
                     CANINE HEALTH & NUTRITION ASSISTANT • AI POWERED
                   </Text>
+                </View>
+
+                <View style={{ paddingHorizontal: 14, marginBottom: 10 }}>
+                  <FeaturePrivacyNote
+                    text="Your messages and your pet's profile are sent to Gemini to generate a reply, and aren't used to train the AI on your personal data."
+                    onPressFullPolicy={() => navigation.navigate('PrivacyPolicy')}
+                  />
                 </View>
 
                 {/* Messages FlatList */}
@@ -826,7 +835,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
                   </View>
                   <TextInput
                     style={styles.textInput}
-                    placeholder="Ask Scooby about diet, symptoms, recipes..."
+                    placeholder="Ask Hearth & One about diet, symptoms, recipes..."
                     placeholderTextColor="#8696A0"
                     value={inputText}
                     onChangeText={setInputText}
@@ -928,8 +937,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 18,
+    fontFamily: FONT_DISPLAY,
     color: '#FFFFFF',
     letterSpacing: -0.2,
   },
@@ -937,7 +946,7 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: '#D4E2D8',
     marginTop: 1,
-    fontWeight: '500',
+    fontFamily: FONT_BODY,
   },
   headerActionBtn: {
     padding: 8,

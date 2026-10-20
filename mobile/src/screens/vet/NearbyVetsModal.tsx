@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Image } from 'expo-image';
@@ -30,6 +31,7 @@ import {
 } from '../../api/doctors';
 import { lookupPincode } from '../../api/geo';
 import { Doctor } from '../../types';
+import { FeaturePrivacyNote } from '../../components/FeaturePrivacyNote';
 
 const RADIUS_PRESETS_KM = [2, 5, 10] as const;
 
@@ -45,6 +47,7 @@ interface NearbyVetsModalProps {
 }
 
 export function NearbyVetsModal({ isOpen, onClose, onSelectDoctor, onBookOnlineInstead }: NearbyVetsModalProps) {
+  const navigation = useNavigation();
   const mapRef = useRef<MapView | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [mapCoords, setMapCoords] = useState(DEFAULT_MAP_COORDS);
@@ -301,6 +304,11 @@ export function NearbyVetsModal({ isOpen, onClose, onSelectDoctor, onBookOnlineI
         </View>
 
         <View style={styles.controls}>
+          <FeaturePrivacyNote
+            text="With your permission, we use your device location to find nearby clinics via Google Places. You can decline and search by pincode instead."
+            onPressFullPolicy={() => navigation.navigate('PrivacyPolicy' as never)}
+          />
+
           <TouchableOpacity style={styles.gpsButton} onPress={handleGpsLocate} disabled={isLocating}>
             {isLocating ? (
               <ActivityIndicator size="small" color="#FFFFFF" />

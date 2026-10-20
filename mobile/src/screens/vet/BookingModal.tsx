@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import {
   X,
@@ -19,6 +20,7 @@ import { Doctor, PetProfile } from '../../types';
 import { getDoctorImageUrl, formatTime12h, QUICK_SYMPTOMS } from './vetHelpers';
 import { useResponsive } from '../../hooks/useResponsive';
 import { styles } from './vetStyles';
+import { FeaturePrivacyNote } from '../../components/FeaturePrivacyNote';
 
 interface UpcomingDay {
   date: Date;
@@ -87,6 +89,7 @@ export function BookingModal({
   bookingLoading,
   onConfirmBooking,
 }: BookingModalProps) {
+  const navigation = useNavigation();
   const { isTablet, modalOverlayStyle, modalSheetContainerStyle } = useResponsive();
 
   const renderSlotChip = (slot: string) => {
@@ -418,6 +421,13 @@ export function BookingModal({
                   <Text style={styles.summaryLabel}>TOTAL CONSULTATION FEE</Text>
                   <Text style={styles.summaryFee}>₹{Number(doctor.consultation_fee).toFixed(0)}</Text>
                 </View>
+              </View>
+
+              <View style={{ marginBottom: 14 }}>
+                <FeaturePrivacyNote
+                  text="This consultation, your stated reason for the visit, and the video session are visible only to you, your veterinarian, and authorized staff."
+                  onPressFullPolicy={() => navigation.navigate('PrivacyPolicy' as never)}
+                />
               </View>
 
               {/* Confirm Button */}

@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { LogOut, Lock, Stethoscope } from 'lucide-react-native';
+import { LogOut, Lock, FileText, Stethoscope } from 'lucide-react-native';
 import { COLORS } from '../../theme/colors';
 import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD } from '../../theme/typography';
 import { getDoctorProfile, updateDoctorProfile, DoctorResponse } from '../../api/doctor';
@@ -176,6 +176,16 @@ export default function DoctorProfileScreen({ navigation }: DoctorProfileScreenP
           >
             <Lock size={15} color={COLORS.textMuted} />
             <Text style={styles.privacyBtnText}>Privacy Policy</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.privacyBtn}
+            onPress={() => navigation?.navigate('Terms')}
+            accessibilityRole="button"
+            accessibilityLabel="Terms and Conditions"
+          >
+            <FileText size={15} color={COLORS.textMuted} />
+            <Text style={styles.privacyBtnText}>Terms & Conditions</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

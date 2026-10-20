@@ -23,6 +23,7 @@ import DoctorConsultationDetailScreen from './src/screens/doctor/DoctorConsultat
 import SupportScreen from './src/screens/SupportScreen';
 import SupportTicketScreen from './src/screens/SupportTicketScreen';
 import PrivacyPolicyScreen from './src/screens/PrivacyPolicyScreen';
+import TermsScreen from './src/screens/TermsScreen';
 import OfflineBanner from './src/components/OfflineBanner';
 import { COLORS } from './src/theme/colors';
 import { FONT_ASSETS } from './src/theme/typography';
@@ -160,6 +161,7 @@ function App() {
           <Stack.Screen name="Support" component={SupportScreen} />
           <Stack.Screen name="SupportTicket" component={SupportTicketScreen} />
           <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+          <Stack.Screen name="Terms" component={TermsScreen} />
           <Stack.Screen
             name="VideoCall"
             component={VideoCallScreen}

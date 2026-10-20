@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import {
   ArrowLeft,
   ArrowRight,
@@ -13,12 +14,12 @@ import {
   Info,
   RotateCcw,
   CreditCard,
-  ShieldCheck,
 } from 'lucide-react-native';
 import { COLORS } from '../../theme/colors';
 import { UserProfile } from '../../store/authStore';
 import { CouponValidateResponse } from '../../api/coupons';
 import { styles } from './cartStyles';
+import { FeaturePrivacyNote } from '../../components/FeaturePrivacyNote';
 
 interface PaymentFailureNotice {
   message: string;
@@ -67,6 +68,7 @@ export const PaymentStep = memo(function PaymentStep({
   onEditAddress,
   onStartCheckout,
 }: PaymentStepProps) {
+  const navigation = useNavigation();
   return (
     <>
       {/* Back to Step 2 Button */}
@@ -230,11 +232,11 @@ export const PaymentStep = memo(function PaymentStep({
         )}
       </TouchableOpacity>
 
-      <View style={styles.securityRow}>
-        <ShieldCheck size={14} color={COLORS.forestGreen} />
-        <Text style={styles.securityText}>
-          100% Secure Razorpay Checkout • Server Database Ledger Synced
-        </Text>
+      <View style={{ marginTop: 10 }}>
+        <FeaturePrivacyNote
+          text="Payment is processed directly by Razorpay — we never see or store your card, UPI, or bank details."
+          onPressFullPolicy={() => navigation.navigate('PrivacyPolicy' as never)}
+        />
       </View>
     </>
   );
