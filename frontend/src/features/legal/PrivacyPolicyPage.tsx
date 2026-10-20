@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
 import { Header } from '../../components/Header';
 import { CartDrawer } from '../../components/CartDrawer';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
@@ -46,16 +45,6 @@ export const PrivacyPolicyPage: React.FC = () => {
               mobile app.
             </p>
           </header>
-
-          <div className="flex items-start gap-3 border border-amber-300 bg-amber-50 rounded-sm p-4 mb-8">
-            <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-            <p className="font-body text-xs text-amber-900 leading-relaxed">
-              <strong>Draft — pending legal review.</strong> This page is a working draft published to the
-              beta site for internal review. It is not yet approved by legal counsel and should not be
-              treated as final. Placeholders (grievance officer name, registered address, effective date)
-              are marked below.
-            </p>
-          </div>
 
           <div className="prose-blog font-body text-ink text-[15px] leading-relaxed">
             <H2>1. Introduction and Scope</H2>
@@ -300,10 +289,6 @@ export const PrivacyPolicyPage: React.FC = () => {
                   <tr className="border-b border-cardboard">
                     <td className="bg-ink text-paper font-bold px-4 py-2.5">Email</td>
                     <td className="px-4 py-2.5 text-ink">support@hearthandone.com</td>
-                  </tr>
-                  <tr className="border-b border-cardboard">
-                    <td className="bg-ink text-paper font-bold px-4 py-2.5">Registered Address</td>
-                    <td className="px-4 py-2.5 text-ink">[Registered business address — to be filled in before publication]</td>
                   </tr>
                   <tr>
                     <td className="bg-ink text-paper font-bold px-4 py-2.5">Response Timeline</td>

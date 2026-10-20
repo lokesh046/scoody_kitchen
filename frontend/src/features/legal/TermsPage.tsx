@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
 import { Header } from '../../components/Header';
 import { CartDrawer } from '../../components/CartDrawer';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
@@ -45,16 +44,6 @@ export const TermsPage: React.FC = () => {
               The terms that govern your use of the Hearth & One website and mobile app.
             </p>
           </header>
-
-          <div className="flex items-start gap-3 border border-amber-300 bg-amber-50 rounded-sm p-4 mb-8">
-            <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-            <p className="font-body text-xs text-amber-900 leading-relaxed">
-              <strong>Draft — pending legal review.</strong> This page is a working draft published to the
-              beta site for internal review. It is not yet approved by legal counsel and should not be
-              treated as final. Placeholders (legal entity name, registered address, governing-law city,
-              effective date) are marked below.
-            </p>
-          </div>
 
           <div className="prose-blog font-body text-ink text-[15px] leading-relaxed">
             <H2>1. Acceptance of These Terms</H2>
@@ -256,13 +245,9 @@ export const TermsPage: React.FC = () => {
                     <td className="bg-ink text-paper font-bold px-4 py-2.5 w-1/3">Grievance Officer</td>
                     <td className="px-4 py-2.5 text-ink">Yeswanth S</td>
                   </tr>
-                  <tr className="border-b border-cardboard">
+                  <tr>
                     <td className="bg-ink text-paper font-bold px-4 py-2.5">Email</td>
                     <td className="px-4 py-2.5 text-ink">support@hearthandone.com</td>
-                  </tr>
-                  <tr>
-                    <td className="bg-ink text-paper font-bold px-4 py-2.5">Registered Address</td>
-                    <td className="px-4 py-2.5 text-ink">[Registered business address — to be filled in before publication]</td>
                   </tr>
                 </tbody>
               </table>

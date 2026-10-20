@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AlertTriangle } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
 import { StackHeader } from '../components/ScreenHeader';
 import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD } from '../theme/typography';
@@ -41,15 +40,6 @@ export default function PrivacyPolicyScreen({ navigation }: PrivacyPolicyScreenP
         <Text style={styles.subtitle}>
           How we collect, use, share, and protect personal data across the Hearth & One website and mobile app.
         </Text>
-
-        <View style={styles.draftBanner}>
-          <AlertTriangle size={16} color="#92400E" style={{ marginTop: 1 }} />
-          <Text style={styles.draftBannerText}>
-            <Text style={styles.draftBannerBold}>Draft — pending legal review. </Text>
-            This page is a working draft published for internal review. It is not yet approved by legal
-            counsel and should not be treated as final.
-          </Text>
-        </View>
 
         <H2>1. Introduction and Scope</H2>
         <P>
@@ -230,10 +220,6 @@ export default function PrivacyPolicyScreen({ navigation }: PrivacyPolicyScreenP
             <Text style={styles.contactLabel}>Email</Text>
             <Text style={styles.contactValue}>support@hearthandone.com</Text>
           </View>
-          <View style={styles.contactRow}>
-            <Text style={styles.contactLabel}>Registered Address</Text>
-            <Text style={styles.contactValue}>[To be filled in before publication]</Text>
-          </View>
           <View style={[styles.contactRow, { borderBottomWidth: 0 }]}>
             <Text style={styles.contactLabel}>Response Timeline</Text>
             <Text style={styles.contactValue}>Ack. within 24 hours; resolved within 7 days</Text>
@@ -255,26 +241,6 @@ const styles = StyleSheet.create({
     fontFamily: FONT_BODY,
     lineHeight: 19,
     marginBottom: 14,
-  },
-  draftBanner: {
-    flexDirection: 'row',
-    gap: 8,
-    backgroundColor: '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
-  },
-  draftBannerText: {
-    flex: 1,
-    fontSize: 11.5,
-    lineHeight: 16.5,
-    color: '#92400E',
-    fontFamily: FONT_BODY,
-  },
-  draftBannerBold: {
-    fontFamily: FONT_BODY_BOLD,
   },
   h2: {
     fontSize: 17,
