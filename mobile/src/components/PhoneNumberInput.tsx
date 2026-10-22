@@ -19,6 +19,7 @@ interface PhoneNumberInputProps {
   onCountryChange: (iso2: string) => void;
   nationalNumber: string;
   onNationalNumberChange: (digits: string) => void;
+  disabled?: boolean;
   placeholder?: string;
   autoFocus?: boolean;
 }
@@ -31,6 +32,7 @@ export function PhoneNumberInput({
   onCountryChange,
   nationalNumber,
   onNationalNumberChange,
+  disabled,
   placeholder = '9876543210',
   autoFocus,
 }: PhoneNumberInputProps) {
@@ -66,15 +68,16 @@ export function PhoneNumberInput({
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, disabled && styles.containerDisabled]}>
       <TouchableOpacity
         style={styles.countryButton}
-        onPress={() => setPickerOpen(true)}
+        onPress={() => !disabled && setPickerOpen(true)}
         activeOpacity={0.8}
+        disabled={disabled}
       >
         <Text style={styles.flag}>{selected.flag}</Text>
         <Text style={styles.dialCode}>+{selected.dialCode}</Text>
-        <ChevronDown size={12} color="#A8998C" />
+        {!disabled && <ChevronDown size={12} color="#A8998C" />}
       </TouchableOpacity>
 
       <TextInput
@@ -85,6 +88,7 @@ export function PhoneNumberInput({
         placeholderTextColor="#A8998C"
         keyboardType="number-pad"
         autoFocus={autoFocus}
+        editable={!disabled}
       />
 
       <Modal visible={pickerOpen} animationType="slide" transparent onRequestClose={() => setPickerOpen(false)}>
@@ -130,6 +134,10 @@ const styles = StyleSheet.create({
     borderColor: '#EBE0D0',
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  containerDisabled: {
+    opacity: 0.85,
+    backgroundColor: '#F8F5F0',
   },
   countryButton: {
     flexDirection: 'row',

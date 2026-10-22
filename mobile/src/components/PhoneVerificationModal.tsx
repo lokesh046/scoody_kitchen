@@ -21,14 +21,21 @@ import {
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react-native';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { COLORS } from '../theme/colors';
 import { requestOtpPreCheck, verifyPhoneWithToken, sendWhatsAppOtp, verifyWhatsAppOtp } from '../api/auth';
 import { UserProfile } from '../store/authStore';
 import { FIREBASE_CONFIG } from '../config/firebase';
 import { useResponsive } from '../hooks/useResponsive';
+import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
+import { toE164, getCountry } from '../utils/phone';
 
 interface PhoneVerificationModalProps {
   visible: boolean;
+  // Defaults to India for callers that don't collect a country yet (e.g.
+  // checkout's address step, which still only collects a plain 10-digit
+  // number) -- see ProfileScreen for the fully country-aware caller.
+  country?: string;
   phone: string;
   onClose: () => void;
   onSuccess: (updatedUser: UserProfile) => void;
@@ -36,6 +43,7 @@ interface PhoneVerificationModalProps {
 
 export function PhoneVerificationModal({
   visible,
+  country = DEFAULT_COUNTRY_ISO2,
   phone,
   onClose,
   onSuccess,
@@ -105,14 +113,17 @@ export function PhoneVerificationModal({
     };
   }, [cooldownCountdown]);
 
-  const cleanDigits = phone.trim().replace(/[\s\-\(\)]/g, '');
-  const displayDigits = cleanDigits.startsWith('+91')
-    ? cleanDigits.slice(3)
-    : cleanDigits.startsWith('91') && cleanDigits.length === 12
-    ? cleanDigits.slice(2)
-    : cleanDigits;
-
-  const fullPhoneNumber = `+91${displayDigits}`;
+  // `phone` may arrive as a bare national number (the normal case, from
+  // ProfileScreen's edit flow) or as a fuller, possibly-prefixed string (the
+  // `user?.phone` fallback, or checkout's legacy caller) -- parse rather
+  // than just stripping non-digits, so a leading country code doesn't get
+  // duplicated by toE164() below.
+  const parsedIncoming = parsePhoneNumberFromString(phone, country as any);
+  const displayDigits =
+    parsedIncoming && parsedIncoming.country === country
+      ? parsedIncoming.nationalNumber
+      : phone.replace(/\D/g, '').slice(-10);
+  const fullPhoneNumber = toE164(country, displayDigits);
 
   const handleSendOtp = async (channel: 'whatsapp' | 'sms' = verificationChannel) => {
     setIsLoading(true);
@@ -304,11 +315,7 @@ export function PhoneVerificationModal({
               <View style={styles.body}>
                 <Text style={styles.description}>
                   We'll send a one-time verification code via WhatsApp to your registered profile number:{' '}
-                  <Text style={styles.phoneHighlight}>+91 {displayDigits}</Text>.
-                </Text>
-
-                <Text style={styles.carrierNote}>
-                  * Statically applied prefix (+91) for Indian telecommunication carriers.
+                  <Text style={styles.phoneHighlight}>+{getCountry(country).dialCode} {displayDigits}</Text>.
                 </Text>
 
                 <View style={styles.actionColumn}>

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { logoutUser, updateUserProfile, uploadAvatarImage, verifyFirebasePhoneToken, requestOtpPreCheck, sendWhatsAppOtp, verifyWhatsAppOtp } from '../../api/auth';
@@ -7,12 +8,14 @@ import { auth } from '../../api/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Eyebrow } from '../../components/Eyebrow';
+import { PhoneNumberInput } from '../../components/PhoneNumberInput';
+import { DEFAULT_COUNTRY_ISO2 } from '../../constants/countries';
+import { toE164, isValidForCountry, getCountry } from '../../utils/phone';
 import { useQuery } from '@tanstack/react-query';
 import { fetchMyPets } from '../../api/pets';
 import { fetchMySupportUnreadCount } from '../../api/support';
 import { Header } from '../../components/Header';
 import {
-  Phone,
   UserCheck,
   ArrowLeft,
   Loader2,
@@ -56,19 +59,25 @@ export const ProfilePage: React.FC = () => {
   
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  const formatPhoneForState = (rawPhone?: string | null) => {
-    if (!rawPhone) return '';
-    // Takes the last 10 digits regardless of how a country code prefix was
-    // stored ("+91...", "91...", or none) -- more bulletproof than matching
-    // a specific prefix shape, which missed the no-plus-sign case.
-    const digitsOnly = rawPhone.replace(/\D/g, '');
-    return digitsOnly.slice(-10);
+  // Parses with libphonenumber-js so both the country AND the national
+  // number are detected correctly, rather than assuming India and just
+  // chopping off the last 10 digits (which broke for any non-Indian number).
+  const parsePhoneForState = (rawPhone?: string | null) => {
+    if (!rawPhone) return { country: DEFAULT_COUNTRY_ISO2, digits: '' };
+    const parsed = parsePhoneNumberFromString(rawPhone, DEFAULT_COUNTRY_ISO2 as any);
+    if (parsed && parsed.country) {
+      return { country: parsed.country, digits: parsed.nationalNumber };
+    }
+    // Unparseable legacy data -- fall back to "last 10 digits, assume
+    // default country" rather than leaving the field blank.
+    return { country: DEFAULT_COUNTRY_ISO2, digits: rawPhone.replace(/\D/g, '').slice(-10) };
   };
 
   // Form State
   const [firstName, setFirstName] = useState(user?.first_name || '');
   const [lastName, setLastName] = useState(user?.last_name || '');
-  const [phone, setPhone] = useState(formatPhoneForState(user?.phone));
+  const [country, setCountry] = useState(() => parsePhoneForState(user?.phone).country);
+  const [phone, setPhone] = useState(() => parsePhoneForState(user?.phone).digits);
   const [imageUrl, setImageUrl] = useState(user?.profile_image_url || '');
   const [isEditingPhone, setIsEditingPhone] = useState(false);
 
@@ -76,7 +85,9 @@ export const ProfilePage: React.FC = () => {
     if (user) {
       setFirstName(user.first_name || '');
       setLastName(user.last_name || '');
-      setPhone(formatPhoneForState(user.phone));
+      const parsedPhone = parsePhoneForState(user.phone);
+      setCountry(parsedPhone.country);
+      setPhone(parsedPhone.digits);
       setImageUrl(user.profile_image_url || '');
     }
   }, [user]);
@@ -106,8 +117,8 @@ export const ProfilePage: React.FC = () => {
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (phone && phone.length !== 10) {
-      setErrorMsg('Phone number must be exactly 10 digits.');
+    if (phone && !isValidForCountry(country, phone)) {
+      setErrorMsg(`Please enter a valid phone number for ${getCountry(country).name}.`);
       setIsLoading(false);
       return;
     }
@@ -116,7 +127,7 @@ export const ProfilePage: React.FC = () => {
       const updatedUser = await updateUserProfile({
         first_name: firstName || undefined,
         last_name: lastName || undefined,
-        phone: phone ? `+91${phone}` : undefined,
+        phone: phone ? toE164(country, phone) : undefined,
         profile_image_url: imageUrl || undefined,
       });
 
@@ -174,8 +185,8 @@ export const ProfilePage: React.FC = () => {
   }, [cooldownCountdown, isVerifyingPhone]);
 
   const handleStartPhoneVerification = () => {
-    if (!phone || phone.length !== 10) {
-      setErrorMsg('Please enter a valid 10-digit phone number.');
+    if (!isValidForCountry(country, phone)) {
+      setErrorMsg(`Please enter a valid phone number for ${getCountry(country).name}.`);
       return;
     }
 
@@ -190,7 +201,7 @@ export const ProfilePage: React.FC = () => {
   const handleSendOtp = async (channel: 'whatsapp' | 'sms' = verificationChannel) => {
     setIsVerifyingLoading(true);
     setVerifyError(null);
-    const fullPhone = `+91${phone}`;
+    const fullPhone = toE164(country, phone);
 
     if (channel === 'whatsapp') {
       try {
@@ -264,7 +275,7 @@ export const ProfilePage: React.FC = () => {
     }
     setIsVerifyingLoading(true);
     setVerifyError(null);
-    const fullPhone = `+91${phone}`;
+    const fullPhone = toE164(country, phone);
 
     try {
       let updatedUser;
@@ -531,36 +542,15 @@ export const ProfilePage: React.FC = () => {
                   )}
                 </div>
                 <div className="flex space-x-2">
-                  <div
-                    className={`relative flex-grow flex items-center border rounded-sm bg-paper transition-colors ${
-                      phone.length > 0 && phone.length < 10
-                        ? 'border-paprika focus-within:border-paprika'
-                        : 'border-cardboard focus-within:border-turmeric'
-                    }`}
-                  >
-                    <div className="pl-3 pr-2 flex items-center space-x-1.5 border-r border-cardboard border-opacity-30 select-none">
-                      <Phone className="w-3.5 h-3.5 text-cardboard" />
-                      <span className="font-mono text-xs font-bold text-ink">+91</span>
-                    </div>
-                    <input
-                      type="tel"
-                      maxLength={10}
+                  <div className="flex-grow">
+                    <PhoneNumberInput
+                      country={country}
+                      onCountryChange={setCountry}
+                      nationalNumber={phone}
+                      onNationalNumberChange={setPhone}
+                      disabled={!!(user?.is_phone_verified && !isEditingPhone)}
                       placeholder="9876543210"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                      disabled={user?.is_phone_verified && !isEditingPhone}
-                      aria-invalid={phone.length > 0 && phone.length < 10}
-                      className="w-full px-3 py-2 bg-transparent font-mono text-xs text-ink placeholder-cardboard focus:outline-none disabled:opacity-85"
                     />
-                    {phone.length > 0 && (
-                      <span
-                        className={`pr-3 font-mono text-[9px] font-bold select-none ${
-                          phone.length < 10 ? 'text-paprika' : 'text-emerald-700'
-                        }`}
-                      >
-                        {phone.length}/10
-                      </span>
-                    )}
                   </div>
                   {user?.is_phone_verified && !isEditingPhone ? (
                     <button
@@ -577,7 +567,9 @@ export const ProfilePage: React.FC = () => {
                           type="button"
                           onClick={() => {
                             setIsEditingPhone(false);
-                            setPhone(formatPhoneForState(user?.phone));
+                            const parsedPhone = parsePhoneForState(user?.phone);
+                            setCountry(parsedPhone.country);
+                            setPhone(parsedPhone.digits);
                           }}
                           className="bg-paper text-ink hover:bg-paperLight font-mono text-[9px] uppercase font-bold px-3 py-2 rounded-sm border border-cardboard cursor-pointer transition-colors"
                         >
@@ -587,8 +579,8 @@ export const ProfilePage: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleStartPhoneVerification}
-                        disabled={phone.length !== 10}
-                        title={phone.length !== 10 ? 'Enter all 10 digits to verify' : undefined}
+                        disabled={!isValidForCountry(country, phone)}
+                        title={!isValidForCountry(country, phone) ? `Enter a valid phone number for ${getCountry(country).name}` : undefined}
                         className="bg-ink hover:bg-opacity-90 text-paper font-mono text-[9px] uppercase font-bold px-3.5 py-2 rounded-sm cursor-pointer transition-colors shadow-xs disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-opacity-100"
                       >
                         Verify Phone
@@ -596,9 +588,9 @@ export const ProfilePage: React.FC = () => {
                     </div>
                   )}
                 </div>
-                {phone.length > 0 && phone.length < 10 && (
+                {phone.length > 0 && !isValidForCountry(country, phone) && (
                   <p className="font-mono text-[9px] text-paprika font-bold">
-                    {10 - phone.length} more digit{10 - phone.length === 1 ? '' : 's'} needed.
+                    Enter a valid phone number for {getCountry(country).name}.
                   </p>
                 )}
               </div>
@@ -820,11 +812,7 @@ export const ProfilePage: React.FC = () => {
               <div className="space-y-4">
                 <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
                   We'll send a one-time verification code via WhatsApp to your registered profile number:
-                  <strong className="text-ink ml-1 font-mono">+91 {phone}</strong>.
-                </p>
-
-                <p className="font-mono text-[9px] text-herb opacity-80">
-                  * Statically applied prefix (+91) for Indian telecommunication carriers.
+                  <strong className="text-ink ml-1 font-mono">+{getCountry(country).dialCode} {phone}</strong>.
                 </p>
 
                 <div className="pt-2 flex flex-col gap-2">

@@ -26,6 +26,7 @@ import { fetchMyOrders, Order } from '../api/orders';
 import { fetchMyPets } from '../api/pets';
 import { fetchMySupportUnreadCount } from '../api/support';
 import { PhoneVerificationModal } from '../components/PhoneVerificationModal';
+import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
 import { useResponsive } from '../hooks/useResponsive';
 import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
 import ResponsiveContainer from '../components/ResponsiveContainer';
@@ -54,6 +55,7 @@ export default function ProfileScreen({ navigation }: any) {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
 
   // Phone Verification Modal State
+  const [targetVerificationCountry, setTargetVerificationCountry] = useState(DEFAULT_COUNTRY_ISO2);
   const [targetVerificationPhone, setTargetVerificationPhone] = useState('');
   const [isPhoneVerificationModalVisible, setIsPhoneVerificationModalVisible] =
     useState(false);
@@ -171,7 +173,8 @@ export default function ProfileScreen({ navigation }: any) {
     [updateUser]
   );
 
-  const handleRequestPhoneVerification = useCallback((phoneNumber: string) => {
+  const handleRequestPhoneVerification = useCallback((country: string, phoneNumber: string) => {
+    setTargetVerificationCountry(country);
     setTargetVerificationPhone(phoneNumber);
     setIsPhoneVerificationModalVisible(true);
   }, []);
@@ -221,6 +224,10 @@ export default function ProfileScreen({ navigation }: any) {
 
   const handleNavigatePrivacy = useCallback(() => {
     navigation?.navigate('PrivacyPolicy');
+  }, [navigation]);
+
+  const handleNavigateTerms = useCallback(() => {
+    navigation?.navigate('Terms');
   }, [navigation]);
 
   const { isTablet } = useResponsive();
@@ -277,6 +284,7 @@ export default function ProfileScreen({ navigation }: any) {
             onNavigateSupport={handleNavigateSupport}
             onNavigateBlog={handleNavigateBlog}
             onNavigatePrivacy={handleNavigatePrivacy}
+            onNavigateTerms={handleNavigateTerms}
             isConsultationsEnabled={isConsultationsEnabled}
             consultationsFallback={consultationsFallback}
           />
@@ -326,6 +334,7 @@ export default function ProfileScreen({ navigation }: any) {
       {/* Phone Number OTP Verification Modal */}
       <PhoneVerificationModal
         visible={isPhoneVerificationModalVisible}
+        country={targetVerificationCountry}
         phone={targetVerificationPhone || user?.phone || ''}
         onClose={() => setIsPhoneVerificationModalVisible(false)}
         onSuccess={handleVerificationSuccess}

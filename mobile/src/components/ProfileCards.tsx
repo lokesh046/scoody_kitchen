@@ -32,20 +32,29 @@ import {
   LogIn,
   Headset,
   Newspaper,
+  FileText,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { COLORS } from '../theme/colors';
 import { UserProfile } from '../store/authStore';
 import { updateUserProfile, uploadAvatarImage } from '../api/auth';
 import { useResponsive } from '../hooks/useResponsive';
+import { PhoneNumberInput } from './PhoneNumberInput';
+import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
+import { toE164, isValidForCountry, getCountry } from '../utils/phone';
 
-const formatPhoneForInput = (rawPhone?: string | null): string => {
-  if (!rawPhone) return '';
-  const clean = rawPhone.trim().replace(/[\s\-\(\)]/g, '');
-  if (clean.startsWith('+91')) {
-    return clean.slice(3);
+// Parses with libphonenumber-js so both the country AND the national
+// number are detected correctly, rather than assuming India and just
+// chopping off the last 10 digits (which broke for any non-Indian number).
+const parsePhoneForState = (rawPhone?: string | null): { country: string; digits: string } => {
+  if (!rawPhone) return { country: DEFAULT_COUNTRY_ISO2, digits: '' };
+  const parsed = parsePhoneNumberFromString(rawPhone, DEFAULT_COUNTRY_ISO2 as any);
+  if (parsed && parsed.country) {
+    return { country: parsed.country, digits: parsed.nationalNumber };
   }
-  return clean;
+  const digitsOnly = rawPhone.replace(/\D/g, '');
+  return { country: DEFAULT_COUNTRY_ISO2, digits: digitsOnly.slice(-10) };
 };
 
 const getAvatarInitial = (user?: UserProfile | null): string => {
@@ -58,7 +67,7 @@ const getAvatarInitial = (user?: UserProfile | null): string => {
 interface ProfileHeroCardProps {
   user: UserProfile | null;
   onEditPress: () => void;
-  onVerifyPhonePress: (phone: string) => void;
+  onVerifyPhonePress: (country: string, phone: string) => void;
   onSignInPress: () => void;
 }
 
@@ -119,7 +128,10 @@ export const ProfileHeroCard = memo(function ProfileHeroCard({
             ) : (
               <TouchableOpacity
                 style={profileCardStyles.unverifiedMiniPill}
-                onPress={() => onVerifyPhonePress(formatPhoneForInput(user.phone))}
+                onPress={() => {
+                  const parsedPhone = parsePhoneForState(user.phone);
+                  onVerifyPhonePress(parsedPhone.country, parsedPhone.digits);
+                }}
                 activeOpacity={0.8}
               >
                 <Text style={profileCardStyles.unverifiedMiniPillText}>Verify Phone</Text>
@@ -235,6 +247,7 @@ interface AccountHubMenuProps {
   onNavigateSupport: () => void;
   onNavigateBlog: () => void;
   onNavigatePrivacy: () => void;
+  onNavigateTerms: () => void;
   isConsultationsEnabled: boolean;
   consultationsFallback: 'hide' | 'coming_soon' | 'unavailable';
 }
@@ -249,6 +262,7 @@ export const AccountHubMenu = memo(function AccountHubMenu({
   onNavigateSupport,
   onNavigateBlog,
   onNavigatePrivacy,
+  onNavigateTerms,
   isConsultationsEnabled,
   consultationsFallback,
 }: AccountHubMenuProps) {
@@ -418,6 +432,28 @@ export const AccountHubMenu = memo(function AccountHubMenu({
           <ChevronRight size={18} color={COLORS.textLight} />
         </View>
       </TouchableOpacity>
+
+      {/* Terms & Conditions Item */}
+      <TouchableOpacity
+        style={profileCardStyles.menuItem}
+        onPress={onNavigateTerms}
+        activeOpacity={0.7}
+      >
+        <View style={profileCardStyles.menuItemLeft}>
+          <View style={[profileCardStyles.menuIconCircle, { backgroundColor: '#F1F1F1' }]}>
+            <FileText size={18} color={COLORS.textMuted} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={profileCardStyles.menuItemTitle}>Terms & Conditions</Text>
+            <Text style={profileCardStyles.menuItemSub}>
+              The terms that govern using Hearth & One
+            </Text>
+          </View>
+        </View>
+        <View style={profileCardStyles.menuItemRight}>
+          <ChevronRight size={18} color={COLORS.textLight} />
+        </View>
+      </TouchableOpacity>
     </View>
   );
 });
@@ -442,7 +478,7 @@ interface EditProfileModalProps {
   user: UserProfile | null;
   onClose: () => void;
   onSaved: (updatedUser: UserProfile) => void;
-  onRequestPhoneVerification: (phone: string) => void;
+  onRequestPhoneVerification: (country: string, phone: string) => void;
 }
 
 export const EditProfileModal = memo(function EditProfileModal({
@@ -455,6 +491,7 @@ export const EditProfileModal = memo(function EditProfileModal({
   const { isTablet, modalOverlayStyle, modalSheetContainerStyle } = useResponsive();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [country, setCountry] = useState(DEFAULT_COUNTRY_ISO2);
   const [phone, setPhone] = useState('');
   const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
@@ -467,7 +504,9 @@ export const EditProfileModal = memo(function EditProfileModal({
     if (visible && user) {
       setFirstName(user.first_name || '');
       setLastName(user.last_name || '');
-      setPhone(formatPhoneForInput(user.phone));
+      const parsedPhone = parsePhoneForState(user.phone);
+      setCountry(parsedPhone.country);
+      setPhone(parsedPhone.digits);
       setIsEditingPhone(false);
       setAvatarUri(user.profile_image_url || null);
       setFormError(null);
@@ -539,9 +578,8 @@ export const EditProfileModal = memo(function EditProfileModal({
   };
 
   const handleSaveProfile = async () => {
-    const cleanPhone = phone.trim().replace(/[\s\-\(\)]/g, '');
-    if (cleanPhone && cleanPhone.length !== 10) {
-      setFormError('Phone number must be exactly 10 digits.');
+    if (phone && !isValidForCountry(country, phone)) {
+      setFormError(`Please enter a valid phone number for ${getCountry(country).name}.`);
       return;
     }
 
@@ -549,11 +587,7 @@ export const EditProfileModal = memo(function EditProfileModal({
     setFormError(null);
     setFormSuccess(null);
 
-    const phoneToSend = cleanPhone
-      ? cleanPhone.startsWith('+91')
-        ? cleanPhone
-        : `+91${cleanPhone}`
-      : undefined;
+    const phoneToSend = phone ? toE164(country, phone) : undefined;
 
     try {
       const updatedUser = await updateUserProfile({
@@ -731,39 +765,15 @@ export const EditProfileModal = memo(function EditProfileModal({
               </View>
 
               <View style={profileCardStyles.phoneInputRow}>
-                <View
-                  style={[
-                    profileCardStyles.inputContainer,
-                    { flex: 1 },
-                    phone.length > 0 && phone.length < 10 && profileCardStyles.inputContainerIncomplete,
-                  ]}
-                >
-                  <View style={profileCardStyles.countryCodeBadge}>
-                    <Text style={profileCardStyles.countryCodeText}>+91</Text>
-                  </View>
-                  <TextInput
-                    style={[
-                      profileCardStyles.textInput,
-                      user?.is_phone_verified && !isEditingPhone && profileCardStyles.inputLocked,
-                    ]}
-                    placeholder="10-digit mobile number"
-                    placeholderTextColor={COLORS.textLight}
-                    value={phone}
-                    onChangeText={(val) => setPhone(val.replace(/\D/g, ''))}
-                    keyboardType="phone-pad"
-                    maxLength={10}
-                    editable={!user?.is_phone_verified || isEditingPhone}
+                <View style={{ flex: 1 }}>
+                  <PhoneNumberInput
+                    country={country}
+                    onCountryChange={setCountry}
+                    nationalNumber={phone}
+                    onNationalNumberChange={setPhone}
+                    disabled={!!(user?.is_phone_verified && !isEditingPhone)}
+                    placeholder="9876543210"
                   />
-                  {phone.length > 0 && (
-                    <Text
-                      style={[
-                        profileCardStyles.phoneDigitCount,
-                        { color: phone.length < 10 ? '#D97706' : '#047857' },
-                      ]}
-                    >
-                      {phone.length}/10
-                    </Text>
-                  )}
                 </View>
 
                 {user?.is_phone_verified && !isEditingPhone ? (
@@ -781,7 +791,9 @@ export const EditProfileModal = memo(function EditProfileModal({
                         style={profileCardStyles.cancelChangePhoneBtn}
                         onPress={() => {
                           setIsEditingPhone(false);
-                          setPhone(formatPhoneForInput(user?.phone));
+                          const parsedPhone = parsePhoneForState(user?.phone);
+                          setCountry(parsedPhone.country);
+                          setPhone(parsedPhone.digits);
                         }}
                         activeOpacity={0.8}
                       >
@@ -791,17 +803,17 @@ export const EditProfileModal = memo(function EditProfileModal({
                     <TouchableOpacity
                       style={[
                         profileCardStyles.verifyPhoneBtn,
-                        phone.length !== 10 && profileCardStyles.verifyPhoneBtnDisabled,
+                        !isValidForCountry(country, phone) && profileCardStyles.verifyPhoneBtnDisabled,
                       ]}
                       onPress={() => {
-                        if (!phone || phone.length !== 10) {
+                        if (!isValidForCountry(country, phone)) {
                           Alert.alert(
                             'Phone Required',
-                            'Please enter a valid 10-digit mobile number to verify.'
+                            `Please enter a valid phone number for ${getCountry(country).name} to verify.`
                           );
                           return;
                         }
-                        onRequestPhoneVerification(phone);
+                        onRequestPhoneVerification(country, phone);
                       }}
                       activeOpacity={0.8}
                     >
@@ -810,9 +822,9 @@ export const EditProfileModal = memo(function EditProfileModal({
                   </View>
                 )}
               </View>
-              {phone.length > 0 && phone.length < 10 ? (
+              {phone.length > 0 && !isValidForCountry(country, phone) ? (
                 <Text style={profileCardStyles.fieldHelperWarning}>
-                  {10 - phone.length} more digit{10 - phone.length === 1 ? '' : 's'} needed.
+                  Enter a valid phone number for {getCountry(country).name}.
                 </Text>
               ) : (
                 <Text style={profileCardStyles.fieldHelper}>
