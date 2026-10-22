@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ShieldCheck, Clock, CheckCircle2, AlertCircle } from 'lucide-react-native';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import {
   requestOtpPreCheck,
   verifyPhoneWithToken,
@@ -20,6 +21,9 @@ import {
 } from '../api/auth';
 import { useAuthStore } from '../store/authStore';
 import { FIREBASE_CONFIG } from '../config/firebase';
+import { PhoneNumberInput } from './PhoneNumberInput';
+import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
+import { toE164, isValidForCountry, getCountry } from '../utils/phone';
 
 // Mandatory, non-dismissible phone verification -- shown app-wide whenever
 // a logged-in user's phone isn't verified yet. Google and email sign-in
@@ -32,6 +36,7 @@ export function PhoneVerificationGate() {
   const { user, updateUser, logout } = useAuthStore();
 
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [country, setCountry] = useState(DEFAULT_COUNTRY_ISO2);
   const [phoneDigits, setPhoneDigits] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -46,11 +51,17 @@ export function PhoneVerificationGate() {
   const shouldShow = !!user && user.is_phone_verified === false;
 
   useEffect(() => {
-    // Takes the last 10 digits regardless of how a country code prefix was
-    // stored ("+91...", "91...", or none) -- more bulletproof than matching
-    // specific prefix shapes, which previously missed edge cases and let an
-    // extra "91" slip through to get double-prefixed on send.
-    if (shouldShow && user?.phone) {
+    // Parses with libphonenumber-js so both the country AND the national
+    // number are detected correctly, rather than assuming India and just
+    // chopping off the last 10 digits (which broke for any non-Indian
+    // number, and even for Indian numbers stored without a "+" -- see the
+    // double-91 bug this replaced).
+    if (!shouldShow || !user?.phone) return;
+    const parsed = parsePhoneNumberFromString(user.phone, DEFAULT_COUNTRY_ISO2 as any);
+    if (parsed && parsed.country) {
+      setCountry(parsed.country);
+      setPhoneDigits(parsed.nationalNumber);
+    } else {
       const digitsOnly = user.phone.replace(/\D/g, '');
       setPhoneDigits(digitsOnly.slice(-10));
     }
@@ -76,11 +87,11 @@ export function PhoneVerificationGate() {
 
   if (!shouldShow) return null;
 
-  const fullPhoneNumber = `+91${phoneDigits}`;
+  const fullPhoneNumber = toE164(country, phoneDigits);
 
   const handleContinueFromPhone = () => {
-    if (!phoneDigits || phoneDigits.length !== 10) {
-      setErrorMsg('Please enter a valid 10-digit phone number.');
+    if (!isValidForCountry(country, phoneDigits)) {
+      setErrorMsg(`Please enter a valid phone number for ${getCountry(country).name}.`);
       return;
     }
     setErrorMsg(null);
@@ -205,19 +216,14 @@ export function PhoneVerificationGate() {
               <View style={styles.body}>
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>PHONE NUMBER</Text>
-                  <View style={styles.phoneInputRow}>
-                    <Text style={styles.phonePrefix}>+91</Text>
-                    <TextInput
-                      style={styles.phoneInput}
-                      value={phoneDigits}
-                      onChangeText={(val) => setPhoneDigits(val.replace(/\D/g, '').slice(0, 10))}
-                      placeholder="9876543210"
-                      placeholderTextColor="#A8998C"
-                      keyboardType="number-pad"
-                      maxLength={10}
-                      autoFocus
-                    />
-                  </View>
+                  <PhoneNumberInput
+                    country={country}
+                    onCountryChange={setCountry}
+                    nationalNumber={phoneDigits}
+                    onNationalNumberChange={setPhoneDigits}
+                    placeholder="9876543210"
+                    autoFocus
+                  />
                 </View>
 
                 <TouchableOpacity
@@ -240,7 +246,7 @@ export function PhoneVerificationGate() {
               <View style={styles.body}>
                 <Text style={styles.description}>
                   Code sent via {verificationChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to{' '}
-                  <Text style={styles.phoneHighlight}>+91 {phoneDigits}</Text>.
+                  <Text style={styles.phoneHighlight}>+{getCountry(country).dialCode} {phoneDigits}</Text>.
                 </Text>
 
                 <View style={styles.inputGroup}>
@@ -385,29 +391,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#C2410C',
     letterSpacing: 0.8,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-  },
-  phoneInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#EBE0D0',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-  },
-  phonePrefix: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#715D52',
-    marginRight: 6,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-  },
-  phoneInput: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: '#2C1810',
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   otpInput: {

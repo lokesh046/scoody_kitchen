@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { useAuthStore } from '../store/auth';
 import { auth } from '../api/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
@@ -10,6 +11,9 @@ import {
   requestOtpPreCheck,
   logoutUser,
 } from '../api/auth';
+import { PhoneNumberInput } from './PhoneNumberInput';
+import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
+import { toE164, isValidForCountry, getCountry } from '../utils/phone';
 
 // Mandatory, non-dismissible phone verification -- renders on top of every
 // page whenever a logged-in user's phone isn't verified yet. Google and
@@ -21,6 +25,7 @@ export const PhoneVerificationGate: React.FC = () => {
   const { user, accessToken, setAuth, clearAuth } = useAuthStore();
 
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [country, setCountry] = useState(DEFAULT_COUNTRY_ISO2);
   const [phone, setPhone] = useState('');
   const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   const [verificationCode, setVerificationCode] = useState('');
@@ -32,13 +37,21 @@ export const PhoneVerificationGate: React.FC = () => {
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
 
   // Pre-fill from the user's existing profile phone, if any (e.g. a
-  // previous unverified attempt) -- otherwise start blank. Takes the last
-  // 10 digits regardless of how a country code prefix was stored ("+91...",
-  // "91...", or none at all) -- stripping only a literal "+91" missed the
-  // no-plus-sign case and left the extra "91" in place, which then got a
-  // second "+91" prepended on send, corrupting the stored number.
+  // previous unverified attempt) -- otherwise start blank. Parses with
+  // libphonenumber-js so both the country AND the national number are
+  // detected correctly, rather than assuming India and just chopping off
+  // the last 10 digits (which broke for any non-Indian number, and even
+  // for Indian numbers stored without a "+" -- see the double-91 bug this
+  // replaced).
   useEffect(() => {
-    if (user?.phone) {
+    if (!user?.phone) return;
+    const parsed = parsePhoneNumberFromString(user.phone, DEFAULT_COUNTRY_ISO2 as any);
+    if (parsed && parsed.country) {
+      setCountry(parsed.country);
+      setPhone(parsed.nationalNumber);
+    } else {
+      // Unparseable legacy data -- fall back to "last 10 digits, assume
+      // default country" rather than leaving the field blank.
       const digitsOnly = user.phone.replace(/\D/g, '');
       setPhone(digitsOnly.slice(-10));
     }
@@ -59,8 +72,8 @@ export const PhoneVerificationGate: React.FC = () => {
   if (!shouldShow) return null;
 
   const handleContinueFromPhone = () => {
-    if (!phone || phone.length !== 10) {
-      setError('Please enter a valid 10-digit phone number.');
+    if (!isValidForCountry(country, phone)) {
+      setError(`Please enter a valid phone number for ${getCountry(country).name}.`);
       return;
     }
     setError(null);
@@ -71,7 +84,7 @@ export const PhoneVerificationGate: React.FC = () => {
     setIsLoading(true);
     setError(null);
     setVerificationChannel(channel);
-    const fullPhone = `+91${phone}`;
+    const fullPhone = toE164(country, phone);
 
     if (channel === 'whatsapp') {
       try {
@@ -124,7 +137,7 @@ export const PhoneVerificationGate: React.FC = () => {
     }
     setIsLoading(true);
     setError(null);
-    const fullPhone = `+91${phone}`;
+    const fullPhone = toE164(country, phone);
 
     try {
       let updatedUser;
@@ -187,17 +200,13 @@ export const PhoneVerificationGate: React.FC = () => {
               <label className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold block">
                 Phone Number
               </label>
-              <div className="flex items-center border border-cardboard rounded-sm bg-paper overflow-hidden focus-within:border-turmeric transition-colors">
-                <span className="font-mono text-sm text-ink opacity-60 pl-3 pr-1">+91</span>
-                <input
-                  type="tel"
-                  maxLength={10}
-                  placeholder="9876543210"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                  className="flex-1 py-2.5 pr-3 bg-transparent font-mono text-sm text-ink focus:outline-none"
-                />
-              </div>
+              <PhoneNumberInput
+                country={country}
+                onCountryChange={setCountry}
+                nationalNumber={phone}
+                onNationalNumberChange={setPhone}
+                placeholder="9876543210"
+              />
             </div>
             <button
               type="button"
@@ -219,7 +228,7 @@ export const PhoneVerificationGate: React.FC = () => {
           <div className="space-y-4">
             <p className="font-body text-xs text-ink opacity-80">
               Code sent via {verificationChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to{' '}
-              <strong className="font-mono text-ink">+91 {phone}</strong>.
+              <strong className="font-mono text-ink">+{getCountry(country).dialCode} {phone}</strong>.
             </p>
             <div className="space-y-1">
               <label className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold block">
