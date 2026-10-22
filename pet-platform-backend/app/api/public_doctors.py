@@ -27,15 +27,24 @@ NEARBY_CLINIC_RADIUS_PRESETS_KM = [5.0, 15.0, 25.0]
 # no pagination, so this is also a hard ceiling on photo fetches per search.
 NEARBY_CLINIC_RESULT_LIMIT = 7
 
-# Per-account ceiling on nearby-clinic lookups (search + details + photo
-# combined), independent of the per-IP rate limit below — catches a single
-# account grinding slowly under the per-minute threshold. Resets at UTC
-# midnight; deliberately generous for a real user, tight for a script.
-NEARBY_CLINIC_DAILY_CAP = 50
+# Per-account ceiling on nearby-clinic *searches* specifically, independent
+# of the per-IP rate limit below — catches a single account grinding slowly
+# under the per-minute threshold by searching many distinct locations (the
+# one action that can genuinely create new, never-cached Google cost).
+#
+# Deliberately NOT applied to the details/photo endpoints: those are cached
+# server-side by place_id (see places_service.py), so repeat views of the
+# same clinic are free regardless of who's asking, and a single search
+# already fires up to NEARBY_CLINIC_RESULT_LIMIT photo requests before a
+# user has clicked anything — counting those against the same cap as
+# searches meant normal browsing (a few searches, a few detail views)
+# exhausted it almost immediately, which is what actually happened in
+# testing. Photo/details still have their own (higher) per-minute limits.
+NEARBY_CLINIC_SEARCH_DAILY_CAP = 50
 
 
-def _enforce_nearby_clinic_daily_cap(user_id: int) -> None:
-    key = f"nearby_clinic_daily:{user_id}:{date.today().isoformat()}"
+def _enforce_nearby_clinic_search_daily_cap(user_id: int) -> None:
+    key = f"nearby_clinic_search_daily:{user_id}:{date.today().isoformat()}"
     count = rate_limit_redis_client.incr(key)
     if count == 1:
         now = datetime.now(timezone.utc)
@@ -43,10 +52,10 @@ def _enforce_nearby_clinic_daily_cap(user_id: int) -> None:
             (datetime.combine(now.date(), datetime.max.time(), tzinfo=timezone.utc) - now).total_seconds()
         ) + 1
         rate_limit_redis_client.expire(key, seconds_until_midnight)
-    if count > NEARBY_CLINIC_DAILY_CAP:
+    if count > NEARBY_CLINIC_SEARCH_DAILY_CAP:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Daily limit for nearby vet/pharmacy lookups reached. Please try again tomorrow.",
+            detail="Daily limit for nearby vet/pharmacy searches reached. Please try again tomorrow.",
         )
 
 
@@ -195,7 +204,7 @@ async def search_nearby_clinics(
             detail=f"radius_km must be one of {NEARBY_CLINIC_RADIUS_PRESETS_KM}",
         )
 
-    _enforce_nearby_clinic_daily_cap(current_user.id)
+    _enforce_nearby_clinic_search_daily_cap(current_user.id)
 
     registered_results: list[NearbyClinicResult] = []
     if category == "clinic":
@@ -250,7 +259,6 @@ async def get_nearby_clinic_details(
     """Lazy details for one Google-sourced clinic — phone + opening hours,
     fetched only when a user opens this specific result, not for every row
     in the search list (see places_service.py's cost-control comments)."""
-    _enforce_nearby_clinic_daily_cap(current_user.id)
     details = await get_place_details(place_id)
     if details is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Clinic details not found.")
@@ -279,7 +287,6 @@ async def get_nearby_clinic_photo(
     30/minute was getting hit by completely normal browsing (a couple of
     re-searches plus opening a few detail views), not abuse.
     """
-    _enforce_nearby_clinic_daily_cap(current_user.id)
     photo_name = await get_place_photo_reference(place_id)
     if not photo_name:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No photo available for this clinic.")
