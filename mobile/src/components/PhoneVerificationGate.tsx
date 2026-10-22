@@ -21,6 +21,7 @@ import {
 } from '../api/auth';
 import { useAuthStore } from '../store/authStore';
 import { FIREBASE_CONFIG } from '../config/firebase';
+import { navigationRef } from '../../App';
 import { PhoneNumberInput } from './PhoneNumberInput';
 import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
 import { toE164, isValidForCountry, getCountry } from '../utils/phone';
@@ -178,6 +179,12 @@ export function PhoneVerificationGate() {
         updatedUser = await verifyPhoneWithToken(verifyData.idToken);
       }
       await updateUser(updatedUser);
+      // Once verification is done, always land on Home -- this gate opens
+      // right at app start (before the user has navigated anywhere real),
+      // so there's no "where they were trying to go" to return to.
+      if (navigationRef.isReady()) {
+        navigationRef.navigate('MainTabs' as never);
+      }
     } catch (err: any) {
       setErrorMsg(err.response?.data?.detail || err.message || 'Incorrect OTP code. Please try again.');
     } finally {

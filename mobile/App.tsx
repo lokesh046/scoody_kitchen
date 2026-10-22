@@ -30,7 +30,7 @@ import { COLORS } from './src/theme/colors';
 import { FONT_ASSETS } from './src/theme/typography';
 
 const Stack = createNativeStackNavigator();
-const navigationRef = createNavigationContainerRef();
+export const navigationRef = createNavigationContainerRef();
 
 function App() {
   const { user, isGuest, isHydrated, hydrateAuth, updateUser } = useAuthStore();

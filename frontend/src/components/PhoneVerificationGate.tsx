@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { useAuthStore } from '../store/auth';
@@ -23,6 +24,7 @@ import { toE164, isValidForCountry, getCountry } from '../utils/phone';
 // unaffected.
 export const PhoneVerificationGate: React.FC = () => {
   const { user, accessToken, setAuth, clearAuth } = useAuthStore();
+  const navigate = useNavigate();
 
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [country, setCountry] = useState(DEFAULT_COUNTRY_ISO2);
@@ -157,6 +159,11 @@ export const PhoneVerificationGate: React.FC = () => {
           recaptchaVerifier.clear();
         } catch {}
       }
+      // Once verification is done, always land on home -- any
+      // "take me back to what I was trying to reach" redirect already
+      // happened at login time (see RequireAuth/AuthPage), before this
+      // gate ever showed up.
+      navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || 'Incorrect OTP code. Please try again.');
     } finally {
