@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { Map, MapMarker, MapControls, type MapRefHandle } from '../../components/ui/map';
 import { fetchIpLocation, reverseGeocode as apiReverseGeocode, lookupPincode as apiLookupPincode } from '../../api/geo';
 import { useAuthStore } from '../../store/auth';
@@ -17,6 +18,9 @@ import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
 import { FeaturePrivacyNote } from '../../components/FeaturePrivacyNote';
+import { PhoneNumberInput } from '../../components/PhoneNumberInput';
+import { DEFAULT_COUNTRY_ISO2 } from '../../constants/countries';
+import { toE164, isValidForCountry, getCountry } from '../../utils/phone';
 import { 
   ArrowLeft, 
   MapPin, ShieldCheck, Truck, Loader2, AlertCircle, ShoppingCart, Compass, Tag
@@ -200,16 +204,19 @@ export const CheckoutPage: React.FC = () => {
   };
 
   const finalCheckoutAmount = Math.max(0, totalAmount - (appliedCoupon?.discountAmount || 0));
-  const formatPhoneForState = (rawPhone?: string | null) => {
-    if (!rawPhone) return '';
-    const clean = rawPhone.trim().replace(/[\s\-\(\)]/g, '');
-    if (clean.startsWith('+91')) {
-      return clean.slice(3);
+  // Parses with libphonenumber-js so both the country AND the national
+  // number are detected correctly, rather than assuming India.
+  const parsePhoneForState = (rawPhone?: string | null) => {
+    if (!rawPhone) return { country: DEFAULT_COUNTRY_ISO2, digits: '' };
+    const parsed = parsePhoneNumberFromString(rawPhone, DEFAULT_COUNTRY_ISO2 as any);
+    if (parsed && parsed.country) {
+      return { country: parsed.country, digits: parsed.nationalNumber };
     }
-    return clean;
+    return { country: DEFAULT_COUNTRY_ISO2, digits: rawPhone.replace(/\D/g, '').slice(-10) };
   };
 
-  const [phone, setPhone] = useState(formatPhoneForState(user?.phone));
+  const [phoneCountry, setPhoneCountry] = useState(() => parsePhoneForState(user?.phone).country);
+  const [phone, setPhone] = useState(() => parsePhoneForState(user?.phone).digits);
   const [isLookupLoading, setIsLookupLoading] = useState(false);
   const [detectedCountryCode, setDetectedCountryCode] = useState('in');
   
@@ -268,7 +275,9 @@ export const CheckoutPage: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      setPhone(formatPhoneForState(user.phone));
+      const parsedPhone = parsePhoneForState(user.phone);
+      setPhoneCountry(parsedPhone.country);
+      setPhone(parsedPhone.digits);
     }
   }, [user]);
 
@@ -469,8 +478,8 @@ export const CheckoutPage: React.FC = () => {
   };
 
   const handleStartPhoneVerification = () => {
-    if (!phone || phone.length !== 10) {
-      setErrorMessage('Please enter a valid 10-digit phone number.');
+    if (!isValidForCountry(phoneCountry, phone)) {
+      setErrorMessage(`Please enter a valid phone number for ${getCountry(phoneCountry).name}.`);
       return;
     }
 
@@ -485,7 +494,7 @@ export const CheckoutPage: React.FC = () => {
   const handleSendOtp = async (channel: 'whatsapp' | 'sms' = verificationChannel) => {
     setIsVerifyingLoading(true);
     setVerifyError(null);
-    const fullPhone = `+91${phone}`;
+    const fullPhone = toE164(phoneCountry, phone);
 
     if (channel === 'whatsapp') {
       try {
@@ -555,7 +564,7 @@ export const CheckoutPage: React.FC = () => {
     }
     setIsVerifyingLoading(true);
     setVerifyError(null);
-    const fullPhone = `+91${phone}`;
+    const fullPhone = toE164(phoneCountry, phone);
     try {
       let updatedUser;
 
@@ -615,9 +624,9 @@ export const CheckoutPage: React.FC = () => {
       return;
     }
 
-    if (phone.trim().length !== 10) {
-      console.log("Phone length validation failed");
-      setErrorMessage('Please enter a valid 10-digit contact phone number.');
+    if (!isValidForCountry(phoneCountry, phone)) {
+      console.log("Phone validation failed");
+      setErrorMessage(`Please enter a valid phone number for ${getCountry(phoneCountry).name}.`);
       return;
     }
 
@@ -634,7 +643,7 @@ export const CheckoutPage: React.FC = () => {
     console.log("Proceeding to checkoutCart API call...");
 
     try {
-      const order = await checkoutCart(combinedAddress, 'CARD', `+91${phone}`, appliedCoupon?.code);
+      const order = await checkoutCart(combinedAddress, 'CARD', toE164(phoneCountry, phone), appliedCoupon?.code);
       setPlacedOrder(order);
       if (order.razorpay_order_id) {
         setPaymentSession({
@@ -1196,53 +1205,31 @@ export const CheckoutPage: React.FC = () => {
                       )}
                     </div>
                     <div className="flex space-x-2">
-                      <div
-                        className={`flex-grow flex items-center border rounded-none bg-paper focus-within:ring-1 transition-colors ${
-                          phone.length > 0 && phone.length < 10
-                            ? 'border-paprika focus-within:border-paprika focus-within:ring-paprika'
-                            : 'border-cardboard focus-within:border-turmeric focus-within:ring-turmeric'
-                        }`}
-                      >
-                        <div className="pl-3 pr-2 flex items-center space-x-1 border-r border-cardboard border-opacity-35 select-none">
-                          <span className="font-mono text-xs font-bold text-ink">+91</span>
-                        </div>
-                        <input
-                          type="tel"
-                          id="phone"
-                          maxLength={10}
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                      <div className="flex-grow">
+                        <PhoneNumberInput
+                          country={phoneCountry}
+                          onCountryChange={setPhoneCountry}
+                          nationalNumber={phone}
+                          onNationalNumberChange={setPhone}
+                          disabled={!!(isSubmitting || user?.is_phone_verified)}
                           placeholder="9876543210"
-                          aria-invalid={phone.length > 0 && phone.length < 10}
-                          className="w-full px-3 py-2 bg-transparent font-mono text-xs text-ink placeholder-cardboard focus:outline-none disabled:opacity-85"
-                          disabled={isSubmitting || user?.is_phone_verified}
-                          required
                         />
-                        {phone.length > 0 && (
-                          <span
-                            className={`pr-3 font-mono text-[9px] font-bold select-none ${
-                              phone.length < 10 ? 'text-paprika' : 'text-herb'
-                            }`}
-                          >
-                            {phone.length}/10
-                          </span>
-                        )}
                       </div>
                       {!user?.is_phone_verified && (
                         <button
                           type="button"
                           onClick={handleStartPhoneVerification}
-                          disabled={phone.length !== 10}
-                          title={phone.length !== 10 ? 'Enter all 10 digits to verify' : undefined}
+                          disabled={!isValidForCountry(phoneCountry, phone)}
+                          title={!isValidForCountry(phoneCountry, phone) ? `Enter a valid phone number for ${getCountry(phoneCountry).name}` : undefined}
                           className="bg-ink hover:bg-opacity-95 text-paperLight font-mono text-[9px] uppercase font-bold px-4 py-2 border border-cardboard cursor-pointer shrink-0 transition-colors shadow-xs disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-opacity-100"
                         >
                           Verify Phone
                         </button>
                       )}
                     </div>
-                    {phone.length > 0 && phone.length < 10 && (
+                    {phone.length > 0 && !isValidForCountry(phoneCountry, phone) && (
                       <p className="font-mono text-[9px] text-paprika font-bold">
-                        {10 - phone.length} more digit{10 - phone.length === 1 ? '' : 's'} needed.
+                        Enter a valid phone number for {getCountry(phoneCountry).name}.
                       </p>
                     )}
                   </div>
@@ -1520,7 +1507,7 @@ export const CheckoutPage: React.FC = () => {
               
               <div className="p-3 bg-paper border border-cardboard border-dashed flex justify-between items-center">
                 <span className="font-mono text-[10px] uppercase text-herb font-bold">Contact Number:</span>
-                <span className="font-mono text-xs font-bold text-ink">+91 {phone || 'Not Provided'}</span>
+                <span className="font-mono text-xs font-bold text-ink">+{getCountry(phoneCountry).dialCode} {phone || 'Not Provided'}</span>
               </div>
 
               <div className="pt-2 flex flex-col gap-2">
@@ -1599,11 +1586,7 @@ export const CheckoutPage: React.FC = () => {
               <div className="space-y-4">
                 <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
                   We'll send a one-time verification code via WhatsApp to your registered profile number:
-                  <strong className="text-ink ml-1 font-mono">+91 {phone}</strong>.
-                </p>
-
-                <p className="font-mono text-[10px] text-herb opacity-80">
-                  * The country prefix (+91) is statically applied to your contact number.
+                  <strong className="text-ink ml-1 font-mono">+{getCountry(phoneCountry).dialCode} {phone}</strong>.
                 </p>
 
                 <div className="pt-2 flex flex-col gap-2">

@@ -20,6 +20,7 @@ import { UserProfile } from '../../store/authStore';
 import { CouponValidateResponse } from '../../api/coupons';
 import { styles } from './cartStyles';
 import { FeaturePrivacyNote } from '../../components/FeaturePrivacyNote';
+import { getCountry } from '../../utils/phone';
 
 interface PaymentFailureNotice {
   message: string;
@@ -33,6 +34,7 @@ interface PaymentStepProps {
   city: string;
   stateName: string;
   pincode: string;
+  country: string;
   phone: string;
 
   subtotal: number;
@@ -56,6 +58,7 @@ export const PaymentStep = memo(function PaymentStep({
   city,
   stateName,
   pincode,
+  country,
   phone,
   subtotal,
   appliedCoupon,
@@ -105,7 +108,7 @@ export const PaymentStep = memo(function PaymentStep({
         </Text>
         <View style={styles.summaryPhoneRow}>
           <Phone size={13} color={COLORS.textLight} />
-          <Text style={styles.summaryPhoneText}>+91 {phone}</Text>
+          <Text style={styles.summaryPhoneText}>+{getCountry(country).dialCode} {phone}</Text>
           {user?.is_phone_verified && (
             <View style={styles.phoneVerifiedMini}>
               <Check size={10} color={COLORS.forestGreen} />

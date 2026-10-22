@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import {
   View,
   Text,
@@ -22,6 +23,7 @@ import {
   LogIn,
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import { useNetworkStore, isNetworkError } from '../store/networkStore';
@@ -37,8 +39,21 @@ import { PaymentStep } from './cart/PaymentStep';
 import { OrderSuccessScreen } from './cart/OrderSuccessScreen';
 import { styles } from './cart/cartStyles';
 import { captureApiError } from '../services/sentry';
+import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
+import { toE164, isValidForCountry } from '../utils/phone';
 
 const ADDRESS_STORAGE_KEY = 'scooby_saved_shipping_address';
+
+// Parses with libphonenumber-js so both the country AND the national
+// number are detected correctly, rather than assuming India.
+const parsePhoneForState = (rawPhone?: string | null): { country: string; digits: string } => {
+  if (!rawPhone) return { country: DEFAULT_COUNTRY_ISO2, digits: '' };
+  const parsed = parsePhoneNumberFromString(rawPhone, DEFAULT_COUNTRY_ISO2 as any);
+  if (parsed && parsed.country) {
+    return { country: parsed.country, digits: parsed.nationalNumber };
+  }
+  return { country: DEFAULT_COUNTRY_ISO2, digits: rawPhone.replace(/\D/g, '').slice(-10) };
+};
 
 export default function CartScreen({ navigation }: any) {
   const {
@@ -72,7 +87,8 @@ export default function CartScreen({ navigation }: any) {
   const [isLocating, setIsLocating] = useState(false);
 
   // Contact Phone State (Prefilled from session profile)
-  const [phone, setPhone] = useState(user?.phone ? user.phone.replace(/^\+91/, '') : '8825812858');
+  const [country, setCountry] = useState(() => parsePhoneForState(user?.phone).country);
+  const [phone, setPhone] = useState(() => parsePhoneForState(user?.phone).digits);
 
   // Promotional Voucher States
   const [couponCode, setCouponCode] = useState('');
@@ -152,7 +168,9 @@ export default function CartScreen({ navigation }: any) {
   // 3. Keep phone in sync with verified user session
   useEffect(() => {
     if (user?.phone) {
-      setPhone(user.phone.replace(/^\+91/, ''));
+      const parsedPhone = parsePhoneForState(user.phone);
+      setCountry(parsedPhone.country);
+      setPhone(parsedPhone.digits);
     }
   }, [user?.phone]);
 
@@ -351,9 +369,8 @@ export default function CartScreen({ navigation }: any) {
       Alert.alert('Account Required', 'Please sign in first to verify your contact number.');
       return;
     }
-    const cleanDigits = phone.trim().replace(/\D/g, '');
-    if (cleanDigits.length !== 10) {
-      Alert.alert('Phone Required', 'Please enter a valid 10-digit mobile number before verifying.');
+    if (!isValidForCountry(country, phone)) {
+      Alert.alert('Phone Required', 'Please enter a valid mobile number before verifying.');
       return;
     }
     setIsPhoneModalVisible(true);
@@ -395,9 +412,8 @@ export default function CartScreen({ navigation }: any) {
       return;
     }
 
-    const cleanPhone = phone.trim().replace(/\D/g, '');
-    if (cleanPhone.length !== 10) {
-      Alert.alert('Phone Required', 'Please enter a valid 10-digit mobile contact number.');
+    if (!isValidForCountry(country, phone)) {
+      Alert.alert('Phone Required', 'Please enter a valid mobile contact number.');
       return;
     }
 
@@ -472,9 +488,8 @@ export default function CartScreen({ navigation }: any) {
       return;
     }
 
-    const cleanPhone = phone.trim().replace(/\D/g, '');
-    if (cleanPhone.length !== 10) {
-      Alert.alert('Phone Required', 'Please enter a valid 10-digit mobile contact number.');
+    if (!isValidForCountry(country, phone)) {
+      Alert.alert('Phone Required', 'Please enter a valid mobile contact number.');
       return;
     }
 
@@ -507,7 +522,7 @@ export default function CartScreen({ navigation }: any) {
       // 1. Call Backend POST /orders/checkout
       const order = await checkoutOrder({
         shipping_address: combinedAddress,
-        phone: `+91${cleanPhone}`,
+        phone: toE164(country, phone),
         payment_method: 'CARD',
         coupon_code: appliedCoupon ? appliedCoupon.code : undefined,
       });
@@ -610,40 +625,40 @@ export default function CartScreen({ navigation }: any) {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Top Header & Stepper */}
       <ResponsiveContainer maxWidth={920}>
-        <View style={styles.header}>
-          <View>
-            <View style={styles.brandRow}>
-              <ShoppingBag size={18} color={COLORS.brandGold} />
-              <Text style={styles.brandLabel}>YOUR BOWL LEDGER</Text>
-              {isSyncing && (
-                <View style={styles.syncPill}>
-                  <ActivityIndicator size="small" color={COLORS.forestGreen} />
-                  <Text style={styles.syncPillText}>Syncing...</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.headerTitle}>
-              {checkoutStep === 'cart'
-                ? `Order Cart (${items.length} ${items.length === 1 ? 'recipe' : 'recipes'})`
-                : checkoutStep === 'address'
-                ? 'Delivery Address'
-                : 'Review & Payment'}
-            </Text>
-          </View>
-
-          {items.length > 0 && checkoutStep === 'cart' && (
-            <TouchableOpacity
-              onPress={clearCart}
-              style={styles.clearBtn}
-              disabled={isSyncing}
-              accessibilityRole="button"
-              accessibilityLabel="Clear cart"
-              accessibilityState={{ disabled: isSyncing }}
-            >
-              <Trash2 size={16} color={COLORS.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
+        <ScreenHeader
+          title={
+            checkoutStep === 'cart'
+              ? `Order Cart (${items.length} ${items.length === 1 ? 'recipe' : 'recipes'})`
+              : checkoutStep === 'address'
+              ? 'Delivery Address'
+              : 'Review & Payment'
+          }
+          eyebrow="YOUR BOWL LEDGER"
+          eyebrowExtra={
+            isSyncing && (
+              <View style={styles.syncPill}>
+                <ActivityIndicator size="small" color={COLORS.forestGreen} />
+                <Text style={styles.syncPillText}>Syncing...</Text>
+              </View>
+            )
+          }
+          leadingElement={<ShoppingBag size={20} color={COLORS.brandGold} />}
+          rightContent={
+            items.length > 0 &&
+            checkoutStep === 'cart' && (
+              <TouchableOpacity
+                onPress={clearCart}
+                style={styles.clearBtn}
+                disabled={isSyncing}
+                accessibilityRole="button"
+                accessibilityLabel="Clear cart"
+                accessibilityState={{ disabled: isSyncing }}
+              >
+                <Trash2 size={16} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            )
+          }
+        />
 
         {/* 3-Step Checkout Stepper Bar */}
         {items.length > 0 && (
@@ -840,6 +855,8 @@ export default function CartScreen({ navigation }: any) {
                 onChangeStateName={setStateName}
                 pincode={pincode}
                 onChangePincode={setPincode}
+                country={country}
+                onChangeCountry={setCountry}
                 phone={phone}
                 onChangePhone={setPhone}
                 onVerifyPhone={handleVerifyPhone}
@@ -856,6 +873,7 @@ export default function CartScreen({ navigation }: any) {
                 city={city}
                 stateName={stateName}
                 pincode={pincode}
+                country={country}
                 phone={phone}
                 subtotal={subtotal}
                 appliedCoupon={appliedCoupon}
@@ -883,7 +901,7 @@ export default function CartScreen({ navigation }: any) {
           amount={Number(createdOrder.total_amount) || total}
           userName={user?.first_name || 'Pet Parent'}
           userEmail={user?.email || 'petparent@gmail.com'}
-          userPhone={`+91${phone}`}
+          userPhone={toE164(country, phone)}
           onSuccess={handleRazorpaySuccess}
           onFailure={handleRazorpayFailure}
           onClose={() => setShowRazorpayModal(false)}
@@ -893,6 +911,7 @@ export default function CartScreen({ navigation }: any) {
       {/* Phone Verification Modal */}
       <PhoneVerificationModal
         visible={isPhoneModalVisible}
+        country={country}
         phone={phone}
         onClose={() => setIsPhoneModalVisible(false)}
         onSuccess={(updatedUser) => {

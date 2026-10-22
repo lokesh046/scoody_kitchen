@@ -4,6 +4,8 @@ import { ArrowLeft, ArrowRight, MapPin, Phone, Check, AlertCircle } from 'lucide
 import { COLORS } from '../../theme/colors';
 import { UserProfile } from '../../store/authStore';
 import DeliveryMapPicker from '../../components/DeliveryMapPicker';
+import { PhoneNumberInput } from '../../components/PhoneNumberInput';
+import { isValidForCountry } from '../../utils/phone';
 import { styles } from './cartStyles';
 
 interface AddressStepProps {
@@ -24,6 +26,8 @@ interface AddressStepProps {
   pincode: string;
   onChangePincode: (v: string) => void;
 
+  country: string;
+  onChangeCountry: (v: string) => void;
   phone: string;
   onChangePhone: (v: string) => void;
   onVerifyPhone: () => void;
@@ -48,6 +52,8 @@ export const AddressStep = memo(function AddressStep({
   onChangeStateName,
   pincode,
   onChangePincode,
+  country,
+  onChangeCountry,
   phone,
   onChangePhone,
   onVerifyPhone,
@@ -167,26 +173,20 @@ export const AddressStep = memo(function AddressStep({
         </View>
 
         <View style={styles.phoneRow}>
-          <View style={styles.countryCodeBox}>
-            <Text style={styles.countryCodeText}>+91</Text>
+          <View style={{ flex: 1 }}>
+            <PhoneNumberInput
+              country={country}
+              onCountryChange={onChangeCountry}
+              nationalNumber={phone}
+              onNationalNumberChange={onChangePhone}
+              placeholder="9876543210"
+            />
           </View>
-          <TextInput
-            value={phone}
-            onChangeText={(t) => onChangePhone(t.replace(/\D/g, ''))}
-            placeholder="10-digit mobile number"
-            placeholderTextColor={COLORS.textLight}
-            keyboardType="phone-pad"
-            maxLength={10}
-            style={[
-              styles.phoneInputFlex,
-              phone.length > 0 && phone.length < 10 && styles.phoneInputFlexIncomplete,
-            ]}
-          />
           {!user?.is_phone_verified && (
             <TouchableOpacity
-              style={[styles.verifyPhoneBtn, phone.length !== 10 && styles.verifyPhoneBtnDisabled]}
+              style={[styles.verifyPhoneBtn, !isValidForCountry(country, phone) && styles.verifyPhoneBtnDisabled]}
               onPress={() => {
-                if (phone.length !== 10) return;
+                if (!isValidForCountry(country, phone)) return;
                 onVerifyPhone();
               }}
               activeOpacity={0.8}
@@ -197,9 +197,9 @@ export const AddressStep = memo(function AddressStep({
             </TouchableOpacity>
           )}
         </View>
-        {phone.length > 0 && phone.length < 10 && (
+        {phone.length > 0 && !isValidForCountry(country, phone) && (
           <Text style={styles.phoneIncompleteHelper}>
-            {10 - phone.length} more digit{10 - phone.length === 1 ? '' : 's'} needed.
+            Enter a valid mobile number.
           </Text>
         )}
       </View>
