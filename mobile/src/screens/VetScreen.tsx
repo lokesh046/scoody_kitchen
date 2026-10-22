@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,24 +17,17 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
   Stethoscope,
   Video,
-  ShieldCheck,
-  Clock,
-  CheckCircle2,
-  FileText,
   X,
-  PawPrint,
   Calendar as CalendarIcon,
-  Building2,
-  Star,
   MapPin,
-  Info,
-  ChevronRight,
   Search,
   SlidersHorizontal,
   ChevronDown,
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
+import { FONT_BODY_BOLD } from '../theme/typography';
 import { BrandMedallion } from '../components/BrandLogo';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { Doctor } from '../types';
 import { useResponsive } from '../hooks/useResponsive';
 import ResponsiveContainer from '../components/ResponsiveContainer';
@@ -68,297 +61,11 @@ import { BookingModal } from './vet/BookingModal';
 import { DoctorProfileModal } from './vet/DoctorProfileModal';
 import { FilterModal } from './vet/FilterModal';
 import { ReviewModal } from './vet/ReviewModal';
-import { NearbyVetsModal } from './vet/NearbyVetsModal';
+import { NearbyVetsView } from './vet/NearbyVetsView';
+import { ConsultationCardItem, DoctorDirectoryCard } from './vet/VetCards';
 
 type ActiveTab = 'QUEUE' | 'DOCTORS';
 type ConsultationFilter = 'ALL' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
-
-// Pure Memoized Consultation Card Component
-interface ConsultationCardItemProps {
-  consultation: Consultation;
-  isJoining: boolean;
-  onJoinVideo: (consultation: Consultation) => void;
-  onCancel: (consultationId: number) => void;
-  onReview: (consultationId: number) => void;
-  reviewsEnabled: boolean;
-  cardWidth?: any;
-}
-
-const ConsultationCardItem = memo(function ConsultationCardItem({
-  consultation,
-  isJoining,
-  onJoinVideo,
-  onCancel,
-  onReview,
-  reviewsEnabled,
-  cardWidth,
-}: ConsultationCardItemProps) {
-  const statusInfo = getStatusBadge(consultation.status);
-  const doc = consultation.doctor;
-  const pet = consultation.pet;
-  const docImg = getDoctorImageUrl(doc);
-  const isCallActive =
-    consultation.status === 'confirmed' || consultation.status === 'in_progress';
-  const isCompleted = consultation.status === 'completed';
-  const isPending = consultation.status === 'pending';
-
-  const scheduledDateStr = useMemo(
-    () => formatDate(consultation.scheduled_at),
-    [consultation.scheduled_at]
-  );
-
-  const handleJoin = useCallback(() => {
-    onJoinVideo(consultation);
-  }, [onJoinVideo, consultation]);
-
-  const handleCancel = useCallback(() => {
-    onCancel(consultation.id);
-  }, [onCancel, consultation.id]);
-
-  const handleReview = useCallback(() => {
-    onReview(consultation.id);
-  }, [onReview, consultation.id]);
-
-  return (
-    <View style={[styles.consultationCard, cardWidth ? { width: cardWidth } : null]}>
-      {/* Card Top Row: ID, Time, Badge */}
-      <View style={styles.cardHeaderRow}>
-        <View style={styles.cardIdBadge}>
-          <Text style={styles.cardIdText}>APPT #{consultation.id}</Text>
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: statusInfo.bg }]}>
-          {isCallActive && <View style={styles.livePulseDot} />}
-          <Text style={[styles.statusBadgeText, { color: statusInfo.text }]}>
-            {statusInfo.label}
-          </Text>
-        </View>
-      </View>
-
-      {/* Doctor Profile Info */}
-      <View style={styles.doctorInfoRow}>
-        {docImg ? (
-          <Image source={{ uri: docImg }} style={styles.doctorAvatar} />
-        ) : (
-          <View style={styles.doctorAvatarFallback}>
-            <Stethoscope size={22} color={COLORS.forestGreen} />
-          </View>
-        )}
-        <View style={styles.doctorTextCol}>
-          <Text style={styles.doctorName}>
-            {doc?.user?.first_name
-              ? `Dr. ${doc.user.first_name} ${doc.user.last_name || ''}`.trim()
-              : 'Certified Veterinary Specialist'}
-          </Text>
-          <Text style={styles.doctorSpec}>
-            {doc?.specialization || 'Clinical Nutritionist'}
-          </Text>
-          {doc?.clinic?.name && (
-            <View style={styles.clinicRow}>
-              <Building2 size={12} color={COLORS.textMuted} />
-              <Text style={styles.clinicText}>
-                {doc.clinic.name} • {doc.clinic.city || 'India'}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.cardDivider} />
-
-      {/* Patient & Appointment Details */}
-      <View style={styles.detailsGrid}>
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>PATIENT</Text>
-          <View style={styles.detailValueRow}>
-            <PawPrint size={13} color={COLORS.brandGold} />
-            <Text style={styles.detailValueText}>
-              {pet ? `${pet.name} (${pet.breed || pet.species})` : 'Registered Pet'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>SCHEDULED TIME</Text>
-          <View style={styles.detailValueRow}>
-            <Clock size={13} color={COLORS.forestGreen} />
-            <Text style={styles.detailValueText}>{scheduledDateStr}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Reason / Symptoms Card */}
-      <View style={styles.reasonBox}>
-        <Text style={styles.reasonLabel}>CHIEF REASON / SYMPTOMS:</Text>
-        <Text style={styles.reasonText}>"{consultation.reason}"</Text>
-      </View>
-
-      {/* Doctor Clinical Notes & Dietary Advice (If Completed) */}
-      {isCompleted && (
-        <View style={styles.doctorNotesBox}>
-          <View style={styles.notesHeader}>
-            <FileText size={15} color={COLORS.forestGreen} />
-            <Text style={styles.notesHeaderTitle}>
-              Doctor's Clinical Notes & Dietary Advice
-            </Text>
-          </View>
-          <Text style={styles.doctorNotesText}>
-            {consultation.doctor_notes ||
-              'Consultation completed. Formal dietary notes and meal formulation instructions are being finalized by the specialist.'}
-          </Text>
-        </View>
-      )}
-
-      {/* Action Buttons */}
-      <View style={styles.cardActionRow}>
-        {isCallActive && (
-          <TouchableOpacity
-            style={[styles.joinCallBtn, isJoining && styles.btnDisabled]}
-            onPress={handleJoin}
-            disabled={isJoining}
-          >
-            {isJoining ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <Video size={16} color="#FFFFFF" />
-                <Text style={styles.joinCallBtnText}>Join Live Video Call</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        )}
-
-        {isPending && (
-          <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
-            <X size={14} color="#DC2626" />
-            <Text style={styles.cancelBtnText}>Cancel Booking</Text>
-          </TouchableOpacity>
-        )}
-
-        {isCompleted && (
-          <View style={styles.completedStamp}>
-            <CheckCircle2 size={14} color={COLORS.forestGreen} />
-            <Text style={styles.completedStampText}>Consultation Completed</Text>
-          </View>
-        )}
-
-        {isCompleted && reviewsEnabled && (
-          <TouchableOpacity style={styles.leaveReviewBtn} onPress={handleReview}>
-            <Star size={14} color={COLORS.brandGold} />
-            <Text style={styles.leaveReviewBtnText}>Leave a Review</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
-});
-
-// Pure Memoized Doctor Directory Card Component
-interface DoctorDirectoryCardProps {
-  doc: Doctor;
-  onSelectProfile: (doc: Doctor) => void;
-  onBook: (doc: Doctor) => void;
-  cardWidth?: any;
-}
-
-const DoctorDirectoryCard = memo(function DoctorDirectoryCard({
-  doc,
-  onSelectProfile,
-  onBook,
-  cardWidth,
-}: DoctorDirectoryCardProps) {
-  const docName =
-    doc.name ||
-    (doc.user
-      ? `Dr. ${doc.user.first_name} ${doc.user.last_name || ''}`.trim()
-      : 'Veterinary Specialist');
-  const docImg = getDoctorImageUrl(doc);
-
-  const handleProfilePress = useCallback(() => {
-    onSelectProfile(doc);
-  }, [onSelectProfile, doc]);
-
-  const handleBookPress = useCallback(() => {
-    onBook(doc);
-  }, [onBook, doc]);
-
-  return (
-    <View style={[styles.docCard, cardWidth ? { width: cardWidth } : null]}>
-      <TouchableOpacity activeOpacity={0.85} onPress={handleProfilePress}>
-        <View style={styles.docCardTop}>
-          {docImg ? (
-            <Image source={{ uri: docImg }} style={styles.docImg} />
-          ) : (
-            <View style={styles.docImgFallback}>
-              <Stethoscope size={26} color={COLORS.forestGreen} />
-            </View>
-          )}
-          <View style={{ flex: 1 }}>
-            <View style={styles.verifiedRow}>
-              <Text style={styles.docCardName}>{docName}</Text>
-              <ShieldCheck size={14} color={COLORS.forestGreen} />
-            </View>
-            <Text style={styles.docCardSpec}>{doc.specialization}</Text>
-            {doc.qualification && (
-              <Text style={styles.docCardQual}>{doc.qualification}</Text>
-            )}
-            <View style={styles.docCardStatsRow}>
-              {doc.experience_years ? (
-                <Text style={styles.docCardExp}>{doc.experience_years} yrs exp</Text>
-              ) : null}
-              {doc.average_rating ? (
-                <View style={styles.ratingBadge}>
-                  <Star size={10} color="#D97706" fill="#D97706" />
-                  <Text style={styles.ratingBadgeText}>
-                    {doc.average_rating.toFixed(1)} ({doc.review_count || 0})
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-          <ChevronRight size={18} color={COLORS.textMuted} />
-        </View>
-
-        {doc.bio && (
-          <Text style={styles.docBio} numberOfLines={2}>
-            {doc.bio}
-          </Text>
-        )}
-      </TouchableOpacity>
-
-      <View style={styles.cardDivider} />
-
-      <View style={styles.docCardBottom}>
-        <View>
-          <Text style={styles.feeLabel}>CONSULTATION FEE</Text>
-          <Text style={styles.feeVal}>
-            ₹{Number(doc.consultation_fee).toFixed(0)}
-          </Text>
-        </View>
-
-        <View style={styles.docCardActionsRow}>
-          <TouchableOpacity
-            style={styles.viewProfileOutlineBtn}
-            onPress={handleProfilePress}
-          >
-            <Info size={13} color={COLORS.forestGreen} />
-            <Text style={styles.viewProfileOutlineBtnText}>Profile</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.bookDocBtn, !doc.is_available && styles.bookDocBtnDisabled]}
-            disabled={!doc.is_available}
-            onPress={handleBookPress}
-          >
-            <Video size={14} color="#FFFFFF" />
-            <Text style={styles.bookDocBtnText}>
-              {doc.is_available ? 'Book' : 'Away'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-});
 
 export default function VetScreen({ navigation, route }: any) {
   const { user, isGuest } = useAuthStore();
@@ -368,6 +75,9 @@ export default function VetScreen({ navigation, route }: any) {
   const isBookingEnabled = useFeatureFlag('consultations_booking', true);
   const isReviewsEnabled = useFeatureFlag('consultations_reviews', true);
 
+  // "Consult Vet" lands on nearby clinics/pharmacies by default, with a
+  // header toggle to switch into the video-call booking flow below.
+  const [viewMode, setViewMode] = useState<'nearby' | 'consult'>('nearby');
   const [activeTab, setActiveTab] = useState<ActiveTab>('QUEUE');
   const [consultationFilter, setConsultationFilter] = useState<ConsultationFilter>('ALL');
 
@@ -507,7 +217,6 @@ export default function VetScreen({ navigation, route }: any) {
 
   // Booking Modal State
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
-  const [showNearbyVetsModal, setShowNearbyVetsModal] = useState(false);
   const [bookingPetId, setBookingPetId] = useState<number | null>(null);
   const [selectedDateIndex, setSelectedDateIndex] = useState<number>(0);
   const [selectedTime, setSelectedTime] = useState<string>('');
@@ -541,6 +250,7 @@ export default function VetScreen({ navigation, route }: any) {
   // Deep-link auto-select doctor if navigated with doctorId
   useEffect(() => {
     if (route?.params?.doctorId && allDoctors.length > 0) {
+      setViewMode('consult');
       setActiveTab('DOCTORS');
       const targetId = Number(route.params.doctorId);
       const targetDoc = allDoctors.find((d) => d.id === targetId);
@@ -1123,7 +833,7 @@ export default function VetScreen({ navigation, route }: any) {
     setReason('');
     setConsultPaymentIntent(null);
     Alert.alert(
-      'Appointment Confirmed! 🐾',
+      'Appointment Confirmed!',
       `Your video consultation with ${
         doctorName || 'Specialist'
       } has been booked for ${chosenDay.dayName}, ${chosenDay.dayNum} ${
@@ -1310,22 +1020,48 @@ export default function VetScreen({ navigation, route }: any) {
           practice is staffed" directly, instead of a separate eyebrow
           line; the right-side chip shows the real specialist count
           instead of a decorative "Available" claim. */}
-      <View style={styles.header}>
-        <View style={styles.headerLeftGroup}>
+      <ScreenHeader
+        title="Vet Consultations"
+        leadingElement={
           <View style={styles.medallionPresenceWrap}>
             <BrandMedallion size="sm" />
             <View style={styles.presenceRing} />
           </View>
-          <Text style={styles.headerTitle} numberOfLines={1}>Vet Consultations</Text>
-        </View>
+        }
+        rightContent={
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              backgroundColor: COLORS.forestGreen,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 20,
+            }}
+            onPress={() => setViewMode(viewMode === 'nearby' ? 'consult' : 'nearby')}
+            accessibilityRole="button"
+            accessibilityLabel={viewMode === 'nearby' ? 'Switch to video consultation' : 'Switch to nearby vets'}
+          >
+            {viewMode === 'nearby' ? (
+              <Video size={14} color="#FFFFFF" />
+            ) : (
+              <MapPin size={14} color="#FFFFFF" />
+            )}
+            <Text style={{ fontSize: 11, fontFamily: FONT_BODY_BOLD, color: '#FFFFFF' }}>
+              {viewMode === 'nearby' ? 'Consult' : 'Near Me'}
+            </Text>
+          </TouchableOpacity>
+        }
+      />
 
-        <View style={styles.specialistStatChip}>
-          <Stethoscope size={13} color={COLORS.sageIcon} strokeWidth={2.3} />
-          <Text style={styles.specialistStatCount}>{allDoctors.length}</Text>
-          <Text style={styles.specialistStatLabel}>online</Text>
-        </View>
-      </View>
-
+      {viewMode === 'nearby' ? (
+        <NearbyVetsView
+          onSelectDoctor={setSelectedDoctor}
+          onSwitchToConsult={() => setViewMode('consult')}
+        />
+      ) : (
+      <>
       {/* 2. Top Segmented Switcher */}
       <ResponsiveContainer>
         <View style={styles.segmentContainer}>
@@ -1502,17 +1238,6 @@ export default function VetScreen({ navigation, route }: any) {
                     </View>
                   )}
                 </TouchableOpacity>
-
-                {/* Vets Near Me Trigger */}
-                <TouchableOpacity
-                  style={styles.filterTriggerBtn}
-                  onPress={() => setShowNearbyVetsModal(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Find vets near me"
-                >
-                  <MapPin size={16} color={COLORS.forestGreen} />
-                  <Text style={styles.filterTriggerBtnText}>Near Me</Text>
-                </TouchableOpacity>
               </View>
 
               {/* Dynamic Quick Dropdown Trigger Pills (Zero Hardcoding) */}
@@ -1639,8 +1364,8 @@ export default function VetScreen({ navigation, route }: any) {
                           style={styles.activeFilterChip}
                           onPress={() => setSelectedCity('ALL')}
                         >
+                          <MapPin size={12} color={COLORS.forestGreen} />
                           <Text style={styles.activeFilterChipText}>
-                            📍{' '}
                             {dynamicCities.find((c) => c.key === selectedCity)
                               ?.display || selectedCity}
                           </Text>
@@ -1743,6 +1468,8 @@ export default function VetScreen({ navigation, route }: any) {
           removeClippedSubviews={Platform.OS === 'android'}
         />
       )}
+      </>
+      )}
 
       {/* ======================================================== */}
       {/* 4-7. Booking, Profile, Filter & Review Modals             */}
@@ -1818,13 +1545,6 @@ export default function VetScreen({ navigation, route }: any) {
         onChangeComment={setReviewComment}
         isSubmitting={isSubmittingReview}
         onSubmit={handleSubmitReview}
-      />
-
-      <NearbyVetsModal
-        isOpen={showNearbyVetsModal}
-        onClose={() => setShowNearbyVetsModal(false)}
-        onSelectDoctor={setSelectedDoctor}
-        onBookOnlineInstead={() => {}}
       />
 
       {/* Consultation Fee Payment (Razorpay) */}

@@ -1,8 +1,12 @@
+from datetime import date, datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.limiter import limiter
+from app.core.limiter import limiter, rate_limit_redis_client
+from app.dependencies.auth import get_current_user
+from app.models.user import User
 from app.schemas.doctor import DoctorResponse, DoctorPublicResponse, NearbyDoctorResponse, PaginatedDoctorResponse, PaginatedDoctorPublicResponse
 from app.schemas.vet_clinic import NearbyClinicResult, NearbyClinicsResponse, PlaceDetailsResponse
 from app.services.doctor_service import (
@@ -10,14 +14,40 @@ from app.services.doctor_service import (
     get_doctors_paginated,
     get_nearby_doctors,
 )
-from app.services.places_service import search_nearby_vet_clinics, get_place_details, get_place_photo
+from app.services.places_service import search_nearby_vet_clinics, get_place_details, get_place_photo, get_place_photo_reference
 from app.schemas.doctor_availability import DoctorSchedulePublicResponse
 from app.services.doctor_availability_service import get_doctor_availabilities
 
 # Server-controlled presets, per the plan's cost-control requirement —
 # arbitrary radius values are rejected below rather than accepted as-is,
 # so a client can't drive up Places API cost with unbounded radii.
-NEARBY_CLINIC_RADIUS_PRESETS_KM = [2.0, 5.0, 10.0]
+NEARBY_CLINIC_RADIUS_PRESETS_KM = [5.0, 15.0, 25.0]
+
+# How many cards the nearby-vet/pharmacy list ever shows, closest-first —
+# no pagination, so this is also a hard ceiling on photo fetches per search.
+NEARBY_CLINIC_RESULT_LIMIT = 7
+
+# Per-account ceiling on nearby-clinic lookups (search + details + photo
+# combined), independent of the per-IP rate limit below — catches a single
+# account grinding slowly under the per-minute threshold. Resets at UTC
+# midnight; deliberately generous for a real user, tight for a script.
+NEARBY_CLINIC_DAILY_CAP = 50
+
+
+def _enforce_nearby_clinic_daily_cap(user_id: int) -> None:
+    key = f"nearby_clinic_daily:{user_id}:{date.today().isoformat()}"
+    count = rate_limit_redis_client.incr(key)
+    if count == 1:
+        now = datetime.now(timezone.utc)
+        seconds_until_midnight = int(
+            (datetime.combine(now.date(), datetime.max.time(), tzinfo=timezone.utc) - now).total_seconds()
+        ) + 1
+        rate_limit_redis_client.expire(key, seconds_until_midnight)
+    if count > NEARBY_CLINIC_DAILY_CAP:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Daily limit for nearby vet/pharmacy lookups reached. Please try again tomorrow.",
+        )
 
 
 
@@ -143,7 +173,9 @@ async def search_nearby_clinics(
     latitude: float = Query(..., ge=-90.0, le=90.0),
     longitude: float = Query(..., ge=-180.0, le=180.0),
     radius_km: float = Query(default=5.0),
+    category: str = Query(default="clinic", pattern="^(clinic|pharmacy)$"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Merges vets already registered on the platform with real-world clinics
@@ -153,6 +185,9 @@ async def search_nearby_clinics(
     unreachable), falls back to registered-vets-only and tells the frontend
     via `fallback_to_registered_only` so it can prompt an online
     consultation instead of showing a dead-end empty list.
+
+    `category="pharmacy"` returns Google-sourced results only -- our own
+    registered-doctor directory has no pharmacy concept.
     """
     if radius_km not in NEARBY_CLINIC_RADIUS_PRESETS_KM:
         raise HTTPException(
@@ -160,14 +195,17 @@ async def search_nearby_clinics(
             detail=f"radius_km must be one of {NEARBY_CLINIC_RADIUS_PRESETS_KM}",
         )
 
-    try:
-        registered_raw = get_nearby_doctors(
-            db=db, latitude=latitude, longitude=longitude, radius_km=radius_km, limit=20,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    _enforce_nearby_clinic_daily_cap(current_user.id)
 
-    registered_results = [_format_registered_result(item) for item in registered_raw]
+    registered_results: list[NearbyClinicResult] = []
+    if category == "clinic":
+        try:
+            registered_raw = get_nearby_doctors(
+                db=db, latitude=latitude, longitude=longitude, radius_km=radius_km, limit=20,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+        registered_results = [_format_registered_result(item) for item in registered_raw]
 
     google_results: list[NearbyClinicResult] = []
     used_radius = radius_km
@@ -175,7 +213,7 @@ async def search_nearby_clinics(
 
     for preset in [r for r in NEARBY_CLINIC_RADIUS_PRESETS_KM if r >= radius_km]:
         used_radius = preset
-        places = await search_nearby_vet_clinics(latitude, longitude, preset)
+        places = await search_nearby_vet_clinics(latitude, longitude, preset, category=category)
         if places is None:
             places_unavailable = True
             break
@@ -188,6 +226,9 @@ async def search_nearby_clinics(
     fallback_to_registered_only = places_unavailable or not google_results
 
     combined = sorted(registered_results + google_results, key=lambda r: r.distance_km)
+    # No pagination -- closest N only, which also bounds per-search photo
+    # fetches to this same ceiling.
+    combined = combined[:NEARBY_CLINIC_RESULT_LIMIT]
 
     return NearbyClinicsResponse(
         results=combined,
@@ -201,10 +242,15 @@ async def search_nearby_clinics(
     response_model=PlaceDetailsResponse,
 )
 @limiter.limit("30/minute")
-async def get_nearby_clinic_details(request: Request, place_id: str):
+async def get_nearby_clinic_details(
+    request: Request,
+    place_id: str,
+    current_user: User = Depends(get_current_user),
+):
     """Lazy details for one Google-sourced clinic — phone + opening hours,
     fetched only when a user opens this specific result, not for every row
     in the search list (see places_service.py's cost-control comments)."""
+    _enforce_nearby_clinic_daily_cap(current_user.id)
     details = await get_place_details(place_id)
     if details is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Clinic details not found.")
@@ -218,15 +264,17 @@ async def get_nearby_clinic_photo(
     request: Request,
     place_id: str,
     max_width_px: int = Query(default=480, ge=100, le=1600),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Proxies the clinic's photo bytes from Google Places — never exposes the
-    API key to the browser, and is only ever called lazily (an <img> tag
-    inside an already-expanded clinic card), matching the same lazy pattern
-    as the details endpoint above.
+    API key to the browser. Called once per visible card (the result list
+    is capped at NEARBY_CLINIC_RESULT_LIMIT, so this is bounded per search),
+    and cached server-side in get_place_photo so the same clinic's photo is
+    only ever billed once across however many users' cards render it.
     """
-    details = await get_place_details(place_id)
-    photo_name = details.get("photo_name") if details else None
+    _enforce_nearby_clinic_daily_cap(current_user.id)
+    photo_name = await get_place_photo_reference(place_id)
     if not photo_name:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No photo available for this clinic.")
 

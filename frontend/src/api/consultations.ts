@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient, API_BASE_URL } from './client';
 
 export interface UserResponse {
   id: number;
@@ -231,8 +231,10 @@ export const fetchNearbyDoctors = async (latitude: number, longitude: number, ra
 };
 
 // "Vets Near Me" — merges registered vets with real-world clinics from
-// Google Places. radiusKm must be one of the server's presets (2/5/10);
+// Google Places. radiusKm must be one of the server's presets (5/15/25);
 // anything else gets a 400 from the backend.
+export type NearbyClinicCategory = 'clinic' | 'pharmacy';
+
 export interface NearbyClinicResult {
   source: 'registered' | 'google';
   distance_km: number;
@@ -281,10 +283,11 @@ export const buildDirectionsUrl = (clinic: NearbyClinicResult): string | null =>
 export const fetchNearbyClinics = async (
   latitude: number,
   longitude: number,
-  radiusKm: 2 | 5 | 10
+  radiusKm: 5 | 15 | 25,
+  category: NearbyClinicCategory = 'clinic'
 ): Promise<NearbyClinicsResponse> => {
   const response = await apiClient.get<NearbyClinicsResponse>('/doctors/nearby-clinics', {
-    params: { latitude, longitude, radius_km: radiusKm },
+    params: { latitude, longitude, radius_km: radiusKm, category },
   });
   return response.data;
 };
@@ -293,6 +296,15 @@ export const fetchClinicDetails = async (placeId: string): Promise<PlaceDetailsR
   const response = await apiClient.get<PlaceDetailsResponse>(`/doctors/nearby-clinics/${encodeURIComponent(placeId)}`);
   return response.data;
 };
+
+// List-card thumbnail — points straight at the backend's photo proxy
+// (cached server-side by place_id). The endpoint requires login; the
+// browser sends the httpOnly access_token cookie automatically for this
+// same-site <img> request, so no explicit auth wiring is needed here
+// (unlike the mobile app, which has no cookie jar and passes a Bearer
+// header on the Image component instead).
+export const buildClinicPhotoUrl = (placeId: string, maxWidthPx = 320): string =>
+  `${API_BASE_URL}/doctors/nearby-clinics/${encodeURIComponent(placeId)}/photo?max_width_px=${maxWidthPx}`;
 
 export const fetchConsultationById = async (consultationId: number): Promise<ConsultationResponse> => {
   const response = await apiClient.get<ConsultationResponse>(`/consultations/${consultationId}`);

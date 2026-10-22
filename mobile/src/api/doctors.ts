@@ -1,4 +1,4 @@
-import apiClient from './client';
+import apiClient, { BASE_URL } from './client';
 import { Doctor } from '../types';
 
 export const fetchDoctors = async (params?: {
@@ -20,7 +20,9 @@ export const fetchNearbyDoctors = async (lat: number, lng: number, radiusKm = 15
 };
 
 // "Vets Near Me" — merges registered vets with real-world clinics from
-// Google Places. radiusKm must be one of the server's presets (2/5/10).
+// Google Places. radiusKm must be one of the server's presets (5/15/25).
+export type NearbyClinicCategory = 'clinic' | 'pharmacy';
+
 export interface NearbyClinicResult {
   source: 'registered' | 'google';
   distance_km: number;
@@ -58,10 +60,11 @@ export interface PlaceDetailsResponse {
 export const fetchNearbyClinics = async (
   lat: number,
   lng: number,
-  radiusKm: 2 | 5 | 10
+  radiusKm: 5 | 15 | 25,
+  category: NearbyClinicCategory = 'clinic'
 ): Promise<NearbyClinicsResponse> => {
   const response = await apiClient.get('/doctors/nearby-clinics', {
-    params: { latitude: lat, longitude: lng, radius_km: radiusKm },
+    params: { latitude: lat, longitude: lng, radius_km: radiusKm, category },
   });
   return response.data;
 };
@@ -70,6 +73,14 @@ export const fetchClinicDetails = async (placeId: string): Promise<PlaceDetailsR
   const response = await apiClient.get(`/doctors/nearby-clinics/${encodeURIComponent(placeId)}`);
   return response.data;
 };
+
+// List-card thumbnail — points straight at the backend's photo proxy
+// (itself cached server-side by place_id), rather than a two-step JSON
+// fetch; the endpoint requires auth, so callers must pass the same
+// Authorization header used for other API calls (React Native's Image
+// doesn't share apiClient's axios interceptor or any cookie jar).
+export const buildClinicPhotoUrl = (placeId: string, maxWidthPx = 320): string =>
+  `${BASE_URL}/doctors/nearby-clinics/${encodeURIComponent(placeId)}/photo?max_width_px=${maxWidthPx}`;
 
 // Google Maps "get directions" deep link — same shape as the web app's
 // helper, works for both registered vets (lat/lng from our own Clinic

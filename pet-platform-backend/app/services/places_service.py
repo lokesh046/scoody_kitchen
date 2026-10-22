@@ -1,9 +1,19 @@
+import base64
 import logging
 import math
 import httpx
 
 from app.core.config import settings
 from app.core.cache import cache
+
+# Google Places "includedTypes" per category. Pharmacy results come from
+# Google only -- our own registered-doctor DB has no pharmacy concept, so
+# callers skip that half of the merge for this category (see
+# public_doctors.py).
+PLACE_TYPE_BY_CATEGORY = {
+    "clinic": "veterinary_care",
+    "pharmacy": "pharmacy",
+}
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +34,10 @@ GRID_PRECISION = 2
 CACHE_TTL_SECONDS = 86400
 
 
-def _grid_cache_key(latitude: float, longitude: float, radius_km: float) -> str:
+def _grid_cache_key(latitude: float, longitude: float, radius_km: float, category: str) -> str:
     grid_lat = round(latitude, GRID_PRECISION)
     grid_lng = round(longitude, GRID_PRECISION)
-    return f"vets:nearby:{grid_lat}:{grid_lng}:{radius_km}"
+    return f"vets:nearby:{category}:{grid_lat}:{grid_lng}:{radius_km}"
 
 
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -42,31 +52,32 @@ async def search_nearby_vet_clinics(
     latitude: float,
     longitude: float,
     radius_km: float,
+    category: str = "clinic",
     max_results: int = 20,
 ) -> list[dict] | None:
     """
     Returns a list of {place_id, name, address, distance_km} dicts for
-    real-world vet clinics near the given point, or None if the Places API
-    call itself failed (network error, bad key, non-200) — distinct from an
-    empty list, which means the call succeeded but found nothing. Callers
-    should treat None as "try the registered-vets-only fallback", not as
-    "zero clinics exist here".
+    real-world vet clinics (or pharmacies, per `category`) near the given
+    point, or None if the Places API call itself failed (network error, bad
+    key, non-200) — distinct from an empty list, which means the call
+    succeeded but found nothing. Callers should treat None as "try the
+    registered-vets-only fallback", not as "zero clinics exist here".
 
-    Cached for 24h under a coordinate-grid + radius key so nearby users
-    searching the same area share one billed Places API call instead of
-    each triggering their own.
+    Cached for 24h under a coordinate-grid + radius + category key so nearby
+    users searching the same area share one billed Places API call instead
+    of each triggering their own.
     """
     if not settings.GOOGLE_PLACES_API_KEY:
         logger.warning("GOOGLE_PLACES_API_KEY not configured — skipping Places search.")
         return None
 
-    cache_key = _grid_cache_key(latitude, longitude, radius_km)
+    cache_key = _grid_cache_key(latitude, longitude, radius_km, category)
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
     body = {
-        "includedTypes": ["veterinary_care"],
+        "includedTypes": [PLACE_TYPE_BY_CATEGORY.get(category, "veterinary_care")],
         "maxResultCount": max_results,
         "locationRestriction": {
             "circle": {
@@ -170,7 +181,48 @@ async def get_place_details(place_id: str) -> dict | None:
     return result
 
 
+async def get_place_photo_reference(place_id: str) -> str | None:
+    """
+    Resolves just the photo reference (e.g. "places/XYZ/photos/ABC") for a
+    place, with a field mask that deliberately excludes phone/opening-hours
+    -- those are Enterprise-tier fields, and bundling them into this call
+    would bill the pricier tier for every card's photo even though list
+    cards don't need phone/hours at all (that richer call still happens,
+    unchanged, only when a user opens the full detail view below).
+    """
+    if not settings.GOOGLE_PLACES_API_KEY:
+        logger.warning("GOOGLE_PLACES_API_KEY not configured — skipping Place Details lookup.")
+        return None
+
+    cache_key = f"vets:photoref:{place_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached.get("photo_name")
+
+    headers = {
+        "X-Goog-Api-Key": settings.GOOGLE_PLACES_API_KEY,
+        "X-Goog-FieldMask": "id,photos",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            res = await client.get(f"{PLACE_DETAILS_URL}/{place_id}", headers=headers)
+            if res.status_code != 200:
+                logger.warning("Places API Details (photo ref) returned %s for %s: %s", res.status_code, place_id, res.text[:300])
+                return None
+            data = res.json()
+    except Exception as e:
+        logger.warning("Places API Details (photo ref) call failed for %s: %s", place_id, e)
+        return None
+
+    photos = data.get("photos") or []
+    photo_name = photos[0].get("name") if photos else None
+    cache.set(cache_key, {"photo_name": photo_name}, ttl_seconds=DETAILS_CACHE_TTL_SECONDS)
+    return photo_name
+
+
 PLACE_PHOTO_BASE_URL = "https://places.googleapis.com/v1"
+PHOTO_CACHE_TTL_SECONDS = 86400
 
 
 async def get_place_photo(photo_name: str, max_width_px: int = 480) -> tuple[bytes, str] | None:
@@ -179,7 +231,16 @@ async def get_place_photo(photo_name: str, max_width_px: int = 480) -> tuple[byt
     This is a THIRD, separately-billed Places API call (distinct from search
     and details) — kept server-side only so the API key is never exposed to
     the browser, per the same constraint as the other two calls.
+
+    Cached for 24h by photo reference + requested width, same pattern as
+    search/details above, so the same clinic's photo is only ever billed
+    once across however many different users' cards render it that day.
     """
+    cache_key = f"vets:photo:{photo_name}:{max_width_px}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return base64.b64decode(cached["data_b64"]), cached["content_type"]
+
     if not settings.GOOGLE_PLACES_API_KEY:
         logger.warning("GOOGLE_PLACES_API_KEY not configured — skipping Place Photo fetch.")
         return None
@@ -193,7 +254,13 @@ async def get_place_photo(photo_name: str, max_width_px: int = 480) -> tuple[byt
             if res.status_code != 200:
                 logger.warning("Places API Photo media returned %s for %s", res.status_code, photo_name)
                 return None
-            return res.content, res.headers.get("content-type", "image/jpeg")
+            content_type = res.headers.get("content-type", "image/jpeg")
+            cache.set(
+                cache_key,
+                {"data_b64": base64.b64encode(res.content).decode("ascii"), "content_type": content_type},
+                ttl_seconds=PHOTO_CACHE_TTL_SECONDS,
+            )
+            return res.content, content_type
     except Exception as e:
         logger.warning("Places API Photo fetch failed for %s: %s", photo_name, e)
         return None

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Modal,
   View,
@@ -17,47 +17,48 @@ import { useNavigation } from '@react-navigation/native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Image } from 'expo-image';
-import { X, Compass, MapPin, Navigation, Locate, Phone, Clock } from 'lucide-react-native';
+import { Compass, MapPin, Navigation, Locate, Phone, Clock, Stethoscope, PillBottle, X } from 'lucide-react-native';
 import { COLORS } from '../../theme/colors';
 import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../../theme/typography';
 import { BASE_URL } from '../../api/client';
+import { useAuthStore } from '../../store/authStore';
 import {
   fetchNearbyClinics,
   fetchClinicDetails,
   fetchDoctorDetail,
   buildDirectionsUrl,
+  buildClinicPhotoUrl,
   type NearbyClinicResult,
+  type NearbyClinicCategory,
   type PlaceDetailsResponse,
 } from '../../api/doctors';
 import { lookupPincode } from '../../api/geo';
 import { Doctor } from '../../types';
 import { FeaturePrivacyNote } from '../../components/FeaturePrivacyNote';
 
-const RADIUS_PRESETS_KM = [2, 5, 10] as const;
+const RADIUS_PRESETS_KM = [5, 15, 25] as const;
 
 // Same default center used by the web app's Checkout/Vets-Near-Me map
 // pickers — just a starting viewport until a real location is picked.
 const DEFAULT_MAP_COORDS = { lat: 13.0827, lng: 80.2707 };
 
-interface NearbyVetsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface NearbyVetsViewProps {
   onSelectDoctor: (doctor: Doctor) => void;
-  onBookOnlineInstead: () => void;
+  onSwitchToConsult: () => void;
 }
 
-export function NearbyVetsModal({ isOpen, onClose, onSelectDoctor, onBookOnlineInstead }: NearbyVetsModalProps) {
+export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVetsViewProps) {
   const navigation = useNavigation();
+  const accessToken = useAuthStore((state) => state.accessToken);
   const mapRef = useRef<MapView | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [mapCoords, setMapCoords] = useState(DEFAULT_MAP_COORDS);
-  const [radiusKm, setRadiusKm] = useState<2 | 5 | 10>(5);
+  const [category, setCategory] = useState<NearbyClinicCategory>('clinic');
+  const [radiusKm, setRadiusKm] = useState<5 | 15 | 25>(5);
   const [isLocating, setIsLocating] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [pincode, setPincode] = useState('');
-  // Shown immediately on open, matching the web app's Vets Near Me panel —
-  // the map + search controls are the primary way in, not a hidden extra.
-  const [showMapPicker, setShowMapPicker] = useState(true);
+  const [showMapPicker, setShowMapPicker] = useState(false);
   const [results, setResults] = useState<NearbyClinicResult[]>([]);
   const [radiusUsed, setRadiusUsed] = useState<number | null>(null);
   const [fallback, setFallback] = useState(false);
@@ -67,17 +68,17 @@ export function NearbyVetsModal({ isOpen, onClose, onSelectDoctor, onBookOnlineI
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [isLoadingDoctor, setIsLoadingDoctor] = useState<number | null>(null);
 
-  const runSearch = async (lat: number, lng: number, radius: 2 | 5 | 10) => {
+  const runSearch = async (lat: number, lng: number, radius: 5 | 15 | 25, cat: NearbyClinicCategory) => {
     setIsSearching(true);
     setError('');
     setInspectingClinic(null);
     try {
-      const data = await fetchNearbyClinics(lat, lng, radius);
+      const data = await fetchNearbyClinics(lat, lng, radius, cat);
       setResults(data.results);
       setRadiusUsed(data.radius_km_used);
       setFallback(data.fallback_to_registered_only);
       if (data.results.length === 0) {
-        setError('No clinics or specialists found within the specified radius.');
+        setError(cat === 'pharmacy' ? 'No pharmacies found within the specified radius.' : 'No clinics or specialists found within the specified radius.');
       }
     } catch (err: any) {
       console.error('Nearby search failed:', err);
@@ -121,7 +122,7 @@ export function NearbyVetsModal({ isOpen, onClose, onSelectDoctor, onBookOnlineI
       const lng = loc.coords.longitude;
       setCoords({ lat, lng });
       updateMapPin(lat, lng, false);
-      await runSearch(lat, lng, radiusKm);
+      await runSearch(lat, lng, radiusKm, category);
     } catch (err) {
       console.warn('GPS location failed:', err);
       setError('Could not detect your location. Pick a location on the map instead.');
@@ -130,6 +131,14 @@ export function NearbyVetsModal({ isOpen, onClose, onSelectDoctor, onBookOnlineI
       setIsLocating(false);
     }
   };
+
+  // Auto-detect location and search the moment this screen appears —
+  // "Consult Vet" should land straight on nearby results, not wait for a
+  // button tap.
+  useEffect(() => {
+    handleGpsLocate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePincodeSearch = async () => {
     if (!pincode.trim()) return;
@@ -145,7 +154,7 @@ export function NearbyVetsModal({ isOpen, onClose, onSelectDoctor, onBookOnlineI
       const lng = parseFloat(results[0].lon);
       setCoords({ lat, lng });
       updateMapPin(lat, lng);
-      await runSearch(lat, lng, radiusKm);
+      await runSearch(lat, lng, radiusKm, category);
     } catch (err) {
       console.error('Pincode lookup failed:', err);
       setError('Pincode lookup failed. Please try again.');
@@ -158,12 +167,17 @@ export function NearbyVetsModal({ isOpen, onClose, onSelectDoctor, onBookOnlineI
   // pin currently sits (after a drag, a map tap, or a pincode search).
   const handleSearchThisLocation = async () => {
     setCoords(mapCoords);
-    await runSearch(mapCoords.lat, mapCoords.lng, radiusKm);
+    await runSearch(mapCoords.lat, mapCoords.lng, radiusKm, category);
   };
 
-  const handleChangeRadius = (preset: 2 | 5 | 10) => {
+  const handleChangeRadius = (preset: 5 | 15 | 25) => {
     setRadiusKm(preset);
-    if (coords) runSearch(coords.lat, coords.lng, preset);
+    if (coords) runSearch(coords.lat, coords.lng, preset, category);
+  };
+
+  const handleChangeCategory = (cat: NearbyClinicCategory) => {
+    setCategory(cat);
+    if (coords) runSearch(coords.lat, coords.lng, radiusKm, cat);
   };
 
   const handleOpenDirections = (clinic: NearbyClinicResult) => {
@@ -193,7 +207,6 @@ export function NearbyVetsModal({ isOpen, onClose, onSelectDoctor, onBookOnlineI
     setIsLoadingDoctor(doctorId);
     try {
       const doctor = await fetchDoctorDetail(doctorId);
-      onClose();
       onSelectDoctor(doctor);
     } catch (err) {
       console.error('Failed to load doctor detail:', err);
@@ -232,6 +245,13 @@ export function NearbyVetsModal({ isOpen, onClose, onSelectDoctor, onBookOnlineI
 
   const renderItem = ({ item }: { item: NearbyClinicResult }) => {
     const isGoogle = item.source === 'google';
+    const imageSource = isGoogle
+      ? item.place_id
+        ? { uri: buildClinicPhotoUrl(item.place_id), headers: { Authorization: `Bearer ${accessToken}` } }
+        : null
+      : item.profile_image_url
+      ? { uri: item.profile_image_url }
+      : null;
 
     return (
       <TouchableOpacity
@@ -244,42 +264,56 @@ export function NearbyVetsModal({ isOpen, onClose, onSelectDoctor, onBookOnlineI
         }
         disabled={!isGoogle && isLoadingDoctor === item.doctor_id}
       >
-        <View style={styles.resultTitleRow}>
-          <Text style={styles.resultName} numberOfLines={1}>
-            {item.name || item.clinic_name || 'Unnamed clinic'}
-          </Text>
-          <View style={[styles.sourceBadge, isGoogle ? styles.sourceBadgeGoogle : styles.sourceBadgeRegistered]}>
-            <Text style={[styles.sourceBadgeText, isGoogle ? styles.sourceBadgeTextGoogle : styles.sourceBadgeTextRegistered]}>
-              {isGoogle ? 'Google' : 'Registered'}
+        {imageSource ? (
+          <Image source={imageSource} style={styles.resultImg} contentFit="cover" />
+        ) : (
+          <View style={styles.resultImgFallback}>
+            {category === 'pharmacy' ? (
+              <PillBottle size={22} color={COLORS.forestGreen} />
+            ) : (
+              <Stethoscope size={22} color={COLORS.forestGreen} />
+            )}
+          </View>
+        )}
+
+        <View style={styles.resultBody}>
+          <View style={styles.resultTitleRow}>
+            <Text style={styles.resultName} numberOfLines={1}>
+              {item.name || item.clinic_name || 'Unnamed clinic'}
             </Text>
+            <View style={[styles.sourceBadge, isGoogle ? styles.sourceBadgeGoogle : styles.sourceBadgeRegistered]}>
+              <Text style={[styles.sourceBadgeText, isGoogle ? styles.sourceBadgeTextGoogle : styles.sourceBadgeTextRegistered]}>
+                {isGoogle ? 'Google' : 'Registered'}
+              </Text>
+            </View>
           </View>
-        </View>
 
-        <Text style={styles.resultSub} numberOfLines={2}>
-          {item.address || item.specialization || ''}
-        </Text>
+          <Text style={styles.resultSub} numberOfLines={2}>
+            {item.address || item.specialization || ''}
+          </Text>
 
-        {item.phone && (
-          <View style={styles.resultMetaRow}>
-            <Phone size={11} color={COLORS.forestGreen} />
-            <Text style={styles.resultMetaText} numberOfLines={1}>{item.phone}</Text>
-          </View>
-        )}
-
-        {item.opening_hours && item.opening_hours.length > 0 && (
-          <View style={styles.resultMetaRow}>
-            <Clock size={11} color={COLORS.forestGreen} />
-            <Text style={styles.resultMetaText} numberOfLines={1}>{item.opening_hours[0]}</Text>
-          </View>
-        )}
-
-        <View style={styles.resultFooterRow}>
-          {!isGoogle && isLoadingDoctor === item.doctor_id ? (
-            <ActivityIndicator size="small" color={COLORS.forestGreen} />
-          ) : (
-            <Text style={styles.resultDistance}>{item.distance_km.toFixed(1)} km</Text>
+          {item.phone && (
+            <View style={styles.resultMetaRow}>
+              <Phone size={11} color={COLORS.forestGreen} />
+              <Text style={styles.resultMetaText} numberOfLines={1}>{item.phone}</Text>
+            </View>
           )}
-          {isGoogle && <Text style={styles.viewDetailsText}>View details →</Text>}
+
+          {item.opening_hours && item.opening_hours.length > 0 && (
+            <View style={styles.resultMetaRow}>
+              <Clock size={11} color={COLORS.forestGreen} />
+              <Text style={styles.resultMetaText} numberOfLines={1}>{item.opening_hours[0]}</Text>
+            </View>
+          )}
+
+          <View style={styles.resultFooterRow}>
+            {!isGoogle && isLoadingDoctor === item.doctor_id ? (
+              <ActivityIndicator size="small" color={COLORS.forestGreen} />
+            ) : (
+              <Text style={styles.resultDistance}>{item.distance_km.toFixed(1)} km</Text>
+            )}
+            {isGoogle && <Text style={styles.viewDetailsText}>View details →</Text>}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -290,255 +324,257 @@ export function NearbyVetsModal({ isOpen, onClose, onSelectDoctor, onBookOnlineI
 
   return (
     <>
-    <Modal visible={isOpen} animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Vets Near Me</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <X size={22} color={COLORS.textCoffee} />
-          </TouchableOpacity>
-        </View>
+        <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+          <View style={styles.controls}>
+            <FeaturePrivacyNote
+              text="With your permission, we use your device location to find nearby clinics and pharmacies via Google Places. You can decline and search by pincode instead."
+              onPressFullPolicy={() => navigation.navigate('PrivacyPolicy' as never)}
+            />
 
-        <View style={styles.controls}>
-          <FeaturePrivacyNote
-            text="With your permission, we use your device location to find nearby clinics via Google Places. You can decline and search by pincode instead."
-            onPressFullPolicy={() => navigation.navigate('PrivacyPolicy' as never)}
-          />
+            <View style={styles.categoryRow}>
+              <TouchableOpacity
+                style={[styles.categoryChip, category === 'clinic' && styles.categoryChipActive]}
+                onPress={() => handleChangeCategory('clinic')}
+              >
+                <Stethoscope size={14} color={category === 'clinic' ? '#FFFFFF' : COLORS.textMuted} />
+                <Text style={[styles.categoryChipText, category === 'clinic' && styles.categoryChipTextActive]}>Clinic</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.categoryChip, category === 'pharmacy' && styles.categoryChipActive]}
+                onPress={() => handleChangeCategory('pharmacy')}
+              >
+                <PillBottle size={14} color={category === 'pharmacy' ? '#FFFFFF' : COLORS.textMuted} />
+                <Text style={[styles.categoryChipText, category === 'pharmacy' && styles.categoryChipTextActive]}>Pharmacy</Text>
+              </TouchableOpacity>
+            </View>
 
-          <TouchableOpacity style={styles.gpsButton} onPress={handleGpsLocate} disabled={isLocating}>
-            {isLocating ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <Navigation size={16} color="#FFFFFF" />
-                <Text style={styles.gpsButtonText}>Detect My Location</Text>
-              </>
+            {!showMapPicker && (
+              <TouchableOpacity style={styles.gpsButton} onPress={handleGpsLocate} disabled={isLocating}>
+                {isLocating ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Navigation size={16} color="#FFFFFF" />
+                    <Text style={styles.gpsButtonText}>Detect My Location</Text>
+                  </>
+                )}
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => setShowMapPicker((v) => !v)}>
-            <Text style={styles.switchToPincodeLink}>
-              {showMapPicker ? 'Hide map picker' : 'Search a different location'}
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowMapPicker((v) => !v)}>
+              <Text style={styles.switchToPincodeLink}>
+                {showMapPicker ? 'Hide map picker' : 'Search a different location'}
+              </Text>
+            </TouchableOpacity>
 
-          {showMapPicker && (
-            <View style={styles.mapPickerBox}>
-              <View style={styles.pincodeRow}>
-                <View style={styles.pincodeInputWrap}>
-                  <MapPin size={14} color={COLORS.textMuted} />
-                  <TextInput
-                    style={styles.pincodeInput}
-                    placeholder="Search pincode / zip code"
-                    placeholderTextColor={COLORS.textMuted}
-                    value={pincode}
-                    onChangeText={setPincode}
-                    keyboardType="number-pad"
-                    returnKeyType="search"
-                    onSubmitEditing={handlePincodeSearch}
-                  />
+            {showMapPicker && (
+              <View style={styles.mapPickerBox}>
+                <View style={styles.pincodeRow}>
+                  <View style={styles.pincodeInputWrap}>
+                    <MapPin size={14} color={COLORS.textMuted} />
+                    <TextInput
+                      style={styles.pincodeInput}
+                      placeholder="Search pincode / zip code"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={pincode}
+                      onChangeText={setPincode}
+                      keyboardType="number-pad"
+                      returnKeyType="search"
+                      onSubmitEditing={handlePincodeSearch}
+                    />
+                  </View>
+                  <TouchableOpacity style={styles.pincodeSearchBtn} onPress={handlePincodeSearch} disabled={isLocating}>
+                    {isLocating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.pincodeSearchBtnText}>Go</Text>}
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity style={styles.pincodeSearchBtn} onPress={handlePincodeSearch} disabled={isLocating}>
-                  {isLocating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.pincodeSearchBtnText}>Go</Text>}
-                </TouchableOpacity>
-              </View>
 
-              <Text style={styles.mapHintText}>Drag the pin, tap the map, or use Locate Me</Text>
+                <Text style={styles.mapHintText}>Drag the pin, tap the map, or use Locate Me</Text>
 
-              <View style={styles.mapContainer}>
-                <MapView
-                  ref={mapRef}
-                  style={styles.map}
-                  initialRegion={{
-                    latitude: mapCoords.lat,
-                    longitude: mapCoords.lng,
-                    latitudeDelta: 0.08,
-                    longitudeDelta: 0.08,
-                  }}
-                  onPress={(e) => setMapCoords({ lat: e.nativeEvent.coordinate.latitude, lng: e.nativeEvent.coordinate.longitude })}
-                >
-                  <Marker
-                    coordinate={{ latitude: mapCoords.lat, longitude: mapCoords.lng }}
-                    draggable
-                    onDragEnd={(e) => setMapCoords({ lat: e.nativeEvent.coordinate.latitude, lng: e.nativeEvent.coordinate.longitude })}
+                <View style={styles.mapContainer}>
+                  <MapView
+                    ref={mapRef}
+                    style={styles.map}
+                    initialRegion={{
+                      latitude: mapCoords.lat,
+                      longitude: mapCoords.lng,
+                      latitudeDelta: 0.08,
+                      longitudeDelta: 0.08,
+                    }}
+                    onPress={(e) => setMapCoords({ lat: e.nativeEvent.coordinate.latitude, lng: e.nativeEvent.coordinate.longitude })}
                   >
-                    <View style={styles.mapPin}>
-                      <MapPin size={26} color={COLORS.brandGold} fill={COLORS.brandGold} fillOpacity={0.25} />
-                    </View>
-                  </Marker>
-                </MapView>
-                <TouchableOpacity style={styles.locateMeBtn} onPress={handleGpsLocate} disabled={isLocating}>
-                  {isLocating ? (
-                    <ActivityIndicator size="small" color={COLORS.forestGreen} />
+                    <Marker
+                      coordinate={{ latitude: mapCoords.lat, longitude: mapCoords.lng }}
+                      draggable
+                      onDragEnd={(e) => setMapCoords({ lat: e.nativeEvent.coordinate.latitude, lng: e.nativeEvent.coordinate.longitude })}
+                    >
+                      <View style={styles.mapPin}>
+                        <MapPin size={26} color={COLORS.brandGold} fill={COLORS.brandGold} fillOpacity={0.25} />
+                      </View>
+                    </Marker>
+                  </MapView>
+                  <TouchableOpacity style={styles.locateMeBtn} onPress={handleGpsLocate} disabled={isLocating}>
+                    {isLocating ? (
+                      <ActivityIndicator size="small" color={COLORS.forestGreen} />
+                    ) : (
+                      <Locate size={18} color={COLORS.forestGreen} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.radiusRow}>
+                  <Compass size={14} color={COLORS.textMuted} />
+                  {RADIUS_PRESETS_KM.map((preset) => (
+                    <TouchableOpacity
+                      key={preset}
+                      style={[styles.radiusChip, radiusKm === preset && styles.radiusChipActive]}
+                      onPress={() => setRadiusKm(preset)}
+                    >
+                      <Text style={[styles.radiusChipText, radiusKm === preset && styles.radiusChipTextActive]}>{preset} km</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TouchableOpacity style={styles.gpsButton} onPress={handleSearchThisLocation} disabled={isSearching}>
+                  {isSearching ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-                    <Locate size={18} color={COLORS.forestGreen} />
+                    <Text style={styles.gpsButtonText}>Search This Location</Text>
                   )}
                 </TouchableOpacity>
               </View>
+            )}
 
+            {coords && !showMapPicker && (
               <View style={styles.radiusRow}>
                 <Compass size={14} color={COLORS.textMuted} />
                 {RADIUS_PRESETS_KM.map((preset) => (
                   <TouchableOpacity
                     key={preset}
                     style={[styles.radiusChip, radiusKm === preset && styles.radiusChipActive]}
-                    onPress={() => setRadiusKm(preset)}
+                    onPress={() => handleChangeRadius(preset)}
                   >
                     <Text style={[styles.radiusChipText, radiusKm === preset && styles.radiusChipTextActive]}>{preset} km</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-
-              <TouchableOpacity style={styles.gpsButton} onPress={handleSearchThisLocation} disabled={isSearching}>
-                {isSearching ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.gpsButtonText}>Search This Location</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {coords && !showMapPicker && (
-            <View style={styles.radiusRow}>
-              <Compass size={14} color={COLORS.textMuted} />
-              {RADIUS_PRESETS_KM.map((preset) => (
-                <TouchableOpacity
-                  key={preset}
-                  style={[styles.radiusChip, radiusKm === preset && styles.radiusChipActive]}
-                  onPress={() => handleChangeRadius(preset)}
-                >
-                  <Text style={[styles.radiusChipText, radiusKm === preset && styles.radiusChipTextActive]}>{preset} km</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {error !== '' && <Text style={styles.errorText}>{error}</Text>}
-        </View>
-
-        {isSearching ? (
-          <View style={styles.centerFill}>
-            <ActivityIndicator size="large" color={COLORS.forestGreen} />
-          </View>
-        ) : (
-          <FlatList
-            data={results}
-            keyExtractor={(item, idx) => (item.source === 'registered' ? `reg-${item.doctor_id}` : `google-${item.place_id}`) || String(idx)}
-            renderItem={renderItem}
-            numColumns={2}
-            columnWrapperStyle={styles.resultColumnWrapper}
-            contentContainerStyle={styles.listContent}
-            ListHeaderComponent={
-              results.length > 0 ? (
-                <View style={styles.listHeaderRow}>
-                  <Text style={styles.listHeaderText}>
-                    {results.length} found within {radiusUsed ?? radiusKm} km
-                  </Text>
-                  {results.some((r) => r.source === 'google') && <Text style={styles.attributionText}>Powered by Google</Text>}
-                </View>
-              ) : null
-            }
-            ListFooterComponent={
-              fallback ? (
-                <View style={styles.fallbackBox}>
-                  <Text style={styles.fallbackText}>
-                    No nearby clinics found. Consider booking an online consultation instead.
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.fallbackButton}
-                    onPress={() => {
-                      onClose();
-                      onBookOnlineInstead();
-                    }}
-                  >
-                    <Text style={styles.fallbackButtonText}>Book Online Consultation</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : null
-            }
-          />
-        )}
-      </SafeAreaView>
-      </KeyboardAvoidingView>
-    </Modal>
-
-    {/* Clinic Detail — full-screen, same information the web app's side
-        drawer shows for a Google-sourced result. */}
-    <Modal visible={!!inspectingClinic} animationType="slide" onRequestClose={() => setInspectingClinic(null)}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle} numberOfLines={1}>{inspectingClinic?.name || 'Clinic Detail'}</Text>
-          <TouchableOpacity onPress={() => setInspectingClinic(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <X size={22} color={COLORS.textCoffee} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.detailScroll}>
-          <View style={styles.detailMetaRow}>
-            <View style={[styles.sourceBadge, styles.sourceBadgeGoogle]}>
-              <Text style={[styles.sourceBadgeText, styles.sourceBadgeTextGoogle]}>Google</Text>
-            </View>
-            {inspectingClinic && (
-              <Text style={styles.detailDistanceText}>{inspectingClinic.distance_km.toFixed(1)} km away</Text>
             )}
+
+            {error !== '' && <Text style={styles.errorText}>{error}</Text>}
           </View>
 
-          {isLoadingDetails && !inspectingDetails ? (
-            <View style={[styles.detailsPhoto, styles.centerFill]}>
+          {isSearching ? (
+            <View style={styles.centerFill}>
               <ActivityIndicator size="large" color={COLORS.forestGreen} />
             </View>
-          ) : inspectingDetails?.photo_url ? (
-            <Image
-              source={{ uri: `${BASE_URL}${inspectingDetails.photo_url}` }}
-              style={styles.detailsPhoto}
-              contentFit="cover"
+          ) : (
+            <FlatList
+              data={results}
+              keyExtractor={(item, idx) => (item.source === 'registered' ? `reg-${item.doctor_id}` : `google-${item.place_id}`) || String(idx)}
+              renderItem={renderItem}
+              contentContainerStyle={styles.listContent}
+              ListHeaderComponent={
+                results.length > 0 ? (
+                  <View style={styles.listHeaderRow}>
+                    <Text style={styles.listHeaderText}>
+                      {results.length} found within {radiusUsed ?? radiusKm} km
+                    </Text>
+                    {results.some((r) => r.source === 'google') && <Text style={styles.attributionText}>Powered by Google</Text>}
+                  </View>
+                ) : null
+              }
+              ListFooterComponent={
+                fallback ? (
+                  <View style={styles.fallbackBox}>
+                    <Text style={styles.fallbackText}>
+                      No nearby results found. Consider booking an online consultation instead.
+                    </Text>
+                    <TouchableOpacity style={styles.fallbackButton} onPress={onSwitchToConsult}>
+                      <Text style={styles.fallbackButtonText}>Book Online Consultation</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : null
+              }
             />
-          ) : null}
-
-          {inspectingClinic?.address && (
-            <Text style={styles.detailAddressText}>{inspectingClinic.address}</Text>
           )}
+        </SafeAreaView>
+      </KeyboardAvoidingView>
 
-          {!isLoadingDetails && inspectingDetails?.phone && (
-            <View style={styles.detailsRow}>
-              <Phone size={14} color={COLORS.forestGreen} />
-              <Text style={styles.detailPhoneText}>{inspectingDetails.phone}</Text>
-            </View>
-          )}
-
-          {!isLoadingDetails && inspectingDetails?.opening_hours && inspectingDetails.opening_hours.length > 0 && (
-            <View style={styles.hoursSection}>
-              <View style={styles.detailsRow}>
-                <Clock size={12} color={COLORS.forestGreen} />
-                <Text style={styles.hoursSectionLabel}>Opening Hours</Text>
-              </View>
-              {renderHoursTable(inspectingDetails.opening_hours)}
-            </View>
-          )}
-
-          {!isLoadingDetails && inspectingDetails && !inspectingDetails.phone && !inspectingDetails.photo_url && !inspectingDetails.opening_hours?.length && (
-            <Text style={[styles.detailsText, { color: COLORS.textMuted }]}>No further details available from Google for this clinic.</Text>
-          )}
-
-          {inspectingDirectionsUrl && (
-            <TouchableOpacity
-              style={styles.directionsButton}
-              onPress={() => inspectingClinic && handleOpenDirections(inspectingClinic)}
-            >
-              <Navigation size={16} color={COLORS.textCoffee} />
-              <Text style={styles.directionsButtonText}>Get Directions</Text>
+      {/* Clinic/Pharmacy Detail — full-screen, same information the web
+          app's side drawer shows for a Google-sourced result. */}
+      <Modal visible={!!inspectingClinic} animationType="slide" onRequestClose={() => setInspectingClinic(null)}>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle} numberOfLines={1}>{inspectingClinic?.name || 'Clinic Detail'}</Text>
+            <TouchableOpacity onPress={() => setInspectingClinic(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <X size={22} color={COLORS.textCoffee} />
             </TouchableOpacity>
-          )}
+          </View>
 
-          <Text style={styles.attributionTextRight}>Powered by Google</Text>
-        </View>
-      </SafeAreaView>
-    </Modal>
+          <View style={styles.detailScroll}>
+            <View style={styles.detailMetaRow}>
+              <View style={[styles.sourceBadge, styles.sourceBadgeGoogle]}>
+                <Text style={[styles.sourceBadgeText, styles.sourceBadgeTextGoogle]}>Google</Text>
+              </View>
+              {inspectingClinic && (
+                <Text style={styles.detailDistanceText}>{inspectingClinic.distance_km.toFixed(1)} km away</Text>
+              )}
+            </View>
+
+            {isLoadingDetails && !inspectingDetails ? (
+              <View style={[styles.detailsPhoto, styles.centerFill]}>
+                <ActivityIndicator size="large" color={COLORS.forestGreen} />
+              </View>
+            ) : inspectingDetails?.photo_url ? (
+              <Image
+                source={{ uri: `${BASE_URL}${inspectingDetails.photo_url}`, headers: { Authorization: `Bearer ${accessToken}` } }}
+                style={styles.detailsPhoto}
+                contentFit="cover"
+              />
+            ) : null}
+
+            {inspectingClinic?.address && (
+              <Text style={styles.detailAddressText}>{inspectingClinic.address}</Text>
+            )}
+
+            {!isLoadingDetails && inspectingDetails?.phone && (
+              <View style={styles.detailsRow}>
+                <Phone size={14} color={COLORS.forestGreen} />
+                <Text style={styles.detailPhoneText}>{inspectingDetails.phone}</Text>
+              </View>
+            )}
+
+            {!isLoadingDetails && inspectingDetails?.opening_hours && inspectingDetails.opening_hours.length > 0 && (
+              <View style={styles.hoursSection}>
+                <View style={styles.detailsRow}>
+                  <Clock size={12} color={COLORS.forestGreen} />
+                  <Text style={styles.hoursSectionLabel}>Opening Hours</Text>
+                </View>
+                {renderHoursTable(inspectingDetails.opening_hours)}
+              </View>
+            )}
+
+            {!isLoadingDetails && inspectingDetails && !inspectingDetails.phone && !inspectingDetails.photo_url && !inspectingDetails.opening_hours?.length && (
+              <Text style={[styles.detailsText, { color: COLORS.textMuted }]}>No further details available from Google for this result.</Text>
+            )}
+
+            {inspectingDirectionsUrl && (
+              <TouchableOpacity
+                style={styles.directionsButton}
+                onPress={() => inspectingClinic && handleOpenDirections(inspectingClinic)}
+              >
+                <Navigation size={16} color={COLORS.textCoffee} />
+                <Text style={styles.directionsButtonText}>Get Directions</Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={styles.attributionTextRight}>Powered by Google</Text>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </>
   );
 }
@@ -556,6 +592,22 @@ const styles = {
   },
   headerTitle: { fontSize: 18, fontFamily: FONT_DISPLAY, color: COLORS.textCoffee },
   controls: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8, gap: 10 },
+  categoryRow: { flexDirection: 'row' as const, gap: 8 },
+  categoryChip: {
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.kraftBorder,
+    backgroundColor: COLORS.cardAlt,
+  },
+  categoryChipActive: { backgroundColor: COLORS.forestGreen, borderColor: COLORS.forestGreen },
+  categoryChipText: { fontSize: 12, fontFamily: FONT_BODY_BOLD, color: COLORS.textMuted },
+  categoryChipTextActive: { color: '#FFFFFF' },
   gpsButton: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
@@ -630,20 +682,29 @@ const styles = {
   errorText: { fontSize: 11, fontFamily: FONT_BODY, color: COLORS.ctaBrown },
   centerFill: { flex: 1, alignItems: 'center' as const, justifyContent: 'center' as const },
   listContent: { paddingHorizontal: 20, paddingBottom: 24, gap: 10 },
-  resultColumnWrapper: { gap: 10 },
   listHeaderRow: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, marginBottom: 4 },
   listHeaderText: { fontSize: 11, fontFamily: LEDGER_MONO, color: COLORS.textMuted },
   attributionText: { fontSize: 9, fontFamily: FONT_BODY, color: COLORS.textMuted },
   attributionTextRight: { fontSize: 9, fontFamily: FONT_BODY, color: COLORS.textMuted, textAlign: 'right' as const, marginTop: 4 },
   resultCard: {
-    flex: 1,
+    flexDirection: 'row' as const,
     borderWidth: 1,
     borderColor: COLORS.kraftBorder,
     borderRadius: 12,
     padding: 12,
     backgroundColor: COLORS.cardAlt,
-    gap: 4,
+    gap: 12,
   },
+  resultImg: { width: 64, height: 64, borderRadius: 10, backgroundColor: COLORS.kraftBorder },
+  resultImgFallback: {
+    width: 64,
+    height: 64,
+    borderRadius: 10,
+    backgroundColor: 'rgba(63,94,77,0.1)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  resultBody: { flex: 1, gap: 4 },
   resultTitleRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6, flexWrap: 'wrap' as const },
   resultName: { fontSize: 13, fontFamily: FONT_BODY_BOLD, color: COLORS.textCoffee, flexShrink: 1 },
   resultSub: { fontSize: 11, fontFamily: FONT_BODY, color: COLORS.textMuted },
