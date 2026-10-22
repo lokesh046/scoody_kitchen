@@ -241,7 +241,7 @@ async def search_nearby_clinics(
     "/nearby-clinics/{place_id}",
     response_model=PlaceDetailsResponse,
 )
-@limiter.limit("30/minute")
+@limiter.limit("60/minute")
 async def get_nearby_clinic_details(
     request: Request,
     place_id: str,
@@ -259,7 +259,7 @@ async def get_nearby_clinic_details(
 
 
 @router.get("/nearby-clinics/{place_id}/photo")
-@limiter.limit("30/minute")
+@limiter.limit("90/minute")
 async def get_nearby_clinic_photo(
     request: Request,
     place_id: str,
@@ -272,6 +272,12 @@ async def get_nearby_clinic_photo(
     is capped at NEARBY_CLINIC_RESULT_LIMIT, so this is bounded per search),
     and cached server-side in get_place_photo so the same clinic's photo is
     only ever billed once across however many users' cards render it.
+
+    Rate limit is higher than the other two endpoints here specifically
+    because a single search already fires up to NEARBY_CLINIC_RESULT_LIMIT
+    of these (one per card thumbnail) before a user has clicked anything —
+    30/minute was getting hit by completely normal browsing (a couple of
+    re-searches plus opening a few detail views), not abuse.
     """
     _enforce_nearby_clinic_daily_cap(current_user.id)
     photo_name = await get_place_photo_reference(place_id)

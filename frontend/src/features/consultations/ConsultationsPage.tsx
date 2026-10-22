@@ -145,6 +145,11 @@ export const ConsultationsPage: React.FC = () => {
   const [clinicDetailsCache, setClinicDetailsCache] = useState<Record<string, PlaceDetailsResponse>>({});
   const [inspectingClinic, setInspectingClinic] = useState<NearbyClinicResult | null>(null);
   const [isLoadingClinicDetails, setIsLoadingClinicDetails] = useState(false);
+  // Tracks a failed fetch (rate-limited, network error, etc.) separately
+  // from "Google genuinely has nothing to show" — both used to render as
+  // the same silent-looking state, which made a rate limit look like a
+  // missing-data clinic instead of a retriable failure.
+  const [clinicDetailsError, setClinicDetailsError] = useState<string | null>(null);
 
   // Doctor Detail Modal States
   const [inspectingDoctorId, setInspectingDoctorId] = useState<number | null>(null);
@@ -443,14 +448,20 @@ export const ConsultationsPage: React.FC = () => {
   // phone/hours/photo — only called once per place_id, then cached.
   const handleOpenClinicDrawer = async (clinic: NearbyClinicResult) => {
     setInspectingClinic(clinic);
+    setClinicDetailsError(null);
     if (!clinic.place_id || clinicDetailsCache[clinic.place_id]) return;
 
     setIsLoadingClinicDetails(true);
     try {
       const details = await fetchClinicDetails(clinic.place_id);
       setClinicDetailsCache((prev) => ({ ...prev, [clinic.place_id!]: details }));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load clinic details:', err);
+      setClinicDetailsError(
+        err?.response?.status === 429
+          ? "You've opened a lot of details in a short time — please wait a moment and try again."
+          : "Couldn't load this clinic's details. Please try again."
+      );
     } finally {
       setIsLoadingClinicDetails(false);
     }
@@ -2660,7 +2671,20 @@ export const ConsultationsPage: React.FC = () => {
                         </div>
                       )}
 
-                      {!isLoading && placeDetails && !placeDetails.phone && !placeDetails.photo_url && (!placeDetails.opening_hours || placeDetails.opening_hours.length === 0) && (
+                      {!isLoading && clinicDetailsError && (
+                        <div className="bg-rose-50 border border-rose-200 rounded-md p-3 space-y-2">
+                          <p className="text-sm font-body text-rose-800">{clinicDetailsError}</p>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenClinicDrawer(inspectingClinic)}
+                            className="font-mono text-[9px] uppercase font-bold text-rose-800 underline cursor-pointer"
+                          >
+                            Try again
+                          </button>
+                        </div>
+                      )}
+
+                      {!isLoading && !clinicDetailsError && placeDetails && !placeDetails.phone && !placeDetails.photo_url && (!placeDetails.opening_hours || placeDetails.opening_hours.length === 0) && (
                         <p className="text-sm font-body text-ink/40">No further details available from Google for this clinic.</p>
                       )}
 

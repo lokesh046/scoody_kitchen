@@ -66,6 +66,11 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
   const [inspectingClinic, setInspectingClinic] = useState<NearbyClinicResult | null>(null);
   const [detailsCache, setDetailsCache] = useState<Record<string, PlaceDetailsResponse>>({});
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  // Tracks a failed fetch (rate-limited, network error) separately from
+  // "Google genuinely has nothing to show" -- both used to render as the
+  // same silent-looking state, which made a rate limit look identical to
+  // a missing-data clinic instead of a retriable failure.
+  const [detailsError, setDetailsError] = useState<string | null>(null);
   const [isLoadingDoctor, setIsLoadingDoctor] = useState<number | null>(null);
 
   const runSearch = async (lat: number, lng: number, radius: 5 | 15 | 25, cat: NearbyClinicCategory) => {
@@ -191,13 +196,19 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
   // phone/hours/photo, cached by place_id so reopening is instant.
   const handleOpenClinicDetail = async (clinic: NearbyClinicResult) => {
     setInspectingClinic(clinic);
+    setDetailsError(null);
     if (!clinic.place_id || detailsCache[clinic.place_id]) return;
     setIsLoadingDetails(true);
     try {
       const details = await fetchClinicDetails(clinic.place_id);
       setDetailsCache((prev) => ({ ...prev, [clinic.place_id!]: details }));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load clinic details:', err);
+      setDetailsError(
+        err?.response?.status === 429
+          ? "You've opened a lot of details in a short time — please wait a moment and try again."
+          : "Couldn't load this clinic's details. Please try again."
+      );
     } finally {
       setIsLoadingDetails(false);
     }
@@ -597,7 +608,16 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
               </View>
             )}
 
-            {!isLoadingDetails && inspectingDetails && !inspectingDetails.phone && !inspectingDetails.photo_url && !inspectingDetails.opening_hours?.length && (
+            {!isLoadingDetails && detailsError && (
+              <View style={styles.detailsErrorBox}>
+                <Text style={styles.detailsErrorText}>{detailsError}</Text>
+                <TouchableOpacity onPress={() => inspectingClinic && handleOpenClinicDetail(inspectingClinic)}>
+                  <Text style={styles.detailsErrorRetry}>Try again</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {!isLoadingDetails && !detailsError && inspectingDetails && !inspectingDetails.phone && !inspectingDetails.photo_url && !inspectingDetails.opening_hours?.length && (
               <Text style={[styles.detailsText, { color: COLORS.textMuted }]}>No further details available from Google for this result.</Text>
             )}
 
@@ -899,6 +919,16 @@ const styles = {
   },
   detailsRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6 },
   detailsText: { fontSize: 11, fontFamily: FONT_BODY, color: COLORS.textCoffee },
+  detailsErrorBox: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+  },
+  detailsErrorText: { fontSize: 12, fontFamily: FONT_BODY, color: '#991B1B', lineHeight: 17 },
+  detailsErrorRetry: { fontSize: 10, fontFamily: FONT_BODY_BOLD, color: '#991B1B', textTransform: 'uppercase' as const, textDecorationLine: 'underline' as const },
   hoursSection: { gap: 6 },
   hoursSectionLabel: { fontSize: 10, fontFamily: FONT_BODY_BOLD, color: COLORS.textMuted, textTransform: 'uppercase' as const, letterSpacing: 0.5 },
   hoursTable: { borderWidth: 1, borderColor: COLORS.kraftBorder, borderRadius: 8, overflow: 'hidden' as const },
