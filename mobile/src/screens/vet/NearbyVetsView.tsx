@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Image } from 'expo-image';
-import { Compass, MapPin, Navigation, Locate, Phone, Clock, Stethoscope, PillBottle, X } from 'lucide-react-native';
+import { Compass, MapPin, Navigation, Locate, Phone, Clock, Stethoscope, PillBottle, X, ShieldCheck, ChevronRight } from 'lucide-react-native';
 import { COLORS } from '../../theme/colors';
 import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../../theme/typography';
 import { BASE_URL } from '../../api/client';
@@ -269,9 +269,9 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
         ) : (
           <View style={styles.resultImgFallback}>
             {category === 'pharmacy' ? (
-              <PillBottle size={22} color={COLORS.forestGreen} />
+              <PillBottle size={28} color={COLORS.forestGreen} />
             ) : (
-              <Stethoscope size={22} color={COLORS.forestGreen} />
+              <Stethoscope size={28} color={COLORS.forestGreen} />
             )}
           </View>
         )}
@@ -281,38 +281,54 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
             <Text style={styles.resultName} numberOfLines={1}>
               {item.name || item.clinic_name || 'Unnamed clinic'}
             </Text>
-            <View style={[styles.sourceBadge, isGoogle ? styles.sourceBadgeGoogle : styles.sourceBadgeRegistered]}>
-              <Text style={[styles.sourceBadgeText, isGoogle ? styles.sourceBadgeTextGoogle : styles.sourceBadgeTextRegistered]}>
-                {isGoogle ? 'Google' : 'Registered'}
-              </Text>
-            </View>
+            <Text style={styles.resultDistancePill}>{item.distance_km.toFixed(1)} km</Text>
           </View>
 
-          <Text style={styles.resultSub} numberOfLines={2}>
+          {isGoogle ? (
+            <View style={[styles.sourceBadge, styles.sourceBadgeGoogle]}>
+              <Text style={[styles.sourceBadgeText, styles.sourceBadgeTextGoogle]}>Google</Text>
+            </View>
+          ) : (
+            <View style={[styles.sourceBadge, styles.sourceBadgeRegistered]}>
+              <ShieldCheck size={9} color={COLORS.forestGreen} />
+              <Text style={[styles.sourceBadgeText, styles.sourceBadgeTextRegistered]}>Registered</Text>
+            </View>
+          )}
+
+          <Text style={styles.resultSub} numberOfLines={1}>
             {item.address || item.specialization || ''}
           </Text>
 
-          {item.phone && (
-            <View style={styles.resultMetaRow}>
-              <Phone size={11} color={COLORS.forestGreen} />
-              <Text style={styles.resultMetaText} numberOfLines={1}>{item.phone}</Text>
-            </View>
-          )}
+          <View style={styles.resultMetaWrapRow}>
+            {item.phone && (
+              <View style={styles.resultMetaRow}>
+                <Phone size={11} color={COLORS.forestGreen} />
+                <Text style={styles.resultMetaText} numberOfLines={1}>{item.phone}</Text>
+              </View>
+            )}
 
-          {item.opening_hours && item.opening_hours.length > 0 && (
-            <View style={styles.resultMetaRow}>
-              <Clock size={11} color={COLORS.forestGreen} />
-              <Text style={styles.resultMetaText} numberOfLines={1}>{item.opening_hours[0]}</Text>
-            </View>
-          )}
+            {item.opening_hours && item.opening_hours.length > 0 && (
+              <View style={styles.resultMetaRow}>
+                <Clock size={11} color={COLORS.forestGreen} />
+                <Text style={styles.resultMetaText} numberOfLines={1}>{item.opening_hours[0]}</Text>
+              </View>
+            )}
+          </View>
 
-          <View style={styles.resultFooterRow}>
+          <View style={styles.resultCtaRow}>
             {!isGoogle && isLoadingDoctor === item.doctor_id ? (
               <ActivityIndicator size="small" color={COLORS.forestGreen} />
+            ) : isGoogle ? (
+              <View style={styles.resultCtaSecondary}>
+                <Text style={styles.resultCtaSecondaryText}>View Details</Text>
+                <ChevronRight size={12} color={COLORS.textCoffee} />
+              </View>
             ) : (
-              <Text style={styles.resultDistance}>{item.distance_km.toFixed(1)} km</Text>
+              <View style={styles.resultCtaPrimary}>
+                <Text style={styles.resultCtaPrimaryText}>Book Appointment</Text>
+                <ChevronRight size={12} color="#FFFFFF" />
+              </View>
             )}
-            {isGoogle && <Text style={styles.viewDetailsText}>View details →</Text>}
           </View>
         </View>
       </TouchableOpacity>
@@ -482,7 +498,9 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
                     <Text style={styles.listHeaderText}>
                       {results.length} found within {radiusUsed ?? radiusKm} km
                     </Text>
-                    {results.some((r) => r.source === 'google') && <Text style={styles.attributionText}>Powered by Google</Text>}
+                    {results.some((r) => r.source === 'google') && (
+                      <Text style={styles.attributionPill}>Powered by Google</Text>
+                    )}
                   </View>
                 ) : null
               }
@@ -515,35 +533,57 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
           </View>
 
           <View style={styles.detailScroll}>
-            <View style={styles.detailMetaRow}>
-              <View style={[styles.sourceBadge, styles.sourceBadgeGoogle]}>
-                <Text style={[styles.sourceBadgeText, styles.sourceBadgeTextGoogle]}>Google</Text>
-              </View>
-              {inspectingClinic && (
-                <Text style={styles.detailDistanceText}>{inspectingClinic.distance_km.toFixed(1)} km away</Text>
+            <View style={styles.detailPhotoWrap}>
+              {isLoadingDetails && !inspectingDetails ? (
+                <View style={[styles.detailsPhoto, styles.centerFill]}>
+                  <ActivityIndicator size="large" color={COLORS.forestGreen} />
+                </View>
+              ) : inspectingDetails?.photo_url ? (
+                <Image
+                  source={{ uri: `${BASE_URL}${inspectingDetails.photo_url}`, headers: { Authorization: `Bearer ${accessToken}` } }}
+                  style={styles.detailsPhoto}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={[styles.detailsPhoto, styles.centerFill, { backgroundColor: 'rgba(63,94,77,0.1)' }]}>
+                  {category === 'pharmacy' ? (
+                    <PillBottle size={36} color={COLORS.forestGreen} />
+                  ) : (
+                    <Stethoscope size={36} color={COLORS.forestGreen} />
+                  )}
+                </View>
               )}
+              <View style={styles.detailPhotoBadgeRow}>
+                <View style={styles.detailPhotoBadge}>
+                  <Text style={styles.detailPhotoBadgeText}>Google</Text>
+                </View>
+                {inspectingClinic && (
+                  <View style={styles.detailPhotoDistanceBadge}>
+                    <MapPin size={10} color="#FFFFFF" />
+                    <Text style={styles.detailPhotoDistanceBadgeText}>{inspectingClinic.distance_km.toFixed(1)} km away</Text>
+                  </View>
+                )}
+              </View>
             </View>
 
-            {isLoadingDetails && !inspectingDetails ? (
-              <View style={[styles.detailsPhoto, styles.centerFill]}>
-                <ActivityIndicator size="large" color={COLORS.forestGreen} />
-              </View>
-            ) : inspectingDetails?.photo_url ? (
-              <Image
-                source={{ uri: `${BASE_URL}${inspectingDetails.photo_url}`, headers: { Authorization: `Bearer ${accessToken}` } }}
-                style={styles.detailsPhoto}
-                contentFit="cover"
-              />
-            ) : null}
-
             {inspectingClinic?.address && (
-              <Text style={styles.detailAddressText}>{inspectingClinic.address}</Text>
+              <View style={styles.detailInfoCard}>
+                <MapPin size={15} color={COLORS.forestGreen} style={{ marginTop: 1 }} />
+                <Text style={styles.detailAddressText}>{inspectingClinic.address}</Text>
+              </View>
             )}
 
             {!isLoadingDetails && inspectingDetails?.phone && (
-              <View style={styles.detailsRow}>
-                <Phone size={14} color={COLORS.forestGreen} />
-                <Text style={styles.detailPhoneText}>{inspectingDetails.phone}</Text>
+              <View style={styles.detailInfoCard}>
+                <Phone size={15} color={COLORS.forestGreen} />
+                <Text style={[styles.detailPhoneText, { flex: 1 }]}>{inspectingDetails.phone}</Text>
+                <TouchableOpacity
+                  style={styles.detailCallChip}
+                  onPress={() => Linking.openURL(`tel:${inspectingDetails.phone}`)}
+                >
+                  <Phone size={11} color="#FFFFFF" />
+                  <Text style={styles.detailCallChipText}>Call</Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -562,13 +602,23 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
             )}
 
             {inspectingDirectionsUrl && (
-              <TouchableOpacity
-                style={styles.directionsButton}
-                onPress={() => inspectingClinic && handleOpenDirections(inspectingClinic)}
-              >
-                <Navigation size={16} color={COLORS.textCoffee} />
-                <Text style={styles.directionsButtonText}>Get Directions</Text>
-              </TouchableOpacity>
+              <View style={styles.directionsRow}>
+                <TouchableOpacity
+                  style={styles.directionsButton}
+                  onPress={() => inspectingClinic && handleOpenDirections(inspectingClinic)}
+                >
+                  <Navigation size={16} color="#FFFFFF" />
+                  <Text style={styles.directionsButtonText}>Get Directions</Text>
+                </TouchableOpacity>
+                {inspectingDetails?.phone && (
+                  <TouchableOpacity
+                    style={styles.directionsCallButton}
+                    onPress={() => Linking.openURL(`tel:${inspectingDetails.phone}`)}
+                  >
+                    <Phone size={16} color={COLORS.forestGreen} />
+                  </TouchableOpacity>
+                )}
+              </View>
             )}
 
             <Text style={styles.attributionTextRight}>Powered by Google</Text>
@@ -666,7 +716,54 @@ const styles = {
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
-  detailsPhoto: { width: '100%' as const, aspectRatio: 4 / 3, borderRadius: 8, backgroundColor: COLORS.kraftBorder },
+  detailsPhoto: { width: '100%' as const, aspectRatio: 4 / 3, borderRadius: 12, backgroundColor: COLORS.kraftBorder },
+  detailPhotoWrap: { position: 'relative' as const },
+  detailPhotoBadgeRow: {
+    position: 'absolute' as const,
+    top: 12,
+    left: 12,
+    right: 12,
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+  },
+  detailPhotoBadge: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  detailPhotoBadgeText: { fontSize: 9, fontFamily: FONT_BODY_BOLD, textTransform: 'uppercase' as const, color: COLORS.textCoffee },
+  detailPhotoDistanceBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    backgroundColor: COLORS.forestGreen,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  detailPhotoDistanceBadgeText: { fontSize: 9, fontFamily: FONT_BODY_BOLD, color: '#FFFFFF' },
+  detailInfoCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: COLORS.kraftBorder,
+    borderRadius: 12,
+    padding: 12,
+  },
+  detailCallChip: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    backgroundColor: COLORS.forestGreen,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  detailCallChipText: { fontSize: 10, fontFamily: FONT_BODY_BOLD, color: '#FFFFFF', textTransform: 'uppercase' as const },
   radiusRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6 },
   radiusChip: {
     paddingHorizontal: 12,
@@ -685,36 +782,92 @@ const styles = {
   listHeaderRow: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, marginBottom: 4 },
   listHeaderText: { fontSize: 11, fontFamily: LEDGER_MONO, color: COLORS.textMuted },
   attributionText: { fontSize: 9, fontFamily: FONT_BODY, color: COLORS.textMuted },
+  attributionPill: {
+    fontSize: 8,
+    fontFamily: FONT_BODY_BOLD,
+    textTransform: 'uppercase' as const,
+    color: COLORS.textMuted,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: COLORS.kraftBorder,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    overflow: 'hidden' as const,
+  },
   attributionTextRight: { fontSize: 9, fontFamily: FONT_BODY, color: COLORS.textMuted, textAlign: 'right' as const, marginTop: 4 },
   resultCard: {
     flexDirection: 'row' as const,
     borderWidth: 1,
     borderColor: COLORS.kraftBorder,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 14,
+    padding: 14,
     backgroundColor: COLORS.cardAlt,
-    gap: 12,
+    gap: 14,
   },
-  resultImg: { width: 64, height: 64, borderRadius: 10, backgroundColor: COLORS.kraftBorder },
+  resultImg: { width: 80, height: 80, borderRadius: 12, backgroundColor: COLORS.kraftBorder },
   resultImgFallback: {
-    width: 64,
-    height: 64,
-    borderRadius: 10,
+    width: 80,
+    height: 80,
+    borderRadius: 12,
     backgroundColor: 'rgba(63,94,77,0.1)',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
-  resultBody: { flex: 1, gap: 4 },
-  resultTitleRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6, flexWrap: 'wrap' as const },
-  resultName: { fontSize: 13, fontFamily: FONT_BODY_BOLD, color: COLORS.textCoffee, flexShrink: 1 },
+  resultBody: { flex: 1, gap: 5 },
+  resultTitleRow: { flexDirection: 'row' as const, alignItems: 'flex-start' as const, justifyContent: 'space-between' as const, gap: 6 },
+  resultName: { fontSize: 14, fontFamily: FONT_BODY_BOLD, color: COLORS.textCoffee, flexShrink: 1 },
+  resultDistancePill: {
+    fontSize: 9,
+    fontFamily: FONT_BODY_BOLD,
+    color: COLORS.textMuted,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: COLORS.kraftBorder,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    overflow: 'hidden' as const,
+  },
   resultSub: { fontSize: 11, fontFamily: FONT_BODY, color: COLORS.textMuted },
+  resultMetaWrapRow: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 10 },
   resultMetaRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 5 },
   resultMetaText: { fontSize: 10.5, fontFamily: FONT_BODY, color: COLORS.textCoffee, flexShrink: 1 },
-  resultFooterRow: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, marginTop: 4 },
-  resultDistance: { fontSize: 11, fontFamily: LEDGER_MONO, color: COLORS.textMuted },
-  viewDetailsText: { fontSize: 9, fontFamily: FONT_BODY_BOLD, color: COLORS.brandGold, textTransform: 'uppercase' as const },
-  sourceBadge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 },
-  sourceBadgeRegistered: { backgroundColor: 'rgba(63,94,77,0.12)' },
+  resultCtaRow: { marginTop: 5 },
+  resultCtaPrimary: {
+    flexDirection: 'row' as const,
+    alignSelf: 'flex-start' as const,
+    alignItems: 'center' as const,
+    gap: 5,
+    backgroundColor: COLORS.forestGreen,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  resultCtaPrimaryText: { fontSize: 10, fontFamily: FONT_BODY_BOLD, color: '#FFFFFF', textTransform: 'uppercase' as const },
+  resultCtaSecondary: {
+    flexDirection: 'row' as const,
+    alignSelf: 'flex-start' as const,
+    alignItems: 'center' as const,
+    gap: 5,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: COLORS.kraftBorder,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  resultCtaSecondaryText: { fontSize: 10, fontFamily: FONT_BODY_BOLD, color: COLORS.textCoffee, textTransform: 'uppercase' as const },
+  sourceBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 3,
+    alignSelf: 'flex-start' as const,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  sourceBadgeRegistered: { backgroundColor: 'rgba(63,94,77,0.15)' },
   sourceBadgeGoogle: { backgroundColor: 'rgba(44,24,16,0.08)' },
   sourceBadgeText: { fontSize: 8, fontFamily: FONT_BODY_BOLD, textTransform: 'uppercase' as const },
   sourceBadgeTextRegistered: { color: COLORS.forestGreen },
@@ -724,17 +877,26 @@ const styles = {
   detailDistanceText: { fontSize: 12, fontFamily: LEDGER_MONO, color: COLORS.textMuted },
   detailAddressText: { fontSize: 14, fontFamily: FONT_BODY, color: COLORS.textCoffee, lineHeight: 20 },
   detailPhoneText: { fontSize: 14, fontFamily: FONT_BODY, color: COLORS.textCoffee },
+  directionsRow: { flexDirection: 'row' as const, gap: 10, marginTop: 4 },
   directionsButton: {
+    flex: 1,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     gap: 8,
-    backgroundColor: COLORS.brandGold,
-    paddingVertical: 13,
-    borderRadius: 12,
-    marginTop: 4,
+    backgroundColor: COLORS.forestGreen,
+    paddingVertical: 14,
+    borderRadius: 999,
   },
-  directionsButtonText: { fontSize: 13, fontFamily: FONT_BODY_BOLD, color: COLORS.textCoffee, textTransform: 'uppercase' as const },
+  directionsButtonText: { fontSize: 13, fontFamily: FONT_BODY_BOLD, color: '#FFFFFF', textTransform: 'uppercase' as const },
+  directionsCallButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 999,
+    backgroundColor: 'rgba(63,94,77,0.15)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
   detailsRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6 },
   detailsText: { fontSize: 11, fontFamily: FONT_BODY, color: COLORS.textCoffee },
   hoursSection: { gap: 6 },

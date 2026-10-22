@@ -845,97 +845,109 @@ export const ConsultationsPage: React.FC = () => {
       )}
 
       {hasSearchedNearby && nearbyClinics.length > 0 && (
-        <div className="space-y-2 pt-1">
-          <span className="font-mono text-[9px] uppercase font-bold text-ink/50">
-            {nearbyClinics.length} found within {nearbyRadiusUsed ?? searchRadius} km
-          </span>
+        <div className="space-y-2.5 pt-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-mono text-[9px] uppercase font-bold text-ink/50">
+              {nearbyClinics.length} found within {nearbyRadiusUsed ?? searchRadius} km
+            </span>
+            {nearbyClinics.some((c) => c.source === 'google') && (
+              <span className="font-mono text-[8px] uppercase font-bold text-ink/40 bg-paper border border-cardboard rounded-full px-2.5 py-1 shrink-0">
+                Powered by Google
+              </span>
+            )}
+          </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {nearbyClinics.map((clinic, idx) => {
               const key = clinic.source === 'registered' ? `reg-${clinic.doctor_id}` : `google-${clinic.place_id}`;
               const isGoogle = clinic.source === 'google';
               const imageUrl = isGoogle
                 ? clinic.place_id ? buildClinicPhotoUrl(clinic.place_id) : null
                 : clinic.profile_image_url;
+              const handleOpen = () =>
+                isGoogle
+                  ? handleOpenClinicDrawer(clinic)
+                  : clinic.doctor_id && setSelectedDoctorId(clinic.doctor_id.toString());
 
               return (
-                <button
+                <div
                   key={key || idx}
-                  type="button"
-                  onClick={() =>
-                    isGoogle
-                      ? handleOpenClinicDrawer(clinic)
-                      : clinic.doctor_id && setSelectedDoctorId(clinic.doctor_id.toString())
-                  }
-                  className="w-full text-left border border-cardboard rounded-md bg-paperLight p-3 hover:border-turmeric transition-colors cursor-pointer flex gap-3"
+                  role="button"
+                  tabIndex={0}
+                  onClick={handleOpen}
+                  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleOpen()}
+                  className="text-left border border-cardboard rounded-md bg-paperLight p-3.5 hover:border-turmeric hover:shadow-xs transition-all cursor-pointer flex gap-3.5"
                 >
                   {imageUrl ? (
-                    <img src={imageUrl} alt="" className="w-16 h-16 rounded-md object-cover border border-cardboard shrink-0 bg-paper" />
+                    <img src={imageUrl} alt="" className="w-20 h-20 rounded-md object-cover border border-cardboard shrink-0 bg-paper" />
                   ) : (
-                    <div className="w-16 h-16 rounded-md border border-cardboard shrink-0 bg-herb/10 flex items-center justify-center">
+                    <div className="w-20 h-20 rounded-md border border-cardboard shrink-0 bg-herb/10 flex items-center justify-center">
                       {nearbyCategory === 'pharmacy' ? (
-                        <Pill className="w-6 h-6 text-herb" />
+                        <Pill className="w-7 h-7 text-herb" />
                       ) : (
-                        <Stethoscope className="w-6 h-6 text-herb" />
+                        <Stethoscope className="w-7 h-7 text-herb" />
                       )}
                     </div>
                   )}
 
                   <div className="flex flex-col gap-1.5 min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-body text-[13px] font-bold text-ink truncate">
-                            {clinic.name || clinic.clinic_name || 'Unnamed clinic'}
-                          </span>
-                          <span
-                            className={`font-mono text-[7.5px] uppercase font-bold px-1.5 py-0.5 rounded-sm shrink-0 ${
-                              clinic.source === 'registered'
-                                ? 'bg-herb/15 text-herb'
-                                : 'bg-ink/10 text-ink/60'
-                            }`}
-                          >
-                            {clinic.source === 'registered' ? 'Registered' : 'Google'}
-                          </span>
-                        </div>
-                      </div>
-                      <span className="font-mono text-[10px] text-ink/50 shrink-0 pt-0.5">
+                      <span className="font-body text-sm font-bold text-ink truncate">
+                        {clinic.name || clinic.clinic_name || 'Unnamed clinic'}
+                      </span>
+                      <span className="font-mono text-[9px] font-bold text-ink/50 bg-paper border border-cardboard rounded-full px-2 py-0.5 shrink-0">
                         {clinic.distance_km.toFixed(1)} km
                       </span>
                     </div>
 
-                    <p className="font-body text-[11px] text-ink/60 line-clamp-2">
+                    {clinic.source === 'registered' ? (
+                      <span className="inline-flex items-center gap-1 font-mono text-[8px] uppercase font-bold text-herb bg-herb/15 rounded-full px-2 py-0.5 w-fit">
+                        <ShieldCheck className="w-2.5 h-2.5" />
+                        Registered
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center font-mono text-[8px] uppercase font-bold text-ink/50 bg-ink/8 rounded-full px-2 py-0.5 w-fit">
+                        Google
+                      </span>
+                    )}
+
+                    <p className="font-body text-xs text-ink/60 line-clamp-1">
                       {clinic.address || clinic.specialization || ''}
                     </p>
 
-                    {clinic.phone && (
-                      <p className="flex items-center gap-1.5 text-[11px] font-body text-ink/70">
-                        <Phone className="w-3 h-3 text-herb shrink-0" />
-                        {clinic.phone}
-                      </p>
-                    )}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {clinic.phone && (
+                        <span className="flex items-center gap-1 text-[11px] font-body text-ink/70">
+                          <Phone className="w-3 h-3 text-herb shrink-0" />
+                          {clinic.phone}
+                        </span>
+                      )}
+                      {clinic.opening_hours && clinic.opening_hours.length > 0 && (
+                        <span className="flex items-center gap-1 text-[11px] font-body text-ink/70">
+                          <Clock className="w-3 h-3 text-herb shrink-0" />
+                          <span className="truncate">{clinic.opening_hours[0]}</span>
+                        </span>
+                      )}
+                    </div>
 
-                    {clinic.opening_hours && clinic.opening_hours.length > 0 && (
-                      <p className="flex items-center gap-1.5 text-[11px] font-body text-ink/70">
-                        <Clock className="w-3 h-3 text-herb shrink-0" />
-                        <span className="truncate">{clinic.opening_hours[0]}</span>
-                      </p>
-                    )}
-
-                    {isGoogle && (
-                      <span className="mt-auto pt-1 font-mono text-[8px] uppercase font-bold text-turmeric">
-                        View details →
-                      </span>
-                    )}
+                    <div className="pt-1.5 mt-auto">
+                      {clinic.source === 'registered' ? (
+                        <span className="inline-flex items-center gap-1.5 bg-herb text-white font-mono text-[9px] uppercase font-bold px-3.5 py-2 rounded-full">
+                          Book Appointment
+                          <ChevronRight className="w-3 h-3" />
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 bg-paper border border-cardboard text-ink font-mono text-[9px] uppercase font-bold px-3.5 py-2 rounded-full">
+                          View Details
+                          <ChevronRight className="w-3 h-3" />
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
-
-          {nearbyClinics.some((c) => c.source === 'google') && (
-            <p className="font-mono text-[8px] text-ink/35 text-right pt-1">Powered by Google</p>
-          )}
         </div>
       )}
 
@@ -2551,36 +2563,67 @@ export const ConsultationsPage: React.FC = () => {
 
                   return (
                     <>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono text-[9px] uppercase tracking-wider font-bold text-ink/60 bg-ink/10 px-2.5 py-0.5 rounded-sm">
-                          Google
-                        </span>
-                        <span className="font-mono text-[10px] text-ink/50">
-                          {inspectingClinic.distance_km.toFixed(1)} km away
-                        </span>
+                      <div className="relative w-full aspect-[4/3] rounded-md border border-cardboard overflow-hidden bg-paper">
+                        {isLoading ? (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Loader2 className="w-6 h-6 text-turmeric animate-spin" />
+                          </div>
+                        ) : placeDetails?.photo_url ? (
+                          <img
+                            src={`${API_BASE_URL}${placeDetails.photo_url}`}
+                            alt={placeDetails.name || 'Clinic photo'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-herb/10">
+                            {nearbyCategory === 'pharmacy' ? (
+                              <Pill className="w-10 h-10 text-herb" />
+                            ) : (
+                              <Stethoscope className="w-10 h-10 text-herb" />
+                            )}
+                          </div>
+                        )}
+                        <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
+                          <span className="font-mono text-[9px] uppercase tracking-wider font-bold text-ink bg-paperLight/95 px-2.5 py-1 rounded-full shadow-xs">
+                            Google
+                          </span>
+                          <span className="flex items-center gap-1 font-mono text-[9px] font-bold text-white bg-herb px-2.5 py-1 rounded-full shadow-xs">
+                            <MapPin className="w-3 h-3" />
+                            {inspectingClinic.distance_km.toFixed(1)} km away
+                          </span>
+                        </div>
                       </div>
 
-                      {isLoading ? (
-                        <div className="w-full aspect-[4/3] rounded-md border border-cardboard bg-paper flex items-center justify-center">
-                          <Loader2 className="w-6 h-6 text-turmeric animate-spin" />
-                        </div>
-                      ) : placeDetails?.photo_url ? (
-                        <img
-                          src={`${API_BASE_URL}${placeDetails.photo_url}`}
-                          alt={placeDetails.name || 'Clinic photo'}
-                          className="w-full aspect-[4/3] object-cover rounded-md border border-cardboard"
-                        />
-                      ) : null}
-
                       {(inspectingClinic.address) && (
-                        <p className="font-body text-sm text-ink/80">{inspectingClinic.address}</p>
+                        <div className="flex items-start justify-between gap-3 bg-paper border border-cardboard rounded-md p-3">
+                          <div className="flex items-start gap-2 min-w-0">
+                            <MapPin className="w-4 h-4 text-herb shrink-0 mt-0.5" />
+                            <p className="font-body text-sm text-ink/80">{inspectingClinic.address}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => navigator.clipboard?.writeText(inspectingClinic.address || '')}
+                            className="font-mono text-[9px] uppercase font-bold text-herb shrink-0 cursor-pointer hover:underline"
+                          >
+                            Copy
+                          </button>
+                        </div>
                       )}
 
                       {!isLoading && placeDetails?.phone && (
-                        <p className="flex items-center gap-2 text-sm font-body text-ink/80">
-                          <Phone className="w-4 h-4 text-herb shrink-0" />
-                          {placeDetails.phone}
-                        </p>
+                        <div className="flex items-center justify-between gap-3 bg-paper border border-cardboard rounded-md p-3">
+                          <p className="flex items-center gap-2 text-sm font-body text-ink/80 min-w-0 truncate">
+                            <Phone className="w-4 h-4 text-herb shrink-0" />
+                            {placeDetails.phone}
+                          </p>
+                          <a
+                            href={`tel:${placeDetails.phone}`}
+                            className="flex items-center gap-1.5 bg-herb text-white font-mono text-[9px] uppercase font-bold px-3 py-1.5 rounded-full shrink-0"
+                          >
+                            <Phone className="w-3 h-3" />
+                            Call
+                          </a>
+                        </div>
                       )}
 
                       {!isLoading && placeDetails?.opening_hours && placeDetails.opening_hours.length > 0 && (
@@ -2622,15 +2665,26 @@ export const ConsultationsPage: React.FC = () => {
                       )}
 
                       {directionsUrl && (
-                        <a
-                          href={directionsUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[10px] uppercase py-3 font-bold rounded-sm flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                        >
-                          <Navigation className="w-4 h-4" />
-                          Get Directions
-                        </a>
+                        <div className="flex gap-2">
+                          <a
+                            href={directionsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 bg-herb hover:bg-herb/90 text-white font-mono text-[10px] uppercase py-3 font-bold rounded-full flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                          >
+                            <Navigation className="w-4 h-4" />
+                            Get Directions
+                          </a>
+                          {placeDetails?.phone && (
+                            <a
+                              href={`tel:${placeDetails.phone}`}
+                              aria-label="Call"
+                              className="w-12 h-12 shrink-0 bg-herb/15 text-herb rounded-full flex items-center justify-center hover:bg-herb/25 transition-colors"
+                            >
+                              <Phone className="w-4 h-4" />
+                            </a>
+                          )}
+                        </div>
                       )}
 
                       <p className="font-mono text-[8px] text-ink/35 text-right">Powered by Google</p>
