@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type { ReactNode } from 'react';
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import { Search, PawPrint, X, Clock, AlertCircle, Bone, Soup, Package, LayoutGrid } from 'lucide-react';
@@ -103,18 +104,55 @@ function useMergedProducts(categoryIds: number[] | null, search: string) {
   return { items, isLoading, isError };
 }
 
+// Smoothly animates height changes in its content instead of letting the
+// panel snap/jump between e.g. a tall product grid and a single line of
+// empty-state text -- that abrupt snap was reported as "flickering".
+function AnimatedHeight({ children }: { children: ReactNode }) {
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | 'auto'>('auto');
+
+  useEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const h = entries[0]?.contentRect.height;
+      if (h !== undefined) setHeight(h);
+    });
+    observer.observe(el);
+    setHeight(el.getBoundingClientRect().height);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div style={{ height, transition: 'height 280ms cubic-bezier(0.16, 1, 0.3, 1)', overflow: 'hidden' }}>
+      <div ref={innerRef}>{children}</div>
+    </div>
+  );
+}
+
 function CategoryTabProducts({
+  categoryKey,
   tabs,
   search,
   onAddToCart,
   orderingDisabledLabel,
 }: {
+  categoryKey: string;
   tabs: ExplorerTab[];
   search: string;
   onAddToCart: (productId: number) => Promise<void> | void;
   orderingDisabledLabel?: string;
 }) {
   const [activeKey, setActiveKey] = useState(tabs[0]?.key);
+
+  // Reset to the first sub-tab when switching to a different main category
+  // (not on every re-render of the same category, which would stomp the
+  // user's current sub-tab choice).
+  useEffect(() => {
+    setActiveKey(tabs[0]?.key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryKey]);
+
   const activeTab = tabs.find((t) => t.key === activeKey) ?? tabs[0];
   const { items, isLoading, isError } = useMergedProducts(activeTab?.categoryIds ?? null, search);
 
@@ -126,6 +164,7 @@ function CategoryTabProducts({
             <button
               key={tab.key}
               onClick={() => setActiveKey(tab.key)}
+              onMouseEnter={() => setActiveKey(tab.key)}
               className={`font-body text-sm font-bold whitespace-nowrap pb-3 border-b-2 transition-colors ${
                 (activeKey ?? tabs[0]?.key) === tab.key
                   ? 'text-paprika border-paprika'
@@ -412,17 +451,21 @@ export default function ShopPage() {
               })}
           </div>
 
-          {/* Shared panel — tabs + recipes for whichever category is open */}
+          {/* Shared panel — tabs + recipes for whichever category is open.
+              No remount-on-switch key here on purpose: swapping categories
+              now updates this one instance in place (reset via the
+              categoryKey effect inside), and AnimatedHeight smooths the
+              resulting height change instead of a jarring snap. */}
           {activeEntry && (
-            <div className="animate-fade-in-up">
+            <AnimatedHeight>
               <CategoryTabProducts
-                key={activeEntry.key}
+                categoryKey={activeEntry.key}
                 tabs={activeEntry.tabs}
                 search={debouncedSearch}
                 onAddToCart={handleAddToCart}
                 orderingDisabledLabel={orderingDisabledLabel}
               />
-            </div>
+            </AnimatedHeight>
           )}
         </div>
       </section>
