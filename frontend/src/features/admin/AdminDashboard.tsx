@@ -29,6 +29,13 @@ import {
 import type { CreateProductData, InventoryUpdate } from '../../api/productsAdmin';
 import { fetchRAGDocuments, uploadRAGDocument, deleteRAGDocument } from '../../api/chatbot';
 import { fetchAllBanners, createBanner, updateBanner, deleteBanner } from '../../api/banners';
+import { fetchAllFaqs, createFaq, updateFaq, deleteFaq } from '../../api/faqs';
+import type { FAQResponse } from '../../types/faq';
+import { fetchAllBlogPosts, updateBlogPost, deleteBlogPost, uploadBlogCoverImage } from '../../api/blog';
+import type { BlogPostResponse } from '../../types/blog';
+import DOMPurify from 'dompurify';
+import { fetchAllNewsletterSubscribers, deleteNewsletterSubscriber } from '../../api/newsletter';
+import type { NewsletterSubscriberResponse } from '../../api/newsletter';
 import { fetchAdminFeatures, updateAdminFeature, type FeatureFallbackBehavior } from '../../api/features';
 import { 
   fetchAdminCoupons, 
@@ -61,7 +68,14 @@ import {
   ChevronDown,
   ChevronUp,
   Package,
-  Headset
+  Headset,
+  HelpCircle,
+  Newspaper,
+  Upload,
+  Eye,
+  X,
+  Mail,
+  Download
 } from 'lucide-react';
 
 
@@ -69,7 +83,8 @@ import {
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'analytics' | 'orders' | 'recipes' | 'inventory' | 'knowledge_agent' | 'banners' | 'features' | 'coupons'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'orders' | 'recipes' | 'inventory' | 'knowledge_agent' | 'banners' | 'features' | 'coupons' | 'faqs' | 'blog' | 'newsletter'>('analytics');
+  const [previewPost, setPreviewPost] = useState<BlogPostResponse | null>(null);
   
   // Feature Flags Management State
   const [featureCategoryFilter, setFeatureCategoryFilter] = useState<string>('all');
@@ -154,6 +169,26 @@ export const AdminDashboard: React.FC = () => {
     setBannerFile(null);
     const fileInput = document.getElementById('banner-file-input') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
+  };
+
+  // Form State - FAQs
+  const [faqQuestion, setFaqQuestion] = useState('');
+  const [faqAnswer, setFaqAnswer] = useState('');
+  const [faqDisplayOrder, setFaqDisplayOrder] = useState('0');
+  const [faqIsActive, setFaqIsActive] = useState(true);
+
+  // Edit State - FAQs
+  const [editingFaqId, setEditingFaqId] = useState<number | null>(null);
+  const [editFaqQuestion, setEditFaqQuestion] = useState('');
+  const [editFaqAnswer, setEditFaqAnswer] = useState('');
+  const [editFaqDisplayOrder, setEditFaqDisplayOrder] = useState('0');
+  const [editFaqIsActive, setEditFaqIsActive] = useState(true);
+
+  const resetFaqForm = () => {
+    setFaqQuestion('');
+    setFaqAnswer('');
+    setFaqDisplayOrder('0');
+    setFaqIsActive(true);
   };
 
   // Form States - Quick Edit Modal
@@ -470,10 +505,28 @@ export const AdminDashboard: React.FC = () => {
     }
   });
 
+  const { data: faqs = [], isLoading: faqsLoading } = useQuery({
+    queryKey: ['admin-faqs'],
+    queryFn: fetchAllFaqs,
+    enabled: activeTab === 'faqs',
+  });
+
   const { data: banners = [], isLoading: bannersLoading } = useQuery({
     queryKey: ['adminBanners'],
     queryFn: fetchAllBanners,
     enabled: activeTab === 'banners',
+  });
+
+  const { data: blogPosts = [], isLoading: blogPostsLoading } = useQuery({
+    queryKey: ['adminBlogPosts'],
+    queryFn: fetchAllBlogPosts,
+    enabled: activeTab === 'blog',
+  });
+
+  const { data: subscribers = [], isLoading: subscribersLoading } = useQuery({
+    queryKey: ['adminNewsletterSubscribers'],
+    queryFn: fetchAllNewsletterSubscribers,
+    enabled: activeTab === 'newsletter',
   });
 
   // Feature Flags Query & Mutation
@@ -529,6 +582,48 @@ export const AdminDashboard: React.FC = () => {
     },
   });
 
+  const createFaqMutation = useMutation({
+    mutationFn: createFaq,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-faqs'] });
+      queryClient.invalidateQueries({ queryKey: ['faqs-active'] });
+      resetFaqForm();
+      alert('FAQ created successfully!');
+    },
+    onError: (err: any) => {
+      console.error(err);
+      alert(err.response?.data?.detail || 'Failed to create FAQ.');
+    }
+  });
+
+  const updateFaqMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<{ question: string; answer: string; display_order: number; is_active: boolean }> }) =>
+      updateFaq(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-faqs'] });
+      queryClient.invalidateQueries({ queryKey: ['faqs-active'] });
+      setEditingFaqId(null);
+      alert('FAQ updated successfully!');
+    },
+    onError: (err: any) => {
+      console.error(err);
+      alert(err.response?.data?.detail || 'Failed to update FAQ.');
+    }
+  });
+
+  const deleteFaqMutation = useMutation({
+    mutationFn: deleteFaq,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-faqs'] });
+      queryClient.invalidateQueries({ queryKey: ['faqs-active'] });
+      alert('FAQ deleted successfully!');
+    },
+    onError: (err: any) => {
+      console.error(err);
+      alert(err.response?.data?.detail || 'Failed to delete FAQ.');
+    }
+  });
+
   const createBannerMutation = useMutation({
     mutationFn: createBanner,
     onSuccess: () => {
@@ -567,6 +662,53 @@ export const AdminDashboard: React.FC = () => {
     onError: (err: any) => {
       console.error(err);
       alert(err.response?.data?.detail || 'Failed to delete banner.');
+    }
+  });
+
+  const updateBlogPostMutation = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Parameters<typeof updateBlogPost>[1] }) => updateBlogPost(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminBlogPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['blog-posts-published'] });
+    },
+    onError: (err: any) => {
+      console.error(err);
+      alert(err.response?.data?.detail || 'Failed to update post.');
+    }
+  });
+
+  const deleteBlogPostMutation = useMutation({
+    mutationFn: deleteBlogPost,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminBlogPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['blog-posts-published'] });
+    },
+    onError: (err: any) => {
+      console.error(err);
+      alert(err.response?.data?.detail || 'Failed to delete post.');
+    }
+  });
+
+  const uploadBlogCoverMutation = useMutation({
+    mutationFn: ({ id, image }: { id: number; image: File }) => uploadBlogCoverImage(id, image),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminBlogPosts'] });
+      queryClient.invalidateQueries({ queryKey: ['blog-posts-published'] });
+    },
+    onError: (err: any) => {
+      console.error(err);
+      alert(err.response?.data?.detail || 'Failed to upload cover image.');
+    }
+  });
+
+  const deleteSubscriberMutation = useMutation({
+    mutationFn: deleteNewsletterSubscriber,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminNewsletterSubscribers'] });
+    },
+    onError: (err: any) => {
+      console.error(err);
+      alert(err.response?.data?.detail || 'Failed to delete subscriber.');
     }
   });
 
@@ -622,6 +764,9 @@ export const AdminDashboard: React.FC = () => {
               { id: 'inventory', label: 'Inventory', icon: Boxes },
               { id: 'knowledge_agent', label: 'AI Knowledge', icon: Sparkles },
               { id: 'banners', label: 'Banners', icon: Image },
+              { id: 'blog', label: 'Blog', icon: Newspaper },
+              { id: 'newsletter', label: 'Newsletter', icon: Mail },
+              { id: 'faqs', label: 'FAQs', icon: HelpCircle },
               { id: 'features', label: 'Feature Flags', icon: Sliders },
             ];
 
@@ -1737,7 +1882,7 @@ export const AdminDashboard: React.FC = () => {
             <div>
               <h3 className="font-display font-bold text-xl text-ink">AI Knowledge Base (RAG)</h3>
               <p className="font-body text-xs text-ink opacity-70 mt-0.5">
-                Manage reference documents that Scooby's AI Help Assistant uses to answer customer queries.
+                Manage reference documents that Hearth & One's AI Help Assistant uses to answer customer queries.
               </p>
             </div>
 
@@ -2146,6 +2291,501 @@ export const AdminDashboard: React.FC = () => {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'faqs' && (
+          <div className="space-y-8 text-left animate-fade-in-up">
+            <div>
+              <h3 className="font-display font-bold text-xl text-ink">Frequently Asked Questions</h3>
+              <p className="font-body text-xs text-ink opacity-70 mt-0.5">
+                Manage the FAQ section shown at the bottom of the homepage. Also published as FAQPage structured data for search engines and AI answer engines.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* Form Card — doubles as Create and Edit depending on editingFaqId */}
+              <div className="lg:col-span-4 border border-cardboard bg-paperLight p-6 rounded-none space-y-5">
+                <div className="border-b border-cardboard border-dashed pb-3">
+                  <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">FAQ Management</span>
+                  <h4 className="font-display font-bold text-sm text-ink mt-0.5">
+                    {editingFaqId !== null ? 'Edit FAQ' : 'Add New FAQ'}
+                  </h4>
+                </div>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (editingFaqId !== null) {
+                      updateFaqMutation.mutate({
+                        id: editingFaqId,
+                        payload: {
+                          question: editFaqQuestion,
+                          answer: editFaqAnswer,
+                          display_order: parseInt(editFaqDisplayOrder, 10) || 0,
+                          is_active: editFaqIsActive,
+                        },
+                      });
+                    } else {
+                      if (!faqQuestion.trim() || !faqAnswer.trim()) {
+                        alert('Please fill in both the question and answer.');
+                        return;
+                      }
+                      createFaqMutation.mutate({
+                        question: faqQuestion,
+                        answer: faqAnswer,
+                        display_order: parseInt(faqDisplayOrder, 10) || 0,
+                        is_active: faqIsActive,
+                      });
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  <div className="space-y-1.5">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                      Question:
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. What's in Hearth & One's recipes?"
+                      value={editingFaqId !== null ? editFaqQuestion : faqQuestion}
+                      onChange={(e) => editingFaqId !== null ? setEditFaqQuestion(e.target.value) : setFaqQuestion(e.target.value)}
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                      Answer:
+                    </label>
+                    <textarea
+                      placeholder="A direct, factual 2-3 sentence answer..."
+                      value={editingFaqId !== null ? editFaqAnswer : faqAnswer}
+                      onChange={(e) => editingFaqId !== null ? setEditFaqAnswer(e.target.value) : setFaqAnswer(e.target.value)}
+                      rows={4}
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric resize-none transition-colors"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                        Display Order:
+                      </label>
+                      <input
+                        type="number"
+                        value={editingFaqId !== null ? editFaqDisplayOrder : faqDisplayOrder}
+                        onChange={(e) => editingFaqId !== null ? setEditFaqDisplayOrder(e.target.value) : setFaqDisplayOrder(e.target.value)}
+                        min="0"
+                        className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                      />
+                    </div>
+                    <div className="flex items-center space-x-2 pt-5">
+                      <input
+                        type="checkbox"
+                        id="faq-is-active"
+                        checked={editingFaqId !== null ? editFaqIsActive : faqIsActive}
+                        onChange={(e) => editingFaqId !== null ? setEditFaqIsActive(e.target.checked) : setFaqIsActive(e.target.checked)}
+                        className="w-4 h-4 border border-cardboard text-turmeric focus:ring-turmeric rounded-none cursor-pointer"
+                      />
+                      <label htmlFor="faq-is-active" className="font-mono text-[9px] uppercase font-bold text-ink cursor-pointer">
+                        Is Active
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="submit"
+                      disabled={createFaqMutation.isPending || updateFaqMutation.isPending}
+                      className="flex-grow bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[10px] uppercase font-bold py-3 tracking-wider transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+                    >
+                      {editingFaqId !== null
+                        ? (updateFaqMutation.isPending ? 'Saving...' : 'Save Changes')
+                        : (createFaqMutation.isPending ? 'Adding...' : 'Add FAQ')}
+                    </button>
+                    {editingFaqId !== null && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingFaqId(null)}
+                        className="font-mono text-[10px] uppercase font-bold py-3 px-4 tracking-wider border border-cardboard text-ink hover:bg-paper transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
+
+              {/* FAQ List */}
+              <div className="lg:col-span-8 space-y-4">
+                <div className="border-b border-cardboard border-dashed pb-3 text-left">
+                  <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">FAQ Registry</span>
+                  <h4 className="font-display font-bold text-sm text-ink mt-0.5">Published Questions</h4>
+                </div>
+
+                {faqsLoading ? (
+                  <div className="flex items-center space-x-2 text-ink opacity-60 py-10 justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin text-turmeric" />
+                    <span className="font-mono text-[10px] uppercase font-bold tracking-wider">Loading FAQs...</span>
+                  </div>
+                ) : !faqs || faqs.length === 0 ? (
+                  <div className="text-center py-16 border border-dashed border-cardboard rounded-sm bg-paper bg-opacity-35">
+                    <HelpCircle className="w-8 h-8 text-cardboard mx-auto stroke-1 mb-2" />
+                    <h5 className="font-display font-bold text-ink text-xs">No FAQs Found</h5>
+                    <p className="font-body text-[10px] text-ink opacity-70 max-w-[240px] mx-auto mt-1">
+                      Add a question to populate the homepage FAQ section.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="border border-cardboard bg-paperLight overflow-hidden rounded-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs font-body text-ink border-collapse">
+                        <thead>
+                          <tr className="bg-paper border-b border-cardboard font-mono text-[9px] uppercase tracking-wider text-herb text-left">
+                            <th className="p-4 font-bold">Question &amp; Answer</th>
+                            <th className="p-4 font-bold text-center">Order</th>
+                            <th className="p-4 font-bold text-center">Status</th>
+                            <th className="p-4 font-bold text-center">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-cardboard divide-dashed">
+                          {faqs.map((f: FAQResponse) => (
+                            <tr key={f.id} className="hover:bg-paper transition-colors">
+                              <td className="p-4 text-left space-y-1 max-w-sm">
+                                <div className="font-bold text-xs">{f.question}</div>
+                                <div className="text-[10px] text-ink opacity-70 line-clamp-2">{f.answer}</div>
+                              </td>
+                              <td className="p-4 text-center font-mono text-[11px] font-bold">{f.display_order}</td>
+                              <td className="p-4 text-center">
+                                <span className={`font-mono text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold ${
+                                  f.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {f.is_active ? 'Active' : 'Disabled'}
+                                </span>
+                              </td>
+                              <td className="p-4 text-center">
+                                <div className="flex items-center justify-center space-x-3">
+                                  <button
+                                    onClick={() => {
+                                      setEditingFaqId(f.id);
+                                      setEditFaqQuestion(f.question);
+                                      setEditFaqAnswer(f.answer);
+                                      setEditFaqDisplayOrder(String(f.display_order));
+                                      setEditFaqIsActive(f.is_active);
+                                    }}
+                                    className="font-mono text-[9px] uppercase font-bold tracking-wider text-turmeric hover:underline cursor-pointer"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (confirm('Are you sure you want to delete this FAQ?')) {
+                                        deleteFaqMutation.mutate(f.id);
+                                      }
+                                    }}
+                                    className="font-mono text-[9px] uppercase font-bold tracking-wider text-paprika hover:underline cursor-pointer"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Blog Management */}
+        {activeTab === 'blog' && (
+          <div className="space-y-8 text-left animate-fade-in-up">
+            <div>
+              <h3 className="font-display font-bold text-xl text-ink">Blog / SEO Journal</h3>
+              <p className="font-body text-xs text-ink opacity-70 mt-0.5">
+                Review drafts generated by the automation pipeline, set a cover image, then publish them live on the public Journal (<code>/blog</code>).
+              </p>
+            </div>
+
+            {blogPostsLoading ? (
+              <div className="flex items-center space-x-2 text-ink opacity-60 py-10 justify-center">
+                <Loader2 className="w-4 h-4 animate-spin text-turmeric" />
+                <span className="font-mono text-[10px] uppercase font-bold tracking-wider">Loading Posts...</span>
+              </div>
+            ) : blogPosts.length === 0 ? (
+              <div className="text-center py-16 border border-dashed border-cardboard rounded-sm bg-paper bg-opacity-35">
+                <Newspaper className="w-8 h-8 text-cardboard mx-auto stroke-1 mb-2" />
+                <h5 className="font-display font-bold text-ink text-xs">No Blog Posts Yet</h5>
+                <p className="font-body text-[10px] text-ink opacity-70 max-w-[280px] mx-auto mt-1">
+                  Posts created by the n8n blog automation (or via the admin API) will show up here as drafts.
+                </p>
+              </div>
+            ) : (
+              <div className="border border-cardboard bg-paperLight overflow-hidden rounded-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs font-body text-ink border-collapse">
+                    <thead>
+                      <tr className="bg-paper border-b border-cardboard font-mono text-[9px] uppercase tracking-wider text-herb text-left">
+                        <th className="p-4 font-bold">Cover</th>
+                        <th className="p-4 font-bold">Title / Keyword</th>
+                        <th className="p-4 font-bold text-center">Status</th>
+                        <th className="p-4 font-bold">Created</th>
+                        <th className="p-4 font-bold text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-cardboard divide-dashed">
+                      {blogPosts.map((post: BlogPostResponse) => (
+                        <tr key={post.id} className="hover:bg-paper transition-colors">
+                          <td className="p-4">
+                            <div className="space-y-1.5">
+                              {post.cover_image_url ? (
+                                <img
+                                  src={post.cover_image_url}
+                                  alt={post.title}
+                                  className="w-24 h-14 object-contain bg-paper border border-cardboard rounded-none"
+                                />
+                              ) : (
+                                <div className="w-24 h-14 border border-dashed border-cardboard rounded-none flex items-center justify-center bg-paper">
+                                  <Newspaper className="w-4 h-4 text-cardboard" />
+                                </div>
+                              )}
+                              <label className="flex items-center justify-center gap-1 font-mono text-[8px] uppercase font-bold text-turmeric hover:underline cursor-pointer">
+                                <Upload className="w-2.5 h-2.5" />
+                                <span>{uploadBlogCoverMutation.isPending ? 'Uploading...' : 'Upload'}</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) uploadBlogCoverMutation.mutate({ id: post.id, image: file });
+                                    e.target.value = '';
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </td>
+                          <td className="p-4 text-left space-y-1 max-w-sm">
+                            <div className="font-bold text-xs leading-snug">{post.title}</div>
+                            {post.primary_keyword && (
+                              <div className="text-[9px] font-mono text-herb">Keyword: {post.primary_keyword}</div>
+                            )}
+                            <div className="text-[9px] font-mono text-ink opacity-50">/blog/{post.slug}</div>
+                          </td>
+                          <td className="p-4 text-center">
+                            <span className={`font-mono text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold ${
+                              post.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {post.status}
+                            </span>
+                          </td>
+                          <td className="p-4 font-mono text-[10px] text-ink opacity-70 whitespace-nowrap">
+                            {new Date(post.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </td>
+                          <td className="p-4 text-center">
+                            <div className="flex flex-col items-center justify-center space-y-2">
+                              <button
+                                onClick={() => setPreviewPost(post)}
+                                className="font-mono text-[9px] uppercase font-bold tracking-wider text-ink opacity-80 hover:underline cursor-pointer flex items-center gap-1"
+                              >
+                                <Eye className="w-3 h-3" />
+                                Preview
+                              </button>
+                              <button
+                                disabled={updateBlogPostMutation.isPending}
+                                onClick={() => updateBlogPostMutation.mutate({
+                                  id: post.id,
+                                  payload: { status: post.status === 'published' ? 'draft' : 'published' }
+                                })}
+                                className="font-mono text-[9px] uppercase font-bold tracking-wider text-herb hover:underline cursor-pointer disabled:opacity-50"
+                              >
+                                {post.status === 'published' ? 'Unpublish' : 'Publish'}
+                              </button>
+                              {post.status === 'published' && (
+                                <a
+                                  href={`/blog/${post.slug}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="font-mono text-[9px] uppercase font-bold tracking-wider text-turmeric hover:underline cursor-pointer"
+                                >
+                                  View Live
+                                </a>
+                              )}
+                              <button
+                                onClick={() => {
+                                  if (confirm('Are you sure you want to delete this blog post?')) {
+                                    deleteBlogPostMutation.mutate(post.id);
+                                  }
+                                }}
+                                className="font-mono text-[9px] uppercase font-bold tracking-wider text-paprika hover:underline cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Preview Modal — reads directly from already-fetched admin data,
+                so a draft's content is reviewable before it ever goes live;
+                the public /blog/:slug route 404s on drafts by design. */}
+            {previewPost && (
+              <div
+                className="fixed inset-0 bg-ink bg-opacity-70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in"
+                onClick={() => setPreviewPost(null)}
+              >
+                <div
+                  className="bg-paper max-w-3xl w-full max-h-[85vh] overflow-y-auto border border-cardboard rounded-sm shadow-xl relative"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="sticky top-0 bg-paperLight border-b border-cardboard px-6 py-4 flex items-center justify-between z-10">
+                    <div>
+                      <span className={`font-mono text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold ${
+                        previewPost.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {previewPost.status}
+                      </span>
+                      <h3 className="font-display font-bold text-lg text-ink mt-1">{previewPost.title}</h3>
+                    </div>
+                    <button
+                      onClick={() => setPreviewPost(null)}
+                      className="w-8 h-8 rounded-full border border-cardboard bg-paper text-ink hover:bg-turmeric flex items-center justify-center cursor-pointer shrink-0"
+                      aria-label="Close preview"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    {previewPost.cover_image_url && (
+                      <img
+                        src={previewPost.cover_image_url}
+                        alt={previewPost.title}
+                        className="w-full aspect-[16/9] object-contain bg-paper border border-cardboard rounded-sm"
+                      />
+                    )}
+                    {previewPost.excerpt && (
+                      <p className="font-body text-sm text-ink opacity-70 italic border-l-2 border-turmeric pl-3">
+                        {previewPost.excerpt}
+                      </p>
+                    )}
+                    <div
+                      className="font-body text-ink text-sm leading-relaxed space-y-4
+                        [&_h2]:font-display [&_h2]:font-bold [&_h2]:text-lg [&_h2]:text-ink [&_h2]:mt-8 [&_h2]:mb-2
+                        [&_h3]:font-display [&_h3]:font-bold [&_h3]:text-base [&_h3]:text-ink [&_h3]:mt-5 [&_h3]:mb-2
+                        [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3
+                        [&_li]:mb-1 [&_a]:text-turmeric [&_a]:underline"
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewPost.content_html) }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab: Newsletter Subscribers */}
+        {activeTab === 'newsletter' && (
+          <div className="space-y-8 text-left animate-fade-in-up">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <h3 className="font-display font-bold text-xl text-ink">Newsletter Subscribers</h3>
+                <p className="font-body text-xs text-ink opacity-70 mt-0.5">
+                  Everyone who signed up via the blog's "Get new entries in your inbox" form.
+                </p>
+              </div>
+              {subscribers.length > 0 && (
+                <button
+                  onClick={() => {
+                    const header = 'Email,Source,Active,Subscribed At\n';
+                    const rows = subscribers
+                      .map((s) => `${s.email},${s.source || ''},${s.is_active},${s.created_at}`)
+                      .join('\n');
+                    const blob = new Blob([header + rows], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `newsletter-subscribers-${new Date().toISOString().slice(0, 10)}.csv`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase font-bold tracking-wider text-herb hover:text-turmeric transition-colors border border-cardboard rounded-sm px-3 py-2 cursor-pointer shrink-0"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Export CSV
+                </button>
+              )}
+            </div>
+
+            {subscribersLoading ? (
+              <div className="flex items-center space-x-2 text-ink opacity-60 py-10 justify-center">
+                <Loader2 className="w-4 h-4 animate-spin text-turmeric" />
+                <span className="font-mono text-[10px] uppercase font-bold tracking-wider">Loading Subscribers...</span>
+              </div>
+            ) : subscribers.length === 0 ? (
+              <div className="text-center py-16 border border-dashed border-cardboard rounded-sm bg-paper bg-opacity-35">
+                <Mail className="w-8 h-8 text-cardboard mx-auto stroke-1 mb-2" />
+                <h5 className="font-display font-bold text-ink text-xs">No Subscribers Yet</h5>
+                <p className="font-body text-[10px] text-ink opacity-70 max-w-[280px] mx-auto mt-1">
+                  Signups from the blog's newsletter form will show up here.
+                </p>
+              </div>
+            ) : (
+              <div className="border border-cardboard bg-paperLight overflow-hidden rounded-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs font-body text-ink border-collapse">
+                    <thead>
+                      <tr className="bg-paper border-b border-cardboard font-mono text-[9px] uppercase tracking-wider text-herb text-left">
+                        <th className="p-4 font-bold">Email</th>
+                        <th className="p-4 font-bold">Source</th>
+                        <th className="p-4 font-bold text-center">Status</th>
+                        <th className="p-4 font-bold">Subscribed</th>
+                        <th className="p-4 font-bold text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-cardboard divide-dashed">
+                      {subscribers.map((s: NewsletterSubscriberResponse) => (
+                        <tr key={s.id} className="hover:bg-paper transition-colors">
+                          <td className="p-4 font-bold text-xs">{s.email}</td>
+                          <td className="p-4 font-mono text-[10px] text-herb">{s.source || '—'}</td>
+                          <td className="p-4 text-center">
+                            <span className={`font-mono text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-sm font-bold ${
+                              s.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {s.is_active ? 'Active' : 'Unsubscribed'}
+                            </span>
+                          </td>
+                          <td className="p-4 font-mono text-[10px] text-ink opacity-70 whitespace-nowrap">
+                            {new Date(s.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </td>
+                          <td className="p-4 text-center">
+                            <button
+                              onClick={() => {
+                                if (confirm(`Remove ${s.email} from the subscriber list?`)) {
+                                  deleteSubscriberMutation.mutate(s.id);
+                                }
+                              }}
+                              className="font-mono text-[9px] uppercase font-bold tracking-wider text-paprika hover:underline cursor-pointer"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
