@@ -11,13 +11,15 @@ import {
   Linking,
   KeyboardAvoidingView,
   Platform,
+  Animated,
+  PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Image } from 'expo-image';
-import { Compass, MapPin, Navigation, Locate, Phone, Clock, Stethoscope, PillBottle, X, ShieldCheck, ChevronRight } from 'lucide-react-native';
+import { Compass, MapPin, Navigation, Locate, Phone, Clock, Stethoscope, PillBottle, X, ShieldCheck, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react-native';
 import { COLORS } from '../../theme/colors';
 import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../../theme/typography';
 import { BASE_URL } from '../../api/client';
@@ -72,6 +74,60 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
   // a missing-data clinic instead of a retriable failure.
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [isLoadingDoctor, setIsLoadingDoctor] = useState<number | null>(null);
+
+  // Collapsible controls panel: the location/search controls above the
+  // results list eat most of the screen on a phone, especially once the
+  // map picker is open. Swipe the drag handle up to fold everything down
+  // to just the Clinic/Pharmacy toggle; swipe down (or tap the handle) to
+  // bring the rest back. expandAnim drives both the animated height and
+  // opacity of the collapsible part; 1 = fully expanded, 0 = folded.
+  const [isControlsExpanded, setIsControlsExpanded] = useState(true);
+  const [collapsibleHeight, setCollapsibleHeight] = useState(0);
+  const expandAnim = useRef(new Animated.Value(1)).current;
+  const expandValueRef = useRef(1);
+  const dragStartValueRef = useRef(1);
+
+  useEffect(() => {
+    const id = expandAnim.addListener(({ value }) => {
+      expandValueRef.current = value;
+    });
+    return () => expandAnim.removeListener(id);
+  }, [expandAnim]);
+
+  const controlsPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => Math.abs(gestureState.dy) > 4,
+      onPanResponderGrant: () => {
+        dragStartValueRef.current = expandValueRef.current;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (collapsibleHeight <= 0) return;
+        const next = Math.min(1, Math.max(0, dragStartValueRef.current - gestureState.dy / collapsibleHeight));
+        expandAnim.setValue(next);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const moved = Math.abs(gestureState.dy) > 6 || Math.abs(gestureState.dx) > 6;
+        let shouldExpand: boolean;
+        if (!moved) {
+          // A tap (negligible movement) on the handle just toggles it.
+          shouldExpand = !isControlsExpanded;
+        } else if (gestureState.vy < -0.5) {
+          shouldExpand = false; // fast upward swipe -> fold up
+        } else if (gestureState.vy > 0.5) {
+          shouldExpand = true; // fast downward swipe -> expand
+        } else {
+          shouldExpand = expandValueRef.current > 0.5;
+        }
+        setIsControlsExpanded(shouldExpand);
+        Animated.spring(expandAnim, {
+          toValue: shouldExpand ? 1 : 0,
+          useNativeDriver: false,
+          bounciness: 4,
+        }).start();
+      },
+    })
+  ).current;
 
   const runSearch = async (lat: number, lng: number, radius: 5 | 15 | 25, cat: NearbyClinicCategory) => {
     setIsSearching(true);
@@ -357,11 +413,6 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
       >
         <SafeAreaView style={styles.safeArea} edges={['bottom']}>
           <View style={styles.controls}>
-            <FeaturePrivacyNote
-              text="With your permission, we use your device location to find nearby clinics and pharmacies via Google Places. You can decline and search by pincode instead."
-              onPressFullPolicy={() => navigation.navigate('PrivacyPolicy' as never)}
-            />
-
             <View style={styles.categoryRow}>
               <TouchableOpacity
                 style={[styles.categoryChip, category === 'clinic' && styles.categoryChipActive]}
@@ -379,118 +430,147 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
               </TouchableOpacity>
             </View>
 
-            {!showMapPicker && (
-              <TouchableOpacity style={styles.gpsButton} onPress={handleGpsLocate} disabled={isLocating}>
-                {isLocating ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Navigation size={16} color="#FFFFFF" />
-                    <Text style={styles.gpsButtonText}>Detect My Location</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            )}
+            <View {...controlsPanResponder.panHandlers} style={styles.dragHandleRow}>
+              <View style={styles.dragHandleBar} />
+              {isControlsExpanded ? (
+                <ChevronUp size={14} color={COLORS.textMuted} />
+              ) : (
+                <ChevronDown size={14} color={COLORS.textMuted} />
+              )}
+            </View>
 
-            <TouchableOpacity onPress={() => setShowMapPicker((v) => !v)}>
-              <Text style={styles.switchToPincodeLink}>
-                {showMapPicker ? 'Hide map picker' : 'Search a different location'}
-              </Text>
-            </TouchableOpacity>
+            <Animated.View
+              style={{
+                height: collapsibleHeight > 0
+                  ? expandAnim.interpolate({ inputRange: [0, 1], outputRange: [0, collapsibleHeight] })
+                  : undefined,
+                opacity: expandAnim,
+                overflow: 'hidden',
+              }}
+            >
+              <View
+                onLayout={(e) => setCollapsibleHeight(e.nativeEvent.layout.height)}
+                style={styles.collapsibleContent}
+              >
+                <FeaturePrivacyNote
+                  text="With your permission, we use your device location to find nearby clinics and pharmacies via Google Places. You can decline and search by pincode instead."
+                  onPressFullPolicy={() => navigation.navigate('PrivacyPolicy' as never)}
+                />
 
-            {showMapPicker && (
-              <View style={styles.mapPickerBox}>
-                <View style={styles.pincodeRow}>
-                  <View style={styles.pincodeInputWrap}>
-                    <MapPin size={14} color={COLORS.textMuted} />
-                    <TextInput
-                      style={styles.pincodeInput}
-                      placeholder="Search pincode / zip code"
-                      placeholderTextColor={COLORS.textMuted}
-                      value={pincode}
-                      onChangeText={setPincode}
-                      keyboardType="number-pad"
-                      returnKeyType="search"
-                      onSubmitEditing={handlePincodeSearch}
-                    />
-                  </View>
-                  <TouchableOpacity style={styles.pincodeSearchBtn} onPress={handlePincodeSearch} disabled={isLocating}>
-                    {isLocating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.pincodeSearchBtnText}>Go</Text>}
-                  </TouchableOpacity>
-                </View>
-
-                <Text style={styles.mapHintText}>Drag the pin, tap the map, or use Locate Me</Text>
-
-                <View style={styles.mapContainer}>
-                  <MapView
-                    ref={mapRef}
-                    style={styles.map}
-                    initialRegion={{
-                      latitude: mapCoords.lat,
-                      longitude: mapCoords.lng,
-                      latitudeDelta: 0.08,
-                      longitudeDelta: 0.08,
-                    }}
-                    onPress={(e) => setMapCoords({ lat: e.nativeEvent.coordinate.latitude, lng: e.nativeEvent.coordinate.longitude })}
-                  >
-                    <Marker
-                      coordinate={{ latitude: mapCoords.lat, longitude: mapCoords.lng }}
-                      draggable
-                      onDragEnd={(e) => setMapCoords({ lat: e.nativeEvent.coordinate.latitude, lng: e.nativeEvent.coordinate.longitude })}
-                    >
-                      <View style={styles.mapPin}>
-                        <MapPin size={26} color={COLORS.brandGold} fill={COLORS.brandGold} fillOpacity={0.25} />
-                      </View>
-                    </Marker>
-                  </MapView>
-                  <TouchableOpacity style={styles.locateMeBtn} onPress={handleGpsLocate} disabled={isLocating}>
+                {!showMapPicker && (
+                  <TouchableOpacity style={styles.gpsButton} onPress={handleGpsLocate} disabled={isLocating}>
                     {isLocating ? (
-                      <ActivityIndicator size="small" color={COLORS.forestGreen} />
+                      <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
-                      <Locate size={18} color={COLORS.forestGreen} />
+                      <>
+                        <Navigation size={16} color="#FFFFFF" />
+                        <Text style={styles.gpsButtonText}>Detect My Location</Text>
+                      </>
                     )}
                   </TouchableOpacity>
-                </View>
+                )}
 
-                <View style={styles.radiusRow}>
-                  <Compass size={14} color={COLORS.textMuted} />
-                  {RADIUS_PRESETS_KM.map((preset) => (
-                    <TouchableOpacity
-                      key={preset}
-                      style={[styles.radiusChip, radiusKm === preset && styles.radiusChipActive]}
-                      onPress={() => setRadiusKm(preset)}
-                    >
-                      <Text style={[styles.radiusChipText, radiusKm === preset && styles.radiusChipTextActive]}>{preset} km</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <TouchableOpacity style={styles.gpsButton} onPress={handleSearchThisLocation} disabled={isSearching}>
-                  {isSearching ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.gpsButtonText}>Search This Location</Text>
-                  )}
+                <TouchableOpacity onPress={() => setShowMapPicker((v) => !v)}>
+                  <Text style={styles.switchToPincodeLink}>
+                    {showMapPicker ? 'Hide map picker' : 'Search a different location'}
+                  </Text>
                 </TouchableOpacity>
-              </View>
-            )}
 
-            {coords && !showMapPicker && (
-              <View style={styles.radiusRow}>
-                <Compass size={14} color={COLORS.textMuted} />
-                {RADIUS_PRESETS_KM.map((preset) => (
-                  <TouchableOpacity
-                    key={preset}
-                    style={[styles.radiusChip, radiusKm === preset && styles.radiusChipActive]}
-                    onPress={() => handleChangeRadius(preset)}
-                  >
-                    <Text style={[styles.radiusChipText, radiusKm === preset && styles.radiusChipTextActive]}>{preset} km</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
+                {showMapPicker && (
+                  <View style={styles.mapPickerBox}>
+                    <View style={styles.pincodeRow}>
+                      <View style={styles.pincodeInputWrap}>
+                        <MapPin size={14} color={COLORS.textMuted} />
+                        <TextInput
+                          style={styles.pincodeInput}
+                          placeholder="Search pincode / zip code"
+                          placeholderTextColor={COLORS.textMuted}
+                          value={pincode}
+                          onChangeText={setPincode}
+                          keyboardType="number-pad"
+                          returnKeyType="search"
+                          onSubmitEditing={handlePincodeSearch}
+                        />
+                      </View>
+                      <TouchableOpacity style={styles.pincodeSearchBtn} onPress={handlePincodeSearch} disabled={isLocating}>
+                        {isLocating ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.pincodeSearchBtnText}>Go</Text>}
+                      </TouchableOpacity>
+                    </View>
 
-            {error !== '' && <Text style={styles.errorText}>{error}</Text>}
+                    <Text style={styles.mapHintText}>Drag the pin, tap the map, or use Locate Me</Text>
+
+                    <View style={styles.mapContainer}>
+                      <MapView
+                        ref={mapRef}
+                        style={styles.map}
+                        initialRegion={{
+                          latitude: mapCoords.lat,
+                          longitude: mapCoords.lng,
+                          latitudeDelta: 0.08,
+                          longitudeDelta: 0.08,
+                        }}
+                        onPress={(e) => setMapCoords({ lat: e.nativeEvent.coordinate.latitude, lng: e.nativeEvent.coordinate.longitude })}
+                      >
+                        <Marker
+                          coordinate={{ latitude: mapCoords.lat, longitude: mapCoords.lng }}
+                          draggable
+                          onDragEnd={(e) => setMapCoords({ lat: e.nativeEvent.coordinate.latitude, lng: e.nativeEvent.coordinate.longitude })}
+                        >
+                          <View style={styles.mapPin}>
+                            <MapPin size={26} color={COLORS.brandGold} fill={COLORS.brandGold} fillOpacity={0.25} />
+                          </View>
+                        </Marker>
+                      </MapView>
+                      <TouchableOpacity style={styles.locateMeBtn} onPress={handleGpsLocate} disabled={isLocating}>
+                        {isLocating ? (
+                          <ActivityIndicator size="small" color={COLORS.forestGreen} />
+                        ) : (
+                          <Locate size={18} color={COLORS.forestGreen} />
+                        )}
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.radiusRow}>
+                      <Compass size={14} color={COLORS.textMuted} />
+                      {RADIUS_PRESETS_KM.map((preset) => (
+                        <TouchableOpacity
+                          key={preset}
+                          style={[styles.radiusChip, radiusKm === preset && styles.radiusChipActive]}
+                          onPress={() => setRadiusKm(preset)}
+                        >
+                          <Text style={[styles.radiusChipText, radiusKm === preset && styles.radiusChipTextActive]}>{preset} km</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+
+                    <TouchableOpacity style={styles.gpsButton} onPress={handleSearchThisLocation} disabled={isSearching}>
+                      {isSearching ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.gpsButtonText}>Search This Location</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {coords && !showMapPicker && (
+                  <View style={styles.radiusRow}>
+                    <Compass size={14} color={COLORS.textMuted} />
+                    {RADIUS_PRESETS_KM.map((preset) => (
+                      <TouchableOpacity
+                        key={preset}
+                        style={[styles.radiusChip, radiusKm === preset && styles.radiusChipActive]}
+                        onPress={() => handleChangeRadius(preset)}
+                      >
+                        <Text style={[styles.radiusChipText, radiusKm === preset && styles.radiusChipTextActive]}>{preset} km</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {error !== '' && <Text style={styles.errorText}>{error}</Text>}
+              </View>
+            </Animated.View>
           </View>
 
           {isSearching ? (
@@ -661,8 +741,22 @@ const styles = {
     borderBottomColor: COLORS.kraftBorder,
   },
   headerTitle: { fontSize: 18, fontFamily: FONT_DISPLAY, color: COLORS.textCoffee },
-  controls: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8, gap: 10 },
-  categoryRow: { flexDirection: 'row' as const, gap: 8 },
+  controls: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 0 },
+  categoryRow: { flexDirection: 'row' as const, gap: 8, marginBottom: 6 },
+  dragHandleRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: 4,
+    paddingVertical: 10,
+  },
+  dragHandleBar: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.kraftBorder,
+  },
+  collapsibleContent: { gap: 10, paddingBottom: 8 },
   categoryChip: {
     flex: 1,
     flexDirection: 'row' as const,
