@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueries } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
-import { Search, PawPrint, X, Clock, AlertCircle, ChevronDown, Bone, Soup, Package, LayoutGrid } from 'lucide-react';
+import { Search, PawPrint, X, Clock, AlertCircle, Bone, Soup, Package, LayoutGrid } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
-import { fetchProducts, fetchCategoryTree, fetchCategoryById } from '../../api/products';
+import { fetchProducts, fetchCategoryTree } from '../../api/products';
+import type { CategoryTreeNode } from '../../api/products';
+import type { ProductResponse } from '../../types/product';
 import { Eyebrow } from '../../components/Eyebrow';
 import { JournalCard } from '../../components/JournalCard';
 import { RecipeCard } from '../../components/RecipeCard';
@@ -25,6 +27,145 @@ function getCategoryIcon(name: string) {
   return PawPrint;
 }
 
+interface ExplorerTab {
+  key: string;
+  label: string;
+  // null = no category filter (every product); otherwise merged across
+  // all listed ids -- a parent's "All Items" tab spans every child since
+  // the backend only filters by one category_id per request.
+  categoryIds: number[] | null;
+}
+
+interface ExplorerEntry {
+  key: string;
+  label: string;
+  icon: typeof PawPrint;
+  tabs: ExplorerTab[];
+}
+
+function buildExplorerEntries(categoryTree: CategoryTreeNode[] | undefined): ExplorerEntry[] {
+  if (!categoryTree) return [];
+
+  const leafCategories = categoryTree.flatMap((cat) => (cat.children.length > 0 ? cat.children : [cat]));
+
+  const allItems: ExplorerEntry = {
+    key: 'all',
+    label: 'All Items',
+    icon: LayoutGrid,
+    tabs: [
+      { key: 'all', label: 'All Items', categoryIds: null },
+      ...leafCategories.map((leaf) => ({ key: String(leaf.id), label: leaf.name, categoryIds: [leaf.id] })),
+    ],
+  };
+
+  const categoryEntries: ExplorerEntry[] = categoryTree.map((cat) => ({
+    key: String(cat.id),
+    label: cat.name,
+    icon: getCategoryIcon(cat.name),
+    tabs:
+      cat.children.length > 0
+        ? [
+            { key: 'all', label: 'All Items', categoryIds: cat.children.map((c) => c.id) },
+            ...cat.children.map((c) => ({ key: String(c.id), label: c.name, categoryIds: [c.id] })),
+          ]
+        : [{ key: 'self', label: cat.name, categoryIds: [cat.id] }],
+  }));
+
+  return [allItems, ...categoryEntries];
+}
+
+// Fetches and merges products across one or more category ids (or
+// everything, when null) -- one request per id via useQueries, since the
+// backend only filters by a single category_id per call.
+function useMergedProducts(categoryIds: number[] | null, search: string) {
+  const ids = categoryIds && categoryIds.length > 0 ? categoryIds : [null];
+  const results = useQueries({
+    queries: ids.map((id) => ({
+      queryKey: ['products', 'explorer', id, search],
+      queryFn: () => fetchProducts({ search: search || undefined, categoryId: id ?? undefined, limit: 9 }),
+      staleTime: 1000 * 60 * 2,
+    })),
+  });
+
+  const isLoading = results.some((r) => r.isLoading);
+  const isError = results.some((r) => r.isError);
+  const seen = new Set<number>();
+  const items: ProductResponse[] = [];
+  for (const r of results) {
+    for (const p of r.data?.items ?? []) {
+      if (!seen.has(p.id)) {
+        seen.add(p.id);
+        items.push(p);
+      }
+    }
+  }
+
+  return { items, isLoading, isError };
+}
+
+function CategoryTabProducts({
+  tabs,
+  search,
+  onAddToCart,
+  orderingDisabledLabel,
+}: {
+  tabs: ExplorerTab[];
+  search: string;
+  onAddToCart: (productId: number) => Promise<void> | void;
+  orderingDisabledLabel?: string;
+}) {
+  const [activeKey, setActiveKey] = useState(tabs[0]?.key);
+  const activeTab = tabs.find((t) => t.key === activeKey) ?? tabs[0];
+  const { items, isLoading, isError } = useMergedProducts(activeTab?.categoryIds ?? null, search);
+
+  return (
+    <div className="bg-paperLight border border-cardboard rounded-md shadow-lg p-4 md:p-6 text-left">
+      {tabs.length > 1 && (
+        <div className="flex items-center gap-6 border-b border-cardboard pb-2.5 mb-5 overflow-x-auto">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveKey(tab.key)}
+              className={`font-body text-xs font-bold uppercase whitespace-nowrap pb-1.5 border-b-2 transition-colors ${
+                (activeKey ?? tabs[0]?.key) === tab.key
+                  ? 'text-paprika border-paprika'
+                  : 'text-ink/50 border-transparent hover:text-ink'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="border border-cardboard bg-paper rounded-[4px] animate-pulse aspect-[3/4]" />
+          ))}
+        </div>
+      ) : isError ? (
+        <p className="font-body text-xs text-paprika py-2">Couldn't load recipes for this category.</p>
+      ) : items.length === 0 ? (
+        <p className="font-body text-xs text-ink/60 italic py-6 text-center">
+          Nothing stocked under this category yet — recipes are our focus for now.
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {items.map((product) => (
+            <RecipeCard
+              key={product.id}
+              product={product}
+              onAddToCart={onAddToCart}
+              orderingDisabledLabel={orderingDisabledLabel}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ShopPage() {
   useDocumentMetadata(
     "Shop Recipes",
@@ -34,11 +175,13 @@ export default function ShopPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
-  // Which top-level category's subcategory row is currently open. Main
-  // categories with no subcategories (flat/legacy) skip this entirely and
-  // filter directly, same as before this feature existed.
-  const [expandedParentId, setExpandedParentId] = useState<number | null>(null);
+  // Which category's panel is shown below the badge row. Hovering sets it
+  // temporarily (desktop); clicking pins it (touch, and desktop too once
+  // clicked); with neither, it falls back to 'all' so "All Items" is open
+  // by default, matching the reference design.
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const [pinnedKey, setPinnedKey] = useState<string | null>(null);
+  const openKey = hoveredKey ?? pinnedKey ?? 'all';
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
@@ -74,44 +217,14 @@ export default function ShopPage() {
     ? 'Unavailable'
     : 'Ordering Unavailable';
 
-  // Queries with optimized caching and debounced keys
-  const { data: productsData, isLoading: productsLoading, error: productsError } = useQuery({
-    queryKey: ['products', debouncedSearch, selectedCategoryId],
-    queryFn: () => fetchProducts({ search: debouncedSearch || undefined, categoryId: selectedCategoryId || undefined }),
-    staleTime: 1000 * 60 * 2, // 2 minutes
-    placeholderData: (previousData) => previousData,
-  });
-
   const { data: categoryTree, isLoading: categoriesLoading } = useQuery({
     queryKey: ['categoryTree'],
     queryFn: fetchCategoryTree,
     staleTime: 1000 * 60 * 10, // 10 minutes
   });
 
-  const handleTopLevelClick = useCallback((catId: number, hasChildren: boolean) => {
-    if (hasChildren) {
-      setExpandedParentId((current) => (current === catId ? null : catId));
-      setSelectedCategoryId(null);
-    } else {
-      setSelectedCategoryId(catId);
-      setExpandedParentId(null);
-    }
-  }, []);
-
-  const { data: categoryDetails } = useQuery({
-    queryKey: ['categoryDetails', selectedCategoryId],
-    queryFn: () => fetchCategoryById(selectedCategoryId!),
-    enabled: selectedCategoryId !== null,
-    staleTime: 1000 * 60 * 10, // 10 minutes
-  });
-
-
-
-
-
-  const products = productsData?.items || [];
-
-
+  const explorerEntries = buildExplorerEntries(categoryTree);
+  const activeEntry = explorerEntries.find((e) => e.key === openKey) ?? explorerEntries[0];
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
@@ -249,232 +362,77 @@ export default function ShopPage() {
           </div>
         </div>
 
-        {/* Category Explorer — round icon badges. Desktop: moving the
-            cursor over a category reveals its subcategories instantly,
-            no click (pure CSS :hover/:focus-within via a scoped `group/cat`,
-            same mechanism as the reference Artifact). Touch: tapping the
-            badge opens it instead, since there's no hover there. Each
-            panel is `position: absolute`, anchored under its own badge —
-            never in normal flow — so opening one never shifts its
-            siblings sideways; that sibling-shift was the exact bug the
-            Artifact fixed by moving off document flow. */}
-        <div className="space-y-0">
-          <span className="font-mono text-[11px] uppercase tracking-wider text-paprika font-bold mb-3 flex items-center">
+        {/* Category Explorer — round icon badges, moving the cursor over
+            one shows its subcategories AND recipes right there, below the
+            whole row, matching the reference design. "All Items" is open
+            by default; hovering a different category swaps the panel to
+            it; moving the mouse away (out of the badges+panel region
+            entirely) falls back to "All Items" again. Tapping pins a
+            choice open on touch, where there's no hover. */}
+        <div
+          className="space-y-5"
+          onMouseLeave={() => setHoveredKey(null)}
+        >
+          <span className="font-mono text-[11px] uppercase tracking-wider text-paprika font-bold flex items-center">
             <PawPrint className="w-3 h-3 mr-1" /> Browse by Category
           </span>
 
-          <div className="flex flex-nowrap items-start gap-8 md:gap-12 overflow-visible pb-1 -mx-1 px-1">
-            {/* "Show All" — its own entry, same visual language as a category */}
-            <div className="flex flex-col items-center gap-2 shrink-0">
-              <button
-                onClick={() => {
-                  setSelectedCategoryId(null);
-                  setExpandedParentId(null);
-                }}
-                aria-label="Show all recipes"
-                className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center border-2 transition-all duration-200 ${
-                  selectedCategoryId === null && expandedParentId === null
-                    ? 'bg-ink border-paprika shadow-md scale-105'
-                    : 'bg-paperLight border-cardboard hover:border-paprika/50'
-                }`}
-              >
-                <LayoutGrid
-                  className={`w-6 h-6 md:w-7 md:h-7 ${
-                    selectedCategoryId === null && expandedParentId === null ? 'text-paperLight' : 'text-ink/70'
-                  }`}
-                />
-              </button>
-              <span
-                className={`font-body text-[11px] font-bold uppercase text-center leading-tight ${
-                  selectedCategoryId === null && expandedParentId === null ? 'text-paprika' : 'text-ink/60'
-                }`}
-              >
-                Show All
-              </span>
-            </div>
-
+          <div className="flex flex-nowrap items-start gap-8 md:gap-12 overflow-x-auto pb-1 -mx-1 px-1">
             {!categoriesLoading &&
-              categoryTree?.map((cat) => {
-                const hasChildren = cat.children.length > 0;
-                const isTapOpen = expandedParentId === cat.id;
-                const isActive = hasChildren ? isTapOpen : selectedCategoryId === cat.id;
-                const Icon = getCategoryIcon(cat.name);
+              explorerEntries.map((entry) => {
+                const isOpen = entry.key === openKey;
+                const Icon = entry.icon;
                 return (
                   <div
-                    key={cat.id}
-                    className={`group/cat flex flex-col items-center gap-2 shrink-0 relative ${hasChildren ? 'pb-3' : ''}`}
+                    key={entry.key}
+                    className="flex flex-col items-center gap-2 shrink-0 relative pb-3"
+                    onMouseEnter={() => setHoveredKey(entry.key)}
                   >
                     <button
-                      onClick={() => handleTopLevelClick(cat.id, hasChildren)}
-                      aria-label={cat.name}
-                      aria-expanded={hasChildren ? isTapOpen : undefined}
+                      onClick={() => setPinnedKey(entry.key)}
+                      aria-label={entry.label}
+                      aria-expanded={isOpen}
                       className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center border-2 transition-all duration-200 ${
-                        isActive
+                        isOpen
                           ? 'bg-ink border-paprika shadow-md scale-105'
-                          : 'bg-paperLight border-cardboard group-hover/cat:border-paprika/50'
+                          : 'bg-paperLight border-cardboard hover:border-paprika/50'
                       }`}
                     >
-                      <Icon className={`w-6 h-6 md:w-7 md:h-7 ${isActive ? 'text-paperLight' : 'text-ink/70'}`} />
+                      <Icon className={`w-6 h-6 md:w-7 md:h-7 ${isOpen ? 'text-paperLight' : 'text-ink/70'}`} />
                     </button>
                     <span
-                      className={`font-body text-[11px] font-bold uppercase text-center leading-tight flex items-center gap-0.5 ${
-                        isActive ? 'text-paprika' : 'text-ink/60'
+                      className={`font-body text-[11px] font-bold uppercase text-center leading-tight ${
+                        isOpen ? 'text-paprika' : 'text-ink/60'
                       }`}
                     >
-                      {cat.name}
-                      {hasChildren && (
-                        <ChevronDown
-                          className={`w-3 h-3 transition-transform duration-200 ${
-                            isTapOpen ? 'rotate-180' : 'group-hover/cat:rotate-180'
-                          }`}
-                        />
-                      )}
+                      {entry.label}
                     </span>
 
-                    {hasChildren && (
-                      <>
-                        {/* connecting line — shows on hover (desktop) or tap-open (touch) */}
-                        <div
-                          className={`absolute left-1/2 -translate-x-1/2 bottom-0 w-px h-3 bg-paprika transition-opacity duration-150 ${
-                            isTapOpen ? 'opacity-100' : 'opacity-0 group-hover/cat:opacity-100 group-focus-within/cat:opacity-100'
-                          }`}
-                          aria-hidden="true"
-                        />
-
-                        {/* subcategory panel — absolute, anchored under THIS badge only */}
-                        <div
-                          className={`absolute left-1/2 -translate-x-1/2 top-full z-20 w-max max-w-[min(90vw,480px)] grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
-                            isTapOpen
-                              ? 'grid-rows-[1fr] opacity-100 pointer-events-auto'
-                              : 'grid-rows-[0fr] opacity-0 pointer-events-none group-hover/cat:grid-rows-[1fr] group-hover/cat:opacity-100 group-hover/cat:pointer-events-auto group-focus-within/cat:grid-rows-[1fr] group-focus-within/cat:opacity-100 group-focus-within/cat:pointer-events-auto'
-                          }`}
-                        >
-                          <div className="overflow-hidden">
-                            <div className="mt-3 flex flex-wrap justify-center gap-2 bg-paperLight border border-cardboard rounded-full px-3 py-2 shadow-md">
-                              {cat.children.map((sub) => (
-                                <button
-                                  key={sub.id}
-                                  onClick={() => setSelectedCategoryId(sub.id)}
-                                  className={`font-body text-xs font-bold px-4 py-2 rounded-full border transition-colors whitespace-nowrap ${
-                                    selectedCategoryId === sub.id
-                                      ? 'bg-paprika text-paperLight border-paprika'
-                                      : 'border-cardboard text-ink hover:border-paprika/50 bg-paper'
-                                  }`}
-                                >
-                                  {sub.name}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </>
+                    {/* connecting line down to the shared panel beneath the row */}
+                    {isOpen && (
+                      <div
+                        className="absolute left-1/2 -translate-x-1/2 bottom-0 w-px h-3 bg-paprika"
+                        aria-hidden="true"
+                      />
                     )}
                   </div>
                 );
               })}
           </div>
-        </div>
 
-        {/* Category Description Banner */}
-        {selectedCategoryId !== null && categoryDetails && (
-          <div className="p-6 border border-cardboard bg-paperLight rounded-sm shadow-sm space-y-2 text-left animate-fade-in-up">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-paprika font-bold block">CATEGORY HIGHLIGHT</span>
-            <h3 className="font-display font-bold text-2xl text-ink uppercase tracking-tight">{categoryDetails.name}</h3>
-            {categoryDetails.description ? (
-              <p className="font-body text-sm text-ink opacity-90 leading-relaxed italic">
-                "{categoryDetails.description}"
-              </p>
-            ) : (
-              <p className="font-body text-xs text-ink opacity-60 italic">
-                No description logged for this recipe category.
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Product Grid / States */}
-        {productsLoading ? (
-          /* Premium Product Grid Skeletons matching RecipeCard */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[1, 2, 3, 4, 5, 6].map((n) => (
-              <div key={n} className="border border-cardboard bg-paperLight flex flex-col shadow-sm rounded-[4px] animate-pulse">
-                {/* Image Placeholder */}
-                <div className="w-full aspect-[4/3] bg-cardboard bg-opacity-20 border-b border-cardboard"></div>
-                {/* Content Area Placeholder */}
-                <div className="p-5 flex-grow flex flex-col justify-between space-y-4">
-                  <div>
-                    {/* Header: Title & Price */}
-                    <div className="flex justify-between items-start gap-4">
-                      <div className="h-5 bg-cardboard bg-opacity-20 w-2/3 rounded-[3px]"></div>
-                      <div className="h-5 bg-cardboard bg-opacity-20 w-1/4 rounded-[3px]"></div>
-                    </div>
-                    {/* Description lines */}
-                    <div className="space-y-2 mt-4">
-                      <div className="h-3 bg-cardboard bg-opacity-20 w-full rounded-[3px]"></div>
-                      <div className="h-3 bg-cardboard bg-opacity-20 w-5/6 rounded-[3px]"></div>
-                      <div className="h-3 bg-cardboard bg-opacity-20 w-4/5 rounded-[3px]"></div>
-                    </div>
-                  </div>
-                  {/* Ingredient ledger dots placeholder */}
-                  <div className="border-t border-b border-dashed border-cardboard py-3 flex gap-2">
-                    <div className="h-4 bg-cardboard bg-opacity-20 w-12 rounded-[12px]"></div>
-                    <div className="h-4 bg-cardboard bg-opacity-20 w-16 rounded-[12px]"></div>
-                    <div className="h-4 bg-cardboard bg-opacity-20 w-14 rounded-[12px]"></div>
-                  </div>
-                  {/* Button Placeholder */}
-                  <div className="h-10 bg-cardboard bg-opacity-20 w-full rounded-[4px]"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : productsError ? (
-          /* Notebook Error Card */
-          <div className="max-w-md mx-auto border border-turmeric bg-paperLight p-8 rounded-sm text-center shadow-sm">
-            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="font-mono text-lg font-bold text-paprika">!</span>
-            </div>
-            <h4 className="font-display font-bold text-lg text-ink mb-2">Failed to Read Ledger</h4>
-            <p className="font-body text-xs text-ink opacity-80 mb-6">
-              Could not retrieve products from the database service. Verify the backend container is running.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-turmeric text-ink font-body font-bold text-xs uppercase px-4 py-2 rounded-sm tracking-wide cursor-pointer"
-            >
-              Retry Connection
-            </button>
-          </div>
-        ) : products.length === 0 ? (
-          /* Empty State invitation to act */
-          <div className="max-w-md mx-auto border border-cardboard border-dashed p-10 rounded-sm text-center">
-            <h4 className="font-display font-bold text-lg text-ink mb-2">Empty Notebook Page</h4>
-            <p className="font-body text-xs text-ink opacity-70 mb-4">
-              No recipes match your filter search tags. Try relaxing your filters.
-            </p>
-            <button
-              onClick={() => {
-                setSearch('');
-                setSelectedCategoryId(null);
-                setExpandedParentId(null);
-              }}
-              className="text-herb underline font-mono text-[10px] uppercase font-bold tracking-wider hover:text-ink transition-colors"
-            >
-              Reset All Filters
-            </button>
-          </div>
-        ) : (
-          /* Recipe Card Grid */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {products.map((product) => (
-              <RecipeCard
-                key={product.id}
-                product={product}
+          {/* Shared panel — tabs + recipes for whichever category is open */}
+          {activeEntry && (
+            <div className="animate-fade-in-up">
+              <CategoryTabProducts
+                key={activeEntry.key}
+                tabs={activeEntry.tabs}
+                search={debouncedSearch}
                 onAddToCart={handleAddToCart}
                 orderingDisabledLabel={orderingDisabledLabel}
               />
-            ))}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </section>
       </div>
       </main>
