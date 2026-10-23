@@ -88,8 +88,6 @@ export default function ShopPage() {
     staleTime: 1000 * 60 * 10, // 10 minutes
   });
 
-  const expandedParent = categoryTree?.find((cat) => cat.id === expandedParentId);
-
   const handleTopLevelClick = useCallback((catId: number, hasChildren: boolean) => {
     if (hasChildren) {
       setExpandedParentId((current) => (current === catId ? null : catId));
@@ -251,16 +249,21 @@ export default function ShopPage() {
           </div>
         </div>
 
-        {/* Category Explorer — round icon badges; a category with
-            subcategories drops a connecting line to a subcategory row
-            directly beneath it, matching the Figma/Artifact drill-down
-            design. Click-driven (not hover-only) so it works on touch. */}
+        {/* Category Explorer — round icon badges. Desktop: moving the
+            cursor over a category reveals its subcategories instantly,
+            no click (pure CSS :hover/:focus-within via a scoped `group/cat`,
+            same mechanism as the reference Artifact). Touch: tapping the
+            badge opens it instead, since there's no hover there. Each
+            panel is `position: absolute`, anchored under its own badge —
+            never in normal flow — so opening one never shifts its
+            siblings sideways; that sibling-shift was the exact bug the
+            Artifact fixed by moving off document flow. */}
         <div className="space-y-0">
           <span className="font-mono text-[11px] uppercase tracking-wider text-paprika font-bold mb-3 flex items-center">
             <PawPrint className="w-3 h-3 mr-1" /> Browse by Category
           </span>
 
-          <div className="flex flex-nowrap items-start gap-8 md:gap-12 overflow-x-auto pb-1 -mx-1 px-1">
+          <div className="flex flex-nowrap items-start gap-8 md:gap-12 overflow-visible pb-1 -mx-1 px-1">
             {/* "Show All" — its own entry, same visual language as a category */}
             <div className="flex flex-col items-center gap-2 shrink-0">
               <button
@@ -293,18 +296,22 @@ export default function ShopPage() {
             {!categoriesLoading &&
               categoryTree?.map((cat) => {
                 const hasChildren = cat.children.length > 0;
-                const isOpen = expandedParentId === cat.id;
-                const isActive = hasChildren ? isOpen : selectedCategoryId === cat.id;
+                const isTapOpen = expandedParentId === cat.id;
+                const isActive = hasChildren ? isTapOpen : selectedCategoryId === cat.id;
                 const Icon = getCategoryIcon(cat.name);
                 return (
-                  <div key={cat.id} className="flex flex-col items-center gap-2 shrink-0 relative">
+                  <div
+                    key={cat.id}
+                    className={`group/cat flex flex-col items-center gap-2 shrink-0 relative ${hasChildren ? 'pb-3' : ''}`}
+                  >
                     <button
                       onClick={() => handleTopLevelClick(cat.id, hasChildren)}
-                      aria-expanded={hasChildren ? isOpen : undefined}
+                      aria-label={cat.name}
+                      aria-expanded={hasChildren ? isTapOpen : undefined}
                       className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center border-2 transition-all duration-200 ${
                         isActive
                           ? 'bg-ink border-paprika shadow-md scale-105'
-                          : 'bg-paperLight border-cardboard hover:border-paprika/50'
+                          : 'bg-paperLight border-cardboard group-hover/cat:border-paprika/50'
                       }`}
                     >
                       <Icon className={`w-6 h-6 md:w-7 md:h-7 ${isActive ? 'text-paperLight' : 'text-ink/70'}`} />
@@ -316,44 +323,55 @@ export default function ShopPage() {
                     >
                       {cat.name}
                       {hasChildren && (
-                        <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                        <ChevronDown
+                          className={`w-3 h-3 transition-transform duration-200 ${
+                            isTapOpen ? 'rotate-180' : 'group-hover/cat:rotate-180'
+                          }`}
+                        />
                       )}
                     </span>
-                    {/* connecting line down to the subcategory row beneath */}
-                    {isOpen && (
-                      <div className="absolute left-1/2 -translate-x-1/2 -bottom-3 w-px h-3 bg-paprika" aria-hidden="true" />
+
+                    {hasChildren && (
+                      <>
+                        {/* connecting line — shows on hover (desktop) or tap-open (touch) */}
+                        <div
+                          className={`absolute left-1/2 -translate-x-1/2 bottom-0 w-px h-3 bg-paprika transition-opacity duration-150 ${
+                            isTapOpen ? 'opacity-100' : 'opacity-0 group-hover/cat:opacity-100 group-focus-within/cat:opacity-100'
+                          }`}
+                          aria-hidden="true"
+                        />
+
+                        {/* subcategory panel — absolute, anchored under THIS badge only */}
+                        <div
+                          className={`absolute left-1/2 -translate-x-1/2 top-full z-20 w-max max-w-[min(90vw,480px)] grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+                            isTapOpen
+                              ? 'grid-rows-[1fr] opacity-100 pointer-events-auto'
+                              : 'grid-rows-[0fr] opacity-0 pointer-events-none group-hover/cat:grid-rows-[1fr] group-hover/cat:opacity-100 group-hover/cat:pointer-events-auto group-focus-within/cat:grid-rows-[1fr] group-focus-within/cat:opacity-100 group-focus-within/cat:pointer-events-auto'
+                          }`}
+                        >
+                          <div className="overflow-hidden">
+                            <div className="mt-3 flex flex-wrap justify-center gap-2 bg-paperLight border border-cardboard rounded-full px-3 py-2 shadow-md">
+                              {cat.children.map((sub) => (
+                                <button
+                                  key={sub.id}
+                                  onClick={() => setSelectedCategoryId(sub.id)}
+                                  className={`font-body text-xs font-bold px-4 py-2 rounded-full border transition-colors whitespace-nowrap ${
+                                    selectedCategoryId === sub.id
+                                      ? 'bg-paprika text-paperLight border-paprika'
+                                      : 'border-cardboard text-ink hover:border-paprika/50 bg-paper'
+                                  }`}
+                                >
+                                  {sub.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </>
                     )}
                   </div>
                 );
               })}
-          </div>
-
-          {/* Subcategory row — smoothly reveals directly beneath the main
-              row (grid-rows 0fr->1fr trick), connected by the line above */}
-          <div
-            className={`grid transition-[grid-template-rows] duration-300 ease-out ${
-              expandedParent ? 'grid-rows-[1fr] mt-5' : 'grid-rows-[0fr] mt-0'
-            }`}
-          >
-            <div className="overflow-hidden">
-              {expandedParent && (
-                <div className="flex flex-wrap gap-2 pl-4 border-l-2 border-paprika/40 ml-1">
-                  {expandedParent.children.map((sub) => (
-                    <button
-                      key={sub.id}
-                      onClick={() => setSelectedCategoryId(sub.id)}
-                      className={`font-body text-xs font-bold px-4 py-2 rounded-full border transition-colors ${
-                        selectedCategoryId === sub.id
-                          ? 'bg-paprika text-paperLight border-paprika'
-                          : 'border-cardboard text-ink hover:border-paprika/50 bg-paperLight'
-                      }`}
-                    >
-                      {sub.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
