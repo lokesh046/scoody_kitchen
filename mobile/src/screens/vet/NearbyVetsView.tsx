@@ -13,6 +13,7 @@ import {
   Platform,
   Animated,
   PanResponder,
+  Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -94,6 +95,18 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
     return () => expandAnim.removeListener(id);
   }, [expandAnim]);
 
+  // A spring with an animated height tends to overshoot and wobble instead
+  // of settling cleanly, which reads as "janky" -- a fixed-duration eased
+  // timing animation gives a controlled, consistent fold/unfold instead.
+  const animateExpand = (toValue: 0 | 1) => {
+    Animated.timing(expandAnim, {
+      toValue,
+      duration: 240,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  };
+
   // Scrolling the results list is a clear "let me browse" signal, so fold
   // the controls away automatically the moment a scroll starts -- same
   // animation as a manual swipe-up. Tapping or dragging the handle (below)
@@ -101,17 +114,16 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
   const collapseControls = () => {
     if (!isControlsExpanded) return;
     setIsControlsExpanded(false);
-    Animated.spring(expandAnim, {
-      toValue: 0,
-      useNativeDriver: false,
-      bounciness: 4,
-    }).start();
+    animateExpand(0);
   };
 
   const controlsPanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponderCapture: (_, gestureState) => Math.abs(gestureState.dy) > 4,
+      // Loose enough that ordinary finger jitter during a tap doesn't get
+      // captured as the start of a drag -- a tap that moves a few px
+      // should still land as a tap, not a tiny accidental drag.
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => Math.abs(gestureState.dy) > 8,
       onPanResponderGrant: () => {
         dragStartValueRef.current = expandValueRef.current;
       },
@@ -121,7 +133,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
         expandAnim.setValue(next);
       },
       onPanResponderRelease: (_, gestureState) => {
-        const moved = Math.abs(gestureState.dy) > 6 || Math.abs(gestureState.dx) > 6;
+        const moved = Math.abs(gestureState.dy) > 10 || Math.abs(gestureState.dx) > 10;
         let shouldExpand: boolean;
         if (!moved) {
           // A tap (negligible movement) on the handle just toggles it.
@@ -134,11 +146,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
           shouldExpand = expandValueRef.current > 0.5;
         }
         setIsControlsExpanded(shouldExpand);
-        Animated.spring(expandAnim, {
-          toValue: shouldExpand ? 1 : 0,
-          useNativeDriver: false,
-          bounciness: 4,
-        }).start();
+        animateExpand(shouldExpand ? 1 : 0);
       },
     })
   ).current;
@@ -617,6 +625,12 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
                       <Text style={styles.fallbackButtonText}>Book Online Consultation</Text>
                     </TouchableOpacity>
                   </View>
+                ) : results.length > 0 ? (
+                  // Short result lists leave blank space below the last
+                  // card on taller screens -- a quiet end marker makes that
+                  // read as "that's everyone nearby" instead of looking cut
+                  // off or broken.
+                  <Text style={styles.endOfResultsText}>That's everyone we found nearby</Text>
                 ) : null
               }
             />
@@ -758,7 +772,7 @@ const styles = {
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     gap: 4,
-    paddingVertical: 10,
+    paddingVertical: 16,
   },
   dragHandleBar: {
     width: 36,
@@ -906,6 +920,14 @@ const styles = {
   listHeaderRow: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, marginBottom: 4 },
   listHeaderText: { fontSize: 11, fontFamily: LEDGER_MONO, color: COLORS.textMuted },
   attributionText: { fontSize: 9, fontFamily: FONT_BODY, color: COLORS.textMuted },
+  endOfResultsText: {
+    fontSize: 10,
+    fontFamily: FONT_BODY,
+    color: COLORS.textMuted,
+    textAlign: 'center' as const,
+    marginTop: 8,
+    marginBottom: 4,
+  },
   resultCard: {
     flexDirection: 'row' as const,
     borderWidth: 1,
