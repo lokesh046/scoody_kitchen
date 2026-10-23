@@ -15,9 +15,22 @@ PLACE_TYPE_BY_CATEGORY = {
     "pharmacy": "pharmacy",
 }
 
+# Google has no distinct place TYPE for a pet/veterinary pharmacy -- its
+# "pharmacy" type covers every drugstore (Apollo Pharmacy, generic chains),
+# which is what Nearby Search returns if asked for plain "pharmacy". Text
+# Search with an actual query string lets Google's own relevance ranking
+# bias toward places whose name/category data mention pets, instead of
+# surfacing the nearest human pharmacy. Clinic search stays on Nearby
+# Search + includedTypes, which is accurate as-is (veterinary_care has no
+# such ambiguity).
+TEXT_QUERY_BY_CATEGORY = {
+    "pharmacy": "pet pharmacy OR veterinary pharmacy OR animal pharmacy",
+}
+
 logger = logging.getLogger(__name__)
 
 PLACES_SEARCH_URL = "https://places.googleapis.com/v1/places:searchNearby"
+PLACES_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
 
 # ~1.1km grid cells at the equator (narrower east-west nearer the poles,
 # which is fine — the goal is cache sharing between nearby users, not exact
@@ -37,7 +50,12 @@ CACHE_TTL_SECONDS = 86400
 def _grid_cache_key(latitude: float, longitude: float, radius_km: float, category: str) -> str:
     grid_lat = round(latitude, GRID_PRECISION)
     grid_lng = round(longitude, GRID_PRECISION)
-    return f"vets:nearby:{category}:{grid_lat}:{grid_lng}:{radius_km}"
+    # "v2" scopes this to the switch from generic includedTypes=pharmacy
+    # Nearby Search to a pet-focused Text Search query -- without it, a
+    # pharmacy search done just before this shipped would keep being
+    # served its old (generic drugstore) cached result for up to 24h.
+    cache_variant = f"{category}v2" if category in TEXT_QUERY_BY_CATEGORY else category
+    return f"vets:nearby:{cache_variant}:{grid_lat}:{grid_lng}:{radius_km}"
 
 
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -76,15 +94,10 @@ async def search_nearby_vet_clinics(
     if cached is not None:
         return cached
 
-    body = {
-        "includedTypes": [PLACE_TYPE_BY_CATEGORY.get(category, "veterinary_care")],
-        "maxResultCount": max_results,
-        "locationRestriction": {
-            "circle": {
-                "center": {"latitude": latitude, "longitude": longitude},
-                "radius": radius_km * 1000.0,
-            }
-        },
+    text_query = TEXT_QUERY_BY_CATEGORY.get(category)
+    location_circle = {
+        "center": {"latitude": latitude, "longitude": longitude},
+        "radius": radius_km * 1000.0,
     }
     headers = {
         "Content-Type": "application/json",
@@ -96,15 +109,33 @@ async def search_nearby_vet_clinics(
         "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location",
     }
 
+    if text_query:
+        url = PLACES_TEXT_SEARCH_URL
+        body = {
+            "textQuery": text_query,
+            "maxResultCount": max_results,
+            # Restriction (hard filter), not bias, to match Nearby Search's
+            # behavior for clinics -- results must be within the radius the
+            # user actually picked, not just "closer gets ranked higher."
+            "locationRestriction": {"circle": location_circle},
+        }
+    else:
+        url = PLACES_SEARCH_URL
+        body = {
+            "includedTypes": [PLACE_TYPE_BY_CATEGORY.get(category, "veterinary_care")],
+            "maxResultCount": max_results,
+            "locationRestriction": {"circle": location_circle},
+        }
+
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            res = await client.post(PLACES_SEARCH_URL, json=body, headers=headers)
+            res = await client.post(url, json=body, headers=headers)
             if res.status_code != 200:
-                logger.warning("Places API searchNearby returned %s: %s", res.status_code, res.text[:300])
+                logger.warning("Places API search returned %s: %s", res.status_code, res.text[:300])
                 return None
             data = res.json()
     except Exception as e:
-        logger.warning("Places API searchNearby call failed: %s", e)
+        logger.warning("Places API search call failed: %s", e)
         return None
 
     results = []
