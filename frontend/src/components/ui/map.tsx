@@ -23,13 +23,16 @@ import { fetchIpLocation } from '../../api/geo';
 
 // maplibre-gl resolves its tile-decoding worker by guessing a plain
 // "maplibre-gl-worker.mjs" filename next to wherever its own module ended
-// up loading from -- a guess that only works unbundled. Vite renames and
-// relocates the library into its own hashed chunk, so that guess 404s and
-// every map silently renders with no tiles (the canvas exists, nothing
-// ever paints onto it). `new URL(..., import.meta.url)` is the one pattern
-// Vite statically recognizes as "bundle this file as a real asset", so it
-// actually emits the worker with a correct hashed path instead of 404ing.
-setWorkerUrl(new URL('maplibre-gl/dist/maplibre-gl-worker.mjs', import.meta.url).href);
+// up loading from -- a guess that only works unbundled, since Vite renames
+// and relocates the library into its own hashed chunk. That worker module
+// also does its own internal `import ... from "./maplibre-gl-shared.mjs"`,
+// which only resolves if that sibling file sits right next to it under its
+// real name -- vite.config.ts's copy-maplibre-worker-files plugin copies
+// both files there verbatim at build time. Point the library at that fixed
+// path instead of letting it guess (which 404s under Vite) or relying on
+// Vite's asset-hashing (which only copies the one file it's told about and
+// doesn't follow a raw copied file's own internal imports).
+setWorkerUrl('/assets/maplibre-worker/maplibre-gl-worker.mjs');
 
 interface MapContextValue {
   map: MLMap | null;

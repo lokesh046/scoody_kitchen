@@ -1,11 +1,45 @@
-import { defineConfig, loadEnv } from 'vite'
+import { copyFileSync, mkdirSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
+// maplibre-gl-worker.mjs does `import ... from "./maplibre-gl-shared.mjs"`
+// internally. Vite's asset pipeline (new URL(..., import.meta.url)) only
+// copies the one file it's pointed at -- it doesn't parse a raw copied
+// asset for further imports, so that sibling file never shipped and the
+// worker's own module load 404'd (reported as a blank Worker 'error'
+// event with no message, per spec, which is why this looked like nothing
+// was wrong from the network tab alone). Copy both files, under their
+// real unhashed names so the worker's relative import still resolves,
+// into dist/assets/maplibre-worker/ ourselves. setWorkerUrl() in map.tsx
+// points at this exact path. If maplibre-gl is ever upgraded, re-check
+// these two files still exist with these names in its dist/ folder --
+// nginx long-caches /assets/ by URL, so a silent file-content change
+// here without a path change could serve stale copies to return visitors
+// for up to a year.
+function copyMaplibreWorkerFiles(): Plugin {
+  return {
+    name: 'copy-maplibre-worker-files',
+    apply: 'build',
+    closeBundle() {
+      const srcDir = resolve(__dirname, 'node_modules/maplibre-gl/dist');
+      const outDir = resolve(__dirname, 'dist/assets/maplibre-worker');
+      mkdirSync(outDir, { recursive: true });
+      for (const file of ['maplibre-gl-worker.mjs', 'maplibre-gl-shared.mjs']) {
+        copyFileSync(resolve(srcDir, file), resolve(outDir, file));
+      }
+    },
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
-    plugins: [react()],
+    plugins: [react(), copyMaplibreWorkerFiles()],
     optimizeDeps: {
       exclude: ['maplibre-gl'],
     },
