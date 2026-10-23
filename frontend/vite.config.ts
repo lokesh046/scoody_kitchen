@@ -40,6 +40,16 @@ export default defineConfig(({ mode }) => {
               if (id.includes('three')) {
                 return 'three-vendor';
               }
+              if (id.includes('maplibre-gl')) {
+                // Own chunk so maplibre-gl.css always ships with any page
+                // that imports the Map component, instead of getting
+                // bundled into whichever unrelated vendor chunk Rollup
+                // happens to group it with (previously landed inside the
+                // Razorpay chunk, so pages that load Map without ever
+                // loading Razorpay -- e.g. /consultations -- got no
+                // maplibre CSS at all and the map rendered blank).
+                return 'maplibre-vendor';
+              }
               if (id.includes('lucide-react')) {
                 return 'icons';
               }

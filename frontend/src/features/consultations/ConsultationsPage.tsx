@@ -838,14 +838,14 @@ export const ConsultationsPage: React.FC = () => {
                     <span className="font-mono text-[8px] uppercase font-bold text-herb">Live Radius</span>
                   </div>
                   <div
-                    className="h-36 w-full border border-cardboard rounded-md relative overflow-hidden bg-paper"
+                    className="h-48 w-full border border-cardboard rounded-md relative overflow-hidden bg-paper"
                     style={{ zIndex: 1 }}
                   >
                     <Map
                       ref={mapRef}
                       center={[mapCoords.lng, mapCoords.lat]}
                       zoom={13}
-                      className="w-full h-full min-h-[144px]"
+                      className="w-full h-full min-h-[192px]"
                       onClick={(coords) => setMapCoords({ lat: coords.lat, lng: coords.lng })}
                     >
                       <MapControls
