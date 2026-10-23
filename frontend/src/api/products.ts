@@ -37,10 +37,20 @@ export interface Category {
   id: number;
   name: string;
   description?: string;
+  parent_category_id?: number | null;
+}
+
+export interface CategoryTreeNode extends Category {
+  children: CategoryTreeNode[];
 }
 
 export const fetchCategories = async (): Promise<Category[]> => {
   const response = await apiClient.get<Category[]>('/categories');
+  return response.data;
+};
+
+export const fetchCategoryTree = async (): Promise<CategoryTreeNode[]> => {
+  const response = await apiClient.get<CategoryTreeNode[]>('/categories/tree');
   return response.data;
 };
 

@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
-import { Search, PawPrint, X, Clock, AlertCircle } from 'lucide-react';
+import { Search, PawPrint, X, Clock, AlertCircle, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
-import { fetchProducts, fetchCategories, fetchCategoryById } from '../../api/products';
+import { fetchProducts, fetchCategoryTree, fetchCategoryById } from '../../api/products';
 import { Eyebrow } from '../../components/Eyebrow';
 import { JournalCard } from '../../components/JournalCard';
 import { RecipeCard } from '../../components/RecipeCard';
@@ -24,6 +24,10 @@ export default function ShopPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  // Which top-level category's subcategory row is currently open. Main
+  // categories with no subcategories (flat/legacy) skip this entirely and
+  // filter directly, same as before this feature existed.
+  const [expandedParentId, setExpandedParentId] = useState<number | null>(null);
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
@@ -67,11 +71,23 @@ export default function ShopPage() {
     placeholderData: (previousData) => previousData,
   });
 
-  const { data: categories, isLoading: categoriesLoading } = useQuery({
-    queryKey: ['categories'],
-    queryFn: fetchCategories,
+  const { data: categoryTree, isLoading: categoriesLoading } = useQuery({
+    queryKey: ['categoryTree'],
+    queryFn: fetchCategoryTree,
     staleTime: 1000 * 60 * 10, // 10 minutes
   });
+
+  const expandedParent = categoryTree?.find((cat) => cat.id === expandedParentId);
+
+  const handleTopLevelClick = useCallback((catId: number, hasChildren: boolean) => {
+    if (hasChildren) {
+      setExpandedParentId((current) => (current === catId ? null : catId));
+      setSelectedCategoryId(null);
+    } else {
+      setSelectedCategoryId(catId);
+      setExpandedParentId(null);
+    }
+  }, []);
 
   const { data: categoryDetails } = useQuery({
     queryKey: ['categoryDetails', selectedCategoryId],
@@ -224,35 +240,75 @@ export default function ShopPage() {
           </div>
         </div>
 
-        {/* Category Filters */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-[11px] uppercase tracking-wider text-paprika font-bold mr-2 flex items-center">
-            <PawPrint className="w-3 h-3 mr-1" /> Filters:
-          </span>
-          <button
-            onClick={() => setSelectedCategoryId(null)}
-            className={`font-body text-xs font-bold px-3 py-1.5 rounded-sm border uppercase transition-colors ${
-              selectedCategoryId === null
-                ? 'bg-ink text-paperLight border-ink'
-                : 'border-cardboard text-ink hover:bg-paperLight'
-            }`}
-          >
-            Show All
-          </button>
-          {!categoriesLoading &&
-            categories?.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategoryId(cat.id)}
-                className={`font-body text-xs font-bold px-3 py-1.5 rounded-sm border uppercase transition-colors ${
-                  selectedCategoryId === cat.id
-                    ? 'bg-ink text-paperLight border-ink'
-                    : 'border-cardboard text-ink hover:bg-paperLight'
-                }`}
-              >
-                {cat.name}
-              </button>
-            ))}
+        {/* Category Filters — top-level row; a category with subcategories
+            expands a second row beneath it instead of filtering directly */}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-paprika font-bold mr-2 flex items-center">
+              <PawPrint className="w-3 h-3 mr-1" /> Filters:
+            </span>
+            <button
+              onClick={() => {
+                setSelectedCategoryId(null);
+                setExpandedParentId(null);
+              }}
+              className={`font-body text-xs font-bold px-3 py-1.5 rounded-sm border uppercase transition-colors ${
+                selectedCategoryId === null && expandedParentId === null
+                  ? 'bg-ink text-paperLight border-ink'
+                  : 'border-cardboard text-ink hover:bg-paperLight'
+              }`}
+            >
+              Show All
+            </button>
+            {!categoriesLoading &&
+              categoryTree?.map((cat) => {
+                const hasChildren = cat.children.length > 0;
+                const isActive = hasChildren
+                  ? expandedParentId === cat.id
+                  : selectedCategoryId === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleTopLevelClick(cat.id, hasChildren)}
+                    aria-expanded={hasChildren ? expandedParentId === cat.id : undefined}
+                    className={`font-body text-xs font-bold px-3 py-1.5 rounded-sm border uppercase transition-colors flex items-center gap-1.5 ${
+                      isActive
+                        ? 'bg-ink text-paperLight border-ink'
+                        : 'border-cardboard text-ink hover:bg-paperLight'
+                    }`}
+                  >
+                    {cat.name}
+                    {hasChildren && (
+                      <ChevronDown
+                        className={`w-3 h-3 transition-transform ${expandedParentId === cat.id ? 'rotate-180' : ''}`}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+          </div>
+
+          {/* Subcategory row — only when a parent with children is expanded */}
+          {expandedParent && (
+            <div className="flex flex-wrap items-center gap-2 pl-4 border-l-2 border-cardboard animate-fade-in-up">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-ink opacity-50 font-bold mr-1">
+                {expandedParent.name} →
+              </span>
+              {expandedParent.children.map((sub) => (
+                <button
+                  key={sub.id}
+                  onClick={() => setSelectedCategoryId(sub.id)}
+                  className={`font-body text-xs font-bold px-3 py-1.5 rounded-sm border uppercase transition-colors ${
+                    selectedCategoryId === sub.id
+                      ? 'bg-paprika text-paperLight border-paprika'
+                      : 'border-cardboard text-ink hover:bg-paperLight'
+                  }`}
+                >
+                  {sub.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Category Description Banner */}
@@ -335,6 +391,7 @@ export default function ShopPage() {
               onClick={() => {
                 setSearch('');
                 setSelectedCategoryId(null);
+                setExpandedParentId(null);
               }}
               className="text-herb underline font-mono text-[10px] uppercase font-bold tracking-wider hover:text-ink transition-colors"
             >
