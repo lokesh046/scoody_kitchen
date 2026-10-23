@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom';
 import {
   Map as MLMap,
   Marker as MLMarker,
+  setWorkerUrl,
   type FlyToOptions,
   type StyleSpecification,
   type GeoJSONSource,
@@ -19,6 +20,16 @@ import {
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Plus, Minus, Compass, Locate, Loader2 } from 'lucide-react';
 import { fetchIpLocation } from '../../api/geo';
+
+// maplibre-gl resolves its tile-decoding worker by guessing a plain
+// "maplibre-gl-worker.mjs" filename next to wherever its own module ended
+// up loading from -- a guess that only works unbundled. Vite renames and
+// relocates the library into its own hashed chunk, so that guess 404s and
+// every map silently renders with no tiles (the canvas exists, nothing
+// ever paints onto it). `new URL(..., import.meta.url)` is the one pattern
+// Vite statically recognizes as "bundle this file as a real asset", so it
+// actually emits the worker with a correct hashed path instead of 404ing.
+setWorkerUrl(new URL('maplibre-gl/dist/maplibre-gl-worker.mjs', import.meta.url).href);
 
 interface MapContextValue {
   map: MLMap | null;
