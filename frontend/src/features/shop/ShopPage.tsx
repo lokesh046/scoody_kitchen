@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
-import { Search, PawPrint, X, Clock, AlertCircle, ChevronDown } from 'lucide-react';
+import { Search, PawPrint, X, Clock, AlertCircle, ChevronDown, Bone, Soup, Package, LayoutGrid } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { fetchProducts, fetchCategoryTree, fetchCategoryById } from '../../api/products';
@@ -13,6 +13,17 @@ import { Header } from '../../components/Header';
 
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
+
+// Round category badges get a simple line icon keyed off the category
+// name, matching the bone/soup/box set from the original drill-down
+// design -- there's no per-category image in the data yet.
+function getCategoryIcon(name: string) {
+  const lower = name.toLowerCase();
+  if (lower.includes('toy')) return Package;
+  if (lower.includes('gravy') || lower.includes('wet')) return Soup;
+  if (lower.includes('food') || lower.includes('dry')) return Bone;
+  return PawPrint;
+}
 
 export default function ShopPage() {
   useDocumentMetadata(
@@ -240,75 +251,110 @@ export default function ShopPage() {
           </div>
         </div>
 
-        {/* Category Filters — top-level row; a category with subcategories
-            expands a second row beneath it instead of filtering directly */}
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[11px] uppercase tracking-wider text-paprika font-bold mr-2 flex items-center">
-              <PawPrint className="w-3 h-3 mr-1" /> Filters:
-            </span>
-            <button
-              onClick={() => {
-                setSelectedCategoryId(null);
-                setExpandedParentId(null);
-              }}
-              className={`font-body text-xs font-bold px-3 py-1.5 rounded-sm border uppercase transition-colors ${
-                selectedCategoryId === null && expandedParentId === null
-                  ? 'bg-ink text-paperLight border-ink'
-                  : 'border-cardboard text-ink hover:bg-paperLight'
-              }`}
-            >
-              Show All
-            </button>
+        {/* Category Explorer — round icon badges; a category with
+            subcategories drops a connecting line to a subcategory row
+            directly beneath it, matching the Figma/Artifact drill-down
+            design. Click-driven (not hover-only) so it works on touch. */}
+        <div className="space-y-0">
+          <span className="font-mono text-[11px] uppercase tracking-wider text-paprika font-bold mb-3 flex items-center">
+            <PawPrint className="w-3 h-3 mr-1" /> Browse by Category
+          </span>
+
+          <div className="flex flex-nowrap items-start gap-8 md:gap-12 overflow-x-auto pb-1 -mx-1 px-1">
+            {/* "Show All" — its own entry, same visual language as a category */}
+            <div className="flex flex-col items-center gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  setSelectedCategoryId(null);
+                  setExpandedParentId(null);
+                }}
+                aria-label="Show all recipes"
+                className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center border-2 transition-all duration-200 ${
+                  selectedCategoryId === null && expandedParentId === null
+                    ? 'bg-ink border-paprika shadow-md scale-105'
+                    : 'bg-paperLight border-cardboard hover:border-paprika/50'
+                }`}
+              >
+                <LayoutGrid
+                  className={`w-6 h-6 md:w-7 md:h-7 ${
+                    selectedCategoryId === null && expandedParentId === null ? 'text-paperLight' : 'text-ink/70'
+                  }`}
+                />
+              </button>
+              <span
+                className={`font-body text-[11px] font-bold uppercase text-center leading-tight ${
+                  selectedCategoryId === null && expandedParentId === null ? 'text-paprika' : 'text-ink/60'
+                }`}
+              >
+                Show All
+              </span>
+            </div>
+
             {!categoriesLoading &&
               categoryTree?.map((cat) => {
                 const hasChildren = cat.children.length > 0;
-                const isActive = hasChildren
-                  ? expandedParentId === cat.id
-                  : selectedCategoryId === cat.id;
+                const isOpen = expandedParentId === cat.id;
+                const isActive = hasChildren ? isOpen : selectedCategoryId === cat.id;
+                const Icon = getCategoryIcon(cat.name);
                 return (
-                  <button
-                    key={cat.id}
-                    onClick={() => handleTopLevelClick(cat.id, hasChildren)}
-                    aria-expanded={hasChildren ? expandedParentId === cat.id : undefined}
-                    className={`font-body text-xs font-bold px-3 py-1.5 rounded-sm border uppercase transition-colors flex items-center gap-1.5 ${
-                      isActive
-                        ? 'bg-ink text-paperLight border-ink'
-                        : 'border-cardboard text-ink hover:bg-paperLight'
-                    }`}
-                  >
-                    {cat.name}
-                    {hasChildren && (
-                      <ChevronDown
-                        className={`w-3 h-3 transition-transform ${expandedParentId === cat.id ? 'rotate-180' : ''}`}
-                      />
+                  <div key={cat.id} className="flex flex-col items-center gap-2 shrink-0 relative">
+                    <button
+                      onClick={() => handleTopLevelClick(cat.id, hasChildren)}
+                      aria-expanded={hasChildren ? isOpen : undefined}
+                      className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center border-2 transition-all duration-200 ${
+                        isActive
+                          ? 'bg-ink border-paprika shadow-md scale-105'
+                          : 'bg-paperLight border-cardboard hover:border-paprika/50'
+                      }`}
+                    >
+                      <Icon className={`w-6 h-6 md:w-7 md:h-7 ${isActive ? 'text-paperLight' : 'text-ink/70'}`} />
+                    </button>
+                    <span
+                      className={`font-body text-[11px] font-bold uppercase text-center leading-tight flex items-center gap-0.5 ${
+                        isActive ? 'text-paprika' : 'text-ink/60'
+                      }`}
+                    >
+                      {cat.name}
+                      {hasChildren && (
+                        <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                      )}
+                    </span>
+                    {/* connecting line down to the subcategory row beneath */}
+                    {isOpen && (
+                      <div className="absolute left-1/2 -translate-x-1/2 -bottom-3 w-px h-3 bg-paprika" aria-hidden="true" />
                     )}
-                  </button>
+                  </div>
                 );
               })}
           </div>
 
-          {/* Subcategory row — only when a parent with children is expanded */}
-          {expandedParent && (
-            <div className="flex flex-wrap items-center gap-2 pl-4 border-l-2 border-cardboard animate-fade-in-up">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-ink opacity-50 font-bold mr-1">
-                {expandedParent.name} →
-              </span>
-              {expandedParent.children.map((sub) => (
-                <button
-                  key={sub.id}
-                  onClick={() => setSelectedCategoryId(sub.id)}
-                  className={`font-body text-xs font-bold px-3 py-1.5 rounded-sm border uppercase transition-colors ${
-                    selectedCategoryId === sub.id
-                      ? 'bg-paprika text-paperLight border-paprika'
-                      : 'border-cardboard text-ink hover:bg-paperLight'
-                  }`}
-                >
-                  {sub.name}
-                </button>
-              ))}
+          {/* Subcategory row — smoothly reveals directly beneath the main
+              row (grid-rows 0fr->1fr trick), connected by the line above */}
+          <div
+            className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+              expandedParent ? 'grid-rows-[1fr] mt-5' : 'grid-rows-[0fr] mt-0'
+            }`}
+          >
+            <div className="overflow-hidden">
+              {expandedParent && (
+                <div className="flex flex-wrap gap-2 pl-4 border-l-2 border-paprika/40 ml-1">
+                  {expandedParent.children.map((sub) => (
+                    <button
+                      key={sub.id}
+                      onClick={() => setSelectedCategoryId(sub.id)}
+                      className={`font-body text-xs font-bold px-4 py-2 rounded-full border transition-colors ${
+                        selectedCategoryId === sub.id
+                          ? 'bg-paprika text-paperLight border-paprika'
+                          : 'border-cardboard text-ink hover:border-paprika/50 bg-paperLight'
+                      }`}
+                    >
+                      {sub.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Category Description Banner */}

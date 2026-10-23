@@ -136,12 +136,14 @@ export const AdminDashboard: React.FC = () => {
   // Form States - New Category
   const [categoryName, setCategoryName] = useState('');
   const [categoryDesc, setCategoryDesc] = useState('');
+  const [categoryParentId, setCategoryParentId] = useState('');
   const [showCategoryForm, setShowCategoryForm] = useState(false);
 
   // Form States - Edit Category
   const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [editingCategoryDesc, setEditingCategoryDesc] = useState('');
+  const [editingCategoryParentId, setEditingCategoryParentId] = useState('');
 
   // Form States - Banners
   const [bannerTitle, setBannerTitle] = useState('');
@@ -343,7 +345,11 @@ export const AdminDashboard: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['adminCategories'] });
       setCategoryName('');
       setCategoryDesc('');
+      setCategoryParentId('');
       setShowCategoryForm(false);
+    },
+    onError: (err: any) => {
+      alert(`Create category failed: ${err?.response?.data?.detail || err.message}`);
     }
   });
 
@@ -363,8 +369,8 @@ export const AdminDashboard: React.FC = () => {
   });
 
   const updateCategoryMutation = useMutation({
-    mutationFn: ({ id, name, description }: { id: number; name: string; description: string }) =>
-      updateCategory(id, { name, description }),
+    mutationFn: ({ id, name, description, parent_category_id }: { id: number; name: string; description: string; parent_category_id: number | null }) =>
+      updateCategory(id, { name, description, parent_category_id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminCategories'] });
       queryClient.invalidateQueries({ queryKey: ['adminProducts'] });
@@ -428,6 +434,7 @@ export const AdminDashboard: React.FC = () => {
     if (categoryDetails && editingCategoryId !== null) {
       setEditingCategoryName(categoryDetails.name);
       setEditingCategoryDesc(categoryDetails.description || '');
+      setEditingCategoryParentId(categoryDetails.parent_category_id ? String(categoryDetails.parent_category_id) : '');
     }
   }, [categoryDetails, editingCategoryId]);
   const uploadProductImageMutation = useMutation({
@@ -1125,7 +1132,11 @@ export const AdminDashboard: React.FC = () => {
                     onSubmit={(e) => {
                       e.preventDefault();
                       if (categoryName && categoryDesc) {
-                        createCategoryMutation.mutate({ name: categoryName, description: categoryDesc });
+                        createCategoryMutation.mutate({
+                          name: categoryName,
+                          description: categoryDesc,
+                          parent_category_id: categoryParentId ? Number(categoryParentId) : null,
+                        });
                       }
                     }}
                     className="border border-cardboard border-dashed p-5 rounded-sm space-y-4 bg-paperLight"
@@ -1148,6 +1159,25 @@ export const AdminDashboard: React.FC = () => {
                       rows={3}
                       className="bg-paper border border-cardboard w-full p-2.5 text-xs text-ink outline-none font-body"
                     />
+                    <div className="space-y-1">
+                      <label className="font-mono text-[8px] uppercase font-bold text-herb block">
+                        Parent Category (optional — leave blank for a main category)
+                      </label>
+                      <select
+                        value={categoryParentId}
+                        onChange={(e) => setCategoryParentId(e.target.value)}
+                        className="bg-paper border border-cardboard w-full p-2.5 text-xs text-ink outline-none"
+                      >
+                        <option value="">None — this is a main category</option>
+                        {categories
+                          ?.filter((c) => !c.parent_category_id)
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
                     <button
                       type="submit"
                       disabled={createCategoryMutation.isPending}
@@ -1199,10 +1229,30 @@ export const AdminDashboard: React.FC = () => {
                                           className="bg-paperLight border border-cardboard w-full p-2 text-xs text-ink outline-none font-body rounded-sm"
                                         />
                                       </div>
+                                      <div className="space-y-1">
+                                        <label className="font-mono text-[8px] uppercase font-bold text-herb block">Parent Category:</label>
+                                        <select
+                                          value={editingCategoryParentId}
+                                          onChange={(e) => setEditingCategoryParentId(e.target.value)}
+                                          className="bg-paperLight border border-cardboard w-full p-2 text-xs text-ink outline-none rounded-sm"
+                                        >
+                                          <option value="">None — this is a main category</option>
+                                          {categories
+                                            ?.filter((c) => !c.parent_category_id && c.id !== cat.id)
+                                            .map((c) => (
+                                              <option key={c.id} value={c.id}>
+                                                {c.name}
+                                              </option>
+                                            ))}
+                                        </select>
+                                      </div>
                                       <div className="flex space-x-2 justify-end pt-1">
                                         <button
                                           type="button"
-                                          onClick={() => setEditingCategoryId(null)}
+                                          onClick={() => {
+                                            setEditingCategoryId(null);
+                                            setEditingCategoryParentId('');
+                                          }}
                                           className="px-2.5 py-1 text-[9px] font-mono uppercase bg-paper border border-cardboard text-ink font-bold hover:bg-paperLight rounded-sm"
                                         >
                                           Cancel
@@ -1218,7 +1268,8 @@ export const AdminDashboard: React.FC = () => {
                                             updateCategoryMutation.mutate({
                                               id: cat.id,
                                               name: editingCategoryName,
-                                              description: editingCategoryDesc
+                                              description: editingCategoryDesc,
+                                              parent_category_id: editingCategoryParentId ? Number(editingCategoryParentId) : null,
                                             });
                                           }}
                                           className="px-2.5 py-1 text-[9px] font-mono uppercase bg-turmeric text-paperLight font-bold hover:bg-opacity-95 rounded-sm flex items-center space-x-1"
@@ -1237,6 +1288,11 @@ export const AdminDashboard: React.FC = () => {
                                 <div className="flex justify-between items-center w-full">
                                   <div>
                                     <strong className="text-ink text-sm">{cat.name}</strong>
+                                    {cat.parent_category_id && (
+                                      <span className="ml-2 font-mono text-[8px] uppercase font-bold text-paprika">
+                                        ↳ in {categories?.find((p) => p.id === cat.parent_category_id)?.name || '…'}
+                                      </span>
+                                    )}
                                     <p className="text-[11px] text-ink opacity-70 mt-0.5">{cat.description}</p>
                                   </div>
                                   <div className="flex items-center space-x-3">

@@ -17,6 +17,7 @@ export interface CreateProductData {
 export interface CreateCategoryData {
   name: string;
   description: string;
+  parent_category_id?: number | null;
 }
 
 export const createProduct = async (productData: CreateProductData): Promise<ProductResponse> => {
