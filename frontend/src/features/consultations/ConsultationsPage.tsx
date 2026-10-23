@@ -1103,9 +1103,11 @@ export const ConsultationsPage: React.FC = () => {
               <h1 className="font-display font-black text-2xl sm:text-4xl text-ink tracking-tight">
                 Veterinary Consultations
               </h1>
-              <p className="font-body text-xs sm:text-sm text-ink opacity-75 max-w-2xl mt-1">
-                Schedule one-on-one live video consultations with verified companion nutritionists and veterinary doctors.
-              </p>
+              {pageMode === 'consult' && (
+                <p className="font-body text-xs sm:text-sm text-ink opacity-75 max-w-2xl mt-1">
+                  Schedule one-on-one live video consultations with verified companion nutritionists and veterinary doctors.
+                </p>
+              )}
             </div>
             <div className="flex items-center space-x-2 shrink-0">
               <span className="inline-flex items-center px-3 py-1.5 rounded-sm text-xs font-mono font-bold bg-herb/10 text-herb border border-herb/30">
