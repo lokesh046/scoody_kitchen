@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatNaiveDateTime } from '../../utils/date';
 import { fetchMyPets, fetchPetHealthRecords } from '../../api/pets';
-import { fetchIpLocation, lookupPincode } from '../../api/geo';
+import { fetchIpLocation, lookupPincode, reverseGeocode } from '../../api/geo';
 import { API_BASE_URL } from '../../api/client';
 import { useAuthStore } from '../../store/auth';
 import {
@@ -139,6 +139,15 @@ export const ConsultationsPage: React.FC = () => {
   const [searchError, setSearchError] = useState('');
   const [hasSearchedNearby, setHasSearchedNearby] = useState(false);
   const [showManualLocationControls, setShowManualLocationControls] = useState(false);
+  // Human-readable readout of the searched coordinates ("Indiranagar,
+  // Bengaluru" / "Postal Code: 560038 · Karnataka") -- best-effort, from
+  // the same reverse-geocode service Checkout uses; null just means we
+  // show the raw coordinates instead, never a fabricated placename.
+  const [nearbyLocationLabel, setNearbyLocationLabel] = useState<{
+    locality: string;
+    postcode: string;
+    state: string;
+  } | null>(null);
   // Lazy details for Google-sourced clinics — fetched only when a clinic
   // card is opened in the side drawer, cached by place_id so reopening
   // doesn't re-fetch.
@@ -324,6 +333,24 @@ export const ConsultationsPage: React.FC = () => {
     setIsSearchingNearby(true);
     setHasSearchedNearby(true);
     setInspectingClinic(null);
+
+    // Fire-and-forget -- the search itself doesn't need to wait on this,
+    // and a failed/slow lookup just means the location panel keeps
+    // showing raw coordinates instead of a place name.
+    reverseGeocode(lat, lng)
+      .then((data) => {
+        const addr = data?.address;
+        if (!addr) return;
+        const locality = addr.suburb || addr.neighbourhood || addr.road || addr.city || addr.town || '';
+        const city = addr.city || addr.town || addr.village || '';
+        setNearbyLocationLabel({
+          locality: [locality, city].filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i).join(', '),
+          postcode: addr.postcode || '',
+          state: addr.state || addr.region || '',
+        });
+      })
+      .catch(() => setNearbyLocationLabel(null));
+
     try {
       const data = await fetchNearbyClinics(lat, lng, radius, category);
       setNearbyClinics(data.results);
@@ -690,295 +717,352 @@ export const ConsultationsPage: React.FC = () => {
   // Specialist Directory (the page's default landing view), not buried
   // inside the booking wizard where it's easy to never see at all.
   const vetsNearMeSection = isGpsEnabled && (
-    <div className="border border-cardboard rounded-md bg-paperLight overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-dashed border-cardboard">
-        <div className="flex items-center gap-2">
-          <span className="w-7 h-7 rounded-full bg-turmeric/15 flex items-center justify-center shrink-0">
-            <Compass className="w-3.5 h-3.5 text-turmeric" />
-          </span>
-          <span className="font-mono text-[11px] uppercase font-bold text-turmeric tracking-wide">Vets Near Me</span>
-        </div>
-        {hasSearchedNearby && nearbyClinics.length > 0 && (
-          <span className="font-mono text-[9px] uppercase font-bold text-herb bg-herb/10 border border-herb/30 px-2 py-0.5 rounded-sm shrink-0">
-            {nearbyClinics.length} found
-          </span>
-        )}
-      </div>
-
-      <div className="p-4 space-y-3">
-      <div className="flex gap-2">
+    <div className="space-y-5">
+      {/* Category toggle */}
+      <div className="inline-flex border border-cardboard rounded-full overflow-hidden bg-paperLight">
         <button
           type="button"
           onClick={() => handleChangeCategory('clinic')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 font-mono text-[10px] uppercase font-bold rounded-sm border cursor-pointer transition-colors ${
-            nearbyCategory === 'clinic' ? 'bg-herb border-herb text-white' : 'border-cardboard text-ink/70 hover:bg-paper'
+          className={`flex items-center gap-1.5 px-4 py-2 font-mono text-[10px] uppercase font-bold tracking-wide cursor-pointer transition-colors ${
+            nearbyCategory === 'clinic' ? 'bg-herb text-white' : 'text-ink/60 hover:bg-paper'
           }`}
         >
           <Stethoscope className="w-3.5 h-3.5" />
-          <span>Clinic</span>
+          Practices &amp; Hospitals
+          {nearbyCategory === 'clinic' && hasSearchedNearby && <span className="opacity-80">({nearbyClinics.length})</span>}
         </button>
         <button
           type="button"
           onClick={() => handleChangeCategory('pharmacy')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 font-mono text-[10px] uppercase font-bold rounded-sm border cursor-pointer transition-colors ${
-            nearbyCategory === 'pharmacy' ? 'bg-herb border-herb text-white' : 'border-cardboard text-ink/70 hover:bg-paper'
+          className={`flex items-center gap-1.5 px-4 py-2 font-mono text-[10px] uppercase font-bold tracking-wide cursor-pointer transition-colors border-l border-cardboard ${
+            nearbyCategory === 'pharmacy' ? 'bg-herb text-white' : 'text-ink/60 hover:bg-paper'
           }`}
         >
           <Pill className="w-3.5 h-3.5" />
-          <span>Pharmacy</span>
+          Apothecary &amp; Pharmacies
+          {nearbyCategory === 'pharmacy' && hasSearchedNearby && <span className="opacity-80">({nearbyClinics.length})</span>}
         </button>
       </div>
 
-      <button
-        type="button"
-        onClick={handleFindVetsNearMe}
-        disabled={isSearchingNearby}
-        className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[10px] uppercase py-3 font-bold rounded-sm flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer transition-colors"
-      >
-        {isSearchingNearby ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <>
-            <MapPin className="w-4 h-4" />
-            <span>Find Vets Near Me</span>
-          </>
-        )}
-      </button>
-
-      <button
-        type="button"
-        onClick={() => setShowManualLocationControls((v) => !v)}
-        className="w-full text-center font-mono text-[9px] uppercase font-bold text-ink/50 hover:text-ink/80 cursor-pointer"
-      >
-        {showManualLocationControls ? 'Hide manual search' : 'Search a different location'}
-      </button>
-
-      <FeaturePrivacyNote>
-        With your permission, we use your device location to find nearby clinics via Google Places. You
-        can decline and search by pincode instead.
-      </FeaturePrivacyNote>
-
-      {showManualLocationControls && (
-        <div className="space-y-2.5 pt-1 border-t border-dashed border-cardboard border-opacity-40">
-          <form onSubmit={handlePincodeSearch} className="flex gap-2 pt-2">
-            <div className="relative flex-1">
-              <Search className="w-3.5 h-3.5 text-ink/35 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search Pincode / Zip Code"
-                value={pincodeQuery}
-                onChange={(e) => setPincodeQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink text-xs focus:outline-none focus:border-turmeric"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isPincodeSearching}
-              className="px-4 py-1.5 border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase font-bold rounded-sm disabled:opacity-50 cursor-pointer shrink-0"
-            >
-              {isPincodeSearching ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Search'}
-            </button>
-          </form>
-
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-[8px] uppercase font-bold text-ink/40">
-              Drag the pin, click the map, or use Locate Me
-            </span>
-            <span className="font-mono text-[8px] text-ink/40">
-              [{mapCoords.lat.toFixed(4)}, {mapCoords.lng.toFixed(4)}]
-            </span>
-          </div>
-
-          <div
-            className="h-56 w-full border border-cardboard rounded-md relative overflow-hidden bg-paper"
-            style={{ zIndex: 1 }}
-          >
-            <Map
-              ref={mapRef}
-              center={[mapCoords.lng, mapCoords.lat]}
-              zoom={13}
-              className="w-full h-full min-h-[220px]"
-              onClick={(coords) => setMapCoords({ lat: coords.lat, lng: coords.lng })}
-            >
-              <MapControls
-                position="top-right"
-                showZoom={true}
-                showCompass={false}
-                showGeolocate={true}
-                isLocating={isSearchingNearby}
-                onGeolocate={(coords) => setMapCoords({ lat: coords.latitude, lng: coords.longitude })}
-              />
-              <MapMarker
-                position={[mapCoords.lng, mapCoords.lat]}
-                draggable={true}
-                onDragEnd={(coords) => setMapCoords({ lat: coords.lat, lng: coords.lng })}
-              >
-                <div className="flex flex-col items-center cursor-grab active:cursor-grabbing -translate-y-1/2">
-                  <MapPin className="w-7 h-7 text-turmeric fill-turmeric/20 drop-shadow-md" />
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5 items-start">
+        {/* LEFT: location & filter panel */}
+        <div className="space-y-4">
+          <div className="border border-cardboard rounded-md bg-paperLight p-4 space-y-4">
+            {/* Target Geography */}
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[9px] uppercase font-bold text-paprika tracking-wide">Target Geography</span>
+                {hasSearchedNearby && (
+                  <span className="flex items-center gap-1 font-mono text-[8px] uppercase font-bold text-herb">
+                    <span className="w-1.5 h-1.5 rounded-full bg-herb animate-pulse" />
+                    Live Geolocation
+                  </span>
+                )}
+              </div>
+              {hasSearchedNearby ? (
+                <div className="mt-2 flex items-start gap-2">
+                  <MapPin className="w-4 h-4 text-herb shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="font-body text-sm font-bold text-ink truncate">
+                      {nearbyLocationLabel?.locality || `${mapCoords.lat.toFixed(4)}, ${mapCoords.lng.toFixed(4)}`}
+                    </p>
+                    {(nearbyLocationLabel?.postcode || nearbyLocationLabel?.state) && (
+                      <p className="font-mono text-[10px] text-ink/50">
+                        {[
+                          nearbyLocationLabel.postcode && `Postal Code: ${nearbyLocationLabel.postcode}`,
+                          nearbyLocationLabel.state,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </MapMarker>
-            </Map>
-          </div>
+              ) : (
+                <p className="mt-2 font-body text-xs text-ink/50">Not yet detected.</p>
+              )}
+            </div>
 
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-[9px] uppercase font-bold text-ink/50 shrink-0">Radius:</span>
-            {([5, 15, 25] as const).map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => setSearchRadius(preset)}
-                className={`px-2.5 py-1 font-mono text-[9px] uppercase font-bold rounded-sm border cursor-pointer transition-colors ${
-                  searchRadius === preset
-                    ? 'bg-turmeric border-turmeric text-ink'
-                    : 'border-cardboard text-ink/70 hover:bg-paper'
-                }`}
-              >
-                {preset} km
-              </button>
-            ))}
-          </div>
+            <button
+              type="button"
+              onClick={handleFindVetsNearMe}
+              disabled={isSearchingNearby}
+              className="w-full bg-herb hover:bg-herb/90 text-white font-mono text-[10px] uppercase py-3 font-bold rounded-sm flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer transition-colors"
+            >
+              {isSearchingNearby ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Navigation className="w-4 h-4" />
+                  <span>Detect My Current Position</span>
+                </>
+              )}
+            </button>
 
-          <button
-            type="button"
-            onClick={handleSearchThisLocation}
-            disabled={isSearchingNearby}
-            className="w-full bg-turmeric text-ink font-mono text-[9px] uppercase py-2 font-bold rounded-sm flex items-center justify-center disabled:opacity-50 cursor-pointer"
-          >
-            {isSearchingNearby ? <Loader2 className="w-3 h-3 animate-spin" /> : <span>Search This Location</span>}
-          </button>
-        </div>
-      )}
+            <button
+              type="button"
+              onClick={() => setShowManualLocationControls((v) => !v)}
+              className="w-full text-center font-mono text-[9px] uppercase font-bold text-ink/50 hover:text-ink/80 cursor-pointer"
+            >
+              {showManualLocationControls ? 'Hide manual search' : 'Search a different location'}
+            </button>
 
-      {searchError && (
-        <div className="text-[10px] text-paprika bg-rose-50 p-2 rounded-sm font-body">
-          {searchError}
-        </div>
-      )}
+            {showManualLocationControls && (
+              <div className="space-y-4 pt-1 border-t border-dashed border-cardboard border-opacity-40">
+                <div className="space-y-2 pt-3">
+                  <span className="font-mono text-[9px] uppercase font-bold text-paprika tracking-wide">Postal Code Lookup</span>
+                  <form onSubmit={handlePincodeSearch} className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Search className="w-3.5 h-3.5 text-ink/35 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Search Pincode / Zip Code"
+                        value={pincodeQuery}
+                        onChange={(e) => setPincodeQuery(e.target.value)}
+                        className="w-full pl-9 pr-3 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink text-xs focus:outline-none focus:border-turmeric"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isPincodeSearching}
+                      className="px-4 py-1.5 border border-cardboard hover:bg-paper text-ink font-mono text-[9px] uppercase font-bold rounded-sm disabled:opacity-50 cursor-pointer shrink-0"
+                    >
+                      {isPincodeSearching ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Go'}
+                    </button>
+                  </form>
+                </div>
 
-      {hasSearchedNearby && nearbyClinics.length > 0 && (
-        <div className="space-y-2.5 pt-1">
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-mono text-[9px] uppercase font-bold text-ink/50">
-              {nearbyClinics.length} found within {nearbyRadiusUsed ?? searchRadius} km
-            </span>
-            {nearbyClinics.some((c) => c.source === 'google') && (
-              <span className="font-mono text-[8px] uppercase font-bold text-ink/40 bg-paper border border-cardboard rounded-full px-2.5 py-1 shrink-0">
-                Powered by Google
-              </span>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[9px] uppercase font-bold text-paprika tracking-wide">Geographic Bounds</span>
+                    <span className="font-mono text-[8px] uppercase font-bold text-herb">Live Radius</span>
+                  </div>
+                  <div
+                    className="h-36 w-full border border-cardboard rounded-md relative overflow-hidden bg-paper"
+                    style={{ zIndex: 1 }}
+                  >
+                    <Map
+                      ref={mapRef}
+                      center={[mapCoords.lng, mapCoords.lat]}
+                      zoom={13}
+                      className="w-full h-full min-h-[144px]"
+                      onClick={(coords) => setMapCoords({ lat: coords.lat, lng: coords.lng })}
+                    >
+                      <MapControls
+                        position="top-right"
+                        showZoom={false}
+                        showCompass={false}
+                        showGeolocate={true}
+                        isLocating={isSearchingNearby}
+                        onGeolocate={(coords) => setMapCoords({ lat: coords.latitude, lng: coords.longitude })}
+                      />
+                      <MapMarker
+                        position={[mapCoords.lng, mapCoords.lat]}
+                        draggable={true}
+                        onDragEnd={(coords) => setMapCoords({ lat: coords.lat, lng: coords.lng })}
+                      >
+                        <div className="flex flex-col items-center cursor-grab active:cursor-grabbing -translate-y-1/2">
+                          <MapPin className="w-6 h-6 text-turmeric fill-turmeric/20 drop-shadow-md" />
+                        </div>
+                      </MapMarker>
+                    </Map>
+                  </div>
+                  <p className="font-mono text-[8px] uppercase font-bold text-ink/40">
+                    Drag the pin, click the map, or use Locate Me
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="font-mono text-[9px] uppercase font-bold text-paprika tracking-wide">Proximity Radius</span>
+                  <div className="flex gap-2">
+                    {([5, 15, 25] as const).map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setSearchRadius(preset)}
+                        className={`flex-1 py-1.5 font-mono text-[9px] uppercase font-bold rounded-sm border cursor-pointer transition-colors ${
+                          searchRadius === preset
+                            ? 'bg-herb border-herb text-white'
+                            : 'border-cardboard text-ink/70 hover:bg-paper'
+                        }`}
+                      >
+                        {preset} km
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSearchThisLocation}
+                  disabled={isSearchingNearby}
+                  className="w-full bg-paprika hover:bg-opacity-90 text-white font-mono text-[9px] uppercase py-2.5 font-bold rounded-sm flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer transition-colors"
+                >
+                  {isSearchingNearby ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      <Navigation className="w-3.5 h-3.5" />
+                      <span>Update Search Perimeter</span>
+                    </>
+                  )}
+                </button>
+              </div>
             )}
           </div>
 
-          <div className="space-y-3">
-            {nearbyClinics.map((clinic, idx) => {
-              const key = clinic.source === 'registered' ? `reg-${clinic.doctor_id}` : `google-${clinic.place_id}`;
-              const isGoogle = clinic.source === 'google';
-              const imageUrl = isGoogle
-                ? clinic.place_id ? buildClinicPhotoUrl(clinic.place_id) : null
-                : clinic.profile_image_url;
-              const handleOpen = () =>
-                isGoogle
-                  ? handleOpenClinicDrawer(clinic)
-                  : clinic.doctor_id && setSelectedDoctorId(clinic.doctor_id.toString());
-
-              return (
-                <div
-                  key={key || idx}
-                  role="button"
-                  tabIndex={0}
-                  onClick={handleOpen}
-                  onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleOpen()}
-                  className="text-left border border-cardboard rounded-md bg-paperLight p-3.5 hover:border-turmeric hover:shadow-xs transition-all cursor-pointer flex gap-3.5"
-                >
-                  {imageUrl ? (
-                    <img src={imageUrl} alt="" className="w-20 h-20 rounded-md object-cover border border-cardboard shrink-0 bg-paper" />
-                  ) : (
-                    <div className="w-20 h-20 rounded-md border border-cardboard shrink-0 bg-herb/10 flex items-center justify-center">
-                      {nearbyCategory === 'pharmacy' ? (
-                        <Pill className="w-7 h-7 text-herb" />
-                      ) : (
-                        <Stethoscope className="w-7 h-7 text-herb" />
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="font-body text-sm font-bold text-ink truncate">
-                        {clinic.name || clinic.clinic_name || 'Unnamed clinic'}
-                      </span>
-                      <span className="font-mono text-[9px] font-bold text-ink/50 bg-paper border border-cardboard rounded-full px-2 py-0.5 shrink-0">
-                        {clinic.distance_km.toFixed(1)} km
-                      </span>
-                    </div>
-
-                    {clinic.source === 'registered' ? (
-                      <span className="inline-flex items-center gap-1 font-mono text-[8px] uppercase font-bold text-herb bg-herb/15 rounded-full px-2 py-0.5 w-fit">
-                        <ShieldCheck className="w-2.5 h-2.5" />
-                        Registered
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center font-mono text-[8px] uppercase font-bold text-ink/50 bg-ink/8 rounded-full px-2 py-0.5 w-fit">
-                        Google
-                      </span>
-                    )}
-
-                    <p className="font-body text-xs text-ink/60 line-clamp-1">
-                      {clinic.address || clinic.specialization || ''}
-                    </p>
-
-                    <div className="flex items-center gap-3 flex-wrap">
-                      {clinic.phone && (
-                        <span className="flex items-center gap-1 text-[11px] font-body text-ink/70">
-                          <Phone className="w-3 h-3 text-herb shrink-0" />
-                          {clinic.phone}
-                        </span>
-                      )}
-                      {clinic.opening_hours && clinic.opening_hours.length > 0 && (
-                        <span className="flex items-center gap-1 text-[11px] font-body text-ink/70">
-                          <Clock className="w-3 h-3 text-herb shrink-0" />
-                          <span className="truncate">{clinic.opening_hours[0]}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="pt-1.5 mt-auto">
-                      {clinic.source === 'registered' ? (
-                        <span className="inline-flex items-center gap-1.5 bg-herb text-white font-mono text-[9px] uppercase font-bold px-3.5 py-2 rounded-full">
-                          Book Appointment
-                          <ChevronRight className="w-3 h-3" />
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 bg-paper border border-cardboard text-ink font-mono text-[9px] uppercase font-bold px-3.5 py-2 rounded-full">
-                          View Details
-                          <ChevronRight className="w-3 h-3" />
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="border border-herb/30 bg-herb/5 rounded-md p-4 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-herb shrink-0" />
+              <span className="font-mono text-[10px] uppercase font-bold text-herb">Hearth &amp; One Guarantee</span>
+            </div>
+            <p className="font-body text-xs text-ink/70 leading-relaxed">
+              Clinics labeled "Registered" follow verified sanitary protocols, botanical safety standards, and
+              transparent billing schedules.
+            </p>
           </div>
         </div>
-      )}
 
-      {hasSearchedNearby && nearbyFallback && (
-        <div className="p-2.5 bg-turmeric/10 border border-turmeric border-opacity-40 rounded-sm text-[10px] font-body text-ink/80">
-          No nearby clinics found. Consider{' '}
-          <button
-            type="button"
-            onClick={() => {
-              setPageMode('consult');
-              setActiveSection('book');
-            }}
-            className="text-herb underline font-bold cursor-pointer"
-          >
-            booking an online consultation
-          </button>{' '}
-          instead.
+        {/* RIGHT: results */}
+        <div className="space-y-4 min-w-0">
+          {searchError && (
+            <div className="text-[10px] text-paprika bg-rose-50 p-2.5 rounded-sm font-body">{searchError}</div>
+          )}
+
+          {hasSearchedNearby && nearbyClinics.length > 0 && (
+            <>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <h3 className="font-display font-black text-lg text-ink">Verified Care Destinations</h3>
+                  <p className="font-mono text-[10px] uppercase text-ink/50">
+                    {nearbyClinics.length} within {nearbyRadiusUsed ?? searchRadius} km
+                  </p>
+                </div>
+                {nearbyClinics.some((c) => c.source === 'google') && (
+                  <span className="flex items-center gap-1.5 font-mono text-[8px] uppercase font-bold text-ink/40 bg-paper border border-cardboard rounded-full px-2.5 py-1 shrink-0">
+                    Powered by Google Places
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                {nearbyClinics.map((clinic, idx) => {
+                  const key = clinic.source === 'registered' ? `reg-${clinic.doctor_id}` : `google-${clinic.place_id}`;
+                  const isGoogle = clinic.source === 'google';
+                  const imageUrl = isGoogle
+                    ? clinic.place_id ? buildClinicPhotoUrl(clinic.place_id) : null
+                    : clinic.profile_image_url;
+                  const title = isGoogle ? clinic.name : clinic.clinic_name || clinic.name;
+                  const handleOpen = () =>
+                    isGoogle
+                      ? handleOpenClinicDrawer(clinic)
+                      : clinic.doctor_id && setSelectedDoctorId(clinic.doctor_id.toString());
+
+                  return (
+                    <div
+                      key={key || idx}
+                      role="button"
+                      tabIndex={0}
+                      onClick={handleOpen}
+                      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleOpen()}
+                      className="text-left border border-cardboard rounded-md bg-paperLight p-3.5 hover:border-turmeric hover:shadow-xs transition-all cursor-pointer flex gap-3.5"
+                    >
+                      {imageUrl ? (
+                        <img src={imageUrl} alt="" className="w-20 h-20 rounded-md object-cover border border-cardboard shrink-0 bg-paper" />
+                      ) : (
+                        <div className="w-20 h-20 rounded-md border border-cardboard shrink-0 bg-herb/10 flex items-center justify-center">
+                          {nearbyCategory === 'pharmacy' ? (
+                            <Pill className="w-7 h-7 text-herb" />
+                          ) : (
+                            <Stethoscope className="w-7 h-7 text-herb" />
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-body text-sm font-bold text-ink truncate">
+                            {title || 'Unnamed clinic'}
+                          </span>
+                          <span className="font-mono text-[9px] font-bold text-ink/50 bg-paper border border-cardboard rounded-full px-2 py-0.5 shrink-0">
+                            {clinic.distance_km.toFixed(1)} km
+                          </span>
+                        </div>
+
+                        {clinic.source === 'registered' ? (
+                          <span className="inline-flex items-center gap-1 font-mono text-[8px] uppercase font-bold text-herb bg-herb/15 rounded-full px-2 py-0.5 w-fit">
+                            <ShieldCheck className="w-2.5 h-2.5" />
+                            Registered
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center font-mono text-[8px] uppercase font-bold text-ink/50 bg-ink/8 rounded-full px-2 py-0.5 w-fit">
+                            Google
+                          </span>
+                        )}
+
+                        {!isGoogle && clinic.name && (
+                          <p className="text-xs font-body text-ink/70">Dr. {clinic.name}</p>
+                        )}
+
+                        <p className="font-body text-xs text-ink/60 line-clamp-1">{clinic.address || ''}</p>
+
+                        {!isGoogle && clinic.specialization && (
+                          <p className="font-body text-xs text-ink/60">
+                            <span className="font-bold text-ink/80">Specialty:</span> {clinic.specialization}
+                          </p>
+                        )}
+
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          {!isGoogle && clinic.consultation_fee ? (
+                            <span className="font-mono text-[9px] uppercase font-bold text-turmeric">
+                              ₹{clinic.consultation_fee} consultation
+                            </span>
+                          ) : (
+                            <span />
+                          )}
+                          {clinic.source === 'registered' ? (
+                            <span className="inline-flex items-center gap-1.5 bg-herb text-white font-mono text-[9px] uppercase font-bold px-3.5 py-2 rounded-full">
+                              Book In-Person Exam
+                              <ChevronRight className="w-3 h-3" />
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 bg-paper border border-cardboard text-ink font-mono text-[9px] uppercase font-bold px-3.5 py-2 rounded-full">
+                              View Full Schedule
+                              <ChevronRight className="w-3 h-3" />
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {hasSearchedNearby && nearbyFallback && (
+            <div className="p-2.5 bg-turmeric/10 border border-turmeric border-opacity-40 rounded-sm text-[10px] font-body text-ink/80">
+              No nearby clinics found. Consider{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setPageMode('consult');
+                  setActiveSection('book');
+                }}
+                className="text-herb underline font-bold cursor-pointer"
+              >
+                booking an online consultation
+              </button>{' '}
+              instead.
+            </div>
+          )}
         </div>
-      )}
       </div>
+
+      <FeaturePrivacyNote>
+        With your explicit permission, we access your device location to locate licensed veterinary clinics
+        and registered dispensaries via Google Places. You can decline and specify a postal code at any time.
+      </FeaturePrivacyNote>
     </div>
   );
 
