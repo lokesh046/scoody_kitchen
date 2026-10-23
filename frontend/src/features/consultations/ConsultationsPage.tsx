@@ -1083,7 +1083,7 @@ export const ConsultationsPage: React.FC = () => {
       <Header activeTab="consultations" onCartToggle={() => setIsCartOpen(true)} />
 
       {/* Main Container */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 md:px-8 py-8">
+      <main className="flex-grow max-w-[1800px] w-full mx-auto px-4 md:px-8 py-8">
         
         {/* Back Link */}
         <div className="mb-6 text-left">
@@ -1136,7 +1136,7 @@ export const ConsultationsPage: React.FC = () => {
         </div>
 
         {pageMode === 'nearby' ? (
-          <div className="max-w-2xl mx-auto text-left animate-fade-in">
+          <div className="w-full text-left animate-fade-in">
             {vetsNearMeSection}
           </div>
         ) : (
