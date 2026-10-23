@@ -33,11 +33,11 @@ import {
   buildClinicPhotoUrl,
   type NearbyClinicResult,
   type NearbyClinicCategory,
-  type PlaceDetailsResponse,
 } from '../../api/doctors';
 import { lookupPincode } from '../../api/geo';
 import { Doctor } from '../../types';
 import { FeaturePrivacyNote } from '../../components/FeaturePrivacyNote';
+import { useNearbyVetsStore, isSnapshotFresh } from '../../store/nearbyVetsStore';
 
 const RADIUS_PRESETS_KM = [5, 15, 25] as const;
 
@@ -67,7 +67,12 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
   const [fallback, setFallback] = useState(false);
   const [error, setError] = useState('');
   const [inspectingClinic, setInspectingClinic] = useState<NearbyClinicResult | null>(null);
-  const [detailsCache, setDetailsCache] = useState<Record<string, PlaceDetailsResponse>>({});
+  // Session-lifetime, survives this screen unmounting/remounting (tab
+  // switches, back navigation) -- see nearbyVetsStore.ts for why that
+  // matters here specifically.
+  const detailsCache = useNearbyVetsStore((state) => state.detailsCache);
+  const cacheDetails = useNearbyVetsStore((state) => state.cacheDetails);
+  const setLastSearch = useNearbyVetsStore((state) => state.setLastSearch);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   // Tracks a failed fetch (rate-limited, network error) separately from
   // "Google genuinely has nothing to show" -- both used to render as the
@@ -160,6 +165,15 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
       setResults(data.results);
       setRadiusUsed(data.radius_km_used);
       setFallback(data.fallback_to_registered_only);
+      setLastSearch({
+        coords: { lat, lng },
+        category: cat,
+        radiusKm: radius,
+        results: data.results,
+        radiusUsed: data.radius_km_used,
+        fallback: data.fallback_to_registered_only,
+        fetchedAt: Date.now(),
+      });
       if (data.results.length === 0) {
         setError(cat === 'pharmacy' ? 'No pharmacies found within the specified radius.' : 'No clinics or specialists found within the specified radius.');
       }
@@ -217,8 +231,25 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
 
   // Auto-detect location and search the moment this screen appears —
   // "Consult Vet" should land straight on nearby results, not wait for a
-  // button tap.
+  // button tap. But this screen remounts on every visit (tab switch, back
+  // navigation), so without this check it re-did a full GPS fix + network
+  // search every single time, even seconds after the last one. Reuse a
+  // recent-enough prior search instead of repeating it from scratch.
   useEffect(() => {
+    const cached = useNearbyVetsStore.getState().lastSearch;
+    if (isSnapshotFresh(cached)) {
+      setCoords(cached.coords);
+      updateMapPin(cached.coords.lat, cached.coords.lng, false);
+      setCategory(cached.category);
+      setRadiusKm(cached.radiusKm);
+      setResults(cached.results);
+      setRadiusUsed(cached.radiusUsed);
+      setFallback(cached.fallback);
+      if (cached.results.length === 0) {
+        setError(cached.category === 'pharmacy' ? 'No pharmacies found within the specified radius.' : 'No clinics or specialists found within the specified radius.');
+      }
+      return;
+    }
     handleGpsLocate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -279,7 +310,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
     setIsLoadingDetails(true);
     try {
       const details = await fetchClinicDetails(clinic.place_id);
-      setDetailsCache((prev) => ({ ...prev, [clinic.place_id!]: details }));
+      cacheDetails(clinic.place_id, details);
     } catch (err: any) {
       console.error('Failed to load clinic details:', err);
       setDetailsError(
