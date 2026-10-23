@@ -119,14 +119,14 @@ function CategoryTabProducts({
   const { items, isLoading, isError } = useMergedProducts(activeTab?.categoryIds ?? null, search);
 
   return (
-    <div className="bg-paperLight border border-cardboard rounded-md shadow-lg p-4 md:p-6 text-left">
+    <div className="text-left">
       {tabs.length > 1 && (
-        <div className="flex items-center gap-6 border-b border-cardboard pb-2.5 mb-5 overflow-x-auto">
+        <div className="flex items-center gap-7 border-b border-cardboard pb-0 mb-6 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveKey(tab.key)}
-              className={`font-body text-xs font-bold uppercase whitespace-nowrap pb-1.5 border-b-2 transition-colors ${
+              className={`font-body text-sm font-bold whitespace-nowrap pb-3 border-b-2 transition-colors ${
                 (activeKey ?? tabs[0]?.key) === tab.key
                   ? 'text-paprika border-paprika'
                   : 'text-ink/50 border-transparent hover:text-ink'
@@ -139,9 +139,9 @@ function CategoryTabProducts({
       )}
 
       {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {[1, 2, 3].map((n) => (
-            <div key={n} className="border border-cardboard bg-paper rounded-[4px] animate-pulse aspect-[3/4]" />
+            <div key={n} className="border border-cardboard bg-paperLight rounded-[4px] animate-pulse aspect-[4/5]" />
           ))}
         </div>
       ) : isError ? (
@@ -151,7 +151,7 @@ function CategoryTabProducts({
           Nothing stocked under this category yet — recipes are our focus for now.
         </p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {items.map((product) => (
             <RecipeCard
               key={product.id}
@@ -385,7 +385,7 @@ export default function ShopPage() {
                 return (
                   <div
                     key={entry.key}
-                    className="flex flex-col items-center gap-2 shrink-0 relative pb-3"
+                    className="flex flex-col items-center gap-2 shrink-0"
                     onMouseEnter={() => setHoveredKey(entry.key)}
                   >
                     <button
@@ -407,14 +407,6 @@ export default function ShopPage() {
                     >
                       {entry.label}
                     </span>
-
-                    {/* connecting line down to the shared panel beneath the row */}
-                    {isOpen && (
-                      <div
-                        className="absolute left-1/2 -translate-x-1/2 bottom-0 w-px h-3 bg-paprika"
-                        aria-hidden="true"
-                      />
-                    )}
                   </div>
                 );
               })}
