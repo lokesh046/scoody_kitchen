@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import logging
 import math
@@ -94,7 +95,6 @@ async def search_nearby_vet_clinics(
     if cached is not None:
         return cached
 
-    text_query = TEXT_QUERY_BY_CATEGORY.get(category)
     location_circle = {
         "center": {"latitude": latitude, "longitude": longitude},
         "radius": radius_km * 1000.0,
@@ -109,53 +109,76 @@ async def search_nearby_vet_clinics(
         "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location",
     }
 
+    type_body = {
+        "includedTypes": [PLACE_TYPE_BY_CATEGORY.get(category, "veterinary_care")],
+        "maxResultCount": max_results,
+        "locationRestriction": {"circle": location_circle},
+    }
+
+    text_query = TEXT_QUERY_BY_CATEGORY.get(category)
+    requests_to_run = [_run_places_request(PLACES_SEARCH_URL, type_body, headers)]
     if text_query:
-        url = PLACES_TEXT_SEARCH_URL
-        body = {
+        text_body = {
             "textQuery": text_query,
             "maxResultCount": max_results,
-            # Restriction (hard filter), not bias, to match Nearby Search's
-            # behavior for clinics -- results must be within the radius the
-            # user actually picked, not just "closer gets ranked higher."
+            # Restriction (hard filter), not bias, so these stay within the
+            # radius the user actually picked, same as the type-based call.
             "locationRestriction": {"circle": location_circle},
         }
-    else:
-        url = PLACES_SEARCH_URL
-        body = {
-            "includedTypes": [PLACE_TYPE_BY_CATEGORY.get(category, "veterinary_care")],
-            "maxResultCount": max_results,
-            "locationRestriction": {"circle": location_circle},
-        }
+        requests_to_run.append(_run_places_request(PLACES_TEXT_SEARCH_URL, text_body, headers))
 
+    responses = await asyncio.gather(*requests_to_run)
+
+    # Both calls failing outright (not just "found nothing") is the only
+    # case callers should treat as a Places API outage. If the pet-pharmacy
+    # text search is the one that fails while the plain pharmacy type
+    # search succeeds, that's not an outage -- still show what we have
+    # rather than discarding real, successful results.
+    if all(r is None for r in responses):
+        return None
+
+    # Merge: show every normal pharmacy/clinic, plus any pet-pharmacy-named
+    # place the text search found that the type search missed (places don't
+    # always carry Google's generic "pharmacy" type even when they sell pet
+    # medication) -- deduped by place_id since the same place often appears
+    # in both result sets.
+    merged: dict[str, dict] = {}
+    for data in responses:
+        if data is None:
+            continue
+        for place in data.get("places", []):
+            loc = place.get("location") or {}
+            place_lat = loc.get("latitude")
+            place_lng = loc.get("longitude")
+            place_id = place.get("id")
+            if place_lat is None or place_lng is None or not place_id or place_id in merged:
+                continue
+            merged[place_id] = {
+                "place_id": place_id,
+                "name": (place.get("displayName") or {}).get("text"),
+                "address": place.get("formattedAddress"),
+                "distance_km": round(_haversine_km(latitude, longitude, place_lat, place_lng), 2),
+                "latitude": place_lat,
+                "longitude": place_lng,
+            }
+
+    results = sorted(merged.values(), key=lambda r: r["distance_km"])[:max_results]
+
+    cache.set(cache_key, results, ttl_seconds=CACHE_TTL_SECONDS)
+    return results
+
+
+async def _run_places_request(url: str, body: dict, headers: dict) -> dict | None:
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             res = await client.post(url, json=body, headers=headers)
             if res.status_code != 200:
                 logger.warning("Places API search returned %s: %s", res.status_code, res.text[:300])
                 return None
-            data = res.json()
+            return res.json()
     except Exception as e:
         logger.warning("Places API search call failed: %s", e)
         return None
-
-    results = []
-    for place in data.get("places", []):
-        loc = place.get("location") or {}
-        place_lat = loc.get("latitude")
-        place_lng = loc.get("longitude")
-        if place_lat is None or place_lng is None:
-            continue
-        results.append({
-            "place_id": place.get("id"),
-            "name": (place.get("displayName") or {}).get("text"),
-            "address": place.get("formattedAddress"),
-            "distance_km": round(_haversine_km(latitude, longitude, place_lat, place_lng), 2),
-            "latitude": place_lat,
-            "longitude": place_lng,
-        })
-
-    cache.set(cache_key, results, ttl_seconds=CACHE_TTL_SECONDS)
-    return results
 
 
 PLACE_DETAILS_URL = "https://places.googleapis.com/v1/places"
