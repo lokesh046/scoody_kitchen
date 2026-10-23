@@ -94,6 +94,20 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
     return () => expandAnim.removeListener(id);
   }, [expandAnim]);
 
+  // Scrolling the results list is a clear "let me browse" signal, so fold
+  // the controls away automatically the moment a scroll starts -- same
+  // animation as a manual swipe-up. Tapping or dragging the handle (below)
+  // still brings it back out regardless of scroll position.
+  const collapseControls = () => {
+    if (!isControlsExpanded) return;
+    setIsControlsExpanded(false);
+    Animated.spring(expandAnim, {
+      toValue: 0,
+      useNativeDriver: false,
+      bounciness: 4,
+    }).start();
+  };
+
   const controlsPanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -583,15 +597,13 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
               keyExtractor={(item, idx) => (item.source === 'registered' ? `reg-${item.doctor_id}` : `google-${item.place_id}`) || String(idx)}
               renderItem={renderItem}
               contentContainerStyle={styles.listContent}
+              onScrollBeginDrag={collapseControls}
               ListHeaderComponent={
                 results.length > 0 ? (
                   <View style={styles.listHeaderRow}>
                     <Text style={styles.listHeaderText}>
                       {results.length} found within {radiusUsed ?? radiusKm} km
                     </Text>
-                    {results.some((r) => r.source === 'google') && (
-                      <Text style={styles.attributionPill}>Powered by Google</Text>
-                    )}
                   </View>
                 ) : null
               }
@@ -720,8 +732,6 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
                 )}
               </View>
             )}
-
-            <Text style={styles.attributionTextRight}>Powered by Google</Text>
           </View>
         </SafeAreaView>
       </Modal>
@@ -896,20 +906,6 @@ const styles = {
   listHeaderRow: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, marginBottom: 4 },
   listHeaderText: { fontSize: 11, fontFamily: LEDGER_MONO, color: COLORS.textMuted },
   attributionText: { fontSize: 9, fontFamily: FONT_BODY, color: COLORS.textMuted },
-  attributionPill: {
-    fontSize: 8,
-    fontFamily: FONT_BODY_BOLD,
-    textTransform: 'uppercase' as const,
-    color: COLORS.textMuted,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: COLORS.kraftBorder,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    overflow: 'hidden' as const,
-  },
-  attributionTextRight: { fontSize: 9, fontFamily: FONT_BODY, color: COLORS.textMuted, textAlign: 'right' as const, marginTop: 4 },
   resultCard: {
     flexDirection: 'row' as const,
     borderWidth: 1,
