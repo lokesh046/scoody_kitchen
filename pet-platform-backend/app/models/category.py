@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, Text, func 
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
@@ -27,6 +27,16 @@ class Category(Base):
         nullable=True,
     )
 
+    # NULL = top-level ("main") category. Set = subcategory of that parent.
+    # Kept to one level of nesting by convention (enforced in the service
+    # layer, not the schema) to match the Main Category -> Subcategory ->
+    # Products browsing structure -- not a general-purpose arbitrary tree.
+    parent_category_id: Mapped[int | None] = mapped_column(
+        ForeignKey("categories.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -36,6 +46,17 @@ class Category(Base):
     products = relationship(
         "Product",
         back_populates="category",
+    )
+
+    parent = relationship(
+        "Category",
+        remote_side=[id],
+        back_populates="children",
+    )
+
+    children = relationship(
+        "Category",
+        back_populates="parent",
     )
 
     

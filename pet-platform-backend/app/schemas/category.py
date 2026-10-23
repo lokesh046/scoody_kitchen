@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -9,6 +11,8 @@ class CategoryCreate(BaseModel):
 
     description: str | None = None
 
+    parent_category_id: int | None = None
+
 
 class CategoryUpdate(BaseModel):
     name: str | None = Field(
@@ -19,12 +23,28 @@ class CategoryUpdate(BaseModel):
 
     description: str | None = None
 
+    parent_category_id: int | None = None
+
 
 class CategoryResponse(BaseModel):
     id: int
     name: str
     description: str | None
+    parent_category_id: int | None
     created_at: datetime
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
+class CategoryTreeResponse(BaseModel):
+    id: int
+    name: str
+    description: str | None
+    parent_category_id: int | None
+    created_at: datetime
+    children: list["CategoryTreeResponse"] = []
 
     model_config = {
         "from_attributes": True

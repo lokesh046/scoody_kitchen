@@ -10,13 +10,16 @@ from app.models.user import User
 from app.schemas.category import (
     CategoryCreate,
     CategoryResponse,
+    CategoryTreeResponse,
     CategoryUpdate,
 )
 from app.services.category_service import (
+    InvalidParentCategoryError,
     create_category,
     delete_category,
     get_categories,
     get_category_by_id,
+    get_category_tree,
     update_category,
 )
 
@@ -41,6 +44,23 @@ def list_categories(
     result = get_categories(db)
     serialized = [CategoryResponse.model_validate(c).model_dump(mode="json") for c in result]
     cache.set("categories:all", serialized, ttl_seconds=300)
+    return serialized
+
+
+@router.get(
+    "/tree",
+    response_model=list[CategoryTreeResponse],
+)
+def list_category_tree(
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user_optional),
+):
+    cached = cache.get("categories:tree")
+    if cached is not None:
+        return cached
+    result = get_category_tree(db)
+    serialized = [CategoryTreeResponse.model_validate(c).model_dump(mode="json") for c in result]
+    cache.set("categories:tree", serialized, ttl_seconds=300)
     return serialized
 
 
@@ -79,6 +99,7 @@ def create_new_category(
             category_data,
         )
         cache.delete("categories:all")
+        cache.delete("categories:tree")
         return created
     except IntegrityError:
         db.rollback()
@@ -86,6 +107,13 @@ def create_new_category(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Category already exists",
+        )
+    except InvalidParentCategoryError as exc:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
         )
 
 
@@ -119,6 +147,7 @@ def update_existing_category(
             category_data,
         )
         cache.delete("categories:all")
+        cache.delete("categories:tree")
         return updated
 
     except IntegrityError:
@@ -127,6 +156,13 @@ def update_existing_category(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Category already exists",
+        )
+    except InvalidParentCategoryError as exc:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
         )
 
 
@@ -158,6 +194,7 @@ def delete_existing_category(
             category,
         )
         cache.delete("categories:all")
+        cache.delete("categories:tree")
 
     except IntegrityError:
         db.rollback()
