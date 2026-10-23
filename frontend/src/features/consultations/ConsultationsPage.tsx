@@ -938,11 +938,6 @@ export const ConsultationsPage: React.FC = () => {
                     {nearbyClinics.length} within {nearbyRadiusUsed ?? searchRadius} km
                   </p>
                 </div>
-                {nearbyClinics.some((c) => c.source === 'google') && (
-                  <span className="flex items-center gap-1.5 font-mono text-[8px] uppercase font-bold text-ink/40 bg-paper border border-cardboard rounded-full px-2.5 py-1 shrink-0">
-                    Powered by Google Places
-                  </span>
-                )}
               </div>
 
               <div className="space-y-3">
@@ -2795,8 +2790,6 @@ export const ConsultationsPage: React.FC = () => {
                           )}
                         </div>
                       )}
-
-                      <p className="font-mono text-[8px] text-ink/35 text-right">Powered by Google</p>
                     </>
                   );
                 })()}
