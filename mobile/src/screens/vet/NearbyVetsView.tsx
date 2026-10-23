@@ -916,7 +916,12 @@ const styles = {
   switchToPincodeLink: { fontSize: 11, fontFamily: FONT_BODY_BOLD, color: COLORS.sageIcon, textDecorationLine: 'underline' as const },
   errorText: { fontSize: 11, fontFamily: FONT_BODY, color: COLORS.ctaBrown },
   centerFill: { flex: 1, alignItems: 'center' as const, justifyContent: 'center' as const },
-  listContent: { paddingHorizontal: 20, paddingBottom: 24, gap: 10 },
+  // The global ScoobyAIFAB sits bottom-left at bottom:96, 52px tall (see
+  // its own comment in ScoobyAIFAB.tsx), so its footprint spans roughly
+  // 96-148px up from the screen edge. Every scrollable screen is expected
+  // to keep its own content clear of that zone; this one didn't, so the
+  // last result card scrolled in right underneath the floating button.
+  listContent: { paddingHorizontal: 20, paddingBottom: 180, gap: 10 },
   listHeaderRow: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, marginBottom: 4 },
   listHeaderText: { fontSize: 11, fontFamily: LEDGER_MONO, color: COLORS.textMuted },
   attributionText: { fontSize: 9, fontFamily: FONT_BODY, color: COLORS.textMuted },
