@@ -131,30 +131,39 @@ function AnimatedHeight({ children }: { children: ReactNode }) {
 }
 
 function CategoryTabProducts({
-  categoryKey,
   tabs,
   search,
   onAddToCart,
   orderingDisabledLabel,
 }: {
-  categoryKey: string;
   tabs: ExplorerTab[];
   search: string;
   onAddToCart: (productId: number) => Promise<void> | void;
   orderingDisabledLabel?: string;
 }) {
+  // No reset-on-switch here, intentionally: a tab key is the underlying
+  // category id, stable across which main-category panel is showing it,
+  // so re-entering a category you'd already picked a sub-tab in finds
+  // that same key again and stays put -- it only falls through to the
+  // first tab when the current key truly doesn't exist in this category
+  // (e.g. coming from a different parent's child id).
   const [activeKey, setActiveKey] = useState(tabs[0]?.key);
-
-  // Reset to the first sub-tab when switching to a different main category
-  // (not on every re-render of the same category, which would stomp the
-  // user's current sub-tab choice).
-  useEffect(() => {
-    setActiveKey(tabs[0]?.key);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryKey]);
-
   const activeTab = tabs.find((t) => t.key === activeKey) ?? tabs[0];
   const { items, isLoading, isError } = useMergedProducts(activeTab?.categoryIds ?? null, search);
+
+  // Same hover-intent delay as the main category badges: a fast pass over
+  // neighboring tabs shouldn't flash the product grid through each one.
+  const tabHoverTimer = useRef<number | null>(null);
+  const scheduleTab = (key: string) => {
+    if (tabHoverTimer.current !== null) window.clearTimeout(tabHoverTimer.current);
+    tabHoverTimer.current = window.setTimeout(() => setActiveKey(key), 100);
+  };
+  const cancelScheduledTab = () => {
+    if (tabHoverTimer.current !== null) {
+      window.clearTimeout(tabHoverTimer.current);
+      tabHoverTimer.current = null;
+    }
+  };
 
   return (
     <div className="text-left">
@@ -164,7 +173,8 @@ function CategoryTabProducts({
             <button
               key={tab.key}
               onClick={() => setActiveKey(tab.key)}
-              onMouseEnter={() => setActiveKey(tab.key)}
+              onMouseEnter={() => scheduleTab(tab.key)}
+              onMouseLeave={cancelScheduledTab}
               className={`font-body text-sm font-bold whitespace-nowrap pb-3 border-b-2 transition-colors ${
                 (activeKey ?? tabs[0]?.key) === tab.key
                   ? 'text-paprika border-paprika'
@@ -221,6 +231,25 @@ export default function ShopPage() {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [pinnedKey, setPinnedKey] = useState<string | null>(null);
   const openKey = hoveredKey ?? pinnedKey ?? 'all';
+
+  // Hover-intent delay: moving the cursor across the badge row to reach a
+  // target badge briefly passes over its neighbors, each firing their own
+  // mouseenter -- without a delay, the panel flashes through every
+  // category the cursor crosses in transit. Committing the hover only
+  // after a short pause (and cancelling if the cursor leaves sooner) means
+  // a deliberate hover still feels instant while a fast pass-through
+  // never shows.
+  const hoverIntentTimer = useRef<number | null>(null);
+  const scheduleHover = useCallback((key: string) => {
+    if (hoverIntentTimer.current !== null) window.clearTimeout(hoverIntentTimer.current);
+    hoverIntentTimer.current = window.setTimeout(() => setHoveredKey(key), 100);
+  }, []);
+  const cancelScheduledHover = useCallback(() => {
+    if (hoverIntentTimer.current !== null) {
+      window.clearTimeout(hoverIntentTimer.current);
+      hoverIntentTimer.current = null;
+    }
+  }, []);
 
   const [isCartOpen, setIsCartOpen] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
@@ -410,7 +439,10 @@ export default function ShopPage() {
             choice open on touch, where there's no hover. */}
         <div
           className="space-y-5"
-          onMouseLeave={() => setHoveredKey(null)}
+          onMouseLeave={() => {
+            cancelScheduledHover();
+            setHoveredKey(null);
+          }}
         >
           <span className="font-mono text-[11px] uppercase tracking-wider text-paprika font-bold flex items-center">
             <PawPrint className="w-3 h-3 mr-1" /> Browse by Category
@@ -425,7 +457,8 @@ export default function ShopPage() {
                   <div
                     key={entry.key}
                     className="flex flex-col items-center gap-2 shrink-0"
-                    onMouseEnter={() => setHoveredKey(entry.key)}
+                    onMouseEnter={() => scheduleHover(entry.key)}
+                    onMouseLeave={cancelScheduledHover}
                   >
                     <button
                       onClick={() => setPinnedKey(entry.key)}
@@ -453,13 +486,13 @@ export default function ShopPage() {
 
           {/* Shared panel — tabs + recipes for whichever category is open.
               No remount-on-switch key here on purpose: swapping categories
-              now updates this one instance in place (reset via the
-              categoryKey effect inside), and AnimatedHeight smooths the
-              resulting height change instead of a jarring snap. */}
+              updates this one instance in place, preserving whichever
+              sub-tab you'd already picked (see CategoryTabProducts), and
+              AnimatedHeight smooths the resulting height change instead
+              of a jarring snap. */}
           {activeEntry && (
             <AnimatedHeight>
               <CategoryTabProducts
-                categoryKey={activeEntry.key}
                 tabs={activeEntry.tabs}
                 search={debouncedSearch}
                 onAddToCart={handleAddToCart}
