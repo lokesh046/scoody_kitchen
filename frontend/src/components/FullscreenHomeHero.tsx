@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchActiveBanners } from '../api/banners';
-import { Header } from './Header';
 
 // Same real banner images used by the normal contained carousel, so the
 // full-screen hero shows genuine content rather than placeholder art even
@@ -34,7 +33,7 @@ const fallbackBanners = [
   },
 ];
 
-export const FullscreenHomeHero: React.FC<{ onCartToggle?: () => void }> = ({ onCartToggle }) => {
+export const FullscreenHomeHero: React.FC = () => {
   const navigate = useNavigate();
   const [index, setIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
@@ -83,8 +82,6 @@ export const FullscreenHomeHero: React.FC<{ onCartToggle?: () => void }> = ({ on
       {/* Legibility gradient for both the header and the hero copy */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/30 to-black/80" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
-
-      <Header overlay onCartToggle={onCartToggle} />
 
       {/* Hero copy, anchored bottom-left */}
       <div className="relative z-10 flex flex-col justify-end min-h-[100dvh] px-4 sm:px-8 md:px-12 pb-16 sm:pb-20 max-w-5xl">

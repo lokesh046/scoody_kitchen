@@ -188,13 +188,10 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
-      {isFullscreenHeroEnabled ? (
-        // Full-screen hero carries its own overlaid Header -- the normal
-        // sticky one below is skipped entirely in this mode.
-        <FullscreenHomeHero onCartToggle={() => setIsCartOpen(true)} />
-      ) : (
-        <Header onCartToggle={() => setIsCartOpen(true)} />
-      )}
+      {isFullscreenHeroEnabled && <FullscreenHomeHero />}
+      {/* Normal sticky header always follows -- never overlaid on the hero,
+          so it reads as its own solid bar once the hero section ends. */}
+      <Header onCartToggle={() => setIsCartOpen(true)} />
 
       {/* Main Landing Content */}
       <main className="flex-grow w-full">
