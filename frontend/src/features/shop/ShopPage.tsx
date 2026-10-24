@@ -226,13 +226,13 @@ export default function ShopPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  // Which category's panel is shown below the badge row. Hovering sets it
-  // temporarily (desktop); clicking pins it (touch, and desktop too once
-  // clicked); with neither, it falls back to 'all' so "All Items" is open
-  // by default, matching the reference design.
-  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
-  const [pinnedKey, setPinnedKey] = useState<string | null>(null);
-  const openKey = hoveredKey ?? pinnedKey ?? 'all';
+  // Which category's panel is shown below the badge row. Starts on 'all'
+  // ("All Items" open by default). Hovering or clicking a badge switches
+  // it -- and it stays there, even after the cursor leaves the whole
+  // region entirely: it only ever changes when a new category is
+  // deliberately hovered or tapped, same persistence principle as the
+  // subcategory tabs.
+  const [openKey, setOpenKey] = useState('all');
 
   // Hover-intent delay: moving the cursor across the badge row to reach a
   // target badge briefly passes over its neighbors, each firing their own
@@ -244,7 +244,7 @@ export default function ShopPage() {
   const hoverIntentTimer = useRef<number | null>(null);
   const scheduleHover = useCallback((key: string) => {
     if (hoverIntentTimer.current !== null) window.clearTimeout(hoverIntentTimer.current);
-    hoverIntentTimer.current = window.setTimeout(() => setHoveredKey(key), 100);
+    hoverIntentTimer.current = window.setTimeout(() => setOpenKey(key), 100);
   }, []);
   const cancelScheduledHover = useCallback(() => {
     if (hoverIntentTimer.current !== null) {
@@ -436,15 +436,12 @@ export default function ShopPage() {
             one shows its subcategories AND recipes right there, below the
             whole row, matching the reference design. "All Items" is open
             by default; hovering a different category swaps the panel to
-            it; moving the mouse away (out of the badges+panel region
-            entirely) falls back to "All Items" again. Tapping pins a
-            choice open on touch, where there's no hover. */}
+            it and it stays there, even after the cursor leaves the whole
+            region -- only hovering or tapping a different category moves
+            it again. */}
         <div
           className="space-y-5"
-          onMouseLeave={() => {
-            cancelScheduledHover();
-            setHoveredKey(null);
-          }}
+          onMouseLeave={cancelScheduledHover}
         >
           <span className="font-mono text-[11px] uppercase tracking-wider text-paprika font-bold flex items-center">
             <PawPrint className="w-3 h-3 mr-1" /> Browse by Category
@@ -463,7 +460,7 @@ export default function ShopPage() {
                     onMouseLeave={cancelScheduledHover}
                   >
                     <button
-                      onClick={() => setPinnedKey(entry.key)}
+                      onClick={() => setOpenKey(entry.key)}
                       aria-label={entry.label}
                       aria-expanded={isOpen}
                       className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center overflow-hidden border-2 transition-all duration-200 ${

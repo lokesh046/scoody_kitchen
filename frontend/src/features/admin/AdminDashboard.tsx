@@ -130,6 +130,11 @@ export const AdminDashboard: React.FC = () => {
   const [recipeSku, setRecipeSku] = useState('');
   const [recipePrice, setRecipePrice] = useState('');
   const [recipeStock, setRecipeStock] = useState('20');
+  // Hierarchical category picker: pick a main category first, then its
+  // subcategory -- recipeCategoryId (the id actually submitted) is always
+  // either the chosen subcategory, or the main category itself when it
+  // has no subcategories (a flat leaf category like "Dog Toys").
+  const [recipeMainCategoryId, setRecipeMainCategoryId] = useState('');
   const [recipeCategoryId, setRecipeCategoryId] = useState('');
   const [recipeImgUrl, setRecipeImgUrl] = useState('');
   const [recipeWeightsInput, setRecipeWeightsInput] = useState('');
@@ -1487,16 +1492,46 @@ export const AdminDashboard: React.FC = () => {
                     />
                     <select
                       required
-                      value={recipeCategoryId}
-                      onChange={(e) => setRecipeCategoryId(e.target.value)}
+                      value={recipeMainCategoryId}
+                      onChange={(e) => {
+                        const mainId = e.target.value;
+                        setRecipeMainCategoryId(mainId);
+                        const children = categories?.filter((c) => String(c.parent_category_id) === mainId) || [];
+                        // A main category with no subcategories is itself a
+                        // leaf (e.g. "Dog Toys") -- submit it directly.
+                        // Otherwise force an explicit subcategory pick.
+                        setRecipeCategoryId(mainId && children.length === 0 ? mainId : '');
+                      }}
                       className="bg-paper border border-cardboard p-2.5 text-xs text-ink outline-none"
                     >
-                      <option value="">Category Tag</option>
-                      {categories?.map((cat) => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
+                      <option value="">Main Category</option>
+                      {categories
+                        ?.filter((c) => !c.parent_category_id)
+                        .map((cat) => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        ))}
                     </select>
                   </div>
+
+                  {(() => {
+                    const subcategories = categories?.filter(
+                      (c) => String(c.parent_category_id) === recipeMainCategoryId
+                    ) || [];
+                    if (!recipeMainCategoryId || subcategories.length === 0) return null;
+                    return (
+                      <select
+                        required
+                        value={recipeCategoryId}
+                        onChange={(e) => setRecipeCategoryId(e.target.value)}
+                        className="bg-paper border border-cardboard w-full p-2.5 text-xs text-ink outline-none"
+                      >
+                        <option value="">Subcategory</option>
+                        {subcategories.map((sub) => (
+                          <option key={sub.id} value={sub.id}>{sub.name}</option>
+                        ))}
+                      </select>
+                    );
+                  })()}
 
                   <input
                     placeholder="Custom Weight Options (e.g. 500g: 350: 20, 1kg: 650: 10, 5kg: 2800: 3)"
