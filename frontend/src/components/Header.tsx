@@ -18,9 +18,16 @@ import { useFeatureFlag } from '../hooks/useFeatureFlag';
 interface HeaderProps {
   activeTab?: 'shop' | 'pets' | 'consultations' | 'orders' | 'assistant' | 'profile' | 'admin' | 'doctor' | 'apply-doctor' | 'support' | 'blog';
   onCartToggle?: () => void;
+  // When true, the header floats transparently over whatever sits behind it
+  // (a full-bleed hero image) instead of its normal solid sticky bar.
+  // Caller is responsible for giving its container `position: relative` so
+  // this absolute header anchors correctly, and for ensuring the content
+  // behind it has enough contrast (e.g. a dark gradient) for the white nav
+  // text to stay legible.
+  overlay?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
+export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay = false }) => {
   const navigate = useNavigate();
   const { user, clearAuth } = useAuthStore();
   const cartItems = useCartStore((state) => state.items);
@@ -71,7 +78,13 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
 
   return (
     <>
-      <header className="w-full border-b border-cardboard border-opacity-25 bg-ink bg-opacity-95 backdrop-blur-md sticky top-0 z-30 shadow-sm text-paper">
+      <header
+        className={`w-full text-paper ${
+          overlay
+            ? 'absolute top-0 left-0 z-30 bg-transparent'
+            : 'border-b border-cardboard border-opacity-25 bg-ink bg-opacity-95 backdrop-blur-md sticky top-0 z-30 shadow-sm'
+        }`}
+      >
         <div className="w-full px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5 flex justify-between items-center lg:grid lg:grid-cols-12 gap-2">
           
           {/* Left Corner: Brand Logo & Title with Artisanal Porcelain Medallion Badge */}

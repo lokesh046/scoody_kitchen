@@ -13,6 +13,7 @@ import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
 import { Eyebrow } from '../../components/Eyebrow';
 import { HomeBannerCarousel } from '../../components/HomeBannerCarousel';
+import { FullscreenHomeHero } from '../../components/FullscreenHomeHero';
 import { ReviewsCarousel } from '../../components/ReviewsCarousel';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
@@ -89,6 +90,7 @@ export default function HomePage() {
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
+  const isFullscreenHeroEnabled = useFeatureFlag('home_fullscreen_hero', false);
   const consultationsFallback = useFeatureFlagFallback('consultations_booking');
   const chatbotFallback = useFeatureFlagFallback('ai_chatbot');
   const shopFallback = useFeatureFlagFallback('shop_checkout');
@@ -186,13 +188,18 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
-      {/* Full-width Top Navigation Header bar */}
-      <Header onCartToggle={() => setIsCartOpen(true)} />
+      {isFullscreenHeroEnabled ? (
+        // Full-screen hero carries its own overlaid Header -- the normal
+        // sticky one below is skipped entirely in this mode.
+        <FullscreenHomeHero onCartToggle={() => setIsCartOpen(true)} />
+      ) : (
+        <Header onCartToggle={() => setIsCartOpen(true)} />
+      )}
 
       {/* Main Landing Content */}
       <main className="flex-grow w-full">
         {/* Centered Peeking Banner Carousel */}
-        <HomeBannerCarousel />
+        {!isFullscreenHeroEnabled && <HomeBannerCarousel />}
 
         {/* Feature Grid / Brand Philosophy */}
         <section className="bg-paper py-16 md:py-24 px-4 sm:px-6 md:px-8 border-b border-cardboard border-opacity-35">

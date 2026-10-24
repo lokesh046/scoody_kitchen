@@ -81,6 +81,13 @@ DEFAULT_FLAGS = [
         "category": "pets",
         "is_enabled": True,
     },
+    {
+        "key": "home_fullscreen_hero",
+        "name": "Full-Screen Homepage Hero",
+        "description": "Switches the homepage hero banner to a full-viewport-height layout with the navigation header overlaid on top, instead of the normal contained carousel below a solid header.",
+        "category": "home",
+        "is_enabled": False,
+    },
 ]
 
 def seed_default_flags_if_missing(db: Session) -> None:
