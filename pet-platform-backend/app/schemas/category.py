@@ -30,6 +30,7 @@ class CategoryResponse(BaseModel):
     id: int
     name: str
     description: str | None
+    image_url: str | None
     parent_category_id: int | None
     created_at: datetime
 
@@ -42,6 +43,7 @@ class CategoryTreeResponse(BaseModel):
     id: int
     name: str
     description: str | None
+    image_url: str | None
     parent_category_id: int | None
     created_at: datetime
     children: list["CategoryTreeResponse"] = []

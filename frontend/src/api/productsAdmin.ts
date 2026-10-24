@@ -97,12 +97,55 @@ export const deactivateProduct = async (productId: number): Promise<void> => {
 };
 
 export const createCategory = async (categoryData: CreateCategoryData): Promise<any> => {
-  const response = await apiClient.post('/categories', categoryData);
+  const formData = new FormData();
+  formData.append('name', categoryData.name);
+  if (categoryData.description) {
+    formData.append('description', categoryData.description);
+  }
+  if (categoryData.parent_category_id) {
+    formData.append('parent_category_id', String(categoryData.parent_category_id));
+  }
+  const response = await apiClient.post('/categories', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return response.data;
 };
 
 export const updateCategory = async (categoryId: number, categoryData: Partial<CreateCategoryData>): Promise<any> => {
-  const response = await apiClient.patch(`/categories/${categoryId}`, categoryData);
+  const formData = new FormData();
+  if (categoryData.name !== undefined) {
+    formData.append('name', categoryData.name);
+  }
+  if (categoryData.description !== undefined) {
+    formData.append('description', categoryData.description || '');
+  }
+  // parent_category_id is sent whenever the key is present at all -- an
+  // explicit empty string clears it to top-level, a number sets it. Only
+  // truly omitting the key (not the case here) would leave it untouched.
+  if ('parent_category_id' in categoryData) {
+    formData.append('parent_category_id', categoryData.parent_category_id ? String(categoryData.parent_category_id) : '');
+  }
+  const response = await apiClient.patch(`/categories/${categoryId}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const uploadCategoryImage = async (categoryId: number, file: File): Promise<any> => {
+  const formData = new FormData();
+  formData.append('image', file);
+  const response = await apiClient.patch(`/categories/${categoryId}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const deleteCategoryImage = async (categoryId: number): Promise<any> => {
+  const formData = new FormData();
+  formData.append('image_url', '');
+  const response = await apiClient.patch(`/categories/${categoryId}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
   return response.data;
 };
 

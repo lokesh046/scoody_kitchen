@@ -37,6 +37,7 @@ export interface Category {
   id: number;
   name: string;
   description?: string;
+  image_url?: string | null;
   parent_category_id?: number | null;
 }
 

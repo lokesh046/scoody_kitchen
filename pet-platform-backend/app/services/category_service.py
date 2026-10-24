@@ -33,6 +33,7 @@ def _validate_parent(
 def create_category(
     db: Session,
     category_data: CategoryCreate,
+    image_url: str | None = None,
 )->  Category:
 
     _validate_parent(db, category_data.parent_category_id, self_id=None)
@@ -41,6 +42,7 @@ def create_category(
         name=category_data.name,
         description=category_data.description,
         parent_category_id=category_data.parent_category_id,
+        image_url=image_url,
     )
 
     db.add(category)
@@ -91,6 +93,7 @@ def update_category(
     db: Session,
     category: Category,
     category_data: CategoryUpdate,
+    image_url: str | None = None,
 ) -> Category:
 
     update_data = category_data.model_dump(
@@ -102,6 +105,11 @@ def update_category(
 
     for field, value in update_data.items():
         setattr(category, field, value)
+
+    # Sentinel convention matches products: None means "not provided, leave
+    # unchanged"; an explicit empty string clears the image.
+    if image_url is not None:
+        category.image_url = image_url
 
     db.commit()
     db.refresh(category)

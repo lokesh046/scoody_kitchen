@@ -41,6 +41,7 @@ interface ExplorerEntry {
   key: string;
   label: string;
   icon: typeof PawPrint;
+  imageUrl?: string | null;
   tabs: ExplorerTab[];
 }
 
@@ -63,6 +64,7 @@ function buildExplorerEntries(categoryTree: CategoryTreeNode[] | undefined): Exp
     key: String(cat.id),
     label: cat.name,
     icon: getCategoryIcon(cat.name),
+    imageUrl: cat.image_url,
     tabs:
       cat.children.length > 0
         ? [
@@ -464,13 +466,17 @@ export default function ShopPage() {
                       onClick={() => setPinnedKey(entry.key)}
                       aria-label={entry.label}
                       aria-expanded={isOpen}
-                      className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center border-2 transition-all duration-200 ${
+                      className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center overflow-hidden border-2 transition-all duration-200 ${
                         isOpen
-                          ? 'bg-ink border-paprika shadow-md scale-105'
-                          : 'bg-paperLight border-cardboard hover:border-paprika/50'
+                          ? `border-paprika shadow-md scale-105 ${entry.imageUrl ? '' : 'bg-ink'}`
+                          : `border-cardboard hover:border-paprika/50 ${entry.imageUrl ? '' : 'bg-paperLight'}`
                       }`}
                     >
-                      <Icon className={`w-6 h-6 md:w-7 md:h-7 ${isOpen ? 'text-paperLight' : 'text-ink/70'}`} />
+                      {entry.imageUrl ? (
+                        <img src={entry.imageUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <Icon className={`w-6 h-6 md:w-7 md:h-7 ${isOpen ? 'text-paperLight' : 'text-ink/70'}`} />
+                      )}
                     </button>
                     <span
                       className={`font-body text-[11px] font-bold uppercase text-center leading-tight ${

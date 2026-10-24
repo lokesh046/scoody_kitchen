@@ -27,6 +27,11 @@ class Category(Base):
         nullable=True,
     )
 
+    image_url: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
     # NULL = top-level ("main") category. Set = subcategory of that parent.
     # Kept to one level of nesting by convention (enforced in the service
     # layer, not the schema) to match the Main Category -> Subcategory ->

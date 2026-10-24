@@ -17,6 +17,8 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
+  uploadCategoryImage,
+  deleteCategoryImage,
   uploadProductImage,
   deleteProductImage,
   uploadProductGallery,
@@ -437,6 +439,29 @@ export const AdminDashboard: React.FC = () => {
       setEditingCategoryParentId(categoryDetails.parent_category_id ? String(categoryDetails.parent_category_id) : '');
     }
   }, [categoryDetails, editingCategoryId]);
+  const uploadCategoryImageMutation = useMutation({
+    mutationFn: ({ categoryId, file }: { categoryId: number; file: File }) =>
+      uploadCategoryImage(categoryId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminCategories'] });
+      alert('Category image uploaded successfully!');
+    },
+    onError: (err: any) => {
+      alert(`Upload failed: ${err?.response?.data?.detail || err.message}`);
+    }
+  });
+
+  const deleteCategoryImageMutation = useMutation({
+    mutationFn: deleteCategoryImage,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminCategories'] });
+      alert('Category image removed successfully!');
+    },
+    onError: (err: any) => {
+      alert(`Remove failed: ${err?.response?.data?.detail || err.message}`);
+    }
+  });
+
   const uploadProductImageMutation = useMutation({
     mutationFn: ({ productId, file }: { productId: number; file: File }) => 
       uploadProductImage(productId, file),
@@ -1285,17 +1310,57 @@ export const AdminDashboard: React.FC = () => {
                                   )}
                                 </div>
                               ) : (
-                                <div className="flex justify-between items-center w-full">
-                                  <div>
-                                    <strong className="text-ink text-sm">{cat.name}</strong>
-                                    {cat.parent_category_id && (
-                                      <span className="ml-2 font-mono text-[8px] uppercase font-bold text-paprika">
-                                        ↳ in {categories?.find((p) => p.id === cat.parent_category_id)?.name || '…'}
-                                      </span>
+                                <div className="flex justify-between items-start w-full gap-3">
+                                  <div className="flex items-start gap-3 min-w-0">
+                                    {cat.image_url ? (
+                                      <img
+                                        src={cat.image_url}
+                                        alt={cat.name}
+                                        className="w-10 h-10 rounded-full object-cover border border-cardboard shrink-0"
+                                      />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded-full bg-paper border border-cardboard border-dashed shrink-0" />
                                     )}
-                                    <p className="text-[11px] text-ink opacity-70 mt-0.5">{cat.description}</p>
+                                    <div className="min-w-0">
+                                      <strong className="text-ink text-sm">{cat.name}</strong>
+                                      {cat.parent_category_id && (
+                                        <span className="ml-2 font-mono text-[8px] uppercase font-bold text-paprika">
+                                          ↳ in {categories?.find((p) => p.id === cat.parent_category_id)?.name || '…'}
+                                        </span>
+                                      )}
+                                      <p className="text-[11px] text-ink opacity-70 mt-0.5">{cat.description}</p>
+                                      <div className="mt-2 flex items-center space-x-3">
+                                        <label className="font-mono text-[8px] uppercase font-bold tracking-wider bg-paper border border-cardboard px-2 py-1 rounded-sm cursor-pointer hover:bg-paperLight">
+                                          {cat.image_url ? 'Replace Image' : 'Upload Image'}
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                              const file = e.target.files?.[0];
+                                              if (file) {
+                                                uploadCategoryImageMutation.mutate({ categoryId: cat.id, file });
+                                              }
+                                            }}
+                                          />
+                                        </label>
+                                        {cat.image_url && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (confirm('Are you sure you want to remove this category\'s image?')) {
+                                                deleteCategoryImageMutation.mutate(cat.id);
+                                              }
+                                            }}
+                                            className="font-mono text-[8px] uppercase font-bold text-paprika hover:underline"
+                                          >
+                                            Remove Image
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center space-x-3">
+                                  <div className="flex items-center space-x-3 shrink-0">
                                     <button
                                       type="button"
                                       onClick={() => {

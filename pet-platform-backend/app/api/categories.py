@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -22,6 +22,7 @@ from app.services.category_service import (
     get_category_tree,
     update_category,
 )
+from app.services.storage_service import get_storage_provider, validate_image_file
 
 
 router = APIRouter(
@@ -88,29 +89,61 @@ def api_get_category_by_id(
     response_model=CategoryResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def create_new_category(
-    category_data: CategoryCreate,
+async def create_new_category(
+    name: str = Form(...),
+    description: str | None = Form(None),
+    parent_category_id: str | None = Form(None),
+    image_url: str | None = Form(None),
+    image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(UserRole.ADMIN)),
 ):
+    category_data = CategoryCreate(
+        name=name,
+        description=description,
+        parent_category_id=int(parent_category_id) if parent_category_id else None,
+    )
+
+    final_image_url = image_url
+    storage_provider = None
+
+    if image is not None and image.filename:
+        file_bytes = await image.read()
+        validate_image_file(image, file_bytes)
+        storage_provider = get_storage_provider()
+        final_image_url = storage_provider.upload_image(
+            file_bytes=file_bytes,
+            original_filename=image.filename,
+            content_type=image.content_type or "image/jpeg",
+        )
+
     try:
         created = create_category(
             db,
             category_data,
+            image_url=final_image_url,
         )
         cache.delete("categories:all")
         cache.delete("categories:tree")
         return created
     except IntegrityError:
         db.rollback()
-
+        if final_image_url and storage_provider:
+            try:
+                storage_provider.delete_image(final_image_url)
+            except Exception:
+                pass
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Category already exists",
         )
     except InvalidParentCategoryError as exc:
         db.rollback()
-
+        if final_image_url and storage_provider:
+            try:
+                storage_provider.delete_image(final_image_url)
+            except Exception:
+                pass
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
@@ -121,9 +154,17 @@ def create_new_category(
     "/{category_id}",
     response_model=CategoryResponse,
 )
-def update_existing_category(
+async def update_existing_category(
     category_id: int,
-    category_data: CategoryUpdate,
+    name: str | None = Form(None),
+    description: str | None = Form(None),
+    # Sentinel convention: field absent entirely = leave unchanged; sent as
+    # an empty string = explicitly clear to top-level; a digit string = set
+    # that parent. Lets a standalone image-only upload omit this field
+    # without accidentally clearing an existing parent.
+    parent_category_id: str | None = Form(None),
+    image_url: str | None = Form(None),
+    image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(
         require_role(UserRole.ADMIN)
@@ -140,26 +181,66 @@ def update_existing_category(
             detail="Category not found",
         )
 
+    update_dict = {}
+    if name is not None:
+        update_dict["name"] = name
+    if description is not None:
+        update_dict["description"] = description
+    if parent_category_id is not None:
+        update_dict["parent_category_id"] = int(parent_category_id) if parent_category_id else None
+
+    category_data = CategoryUpdate(**update_dict)
+
+    old_image_url = category.image_url
+    final_image_url = image_url
+    storage_provider = None
+
+    if image is not None and image.filename:
+        file_bytes = await image.read()
+        validate_image_file(image, file_bytes)
+        storage_provider = get_storage_provider()
+        final_image_url = storage_provider.upload_image(
+            file_bytes=file_bytes,
+            original_filename=image.filename,
+            content_type=image.content_type or "image/jpeg",
+        )
+
     try:
         updated = update_category(
             db,
             category,
             category_data,
+            image_url=final_image_url,
         )
         cache.delete("categories:all")
         cache.delete("categories:tree")
+
+        if final_image_url and old_image_url and final_image_url != old_image_url and storage_provider:
+            try:
+                storage_provider.delete_image(old_image_url)
+            except Exception:
+                pass
+
         return updated
 
     except IntegrityError:
         db.rollback()
-
+        if final_image_url and final_image_url != old_image_url and storage_provider:
+            try:
+                storage_provider.delete_image(final_image_url)
+            except Exception:
+                pass
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Category already exists",
         )
     except InvalidParentCategoryError as exc:
         db.rollback()
-
+        if final_image_url and final_image_url != old_image_url and storage_provider:
+            try:
+                storage_provider.delete_image(final_image_url)
+            except Exception:
+                pass
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
