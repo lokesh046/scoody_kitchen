@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '../store/auth';
@@ -20,14 +20,17 @@ interface HeaderProps {
   onCartToggle?: () => void;
   // When true, the header floats transparently over whatever sits behind it
   // (a full-bleed hero image) instead of its normal solid sticky bar.
-  // Caller is responsible for giving its container `position: relative` so
-  // this absolute header anchors correctly, and for ensuring the content
-  // behind it has enough contrast (e.g. a dark gradient) for the white nav
-  // text to stay legible.
+  // Caller is responsible for ensuring the content behind it has enough
+  // contrast (e.g. a dark gradient) for the white nav text to stay legible.
   overlay?: boolean;
+  // When true, the header starts transparent and pinned over a full-screen
+  // hero, then crossfades into the normal solid ink bar once the page is
+  // scrolled past the hero -- the header never leaves the top of the
+  // viewport in either state.
+  floatingUntilScroll?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay = false }) => {
+export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay = false, floatingUntilScroll = false }) => {
   const navigate = useNavigate();
   const { user, clearAuth } = useAuthStore();
   const cartItems = useCartStore((state) => state.items);
@@ -44,6 +47,15 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
   });
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isScrolledPastHero, setIsScrolledPastHero] = useState(false);
+
+  useEffect(() => {
+    if (!floatingUntilScroll) return;
+    const handleScroll = () => setIsScrolledPastHero(window.scrollY > window.innerHeight * 0.8);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [floatingUntilScroll]);
 
   const totalCartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -80,7 +92,13 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
     <>
       <header
         className={`w-full text-paper ${
-          overlay
+          floatingUntilScroll
+            ? `fixed top-0 left-0 z-30 transition-colors duration-300 ${
+                isScrolledPastHero
+                  ? 'bg-ink bg-opacity-95 backdrop-blur-md border-b border-cardboard border-opacity-25 shadow-sm'
+                  : 'bg-transparent'
+              }`
+            : overlay
             ? 'absolute top-0 left-0 z-30 bg-transparent'
             : 'border-b border-cardboard border-opacity-25 bg-ink bg-opacity-95 backdrop-blur-md sticky top-0 z-30 shadow-sm'
         }`}

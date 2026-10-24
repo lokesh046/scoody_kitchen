@@ -188,10 +188,16 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
-      {isFullscreenHeroEnabled && <FullscreenHomeHero />}
-      {/* Normal sticky header always follows -- never overlaid on the hero,
-          so it reads as its own solid bar once the hero section ends. */}
-      <Header onCartToggle={() => setIsCartOpen(true)} />
+      {isFullscreenHeroEnabled ? (
+        <>
+          {/* Transparent over the hero, crossfades to the normal solid ink
+              bar once scrolled past it -- stays pinned to the top throughout. */}
+          <Header floatingUntilScroll onCartToggle={() => setIsCartOpen(true)} />
+          <FullscreenHomeHero />
+        </>
+      ) : (
+        <Header onCartToggle={() => setIsCartOpen(true)} />
+      )}
 
       {/* Main Landing Content */}
       <main className="flex-grow w-full">
