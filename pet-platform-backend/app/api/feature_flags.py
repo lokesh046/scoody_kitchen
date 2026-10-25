@@ -2,6 +2,7 @@ from typing import Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.cache import cache
 from app.core.database import get_db
 from app.dependencies.auth import require_role
 from app.models.enums import UserRole
@@ -15,11 +16,29 @@ from app.services.feature_flag_service import (
 
 router = APIRouter(tags=["Feature Flags"])
 
+CACHE_KEY_PUBLIC = "feature_flags:public"
+
+
 @router.get("/features/public", response_model=Dict[str, PublicFeatureFlagState])
 def get_public_feature_flags(db: Session = Depends(get_db)):
     """Public endpoint: Returns each feature's enabled state and disabled-state
-    fallback (hide / coming_soon / unavailable) for client rendering."""
-    return get_public_flags(db)
+    fallback (hide / coming_soon / unavailable) for client rendering.
+
+    Cached because the header calls this on every page for every visitor, and
+    an uncached read costs two queries (the seed check plus the select). It was
+    a third of all API traffic, which kept Neon's compute from ever suspending.
+
+    The TTL is deliberately long: flags only change when an admin toggles one,
+    and that path deletes this key, so a change is still immediate. A short TTL
+    would reintroduce a periodic query purely to re-learn an unchanged answer.
+    """
+    cached = cache.get(CACHE_KEY_PUBLIC)
+    if cached is not None:
+        return cached
+
+    flags = get_public_flags(db)
+    cache.set(CACHE_KEY_PUBLIC, flags, ttl_seconds=3600)
+    return flags
 
 @router.get("/admin/features", response_model=List[FeatureFlagResponse])
 def get_admin_feature_flags(
@@ -49,4 +68,5 @@ def toggle_feature_flag(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Feature flag '{key}' not found in registry.",
         )
+    cache.delete(CACHE_KEY_PUBLIC)
     return flag

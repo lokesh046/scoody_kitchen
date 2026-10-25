@@ -14,6 +14,10 @@ celery_app.conf.update(
     accept_content=["json"],
     timezone="UTC",
     enable_utc=True,
+    # The beat task below runs 1,440 times a day in a worker that otherwise
+    # lives forever, so anything that leaks slowly accumulates for the life of
+    # the container. Recycling the child process caps that.
+    worker_max_tasks_per_child=500,
     beat_schedule={
         "check-expired-consultations-every-minute": {
             "task": "app.tasks.notification_tasks.check_and_complete_expired_consultations_task",

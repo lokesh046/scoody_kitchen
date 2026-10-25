@@ -12,13 +12,12 @@ async def redis_notifications_listener():
     and pushes received payloads to active WebSocket clients on this server.
     """
     logger.info("Initializing background Redis Pub/Sub notification listener...")
-    pubsub = None
     while True:
+        pubsub = redis_client.pubsub()
         try:
-            pubsub = redis_client.pubsub()
             await pubsub.subscribe("pet_notifications")
             logger.info("Successfully subscribed to Redis channel: pet_notifications")
-            
+
             async for message in pubsub.listen():
                 if message["type"] == "message":
                     try:
@@ -30,15 +29,19 @@ async def redis_notifications_listener():
                         await manager.send_personal_message(user_id, payload)
                     except Exception as e:
                         logger.error(f"Error parsing Redis notification payload: {e}")
-                        
+
         except asyncio.CancelledError:
             logger.info("Redis notifications listener task cancelled. Unsubscribing...")
-            if pubsub is not None:
-                try:
-                    await pubsub.unsubscribe("pet_notifications")
-                except Exception:
-                    pass
-            break
+            raise
         except Exception as e:
             logger.error(f"Redis Pub/Sub connection lost, reconnecting in 5 seconds... Error: {e}")
             await asyncio.sleep(5)
+        finally:
+            # Every reconnect used to build a fresh pubsub and abandon the old
+            # one, so each dropped Redis connection leaked a socket and its
+            # reader task for the life of the process. Closing here runs on
+            # reconnect and on cancellation alike.
+            try:
+                await pubsub.aclose()
+            except Exception:
+                pass

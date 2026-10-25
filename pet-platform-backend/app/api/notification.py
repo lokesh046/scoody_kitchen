@@ -152,4 +152,9 @@ async def websocket_endpoint(
             # Keep connection open waiting for ping/pong frames
             await websocket.receive_text()
     except WebSocketDisconnect:
+        pass
+    finally:
+        # A clean WebSocketDisconnect is not the only way out of that loop --
+        # a reset connection, a cancelled task, or a shutdown raises something
+        # else, and those sockets used to stay in the manager forever.
         manager.disconnect(user_id, websocket)
