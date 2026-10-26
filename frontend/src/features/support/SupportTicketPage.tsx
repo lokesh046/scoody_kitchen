@@ -122,7 +122,7 @@ export default function SupportTicketPage() {
                 <div key={m.id} className={`max-w-xl ${m.is_staff_reply ? '' : 'ml-auto text-right'}`}>
                   <p className="font-body text-sm text-ink whitespace-pre-wrap">{m.body}</p>
                   <div className="font-mono text-[9px] uppercase tracking-wider text-ink opacity-60 mt-1.5">
-                    {m.is_staff_reply ? "Scooby's Kitchen Support" : 'You'} &middot;{' '}
+                    {m.is_staff_reply ? "Hearth & One Support" : 'You'} &middot;{' '}
                     {new Date(m.created_at).toLocaleString()}
                   </div>
                 </div>

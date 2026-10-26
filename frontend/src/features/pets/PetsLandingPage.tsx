@@ -203,7 +203,7 @@ export function PetsLandingPage() {
       <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-gradient-to-b from-midnight via-midnightCard to-midnight">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
-            <div className="flex items-center justify-center space-x-2 font-mono text-xs uppercase tracking-widest text-turmeric">
+            <div className="flex items-center justify-center space-x-2 font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">
               <span>A closer look</span>
             </div>
             <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug text-paper">
@@ -221,7 +221,7 @@ export function PetsLandingPage() {
       <section aria-labelledby="pet-profile-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-2xl mx-auto text-center space-y-4 mb-10 md:mb-12">
-            <p className="font-mono text-xs uppercase tracking-widest text-turmeric">Your Pet's Profile</p>
+            <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">Your Pet's Profile</p>
             <h2 id="pet-profile-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
               <span className="sr-only">A clearer picture of the companion you know by heart.</span>
               <span aria-hidden="true">

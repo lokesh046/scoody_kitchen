@@ -298,7 +298,7 @@ export function NotificationDropdown() {
           {/* Footer */}
           <div className="p-2.5 bg-paperLight border-t border-cardboard border-opacity-35 text-center">
             <span className="font-mono text-[8.5px] uppercase tracking-wider text-ink opacity-60">
-              Scooby's Kitchen Notification System
+              Hearth & One Notification System
             </span>
           </div>
         </div>

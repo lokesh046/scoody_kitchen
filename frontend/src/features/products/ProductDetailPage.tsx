@@ -352,7 +352,7 @@ export const ProductDetailPage: React.FC = () => {
             The requested recipe notebook entry could not be retrieved. It may have been archived.
           </p>
           <button
-            onClick={() => navigate('/shop')}
+            onClick={() => navigate('/shop/app')}
             className="bg-turmeric text-ink font-body font-bold text-xs uppercase px-4 py-2.5 rounded-sm tracking-wide"
           >
             Back to Recipes
@@ -383,7 +383,7 @@ export const ProductDetailPage: React.FC = () => {
         {/* Back Link */}
         <div className="mb-6 pl-4">
           <button
-            onClick={() => navigate('/shop')}
+            onClick={() => navigate('/shop/app')}
             className="font-mono text-[11px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1"
           >
             <ArrowLeft className="w-3 h-3" />
@@ -1208,7 +1208,7 @@ export const ProductDetailPage: React.FC = () => {
 
                   <div className="pt-4 space-y-2">
                     <h4 className="font-display font-black text-xl uppercase tracking-tight text-ink">
-                      Bruno Approved Formula!
+                      Puma Approved Formula!
                     </h4>
                     <p className="font-body text-xs text-ink opacity-85 leading-relaxed">
                       {selectedReview.comment || 'No comment provided.'}

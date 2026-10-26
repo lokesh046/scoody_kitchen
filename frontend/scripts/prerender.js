@@ -53,7 +53,7 @@ const SITE_URL = (process.env.SITE_URL || '').replace(/\/$/, '');
 // Trailing slash on everything but '/' — matches what nginx serves
 // directly for these prerendered routes without a redirect (see the same
 // comment in generate-sitemap.js for why that distinction matters).
-const STATIC_ROUTES = ['/', '/shop/', '/onboarding/', '/blog/'];
+const STATIC_ROUTES = ['/', '/shop/', '/onboarding/', '/blog/', '/pets/', '/consultations/'];
 
 async function fetchAllProductIds() {
   const ids = [];

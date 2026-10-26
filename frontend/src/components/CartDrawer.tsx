@@ -134,7 +134,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                   <button
                     onClick={() => {
                       onClose();
-                      navigate('/shop');
+                      navigate('/shop/app');
                     }}
                     className="w-full max-w-xs bg-turmeric hover:bg-amber-400 text-ink font-display font-black text-xs uppercase py-3.5 px-6 rounded-xl tracking-wider transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center space-x-2 border border-ink/10 cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
                   >
@@ -413,7 +413,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
               </button>
 
               <p className="font-body text-[9px] text-ink opacity-60 text-center leading-normal">
-                🐾 Securely ledgered by Scooby’s Veterinary Portal. Purchases support small-farm protein sourcing.
+                🐾 Securely ledgered by Hearth & One’s Veterinary Portal. Purchases support small-farm protein sourcing.
               </p>
             </div>
           )}

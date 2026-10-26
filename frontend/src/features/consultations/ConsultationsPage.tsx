@@ -1083,7 +1083,7 @@ export const ConsultationsPage: React.FC = () => {
         {/* Back Link */}
         <div className="mb-6 text-left">
           <button
-            onClick={() => navigate('/shop')}
+            onClick={() => navigate('/shop/app')}
             className="font-mono text-[10px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1.5 transition-opacity"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -1652,7 +1652,7 @@ export const ConsultationsPage: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={() => navigate('/pets')}
+                    onClick={() => navigate('/pets/app')}
                     className="bg-herb hover:bg-herb/90 text-white font-body font-bold text-xs uppercase px-5 py-2.5 rounded-sm tracking-wider cursor-pointer"
                   >
                     Create Pet Profile 🐾

@@ -488,7 +488,7 @@ export const PetsPage: React.FC = () => {
             </div>
             <div className="pt-2">
               <button
-                onClick={() => navigate('/shop')}
+                onClick={() => navigate('/shop/app')}
                 className="inline-flex items-center space-x-2 bg-turmeric text-ink font-mono text-[10px] uppercase font-bold px-5 py-2.5 rounded-[8px] hover:bg-opacity-90 transition-all cursor-pointer shadow-xs active:scale-98"
               >
                 <span>Browse Recipes</span>
@@ -512,7 +512,7 @@ export const PetsPage: React.FC = () => {
         {/* Back Link */}
         <div className="mb-6 text-left">
           <button
-            onClick={() => navigate('/shop')}
+            onClick={() => navigate('/shop/app')}
             className="font-mono text-[10px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1.5 transition-opacity"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -522,15 +522,11 @@ export const PetsPage: React.FC = () => {
 
         {/* Section Header */}
         <div className="space-y-1 text-left mb-8">
-          <Eyebrow label="CANINE & FELINE NUTRITIONAL REGISTRY" />
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="font-display font-black text-2xl sm:text-4xl text-ink tracking-tight">
                 Companion Pet Profiles
               </h1>
-              <p className="font-body text-xs sm:text-sm text-ink opacity-75 max-w-2xl mt-1">
-                Manage your companion's bio records, monitor growth weight metrics, and access veterinary diagnostic clinical files.
-              </p>
             </div>
             <div className="shrink-0">
               <button
@@ -1048,7 +1044,7 @@ export const PetsPage: React.FC = () => {
                                   setName(e.target.value);
                                   if (formError) setFormError('');
                                 }}
-                                placeholder="e.g. Scooby, Bruno, Bella"
+                                placeholder="e.g. Scooby, Puma, Bella"
                                 className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
                                 required
                                 autoFocus

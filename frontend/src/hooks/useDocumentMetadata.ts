@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-const DEFAULT_SHARE_IMAGE = 'https://www.scoobyskitchen.com/images/scoobys_fam_banner.jpg';
+const DEFAULT_SHARE_IMAGE = 'https://hearthandone.com/images/scoobys_fam_banner.jpg';
 
 function setMetaTag(attr: 'name' | 'property', key: string, content: string) {
   let tag = document.querySelector(`meta[${attr}="${key}"]`);
@@ -30,7 +30,7 @@ function setCanonicalLink(href: string) {
 // carries its own baseline og:/twitter: tags independent of this hook.
 export function useDocumentMetadata(title: string, description: string, image?: string) {
   useEffect(() => {
-    const fullTitle = `${title} | Scooby's Kitchen`;
+    const fullTitle = `${title} | Hearth & One`;
     const shareImage = image || DEFAULT_SHARE_IMAGE;
     const canonicalUrl = window.location.origin + window.location.pathname;
 

@@ -38,7 +38,7 @@ export function SiteFooter({ className = 'bg-midnight' }: { className?: string }
     
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-10 sm:gap-6 text-left">
           <div className="space-y-3.5">
-            <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-turmeric font-bold">Explore</p>
+            <p className="font-mono text-xs sm:text-sm uppercase tracking-[0.15em] text-turmeric font-bold">Explore</p>
             <ul className="space-y-2.5 font-body text-sm text-paper opacity-80">
               {isKnowYourPetEnabled && (
                 <li><button onClick={() => navigate('/pets')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Know Your Pet</button></li>
@@ -54,7 +54,7 @@ export function SiteFooter({ className = 'bg-midnight' }: { className?: string }
           </div>
     
           <div className="space-y-3.5">
-            <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-turmeric font-bold">The Brand</p>
+            <p className="font-mono text-xs sm:text-sm uppercase tracking-[0.15em] text-turmeric font-bold">The Brand</p>
             <ul className="space-y-2.5 font-body text-sm text-paper opacity-80">
               <li><button onClick={() => navigate('/')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Our Story</button></li>
               <li><button onClick={() => goToHomeSection('hearth-hound')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Hearth &amp; Hound · Coming Soon</button></li>
@@ -64,7 +64,7 @@ export function SiteFooter({ className = 'bg-midnight' }: { className?: string }
           </div>
     
           <div className="space-y-3.5">
-            <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-turmeric font-bold">Get In Touch</p>
+            <p className="font-mono text-xs sm:text-sm uppercase tracking-[0.15em] text-turmeric font-bold">Get In Touch</p>
             <ul className="space-y-2.5 font-body text-sm text-paper opacity-80">
               <li><a href="mailto:support@hearthandone.com" className="break-words hover:text-turmeric hover:opacity-100 transition-colors">support@hearthandone.com</a></li>
               <li><a href="https://www.instagram.com/hearth__and__hound/" target="_blank" rel="noopener noreferrer" className="hover:text-turmeric hover:opacity-100 transition-colors">Instagram</a></li>
@@ -75,7 +75,7 @@ export function SiteFooter({ className = 'bg-midnight' }: { className?: string }
           </div>
     
           <div className="space-y-3.5">
-            <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-turmeric font-bold">Legal</p>
+            <p className="font-mono text-xs sm:text-sm uppercase tracking-[0.15em] text-turmeric font-bold">Legal</p>
             <ul className="space-y-2.5 font-body text-sm text-paper opacity-80">
               <li><Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link></li>
               <li><Link to="/terms" className="hover:text-turmeric hover:opacity-100 transition-colors">Terms of Use</Link></li>

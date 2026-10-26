@@ -54,7 +54,7 @@ export const ProfilePage: React.FC = () => {
       );
       return;
     }
-    navigate('/consultations');
+    navigate('/consultations/app');
   };
   
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -369,7 +369,7 @@ export const ProfilePage: React.FC = () => {
         {/* Navigation Breadcrumb */}
         <div className="flex justify-between items-center border-b border-cardboard border-opacity-35 pb-4">
           <button
-            onClick={() => navigate('/shop')}
+            onClick={() => navigate('/shop/app')}
             className="flex items-center space-x-1.5 font-mono text-[10px] uppercase font-bold tracking-wider text-ink opacity-75 hover:opacity-100 transition-opacity"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -630,7 +630,7 @@ export const ProfilePage: React.FC = () => {
             
             {/* View Pets */}
             <button
-              onClick={() => navigate('/pets')}
+              onClick={() => navigate('/pets/app')}
               className="flex items-center space-x-3 p-4 border border-cardboard border-opacity-35 hover:border-turmeric bg-paper hover:bg-paperLight rounded-sm transition-all text-ink text-left cursor-pointer shadow-xs"
             >
               <div className="p-2.5 bg-amber-50 rounded-sm border border-amber-200">

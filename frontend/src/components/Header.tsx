@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '../store/auth';
 import { useCartStore } from '../store/cart';
@@ -32,6 +32,18 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay = false, floatingUntilScroll = false }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const handleBrandClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (location.pathname !== '/') return;
+    event.preventDefault();
+    if (location.hash) navigate({ pathname: '/', search: location.search }, { replace: true });
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+    });
+  };
   const { user, clearAuth } = useAuthStore();
   const cartItems = useCartStore((state) => state.items);
   const clearCart = useCartStore((state) => state.clear);
@@ -126,9 +138,11 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
         <div className="w-full px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5 flex justify-between items-center lg:grid lg:grid-cols-12 gap-2">
           
           {/* Left Corner: Brand Logo & Title with Artisanal Porcelain Medallion Badge */}
-          <div 
-            className="flex items-center space-x-2.5 sm:space-x-3.5 cursor-pointer lg:col-span-3 justify-start select-none min-w-0 group" 
-            onClick={() => navigate('/')}
+          <Link
+            to="/"
+            aria-label="Hearth & One — back to home"
+            className="flex items-center space-x-2.5 sm:space-x-3.5 cursor-pointer lg:col-span-3 justify-start select-none min-w-0 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-turmeric"
+            onClick={handleBrandClick}
           >
             <div className="relative flex items-center justify-center shrink-0">
               {/* Porcelain Medallion Badge Container (Enlarged & Sharp) */}
@@ -151,7 +165,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
                 Human-Grade Pet Cooking
               </p>
             </div>
-          </div>
+          </Link>
 
           {/* Center: Desktop Navigation Menu */}
           <nav className={`hidden lg:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider ${headerTextClass} lg:col-span-6 justify-center transition-opacity duration-300 ${navRevealed ? 'opacity-100' : 'opacity-0'}`}>

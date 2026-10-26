@@ -51,6 +51,7 @@ Fill in `.env` with production values: `DATABASE_URL` (Neon Postgres pooled stri
 ```bash
 cd /var/www/scoobys-kitchen/frontend
 npm install
+export SITE_URL=https://hearthandone.com   # required so the prebuild sitemap generator (scripts/generate-sitemap.js) emits real hearthandone.com URLs instead of skipping generation
 npm run build   # builds into dist/ against https://api.hearthandone.com
 ```
 
@@ -102,5 +103,5 @@ cd /var/www/scoobys-kitchen/pet-platform-backend && git pull
 sudo systemctl restart scooby-backend
 
 # Update frontend
-cd /var/www/scoobys-kitchen/frontend && git pull && npm run build
+cd /var/www/scoobys-kitchen/frontend && git pull && SITE_URL=https://hearthandone.com npm run build
 ```

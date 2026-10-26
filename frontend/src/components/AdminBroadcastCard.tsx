@@ -74,7 +74,7 @@ export function AdminBroadcastCard() {
               required
               rows={3}
               maxLength={500}
-              placeholder="e.g. Enter code SCOOBY20 at checkout for an instant 20% discount on all recipe batches..."
+              placeholder="e.g. Enter code HEARTH20 at checkout for an instant 20% discount on all recipe batches..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               disabled={broadcastMutation.isPending}

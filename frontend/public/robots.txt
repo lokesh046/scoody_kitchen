@@ -9,12 +9,15 @@ Disallow: /login
 Disallow: /auth/
 
 # Signed-in-only pages (RequireAuth in App.tsx) — private user data, or a
-# login wall a crawler can't get past anyway.
+# login wall a crawler can't get past anyway. /pets is a public
+# feature-explainer page now (see App.tsx) — only /pets/app, the gated
+# real tool, is disallowed.
 Disallow: /profile
 Disallow: /checkout
 Disallow: /orders
-Disallow: /pets
-Disallow: /consultations
+Disallow: /pets/app
+Disallow: /consultations/app
+Disallow: /consultations/room/
 Disallow: /apply-doctor
 Disallow: /assistant
 

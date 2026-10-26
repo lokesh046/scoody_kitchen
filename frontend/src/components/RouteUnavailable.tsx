@@ -28,7 +28,7 @@ export const RouteUnavailable: React.FC<RouteUnavailableProps> = ({ variant, act
         <h1 className="font-display font-black text-2xl sm:text-3xl text-ink">{title}</h1>
         <p className="font-body text-sm text-ink opacity-60 max-w-md mx-auto leading-relaxed">{description}</p>
         <button
-          onClick={() => navigate('/shop')}
+          onClick={() => navigate('/shop/app')}
           className="font-mono text-xs uppercase tracking-wider font-bold text-paper bg-ink px-5 py-2.5 rounded-sm hover:bg-opacity-90 transition-colors"
         >
           Return to Shop

@@ -219,7 +219,7 @@ export function ShopLandingPage() {
       <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-gradient-to-b from-midnight via-midnightCard to-midnight">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
-            <div className="flex items-center justify-center space-x-2 font-mono text-xs uppercase tracking-widest text-turmeric">
+            <div className="flex items-center justify-center space-x-2 font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">
               <span>A closer look</span>
             </div>
             <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug text-paper">
@@ -237,7 +237,7 @@ export function ShopLandingPage() {
       <section aria-labelledby="shop-ledger-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-2xl mx-auto text-center space-y-4 mb-10 md:mb-12">
-            <p className="font-mono text-xs uppercase tracking-widest text-turmeric">The Ingredient Ledger</p>
+            <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">The Ingredient Ledger</p>
             <h2 id="shop-ledger-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
               Percentages, not promises.
             </h2>

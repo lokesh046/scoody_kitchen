@@ -32,6 +32,13 @@ const STATIC_PAGES = [
   // so it belongs in the sitemap like any other page.
   { path: '/onboarding/', changefreq: 'weekly', priority: '0.6' },
   { path: '/blog/', changefreq: 'daily', priority: '0.8' },
+  // Know Your Pet's public explainer (App.tsx) — the real, auth-gated tool
+  // lives at /pets/app and stays out of the sitemap/robots like any other
+  // signed-in page.
+  { path: '/pets/', changefreq: 'monthly', priority: '0.6' },
+  // Locate Your Vet's public explainer (App.tsx) — the real, auth-gated
+  // tool lives at /consultations/app and stays out of the sitemap.
+  { path: '/consultations/', changefreq: 'monthly', priority: '0.6' },
 ];
 
 function urlEntry(loc, changefreq, priority) {

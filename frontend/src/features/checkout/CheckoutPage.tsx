@@ -805,7 +805,7 @@ export const CheckoutPage: React.FC = () => {
       {/* Back Link */}
       <div className="mb-8 text-left">
         <button
-          onClick={() => navigate('/shop')}
+          onClick={() => navigate('/shop/app')}
           className="font-mono text-[9px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1"
         >
           <ArrowLeft className="w-3 h-3" />
@@ -1001,7 +1001,7 @@ export const CheckoutPage: React.FC = () => {
             You cannot proceed to checkout without adding human-grade recipes to your cart first.
           </p>
           <button
-            onClick={() => navigate('/shop')}
+            onClick={() => navigate('/shop/app')}
             className="bg-turmeric text-ink font-body font-bold text-xs uppercase px-4 py-2.5 rounded-sm tracking-wide"
           >
             Sourced Products Catalog

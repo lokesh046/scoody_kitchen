@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth';
 import { registerUser, requestMagicLink, verifyMagicCode, fetchCurrentUser, authenticateGoogle } from '../../api/auth';
 import { createPet } from '../../api/pets';
+import { DRAFT_KEY, pendingPetWeightKg } from '../onboarding/mealPlanner';
 import { Eyebrow } from '../../components/Eyebrow';
 import { Key, Mail, User, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { DogViewer3D } from '../../components/DogViewer3D';
@@ -182,6 +183,7 @@ export const AuthPage: React.FC = () => {
       const userProfile = await fetchCurrentUser();
       setAuth(userProfile, tokenRes.access_token);
 
+      let onboardingPetSaved = false;
       // Auto-save pending pet if exists
       const pendingPetStr = localStorage.getItem('pending_onboarding_pet');
       if (pendingPetStr) {
@@ -197,9 +199,11 @@ export const AuthPage: React.FC = () => {
             breed: pendingPet.breed || 'Mixed Breed',
             gender: pendingPet.gender || 'unknown',
             date_of_birth: dateOfBirthStr,
-            weight: Number(pendingPet.weight),
+            weight: Number(pendingPetWeightKg(Number(pendingPet.weight), pendingPet.weight_unit).toFixed(3)),
           });
+          onboardingPetSaved = true;
           localStorage.removeItem('pending_onboarding_pet');
+          sessionStorage.removeItem(DRAFT_KEY);
         } catch (e) {
           console.error('Failed to auto-save pending pet:', e);
         }
@@ -207,7 +211,7 @@ export const AuthPage: React.FC = () => {
 
       triggerCornerConfetti();
       setTimeout(() => {
-        navigate(from, { replace: true });
+        navigate(onboardingPetSaved && from === '/onboarding' ? '/pets/app' : from, { replace: true });
       }, 1400);
     } catch (err: any) {
       setErrorMsg(err.response?.data?.detail || err.message || 'Google OAuth 2.0 authentication failed.');
@@ -314,6 +318,7 @@ export const AuthPage: React.FC = () => {
       // Save authenticated user and token
       setAuth(userProfile, tokenRes.access_token);
 
+      let onboardingPetSaved = false;
       // Auto-save pending pet if exists
       const pendingPetStr = localStorage.getItem('pending_onboarding_pet');
       if (pendingPetStr) {
@@ -329,9 +334,11 @@ export const AuthPage: React.FC = () => {
             breed: pendingPet.breed || 'Mixed Breed',
             gender: pendingPet.gender || 'unknown',
             date_of_birth: dateOfBirthStr,
-            weight: Number(pendingPet.weight),
+            weight: Number(pendingPetWeightKg(Number(pendingPet.weight), pendingPet.weight_unit).toFixed(3)),
           });
+          onboardingPetSaved = true;
           localStorage.removeItem('pending_onboarding_pet');
+          sessionStorage.removeItem(DRAFT_KEY);
         } catch (e) {
           console.error('Failed to auto-save pending pet:', e);
         }
@@ -339,7 +346,7 @@ export const AuthPage: React.FC = () => {
 
       triggerCornerConfetti();
       setTimeout(() => {
-        navigate(from, { replace: true });
+        navigate(onboardingPetSaved && from === '/onboarding' ? '/pets/app' : from, { replace: true });
       }, 1600);
     } catch (err: any) {
       setErrorMsg(err.response?.data?.detail || 'Invalid or expired verification code.');

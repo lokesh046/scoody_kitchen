@@ -13,7 +13,11 @@ export const useFeatureFlags = () => {
   return useQuery({
     queryKey: ['featureFlags'],
     queryFn: fetchPublicFeatures,
-    staleTime: 0, // Always consider fresh to guarantee instant updates
+    // This hook runs in the Header plus several components per page, so
+    // staleTime: 0 meant a /features/public request on every navigation for
+    // every visitor. A short window still picks up an admin's flag toggle on
+    // the next focus or navigation, without re-asking on every mount.
+    staleTime: 60_000,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
   });

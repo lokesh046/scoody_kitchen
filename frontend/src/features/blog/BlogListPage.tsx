@@ -6,6 +6,7 @@ import { fetchPublishedBlogPosts } from '../../api/blog';
 import { Header } from '../../components/Header';
 import { CartDrawer } from '../../components/CartDrawer';
 import { NewsletterSignup } from '../../components/NewsletterSignup';
+import { BlogOrbitGallery } from '../../components/BlogOrbitGallery';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 
@@ -63,6 +64,12 @@ export const BlogListPage: React.FC = () => {
             written for Indian dog owners who care about what's in the bowl.
           </p>
         </div>
+
+        {posts && posts.length >= 3 && (
+          <div className="pl-4 mb-12">
+            <BlogOrbitGallery posts={posts} />
+          </div>
+        )}
 
         <main className="pl-4">
           {isLoading ? (

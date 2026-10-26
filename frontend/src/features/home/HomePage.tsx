@@ -250,17 +250,19 @@ export default function HomePage() {
         {isFullscreenHeroEnabled && (
           <>
             {/* Why Hearth & One */}
-            <section className="relative bg-obsidian py-20 md:py-28 px-4 sm:px-6 md:px-8">
+            <section className="relative bg-gradient-to-b from-midnight via-midnightCard to-midnightCard py-20 md:py-28 px-4 sm:px-6 md:px-8">
               <div className="max-w-7xl mx-auto text-left space-y-16">
-                <div className="flex items-center font-mono text-xs uppercase tracking-widest text-turmeric">
-                  <span>Why Hearth &amp; One</span>
-                </div>
                 <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-10 lg:gap-16 items-center">
                   <div className="space-y-6">
-                    <h2 className="font-script font-normal text-4xl sm:text-5xl lg:text-6xl tracking-normal text-ink leading-snug">
-                      Bringing the pieces of pet care together.
-                    </h2>
-                    <p className="font-body text-base text-ink opacity-70 leading-relaxed max-w-md">
+                    <div className="space-y-3">
+                      <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">
+                        Why Hearth &amp; One
+                      </p>
+                      <h2 className="font-script font-normal text-4xl sm:text-5xl lg:text-6xl tracking-normal text-paper leading-snug">
+                        Bringing the pieces of pet care together.
+                      </h2>
+                    </div>
+                    <p className="font-body text-base text-paper opacity-70 leading-relaxed max-w-md">
                       Everything works better when it's <span className="text-turmeric italic">connected.</span>
                     </p>
                   </div>
@@ -274,7 +276,7 @@ export default function HomePage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-ink divide-opacity-10 gap-10 md:gap-0 pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-paper divide-opacity-10 gap-10 md:gap-0 pt-4">
                   {[
                     { img: '/images/why-section/care.webp', title: 'Care', text: "We believe every companion deserves thoughtful attention to their everyday needs, health, and well-being." },
                     { img: '/images/why-section/clarity.webp', title: 'Clarity', text: "We make it easier to find useful information and navigate everyday pet-care decisions with confidence." },
@@ -284,8 +286,8 @@ export default function HomePage() {
                       <div className="w-32 h-32 flex items-center justify-center">
                         <img src={img} alt="" width={256} height={256} loading="lazy" decoding="async" className="w-full h-full object-contain" />
                       </div>
-                      <h3 className="font-display font-bold text-lg text-ink">{title}</h3>
-                      <p className="font-body text-sm text-ink opacity-65 leading-relaxed max-w-xs">{text}</p>
+                      <h3 className="font-display font-bold text-lg text-paper">{title}</h3>
+                      <p className="font-body text-sm text-paper opacity-65 leading-relaxed max-w-xs">{text}</p>
                     </div>
                   ))}
                 </div>
@@ -377,14 +379,38 @@ export default function HomePage() {
               </div>
             </section>
 
+            {/* Hearth & Hound -- coming soon */}
+            <section id="hearth-hound" className="relative bg-obsidian py-20 md:py-28 px-4 sm:px-6 md:px-8">
+              <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+                <div className="order-2 lg:order-1">
+                  <HoundPortalReveal />
+                </div>
+                <div className="space-y-6 order-1 lg:order-2">
+                  <div className="flex items-center font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">
+                    <span>Hearth &amp; Hound · Coming Soon</span>
+                  </div>
+                  <h2 className="font-script text-3xl sm:text-4xl lg:text-5xl font-normal tracking-normal text-ink leading-snug">
+                    Thoughtfully made for the ones who are <span className="text-turmeric">one of us.</span>
+                  </h2>
+                  <p className="font-body text-sm sm:text-base text-ink opacity-65 leading-relaxed max-w-md">
+                    We're preparing a natural, thoughtfully crafted range of pet food with a focus on quality ingredients, sustainable practices, and pesticide-free sourcing.
+                  </p>
+                  <div className="flex flex-wrap gap-2.5 pt-2">
+                    {['Human-Grade', 'Pesticide-Free', 'Sustainably Sourced', 'Vet-Reviewed'].map((label) => (
+                      <span key={label} className="font-mono text-[10px] uppercase font-bold tracking-wider text-turmeric border border-turmeric border-opacity-40 rounded-full px-3.5 py-2">
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+
             {/* Signature Recipes -- Black & Gold restyle */}
             <section className="relative bg-obsidian py-20 md:py-28 px-4 sm:px-6 md:px-8">
               <div className="max-w-7xl mx-auto space-y-10">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-ink border-opacity-10 pb-6">
                   <div className="space-y-2">
-                    <div className="flex items-center font-mono text-xs uppercase tracking-widest text-turmeric">
-                      <span>Fresh Formulations</span>
-                    </div>
                     <h2 className="font-script font-normal text-4xl sm:text-5xl tracking-normal text-ink">Signature Recipes</h2>
                     <p className="font-body text-sm text-ink opacity-60">Veterinary-audited small batch recipes, cooked to biological perfection.</p>
                   </div>
@@ -450,33 +476,6 @@ export default function HomePage() {
                     ))}
                   </div>
                 )}
-              </div>
-            </section>
-
-            {/* Hearth & Hound -- coming soon */}
-            <section id="hearth-hound" className="relative bg-obsidian py-20 md:py-28 px-4 sm:px-6 md:px-8">
-              <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-                <div className="order-2 lg:order-1">
-                  <HoundPortalReveal />
-                </div>
-                <div className="space-y-6 order-1 lg:order-2">
-                  <div className="flex items-center font-mono text-xs uppercase tracking-widest text-turmeric">
-                    <span>Hearth &amp; Hound · Coming Soon</span>
-                  </div>
-                  <h2 className="font-script text-3xl sm:text-4xl lg:text-5xl font-normal tracking-normal text-ink leading-snug">
-                    Thoughtfully made for the ones who are <span className="text-turmeric">one of us.</span>
-                  </h2>
-                  <p className="font-body text-sm sm:text-base text-ink opacity-65 leading-relaxed max-w-md">
-                    We're preparing a natural, thoughtfully crafted range of pet food with a focus on quality ingredients, sustainable practices, and pesticide-free sourcing.
-                  </p>
-                  <div className="flex flex-wrap gap-2.5 pt-2">
-                    {['Human-Grade', 'Pesticide-Free', 'Sustainably Sourced', 'Vet-Reviewed'].map((label) => (
-                      <span key={label} className="font-mono text-[10px] uppercase font-bold tracking-wider text-turmeric border border-turmeric border-opacity-40 rounded-full px-3.5 py-2">
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
               </div>
             </section>
 
@@ -742,7 +741,6 @@ export default function HomePage() {
           <div className="max-w-7xl mx-auto space-y-8 md:space-y-12">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 text-left border-b border-cardboard pb-6">
               <div className="space-y-2">
-                <Eyebrow label="FRESH FORMULATIONS" />
                 <h2 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl uppercase tracking-tight text-ink">
                   Signature Recipes
                 </h2>
@@ -1171,7 +1169,7 @@ export default function HomePage() {
           <section className="relative py-20 md:py-24 px-4 sm:px-6 md:px-8">
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="space-y-4">
-                <div className="flex items-center font-mono text-xs uppercase tracking-widest text-turmeric">
+                <div className="flex items-center font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">
                   <span>Stay In The Loop</span>
                 </div>
                 <h2 className="font-script font-normal text-3xl sm:text-4xl tracking-normal text-paper">

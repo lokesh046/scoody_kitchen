@@ -152,7 +152,7 @@ function JourneyStep({ step, index }: { step: typeof STEPS[number]; index: numbe
           </motion.span>
         </div>
         <motion.div style={{ opacity: reduceMotion ? 1 : opacity, y: reduceMotion ? 0 : y }} className="relative mt-5 max-w-sm">
-          <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-turmeric">{step.stop}</p>
+          <p className="mb-2 font-mono text-xs sm:text-sm uppercase tracking-wider text-turmeric">{step.stop}</p>
           <h3 className="font-display font-bold text-xl lg:text-2xl leading-snug text-paper">{step.title}</h3>
           <p className="mt-3 font-body text-sm leading-relaxed text-paper/70">{step.text}</p>
         </motion.div>
@@ -290,7 +290,7 @@ export function VetLandingPage() {
       <section aria-labelledby="vet-how-it-works" className="px-4 sm:px-6 md:px-8 py-16 md:py-24 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
         <div className="max-w-6xl mx-auto">
           <div className="text-center space-y-3 mb-12 md:mb-20">
-            <p className="font-mono text-xs uppercase tracking-widest text-turmeric">How It Works</p>
+            <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">How It Works</p>
             <h2 id="vet-how-it-works" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
               Three steps to a clinic near you.
             </h2>
