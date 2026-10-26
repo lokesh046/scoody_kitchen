@@ -14,6 +14,8 @@ class Banner(Base):
     subtitle: Mapped[str | None] = mapped_column(String(500), nullable=True)
     image_url: Mapped[str] = mapped_column(String(500), nullable=False)
     link_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Where this banner is used: the home carousel, a landing-page hero, or a home toolkit card.
+    placement: Mapped[str] = mapped_column(String(30), default="home", server_default="home", nullable=False)
     display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
