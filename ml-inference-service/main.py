@@ -24,14 +24,15 @@ or batching layer in front of it, not more processes each holding another
 full model copy.
 """
 
+import hmac
 import logging
 import os
 import threading
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Annotated, Optional
 
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi import Depends, FastAPI, Header, HTTPException
+from pydantic import BaseModel, Field, StringConstraints
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -118,16 +119,41 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Scooby ML Inference Service", lifespan=lifespan)
 
+# Shared secret between this service and its only intended callers
+# (chatbot-service's rag/embedder.py and utils/prompt_guard.py). Unset by
+# default so existing deployments that haven't provisioned this env var yet
+# keep working unmodified; set ML_INFERENCE_SHARED_SECRET here and on every
+# caller to actually enforce it.
+ML_INFERENCE_SHARED_SECRET = os.getenv("ML_INFERENCE_SHARED_SECRET")
+_warned_unconfigured = False
+
+
+def require_internal_caller(x_internal_api_key: str | None = Header(default=None)) -> None:
+    global _warned_unconfigured
+    if not ML_INFERENCE_SHARED_SECRET:
+        if not _warned_unconfigured:
+            logger.warning(
+                "ML_INFERENCE_SHARED_SECRET is not set; /embed and /prompt-guard "
+                "are reachable by any caller on this network. Set this env var "
+                "on this service and on chatbot-service to restrict access."
+            )
+            _warned_unconfigured = True
+        return
+    if not x_internal_api_key or not hmac.compare_digest(x_internal_api_key, ML_INFERENCE_SHARED_SECRET):
+        raise HTTPException(status_code=401, detail="Missing or invalid internal API key")
+
 
 class EmbedRequest(BaseModel):
-    texts: list[str]
+    texts: list[Annotated[str, StringConstraints(max_length=20_000)]] = Field(
+        default_factory=list, max_length=100
+    )
 
 
 class EmbedResponse(BaseModel):
     embeddings: list[list[float]]
 
 
-@app.post("/embed", response_model=EmbedResponse)
+@app.post("/embed", response_model=EmbedResponse, dependencies=[Depends(require_internal_caller)])
 def embed(req: EmbedRequest) -> EmbedResponse:
     if not req.texts:
         return EmbedResponse(embeddings=[])
@@ -137,7 +163,7 @@ def embed(req: EmbedRequest) -> EmbedResponse:
 
 
 class PromptGuardRequest(BaseModel):
-    text: str
+    text: str = Field(max_length=50_000)
 
 
 class PromptGuardResponse(BaseModel):
@@ -146,7 +172,7 @@ class PromptGuardResponse(BaseModel):
     available: bool
 
 
-@app.post("/prompt-guard", response_model=PromptGuardResponse)
+@app.post("/prompt-guard", response_model=PromptGuardResponse, dependencies=[Depends(require_internal_caller)])
 def prompt_guard(req: PromptGuardRequest) -> PromptGuardResponse:
     if not PROMPT_GUARD_ENABLED or not req.text or not req.text.strip():
         return PromptGuardResponse(is_malicious=False, score=0.0, available=False)

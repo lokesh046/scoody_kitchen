@@ -259,7 +259,7 @@ DOG_BREED_METADATA: Dict[str, Dict[str, Any]] = {
         "size": "Medium (15 - 25 kg)",
         "temperament": "Hardy, highly intuitive, loyal, adaptable",
         "nutrition": "Naturally balanced ancestral proteins with anti-inflammatory turmeric and coconut oil",
-        "recipe": "Scooby Heritage Chicken, Rice & Golden Turmeric Stew",
+        "recipe": "Hearth & One Heritage Chicken, Rice & Golden Turmeric Stew",
         "health": ["Robust immunity", "Natural resilience", "Tick prevention support"],
         "heritage": {
             "origin_country": "Indian Subcontinent",

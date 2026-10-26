@@ -36,8 +36,6 @@ ALLOWED_ORIGINS = [
     "http://192.168.1.6:3000",
     "http://192.168.1.6:5173",
     "http://192.168.1.6:8081",
-    "https://scoobys-kitchen.com",
-    "https://www.scoobys-kitchen.com",
     "https://hearthandone.com",
     "https://www.hearthandone.com",
     "https://chiliadal-intimately-shara.ngrok-free.dev",

@@ -1,3 +1,4 @@
+import asyncio
 import os
 import base64
 import logging
@@ -9,8 +10,8 @@ from utils.image_validator import validate_image_file
 from schemas.chat import ChatResponse
 from graph.workflow import chatbot_graph
 from memory.redis_memory import session_memory
-from utils.guardrails import redact_pii_text
-from utils.rate_limiter import enforce_rate_limit
+from utils.guardrails import redact_pii_text, validate_prompt_safety
+from utils.rate_limiter import enforce_rate_limit, enforce_token_budget
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
@@ -27,8 +28,23 @@ async def image_chat_endpoint(
 ) -> ChatResponse:
     """[MULTIMODAL] Upload image file, validate file size/magic bytes (Edge Case #11), perform vision analysis, and execute AI workflow."""
     enforce_rate_limit(req, user_id=current_user_id)
+    await asyncio.to_thread(enforce_token_budget, current_user_id)
+
     if not file.filename:
         raise HTTPException(status_code=400, detail="No image file provided.")
+
+    try:
+        sanitized_message = await asyncio.to_thread(validate_prompt_safety, message)
+    except HTTPException as exc:
+        if exc.status_code == 400 and "Security Violation" in exc.detail:
+            return ChatResponse(
+                reply="🛡️ [Safety Notice] I'm sorry, but your message was flagged by our safety system as a potential instruction override or security concern. I cannot fulfill this request.",
+                status="success",
+                session_id=session_id,
+                sources=["Hearth & One Guardrails Engine"],
+            )
+        raise exc
+    message = sanitized_message
 
     contents = await file.read()
 
