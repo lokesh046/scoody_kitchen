@@ -413,3 +413,33 @@
     opacity: 1;
   }
 }
+
+/* Banner call-to-action buttons: a breathing glow (colour set per button with
+   --cta-glow as "r g b") on top of the light sweep from .pet-profile-cta. The glow
+   stays on at full strength while hovered or focused, and is static when the visitor
+   prefers reduced motion. */
+.cta-glow {
+  --cta-glow: 208 158 107;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 0 22px rgb(var(--cta-glow) / 0.4);
+}
+
+@keyframes cta-glow-pulse {
+  0%, 100% {
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 0 14px rgb(var(--cta-glow) / 0.25), 0 0 0 rgb(var(--cta-glow) / 0);
+  }
+  50% {
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 0 30px rgb(var(--cta-glow) / 0.65), 0 0 56px rgb(var(--cta-glow) / 0.25);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cta-glow {
+    animation: cta-glow-pulse 3s ease-in-out infinite;
+  }
+}
+
+.cta-glow:hover,
+.cta-glow:focus-visible {
+  animation: none;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 0 34px rgb(var(--cta-glow) / 0.7), 0 0 60px rgb(var(--cta-glow) / 0.3);
+}

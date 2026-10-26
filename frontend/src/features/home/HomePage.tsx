@@ -252,8 +252,7 @@ export default function HomePage() {
             {/* Why Hearth & One */}
             <section className="relative bg-obsidian py-20 md:py-28 px-4 sm:px-6 md:px-8">
               <div className="max-w-7xl mx-auto text-left space-y-16">
-                <div className="flex items-center space-x-2 font-mono text-xs uppercase tracking-widest text-turmeric">
-                  <span className="w-6 h-[1px] bg-turmeric opacity-70"></span>
+                <div className="flex items-center font-mono text-xs uppercase tracking-widest text-turmeric">
                   <span>Why Hearth &amp; One</span>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-10 lg:gap-16 items-center">
@@ -265,11 +264,14 @@ export default function HomePage() {
                       Everything works better when it's <span className="text-turmeric italic">connected.</span>
                     </p>
                   </div>
-                  {/* Placeholder -- swap the src below for your own image */}
-                  <div className="relative h-[220px] sm:h-[260px] lg:h-[300px] rounded-[4px] border border-dashed border-ink border-opacity-25 flex flex-col items-center justify-center gap-2.5 text-ink text-opacity-40">
-                    <ImageIcon className="w-7 h-7" strokeWidth={1.2} />
-                    <span className="font-mono text-[10px] uppercase tracking-wider">Add Your Image Here</span>
-                  </div>
+                  <img
+                    src="/images/why/connected.webp"
+                    alt="A woman at a sunlit kitchen table with her Doberman resting its chin on her knee, a bowl of home-style food and a phone within reach"
+                    width={1600}
+                    height={893}
+                    loading="lazy"
+                    className="block h-[220px] sm:h-[260px] lg:h-[300px] w-full rounded-[4px] object-cover object-[center_45%]"
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-ink divide-opacity-10 gap-10 md:gap-0 pt-4">
@@ -380,8 +382,7 @@ export default function HomePage() {
               <div className="max-w-7xl mx-auto space-y-10">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-ink border-opacity-10 pb-6">
                   <div className="space-y-2">
-                    <div className="flex items-center space-x-2 font-mono text-xs uppercase tracking-widest text-turmeric">
-                      <span className="w-6 h-[1px] bg-turmeric opacity-70"></span>
+                    <div className="flex items-center font-mono text-xs uppercase tracking-widest text-turmeric">
                       <span>Fresh Formulations</span>
                     </div>
                     <h2 className="font-script font-normal text-4xl sm:text-5xl tracking-normal text-ink">Signature Recipes</h2>
@@ -459,8 +460,7 @@ export default function HomePage() {
                   <HoundPortalReveal />
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
-                  <div className="flex items-center space-x-2 font-mono text-xs uppercase tracking-widest text-turmeric">
-                    <span className="w-6 h-[1px] bg-turmeric opacity-70"></span>
+                  <div className="flex items-center font-mono text-xs uppercase tracking-widest text-turmeric">
                     <span>Hearth &amp; Hound · Coming Soon</span>
                   </div>
                   <h2 className="font-script text-3xl sm:text-4xl lg:text-5xl font-normal tracking-normal text-ink leading-snug">
@@ -492,8 +492,7 @@ export default function HomePage() {
               >
                 <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center text-left relative z-10">
                   <div className="lg:col-span-5 space-y-5">
-                    <div className="flex items-center space-x-2 font-mono text-xs uppercase tracking-widest text-ink">
-                      <span className="w-6 h-[1px] bg-turmeric opacity-70"></span>
+                    <div className="flex items-center font-mono text-xs uppercase tracking-widest text-ink">
                       <span>Metabolic Sizing Engine</span>
                     </div>
                     <h2 className="font-script font-normal text-4xl sm:text-5xl lg:text-6xl tracking-normal text-ink leading-tight">
@@ -1172,8 +1171,7 @@ export default function HomePage() {
           <section className="relative py-20 md:py-24 px-4 sm:px-6 md:px-8">
             <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               <div className="space-y-4">
-                <div className="flex items-center space-x-2 font-mono text-xs uppercase tracking-widest text-turmeric">
-                  <span className="w-6 h-[1px] bg-turmeric opacity-70"></span>
+                <div className="flex items-center font-mono text-xs uppercase tracking-widest text-turmeric">
                   <span>Stay In The Loop</span>
                 </div>
                 <h2 className="font-script font-normal text-3xl sm:text-4xl tracking-normal text-paper">

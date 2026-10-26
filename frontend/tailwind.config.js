@@ -27,6 +27,7 @@ export default {
         body: ['Quicksand', 'sans-serif'],
         mono: ['Courier Prime', 'monospace'],
         script: ['Lobster', 'cursive'],
+        hero: ['Parisienne', 'cursive'],  // Thin script for landing-page hero headlines
       },
       borderRadius: {
         'sm': '12px',            // Soft rounded buttons/inputs

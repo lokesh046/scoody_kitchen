@@ -25,21 +25,29 @@ const DEFAULT_HERO_IMAGE = 'https://res.cloudinary.com/utnenyxi/image/upload/v17
 const CLOSER_LOOK = [
   {
     icon: Sprout,
+    image: '/images/shop-timeline/ingredients.webp',
+    imageAlt: 'Hands reading an ingredient list on a paper pouch beside fresh chicken, carrots, sweet potato and spinach',
     title: 'See exactly what goes in',
     text: 'Every recipe lists its ingredients with their percentages, so you can read the bowl instead of guessing at it.',
   },
   {
     icon: ListTree,
+    image: '/images/shop-timeline/browse.webp',
+    imageAlt: 'A person on the kitchen floor browsing a tablet while a Doberman rests its head on their knee',
     title: 'Browse by what they need',
     text: 'Categories and subcategories narrow the catalogue down, and search finds a recipe straight away by name.',
   },
   {
     icon: Scale,
+    image: '/images/shop-timeline/size.webp',
+    imageAlt: 'A hand reaching for the smaller of two paper pet-food bags beside a kitchen scale',
     title: 'Pick the right size',
     text: 'Recipes come in more than one weight, each with its own price and its own live stock count.',
   },
   {
     icon: Star,
+    image: '/images/shop-timeline/reviews.webp',
+    imageAlt: 'A phone showing a five-star rating while a Doberman sits patiently by its food bowl',
     title: 'Read what other pet parents found',
     text: 'Ratings and reviews on a recipe come from people who actually bought it.',
   },
@@ -174,8 +182,23 @@ export function ShopLandingPage() {
 
         <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-16 sm:pb-20 max-w-5xl">
           <div className={`max-w-2xl space-y-4 text-left animate-fade-in-up ${hero.ready ? '' : 'invisible'}`}>
-            <h1 className="font-display font-black text-3xl sm:text-5xl md:text-6xl text-paper uppercase tracking-tight leading-[1.05] drop-shadow-md">
-              {hero.title}
+            <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
+              {/* The default headline is a picture drawn in the brand display font, so the font file itself is never served;
+                  a title set from the admin panel falls back to the script text. */}
+              {hero.title === DEFAULT_HERO.title ? (
+                <picture>
+                  <source media="(min-width: 640px)" srcSet="/images/hero-titles/shop-wide.webp" width={608} height={173} />
+                  <img
+                    src="/images/hero-titles/shop-narrow.webp"
+                    alt={hero.title}
+                    width={338}
+                    height={171}
+                    className="block h-auto w-[min(100%,338px)] sm:w-[min(100%,608px)] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
+                  />
+                </picture>
+              ) : (
+                hero.title
+              )}
             </h1>
             <p className="font-body text-sm sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
               {hero.subtitle}
@@ -183,9 +206,9 @@ export function ShopLandingPage() {
             <div className="pt-2">
               <button
                 onClick={() => navigate('/shop/app')}
-                className="bg-turmeric text-ink hover:bg-opacity-95 font-body font-bold text-xs uppercase px-8 py-4 tracking-wider transition-all shadow-sm active:translate-y-[1px] hover-bounce cursor-pointer"
+                className="pet-profile-cta cta-glow relative isolate overflow-hidden bg-turmeric text-ink font-body font-bold text-xs uppercase px-8 py-4 tracking-wider rounded-[4px] border border-[#E5BB8E] hover:-translate-y-0.5 active:translate-y-[1px] transition-transform duration-300 cursor-pointer motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
               >
-                Browse The Recipes
+                <span className="relative">Browse The Recipes</span>
               </button>
             </div>
           </div>

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchActiveBanners } from '../api/banners';
+import { HERO_TITLE_IMAGES, heroTitleKey } from '../constants/heroTitleImages';
 
 // Same real banner images used by the normal contained carousel, so the
 // full-screen hero shows genuine content rather than placeholder art even
@@ -48,6 +49,7 @@ export const FullscreenHomeHero: React.FC = () => {
   // than the built-in banners, which would flash and then be swapped out.
   const slides = isLoading ? [] : banners && banners.length > 0 ? banners : fallbackBanners;
   const slide = slides[index % Math.max(slides.length, 1)];
+  const titleImage = slide?.title ? HERO_TITLE_IMAGES[heroTitleKey(slide.title)] : undefined;
 
   useEffect(() => {
     if (slides.length <= 1 || isHovered) {
@@ -93,8 +95,23 @@ export const FullscreenHomeHero: React.FC = () => {
       <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-16 sm:pb-20 max-w-5xl">
         <div className="max-w-2xl space-y-4 text-left animate-fade-in-up">
           {slide.title && (
-            <h1 className="font-display font-black text-3xl sm:text-5xl md:text-6xl text-paper uppercase tracking-tight leading-[1.05] drop-shadow-md">
-              {slide.title}
+            <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
+              {/* Known banner titles are drawn as pictures in the brand display font, so the font file itself is never
+                  served; any new or edited title falls back to the script text. */}
+              {titleImage ? (
+                <picture>
+                  <source media="(min-width: 640px)" srcSet={`/images/hero-titles/${titleImage.slug}-wide.webp`} width={titleImage.wide[0]} height={titleImage.wide[1]} />
+                  <img
+                    src={`/images/hero-titles/${titleImage.slug}-narrow.webp`}
+                    alt={slide.title ?? ''}
+                    width={titleImage.narrow[0]}
+                    height={titleImage.narrow[1]}
+                    className="block h-auto w-[min(100%,338px)] sm:w-[min(100%,608px)] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
+                  />
+                </picture>
+              ) : (
+                slide.title
+              )}
             </h1>
           )}
           {slide.subtitle && (
@@ -106,9 +123,9 @@ export const FullscreenHomeHero: React.FC = () => {
             <div className="pt-2">
               <button
                 onClick={() => navigate(slide.link_url!)}
-                className="bg-turmeric text-ink hover:bg-opacity-95 font-body font-bold text-xs uppercase px-8 py-4 tracking-wider transition-all shadow-sm active:translate-y-[1px] hover-bounce cursor-pointer"
+                className="pet-profile-cta cta-glow relative isolate overflow-hidden bg-turmeric text-ink font-body font-bold text-xs uppercase px-8 py-4 tracking-wider rounded-[4px] border border-[#E5BB8E] hover:-translate-y-0.5 active:translate-y-[1px] transition-transform duration-300 cursor-pointer motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
               >
-                Explore Shop Recipes
+                <span className="relative">Explore Shop Recipes</span>
               </button>
             </div>
           )}
@@ -121,14 +138,14 @@ export const FullscreenHomeHero: React.FC = () => {
           <button
             onClick={() => setIndex((prev) => (prev - 1 + slides.length) % slides.length)}
             aria-label="Previous slide"
-            className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-10 bg-paperLight/15 backdrop-blur-sm hover:bg-paperLight/30 border border-paper/30 w-10 h-10 sm:w-12 sm:h-12 rounded-full text-paper flex items-center justify-center transition-all cursor-pointer"
+            className="absolute left-3 sm:left-6 top-[30%] -translate-y-1/2 z-10 bg-paperLight/15 backdrop-blur-sm hover:bg-paperLight/30 border border-paper/30 w-10 h-10 sm:w-12 sm:h-12 rounded-full text-paper flex items-center justify-center transition-all cursor-pointer"
           >
             <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
           <button
             onClick={() => setIndex((prev) => (prev + 1) % slides.length)}
             aria-label="Next slide"
-            className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-10 bg-paperLight/15 backdrop-blur-sm hover:bg-paperLight/30 border border-paper/30 w-10 h-10 sm:w-12 sm:h-12 rounded-full text-paper flex items-center justify-center transition-all cursor-pointer"
+            className="absolute right-3 sm:right-6 top-[30%] -translate-y-1/2 z-10 bg-paperLight/15 backdrop-blur-sm hover:bg-paperLight/30 border border-paper/30 w-10 h-10 sm:w-12 sm:h-12 rounded-full text-paper flex items-center justify-center transition-all cursor-pointer"
           >
             <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>

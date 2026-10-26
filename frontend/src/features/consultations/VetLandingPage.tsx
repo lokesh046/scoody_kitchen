@@ -11,7 +11,7 @@ import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingFaqs, useLandingHero } from '../../hooks/useAdminContent';
 
-const DEFAULT_HERO_IMAGE = 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521315/scooby_kitchen/nji85annhntaovsycm9q.jpg';
+const DEFAULT_HERO_IMAGE = '/images/hero/vet-3.webp';
 
 const STEPS = [
   {
@@ -244,8 +244,8 @@ export function VetLandingPage() {
       <section className="relative w-full min-h-[100svh] overflow-hidden bg-obsidian">
         <img
           src={hero.image}
-          alt="A dog resting at home"
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${hero.ready ? 'opacity-100' : 'opacity-0'}`}
+          alt="A veterinarian in a green coat gently examining a Doberman"
+          className={`absolute inset-0 w-full h-full object-cover object-[78%_center] lg:object-center transition-opacity duration-500 ${hero.ready ? 'opacity-100' : 'opacity-0'}`}
           loading="eager"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/30 to-black/80" />
@@ -253,12 +253,23 @@ export function VetLandingPage() {
 
         <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-16 sm:pb-20 max-w-5xl">
           <div className={`max-w-2xl space-y-4 text-left animate-fade-in-up ${hero.ready ? '' : 'invisible'}`}>
-            <div className="flex items-center space-x-2 font-mono text-xs uppercase tracking-widest text-turmeric">
-              <span className="w-6 h-[1px] bg-turmeric opacity-70" />
-              <span>Locate Your Vet</span>
-            </div>
-            <h1 className="font-display font-black text-3xl sm:text-5xl md:text-6xl text-paper uppercase tracking-tight leading-[1.05] drop-shadow-md">
-              {hero.title}
+            <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
+              {/* The default headline is a picture drawn in the brand display font, so the font file itself is never served;
+                  a title set from the admin panel falls back to the script text. */}
+              {hero.title === DEFAULT_HERO.title ? (
+                <picture>
+                  <source media="(min-width: 640px)" srcSet="/images/hero-titles/vet-wide.webp" width={608} height={252} />
+                  <img
+                    src="/images/hero-titles/vet-narrow.webp"
+                    alt={hero.title}
+                    width={338}
+                    height={171}
+                    className="block h-auto w-[min(100%,338px)] sm:w-[min(100%,608px)] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
+                  />
+                </picture>
+              ) : (
+                hero.title
+              )}
             </h1>
             <p className="font-body text-sm sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
               {hero.subtitle}
@@ -266,9 +277,9 @@ export function VetLandingPage() {
             <div className="pt-2">
               <button
                 onClick={() => navigate('/consultations/app')}
-                className="bg-turmeric text-ink hover:bg-opacity-95 font-body font-bold text-xs uppercase px-8 py-4 tracking-wider transition-all shadow-sm active:translate-y-[1px] hover-bounce cursor-pointer"
+                className="pet-profile-cta cta-glow relative isolate overflow-hidden bg-turmeric text-ink font-body font-bold text-xs uppercase px-8 py-4 tracking-wider rounded-[4px] border border-[#E5BB8E] hover:-translate-y-0.5 active:translate-y-[1px] transition-transform duration-300 cursor-pointer motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
               >
-                Find Vets Near Me
+                <span className="relative">Find Vets Near Me</span>
               </button>
             </div>
           </div>

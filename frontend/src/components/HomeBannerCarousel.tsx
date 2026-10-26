@@ -377,9 +377,9 @@ export const HomeBannerCarousel: React.FC = () => {
                               e.stopPropagation();
                               navigate(slide.link_url);
                             }}
-                            className="inline-flex items-center space-x-1.5 bg-[#b91c1c] hover:bg-[#991b1b] active:scale-95 text-white font-mono text-[9px] sm:text-[10px] font-bold uppercase px-4 sm:px-5 py-2 sm:py-2.5 rounded-[6px] shadow-md hover:shadow-lg transition-all cursor-pointer"
+                            className="pet-profile-cta cta-glow [--cta-glow:239_68_68] relative isolate overflow-hidden inline-flex items-center space-x-1.5 bg-[#b91c1c] hover:bg-[#991b1b] active:scale-95 text-white font-mono text-[9px] sm:text-[10px] font-bold uppercase px-4 sm:px-5 py-2 sm:py-2.5 rounded-[6px] border border-red-400/40 transition-all cursor-pointer motion-reduce:transform-none"
                           >
-                            <span>{slide.button_text || 'Know More'}</span>
+                            <span className="relative">{slide.button_text || 'Know More'}</span>
                           </button>
                         </div>
                       )}
