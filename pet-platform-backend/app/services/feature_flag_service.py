@@ -5,6 +5,13 @@ from app.models.feature_flag import FeatureFlag
 
 DEFAULT_FLAGS = [
     {
+        "key": "home_recipe_coming_soon",
+        "name": "Homepage Coming Soon Recipe Card",
+        "description": "Adds a black ribbon with gold Coming soon text over the existing homepage Signature Recipes cards, keeping the recipes visible and ordering disabled. Turn off to restore their normal appearance and actions.",
+        "category": "home",
+        "is_enabled": False,
+    },
+    {
         "key": "consultations_suggest_alternative_doctors",
         "name": "Alternative Doctor Recommendations",
         "description": "Automatically recommends alternative verified specialists in the area when the selected doctor has no available time slots on the chosen date.",
