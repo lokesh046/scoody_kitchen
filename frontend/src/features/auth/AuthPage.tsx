@@ -360,7 +360,7 @@ export const AuthPage: React.FC = () => {
         <div className="text-center space-y-2 flex flex-col items-center">
           <div className="w-20 h-20 sm:w-24 sm:h-24 logo-medallion flex items-center justify-center p-1 overflow-hidden mb-1 shadow-md">
             <img
-              src="/scooby-logo-256.png"
+              src="/scooby-logo-256.webp"
               alt="Hearth & One Logo"
               width={96}
               height={96}

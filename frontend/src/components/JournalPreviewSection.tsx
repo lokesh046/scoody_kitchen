@@ -12,7 +12,7 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-export function JournalPreviewSection() {
+export function JournalPreviewSection({ dark = false }: { dark?: boolean }) {
   const navigate = useNavigate();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -37,34 +37,34 @@ export function JournalPreviewSection() {
   };
 
   return (
-    <section className="bg-paper py-12 md:py-20 px-3 sm:px-6 md:px-8 border-b border-cardboard border-opacity-30">
+    <section className={`${dark ? 'bg-obsidian border-ink border-opacity-10' : 'bg-paper border-cardboard border-opacity-30'} py-12 md:py-20 px-3 sm:px-6 md:px-8 border-b`}>
       <div className="max-w-7xl mx-auto space-y-8 md:space-y-10">
         <div className="text-center max-w-2xl mx-auto space-y-3">
-          <h2 className="font-display font-black text-2xl sm:text-3xl md:text-4xl text-ink tracking-tight">
+          <h2 className={`text-2xl sm:text-3xl md:text-4xl tracking-tight text-ink ${dark ? 'font-script font-normal' : 'font-display font-black'}`}>
             Notes on feeding your dog well
           </h2>
           <button
             onClick={() => navigate('/blog')}
-            className="font-mono text-[11px] uppercase tracking-wider font-bold text-herb hover:text-turmeric transition-colors"
+            className={`font-mono text-[11px] uppercase tracking-wider font-bold transition-colors hover:text-turmeric ${dark ? 'text-turmeric opacity-80 hover:opacity-100' : 'text-herb'}`}
           >
             View All Entries →
           </button>
         </div>
 
         {isLoading ? (
-          <div className="flex gap-4 sm:gap-6 overflow-hidden px-1 animate-pulse">
+          <div className="flex gap-4 sm:gap-6 overflow-hidden py-3 px-1 animate-pulse" aria-hidden="true">
             {[1, 2, 3].map((n) => (
-              <div key={n} className="w-[78vw] max-w-[300px] sm:w-[320px] h-[280px] bg-cardboard/10 border border-cardboard/30 rounded-sm shrink-0" />
+              <div key={n} className="w-[78vw] max-w-[300px] sm:w-[320px] h-[335px] bg-cardboard/10 border border-cardboard/30 rounded-sm shrink-0" />
             ))}
           </div>
         ) : (
           <div className="relative group/carousel">
             <button
               onClick={() => handleScroll('left')}
-              className="absolute -left-2 sm:-left-4 md:-left-5 top-[40%] -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full border border-cardboard bg-paper hover:bg-turmeric text-ink shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              className={`absolute -left-2 sm:-left-4 md:-left-5 top-[40%] -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full border shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer hover:bg-turmeric ${dark ? 'border-ink border-opacity-20 bg-obsidian text-ink hover:text-ink' : 'border-cardboard bg-paper text-ink'}`}
               aria-label="Scroll journal entries left"
             >
-              <ChevronLeft className="w-5 h-5 text-ink" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
 
             <div
@@ -76,9 +76,9 @@ export function JournalPreviewSection() {
                 <article
                   key={post.id}
                   onClick={() => navigate(`/blog/${post.slug}`)}
-                  className="w-[78vw] max-w-[300px] sm:w-[320px] border border-cardboard border-opacity-60 hover:border-turmeric bg-paperLight rounded-sm overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:-translate-y-[3px] hover:rotate-[0.3deg] hover:shadow-[0_12px_20px_-8px_rgba(46,36,24,0.15)] snap-center shrink-0 group/card"
+                  className={`w-[78vw] max-w-[300px] sm:w-[320px] border hover:border-turmeric rounded-sm overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:-translate-y-[3px] hover:rotate-[0.3deg] snap-center shrink-0 group/card ${dark ? 'border-ink border-opacity-15 bg-obsidianCard hover:shadow-[0_12px_20px_-8px_rgba(0,0,0,0.4)]' : 'border-cardboard border-opacity-60 bg-paperLight hover:shadow-[0_12px_20px_-8px_rgba(46,36,24,0.15)]'}`}
                 >
-                  <div className="w-full aspect-[16/10] overflow-hidden bg-paper border-b border-cardboard border-opacity-60 relative">
+                  <div className={`w-full aspect-[16/10] overflow-hidden border-b relative ${dark ? 'bg-obsidian border-ink border-opacity-15' : 'bg-paper border-cardboard border-opacity-60'}`}>
                     <img
                       src={post.cover_image_url || FALLBACK_COVER}
                       alt={post.title}
@@ -91,16 +91,16 @@ export function JournalPreviewSection() {
                   </div>
                   <div className="p-5 text-left space-y-2">
                     {post.published_at && (
-                      <span className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold flex items-center gap-1.5">
+                      <span className={`font-mono text-[9px] uppercase tracking-wider font-bold flex items-center gap-1.5 ${dark ? 'text-turmeric' : 'text-herb'}`}>
                         <Calendar className="w-3 h-3" />
                         {formatDate(post.published_at)}
                       </span>
                     )}
-                    <h3 className="font-display font-bold text-sm text-ink leading-snug group-hover/card:text-turmeric transition-colors line-clamp-2">
+                    <h3 className={`font-display font-bold text-sm leading-snug group-hover/card:text-turmeric transition-colors line-clamp-2 ${dark ? 'text-ink' : 'text-ink'}`}>
                       {post.title}
                     </h3>
                     {post.excerpt && (
-                      <p className="font-body text-xs text-ink opacity-70 leading-relaxed line-clamp-2">
+                      <p className={`font-body text-xs leading-relaxed line-clamp-2 ${dark ? 'text-ink opacity-65' : 'text-ink opacity-70'}`}>
                         {post.excerpt}
                       </p>
                     )}
@@ -111,10 +111,10 @@ export function JournalPreviewSection() {
 
             <button
               onClick={() => handleScroll('right')}
-              className="absolute -right-2 sm:-right-4 md:-right-5 top-[40%] -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full border border-cardboard bg-paper hover:bg-turmeric text-ink shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              className={`absolute -right-2 sm:-right-4 md:-right-5 top-[40%] -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full border shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer hover:bg-turmeric ${dark ? 'border-ink border-opacity-20 bg-obsidian text-ink hover:text-ink' : 'border-cardboard bg-paper text-ink'}`}
               aria-label="Scroll journal entries right"
             >
-              <ChevronRight className="w-5 h-5 text-ink" />
+              <ChevronRight className="w-5 h-5" />
             </button>
           </div>
         )}

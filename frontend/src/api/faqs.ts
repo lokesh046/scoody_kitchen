@@ -1,8 +1,9 @@
 import { apiClient } from './client';
 import type { FAQResponse } from '../types/faq';
+import type { FaqPage } from '../constants/contentPlacements';
 
-export const fetchActiveFaqs = async (): Promise<FAQResponse[]> => {
-  const response = await apiClient.get<FAQResponse[]>('/faqs/');
+export const fetchActiveFaqs = async (page: FaqPage = 'home'): Promise<FAQResponse[]> => {
+  const response = await apiClient.get<FAQResponse[]>('/faqs/', { params: { page } });
   return response.data;
 };
 
@@ -14,6 +15,7 @@ export const fetchAllFaqs = async (): Promise<FAQResponse[]> => {
 export interface FaqPayload {
   question: string;
   answer: string;
+  page?: FaqPage;
   display_order: number;
   is_active: boolean;
 }

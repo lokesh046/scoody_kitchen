@@ -39,13 +39,15 @@ export const FullscreenHomeHero: React.FC = () => {
   const [isHovered, setIsHovered] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const { data: banners } = useQuery({
+  const { data: banners, isLoading } = useQuery({
     queryKey: ['active-banners'],
-    queryFn: fetchActiveBanners,
+    queryFn: () => fetchActiveBanners(),
   });
 
-  const slides = banners && banners.length > 0 ? banners : fallbackBanners;
-  const slide = slides[index % slides.length];
+  // While the real banners load, show an empty dark hero of the same size rather
+  // than the built-in banners, which would flash and then be swapped out.
+  const slides = isLoading ? [] : banners && banners.length > 0 ? banners : fallbackBanners;
+  const slide = slides[index % Math.max(slides.length, 1)];
 
   useEffect(() => {
     if (slides.length <= 1 || isHovered) {
@@ -60,9 +62,13 @@ export const FullscreenHomeHero: React.FC = () => {
     };
   }, [slides.length, isHovered]);
 
+  if (!slide) {
+    return <section className="relative w-full min-h-[100svh] overflow-hidden bg-ink" aria-hidden="true" />;
+  }
+
   return (
     <section
-      className="relative w-full min-h-[100dvh] overflow-hidden bg-ink"
+      className="relative w-full min-h-[100svh] overflow-hidden bg-ink"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -84,7 +90,7 @@ export const FullscreenHomeHero: React.FC = () => {
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
 
       {/* Hero copy, anchored bottom-left */}
-      <div className="relative z-10 flex flex-col justify-end min-h-[100dvh] px-4 sm:px-8 md:px-12 pb-16 sm:pb-20 max-w-5xl">
+      <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-16 sm:pb-20 max-w-5xl">
         <div className="max-w-2xl space-y-4 text-left animate-fade-in-up">
           {slide.title && (
             <h1 className="font-display font-black text-3xl sm:text-5xl md:text-6xl text-paper uppercase tracking-tight leading-[1.05] drop-shadow-md">

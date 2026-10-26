@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Quicksand:wght@300;400;500;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+/* Font stylesheet is now linked directly in index.html's <head> instead of
+   imported here -- see that file for why. */
 
 @tailwind base;
 @tailwind components;
@@ -284,3 +285,131 @@
 }
 
 
+
+/* Keep cursive letters connected while a slow wave passes across the heading. */
+@keyframes pet-profile-heading-wave {
+  0%, 12%, 46%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-0.1em) rotate(-0.7deg); }
+  36% { transform: translateY(0.025em) rotate(0.3deg); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pet-profile-heading-word {
+    animation: pet-profile-heading-wave 6s ease-in-out infinite;
+    transform-origin: center bottom;
+  }
+}
+
+
+/* An occasional light sweep keeps the profile CTA noticeable without flashing. */
+.pet-profile-cta::before {
+  content: '';
+  position: absolute;
+  inset: -50% auto -50% 0;
+  width: 40%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.35), transparent);
+  opacity: 0;
+  transform: translateX(-160%) skewX(-20deg);
+}
+
+@keyframes pet-cta-shine {
+  0%, 65% { transform: translateX(-160%) skewX(-20deg); opacity: 0; }
+  68% { opacity: 1; }
+  92% { transform: translateX(400%) skewX(-20deg); opacity: 1; }
+  93%, 100% { transform: translateX(400%) skewX(-20deg); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pet-profile-cta::before {
+    animation: pet-cta-shine 5s ease-in-out infinite;
+  }
+}
+
+/* Echo the closing CTA's light sweep on the tool currently facing the reader. */
+.pet-tool-card::after {
+  content: '';
+  position: absolute;
+  inset: -35% auto -35% 0;
+  width: 40%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgb(249 246 240 / 0.12), transparent);
+  opacity: 0;
+  transform: translateX(-160%) skewX(-20deg);
+}
+
+@keyframes pet-tool-shine {
+  0%, 28% { transform: translateX(-160%) skewX(-20deg); opacity: 0; }
+  32% { opacity: 1; }
+  78% { transform: translateX(400%) skewX(-20deg); opacity: 1; }
+  79%, 100% { transform: translateX(400%) skewX(-20deg); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pet-tool-card[data-active='true']::after {
+    animation: pet-tool-shine 2.8s ease-in-out infinite;
+  }
+}
+
+/* Rendered journey illustrations gently tilt without exposing a flat back. */
+.vet-journey-art {
+  transform-origin: 50% 65%;
+  filter: drop-shadow(0 12px 10px rgb(0 0 0 / 0.22));
+}
+@keyframes vet-journey-float {
+  0%, 100% { transform: translateY(0) rotateX(2deg) rotateY(-9deg) rotateZ(-2deg); }
+  50% { transform: translateY(-8px) rotateX(-3deg) rotateY(9deg) rotateZ(2deg); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .vet-journey-art { animation: vet-journey-float 6s ease-in-out infinite; }
+}
+
+/* Homepage toolkit icons: a soft gold glow behind each icon and a gentle sway.
+   Only transform and opacity are animated, and each moving layer is promoted to
+   its own compositor layer, so nothing is repainted on every frame. The blur and
+   drop shadow are applied to static layers only. Motion is off for visitors who
+   ask for reduced motion. */
+.toolkit-icon-stage {
+  perspective: 900px;
+}
+
+.toolkit-icon-glow {
+  position: absolute;
+  inset: 12%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255, 221, 67, 0.3) 0%, rgba(255, 221, 67, 0.11) 42%, rgba(255, 221, 67, 0) 68%);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.toolkit-icon-turn img {
+  filter: drop-shadow(0 10px 18px rgba(255, 221, 67, 0.2));
+}
+
+@keyframes toolkit-icon-turn {
+  0%, 100% { transform: rotateY(-14deg) translate3d(0, 0, 0); }
+  50% { transform: rotateY(14deg) translate3d(0, -6px, 0); }
+}
+
+@keyframes toolkit-icon-glow {
+  0%, 100% { opacity: 0.55; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toolkit-icon-turn {
+    will-change: transform;
+    backface-visibility: hidden;
+    animation: toolkit-icon-turn 8s ease-in-out infinite;
+  }
+  .toolkit-icon-glow {
+    will-change: transform, opacity;
+    animation: toolkit-icon-glow 5s ease-in-out infinite;
+  }
+  .group:hover .toolkit-icon-turn {
+    animation-duration: 4.5s;
+  }
+  .group:hover .toolkit-icon-glow {
+    opacity: 1;
+  }
+}

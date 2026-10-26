@@ -4,6 +4,7 @@ export interface BannerResponse {
   subtitle: string | null;
   image_url: string;
   link_url: string | null;
+  placement: string;
   display_order: number;
   is_active: boolean;
   created_at: string;

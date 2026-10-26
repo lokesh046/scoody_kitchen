@@ -80,7 +80,7 @@ const FALLBACK_COMMUNITY_REVIEWS: UnifiedReview[] = [
     id: -106,
     type: 'product',
     rating: 5,
-    comment: 'Our senior Labrador had low energy, but since switching to Scoobys fresh meals, he is playful and energetic again.',
+    comment: "Our senior Labrador had low energy, but since switching to Hearth & One's fresh meals, he is playful and energetic again.",
     image_url: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&q=80&w=600',
     created_at: '2026-08-25T15:20:00Z',
     author_name: 'Sneha Patel',
@@ -90,7 +90,7 @@ const FALLBACK_COMMUNITY_REVIEWS: UnifiedReview[] = [
   }
 ];
 
-export function ReviewsCarousel() {
+export function ReviewsCarousel({ dark = false }: { dark?: boolean }) {
   const [selectedReview, setSelectedReview] = useState<UnifiedReview | null>(null);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'product' | 'doctor'>('all');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -161,7 +161,9 @@ export function ReviewsCarousel() {
 
   if (isLoading) {
     return (
-      <div className="py-16 text-center">
+      // Reserve the same height as the loaded section so the page does not jump
+      // when the reviews arrive.
+      <div className="min-h-[730px] md:min-h-[783px] py-12 md:py-20 text-center" aria-hidden="true">
         <div className="animate-pulse flex flex-col items-center space-y-4">
           <div className="h-6 bg-cardboard/20 w-48 rounded-sm"></div>
           <div className="h-10 bg-cardboard/20 w-80 rounded-sm"></div>
@@ -175,21 +177,26 @@ export function ReviewsCarousel() {
     );
   }
 
+  const chipSelected = dark ? 'bg-turmeric text-ink shadow-xs' : null;
+  const chipUnselected = dark
+    ? 'bg-transparent border border-ink border-opacity-20 text-ink opacity-70 hover:opacity-100'
+    : 'bg-paper border border-cardboard/40 text-ink opacity-70 hover:opacity-100';
+
   return (
-    <section ref={sectionRef} className="bg-paperLight py-12 md:py-20 px-3 sm:px-6 md:px-8 border-b border-cardboard border-opacity-30 relative overflow-hidden">
+    <section
+      ref={sectionRef}
+      className={`${dark ? 'bg-obsidian border-ink border-opacity-10' : 'bg-paperLight border-cardboard border-opacity-30'} py-12 md:py-20 px-3 sm:px-6 md:px-8 border-b relative overflow-hidden`}
+    >
       <div className="max-w-7xl mx-auto space-y-8 md:space-y-10">
-        
+
         {/* Header Section */}
         <div className="text-center space-y-2 max-w-3xl mx-auto animate-fade-in">
-          <span className="font-mono text-[9px] uppercase tracking-widest font-bold text-herb block">
+          <span className={`font-mono text-[9px] uppercase tracking-widest font-bold block ${dark ? 'text-turmeric' : 'text-herb'}`}>
             // COMMUNITY FEEDBACK LEDGER ({reviews.length} ENTRIES)
           </span>
-          <h2 className="font-display font-black text-2xl sm:text-3xl md:text-5xl text-ink tracking-tight">
-            Let our #Scoobysfam speak
+          <h2 className={`font-display font-black text-2xl sm:text-3xl md:text-5xl tracking-tight ${dark ? 'text-ink' : 'text-ink'}`}>
+            Let our #HearthAndOneFam speak
           </h2>
-          <p className="font-body text-xs sm:text-sm text-ink opacity-75 max-w-xl mx-auto">
-            Real experiences from pet parents nourishing their companions with whole bioavailable recipes and consulting certified veterinarians.
-          </p>
 
           {/* Filter Chips */}
           <div className="flex items-center justify-center space-x-2 pt-3 font-mono text-[10px] uppercase font-bold">
@@ -198,8 +205,8 @@ export function ReviewsCarousel() {
               onClick={() => setReviewFilter('all')}
               className={`px-3.5 py-1.5 rounded-sm transition-colors cursor-pointer ${
                 reviewFilter === 'all'
-                  ? 'bg-ink text-paper shadow-xs'
-                  : 'bg-paper border border-cardboard/40 text-ink opacity-70 hover:opacity-100'
+                  ? (chipSelected || 'bg-ink text-paper shadow-xs')
+                  : chipUnselected
               }`}
             >
               All Reviews ({allReviews.length})
@@ -209,8 +216,8 @@ export function ReviewsCarousel() {
               onClick={() => setReviewFilter('product')}
               className={`px-3.5 py-1.5 rounded-sm transition-colors cursor-pointer flex items-center space-x-1.5 ${
                 reviewFilter === 'product'
-                  ? 'bg-herb text-white shadow-xs'
-                  : 'bg-paper border border-cardboard/40 text-ink opacity-70 hover:opacity-100'
+                  ? (chipSelected || 'bg-herb text-white shadow-xs')
+                  : chipUnselected
               }`}
             >
               <Package className="w-3.5 h-3.5" />
@@ -221,8 +228,8 @@ export function ReviewsCarousel() {
               onClick={() => setReviewFilter('doctor')}
               className={`px-3.5 py-1.5 rounded-sm transition-colors cursor-pointer flex items-center space-x-1.5 ${
                 reviewFilter === 'doctor'
-                  ? 'bg-blue-700 text-white shadow-xs'
-                  : 'bg-paper border border-cardboard/40 text-ink opacity-70 hover:opacity-100'
+                  ? (chipSelected || 'bg-blue-700 text-white shadow-xs')
+                  : chipUnselected
               }`}
             >
               <Stethoscope className="w-3.5 h-3.5" />
@@ -236,10 +243,10 @@ export function ReviewsCarousel() {
           {/* Scroll Left Button */}
           <button
             onClick={() => handleScroll('left')}
-            className="absolute -left-2 sm:-left-4 md:-left-5 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full border border-cardboard bg-paper hover:bg-turmeric text-ink shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            className={`absolute -left-2 sm:-left-4 md:-left-5 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full border shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer hover:bg-turmeric ${dark ? 'border-ink border-opacity-20 bg-obsidian text-ink hover:text-ink' : 'border-cardboard bg-paper text-ink'}`}
             aria-label="Scroll reviews left"
           >
-            <ChevronLeft className="w-5 h-5 text-ink" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
 
           {/* Scrollable Row */}
@@ -256,11 +263,11 @@ export function ReviewsCarousel() {
                 <div
                   key={`${review.id}-${index}`}
                   onClick={() => setSelectedReview(review)}
-                  className="w-[78vw] max-w-[270px] sm:w-[280px] md:w-[300px] border border-cardboard border-opacity-40 hover:border-turmeric bg-paper p-4 sm:p-5 rounded-sm flex flex-col justify-between cursor-pointer hover:shadow-md transition-all duration-300 snap-center shrink-0 select-none group/card"
+                  className={`w-[78vw] max-w-[270px] sm:w-[280px] md:w-[300px] border hover:border-turmeric p-4 sm:p-5 rounded-sm flex flex-col justify-between cursor-pointer hover:shadow-md transition-all duration-300 snap-center shrink-0 select-none group/card ${dark ? 'border-ink border-opacity-15 bg-obsidianCard' : 'border-cardboard border-opacity-40 bg-paper'}`}
                 >
                   <div className="space-y-3 sm:space-y-4">
                     {/* Review Picture */}
-                    <div className="w-full aspect-square overflow-hidden bg-paperLight border border-cardboard border-opacity-30 rounded-xs relative">
+                    <div className={`w-full aspect-square overflow-hidden border rounded-xs relative ${dark ? 'bg-obsidian border-ink border-opacity-15' : 'bg-paperLight border-cardboard border-opacity-30'}`}>
                       <img
                         src={displayImage}
                         alt={`Review by ${review.author_name}`}
@@ -295,20 +302,20 @@ export function ReviewsCarousel() {
                     </div>
 
                     {/* Review Body Snippet */}
-                    <p className="font-body text-xs text-ink opacity-85 leading-relaxed text-center italic line-clamp-3">
+                    <p className={`font-body text-xs leading-relaxed text-center italic line-clamp-3 ${dark ? 'text-ink opacity-80' : 'text-ink opacity-85'}`}>
                       "{review.comment || 'No comment provided.'}"
                     </p>
                   </div>
 
-                  <div className="pt-3 sm:pt-4 border-t border-cardboard border-opacity-35 mt-3 text-center space-y-1">
+                  <div className={`pt-3 sm:pt-4 border-t mt-3 text-center space-y-1 ${dark ? 'border-ink border-opacity-15' : 'border-cardboard border-opacity-35'}`}>
                     <div className="flex items-center justify-center space-x-1.5">
-                      <span className="font-display font-bold text-xs text-ink">{review.author_name}</span>
+                      <span className={`font-display font-bold text-xs ${dark ? 'text-ink' : 'text-ink'}`}>{review.author_name}</span>
                       {review.is_verified_buyer && (
                         <CheckCircle2 className="w-3.5 h-3.5 text-[#00b67a] shrink-0" />
                       )}
                     </div>
-                    
-                    <span className="font-mono text-[9px] uppercase tracking-wider text-paprika block truncate">
+
+                    <span className={`font-mono text-[9px] uppercase tracking-wider block truncate ${dark ? 'text-turmeric' : 'text-paprika'}`}>
                       {review.reviewed_item_name}
                     </span>
                   </div>
@@ -320,10 +327,10 @@ export function ReviewsCarousel() {
           {/* Scroll Right Button */}
           <button
             onClick={() => handleScroll('right')}
-            className="absolute -right-2 sm:-right-4 md:-right-5 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full border border-cardboard bg-paper hover:bg-turmeric text-ink shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            className={`absolute -right-2 sm:-right-4 md:-right-5 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full border shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer hover:bg-turmeric ${dark ? 'border-ink border-opacity-20 bg-obsidian text-ink hover:text-ink' : 'border-cardboard bg-paper text-ink'}`}
             aria-label="Scroll reviews right"
           >
-            <ChevronRight className="w-5 h-5 text-ink" />
+            <ChevronRight className="w-5 h-5" />
           </button>
         </div>
       </div>

@@ -537,7 +537,7 @@ export const ChatbotWidget: React.FC = () => {
                     </div>
                   ) : (
                     <div className="w-6 h-6 rounded-full border border-cardboard overflow-hidden shadow-sm shrink-0 mr-2 bg-white flex items-center justify-center p-0.5">
-                      <img src="/scooby-avatar.jpg" alt="Hearth & One AI Logo" className="w-full h-full object-contain" />
+                      <img src="/scooby-avatar-160.webp" alt="Hearth & One AI Logo" className="w-full h-full object-contain" />
                     </div>
                   )}
 
