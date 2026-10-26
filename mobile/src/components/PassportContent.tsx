@@ -148,7 +148,7 @@ const PassportContent = forwardRef<View, PassportContentProps>(
               <Text style={styles.iconsLabel}>Notable Icons:</Text>
               {heritage.famous_icons.slice(0, 3).map((icon, idx) => (
                 <View key={idx} style={styles.iconChip}>
-                  <Text style={styles.iconChipText}>✨ {icon}</Text>
+                  <Text style={styles.iconChipText}>{icon}</Text>
                 </View>
               ))}
             </View>

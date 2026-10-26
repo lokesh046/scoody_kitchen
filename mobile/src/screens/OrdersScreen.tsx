@@ -29,7 +29,7 @@ import {
   WifiOff,
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
-import { BrandMedallion } from '../components/BrandLogo';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { fetchMyOrders, Order } from '../api/orders';
 import { useAuthStore } from '../store/authStore';
 import { tabPrefetchCache } from '../services/tabPrefetch';
@@ -355,40 +355,39 @@ export default function OrdersScreen({ navigation }: any) {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Top Header */}
       <ResponsiveContainer maxWidth={880}>
-        <View style={styles.header}>
-          <View style={styles.headerLeftGroup}>
-            <BrandMedallion size="sm" />
-            <Text style={styles.headerTitle} numberOfLines={1}>Orders Ledger</Text>
-          </View>
-          <View style={styles.headerActionIcons}>
-            {/* A ledger tally stamp — a real entry count in a dashed,
-                ticket-stub frame — instead of a plain rounded count pill,
-                so this reads as "Orders Ledger" specifically rather than
-                any generic list-count badge. */}
-            <View style={styles.tallyStamp}>
-              <Text style={styles.tallyStampCount}>{orders.length}</Text>
-              <Text style={styles.tallyStampLabel}>ENTRIES</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.avatarBtn}
-              onPress={() => navigation.navigate('Profile')}
-              activeOpacity={0.85}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              accessibilityRole="button"
-              accessibilityLabel="Open your profile"
-            >
-              {user?.profile_image_url ? (
-                <Image source={{ uri: user.profile_image_url }} style={styles.avatarImg} />
-              ) : (
-                <View style={styles.avatarFallback}>
-                  <Text style={styles.avatarInitial}>
-                    {user?.first_name ? user.first_name[0].toUpperCase() : 'G'}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
+        <ScreenHeader
+          title="Orders Ledger"
+          rightContent={
+            <>
+              {/* A ledger tally stamp — a real entry count in a dashed,
+                  ticket-stub frame — instead of a plain rounded count pill,
+                  so this reads as "Orders Ledger" specifically rather than
+                  any generic list-count badge. */}
+              <View style={styles.tallyStamp}>
+                <Text style={styles.tallyStampCount}>{orders.length}</Text>
+                <Text style={styles.tallyStampLabel}>ENTRIES</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.avatarBtn}
+                onPress={() => navigation.navigate('Profile')}
+                activeOpacity={0.85}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                accessibilityRole="button"
+                accessibilityLabel="Open your profile"
+              >
+                {user?.profile_image_url ? (
+                  <Image source={{ uri: user.profile_image_url }} style={styles.avatarImg} />
+                ) : (
+                  <View style={styles.avatarFallback}>
+                    <Text style={styles.avatarInitial}>
+                      {user?.first_name ? user.first_name[0].toUpperCase() : 'G'}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            </>
+          }
+        />
 
         {/* Filter Tabs - Sticky above the list */}
         <View style={styles.filterRow}>
@@ -482,27 +481,6 @@ export default function OrdersScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FAF7F2' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: '#FAF7F2',
-  },
-  headerLeftGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-    minWidth: 0,
-  },
-  headerTitle: { fontSize: 19, fontWeight: '800', color: COLORS.textCoffee, fontFamily: FONT_DISPLAY, flexShrink: 1 },
-  headerActionIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
   // A dashed ticket-stub frame reads as a torn-off tally stamp, not a
   // generic rounded count pill — a shape unique to the ledger concept.
   tallyStamp: {

@@ -1,0 +1,748 @@
+import React, { useState, useEffect, memo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  ArrowRight,
+  Heart,
+  Star,
+  Plus,
+  Minus,
+  Stethoscope,
+  UtensilsCrossed,
+  ChevronRight,
+  CheckCircle2,
+} from 'lucide-react-native';
+import { COLORS } from '../theme/colors';
+import { FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
+import { Product } from '../types';
+import { UnifiedReview } from '../api/reviews';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const BANNER_WIDTH = SCREEN_WIDTH - 32;
+
+export const DEFAULT_DOG_IMAGES = [
+  'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600',
+  'https://images.unsplash.com/photo-1534361960057-19889db9621e?auto=format&fit=crop&q=80&w=600',
+  'https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&q=80&w=600',
+  'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&q=80&w=600',
+  'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&q=80&w=600',
+  'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&q=80&w=600',
+];
+
+export interface HeroBanner {
+  id: string;
+  title: string;
+  subtitle: string;
+  ctaText: string;
+  targetScreen: string;
+  bgImage: string;
+}
+
+export const HERO_BANNERS: HeroBanner[] = [
+  {
+    id: '1',
+    title: 'Hearth & Hound: Small-Batch Nutrition',
+    subtitle: 'Wholesome Chicken & Sweet Potato recipes hand-crafted with human-grade ingredients.',
+    ctaText: 'Explore Kitchen',
+    targetScreen: 'Shop',
+    bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521361/scooby_kitchen/zfmzprttuoojru2qleeh.jpg',
+  },
+  {
+    id: '2',
+    title: 'Honest Ingredients. Zero Filler.',
+    subtitle: 'Every batch contains zero corn, wheat, soy, or synthetic preservatives. Tested by nutritionists.',
+    ctaText: 'Explore Recipes',
+    targetScreen: 'Shop',
+    bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg',
+  },
+  {
+    id: '3',
+    title: 'Farm-To-Freezer Holistic Meals',
+    subtitle: 'Real whole-food chicken and sweet potatoes, cooked once and flash-frozen to lock in nutrition — no preservatives needed.',
+    ctaText: 'Explore Menu',
+    targetScreen: 'Shop',
+    bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521315/scooby_kitchen/nji85annhntaovsycm9q.jpg',
+  },
+  {
+    id: '4',
+    title: 'Raptor: All-Meat Diet',
+    subtitle: 'Pure primal nutrition engineered for athletic endurance, lean muscle, and digestive resilience.',
+    ctaText: 'View Recipe',
+    targetScreen: 'Shop',
+    bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521296/scooby_kitchen/fcw2fhniavnni3qracok.jpg',
+  },
+];
+
+interface BannerSlideItemProps {
+  item: HeroBanner;
+  onNavigate: (targetScreen: string) => void;
+  slideWidth?: number;
+  cardWidth?: number;
+}
+
+export const BannerSlideItem = memo(function BannerSlideItem({
+  item,
+  onNavigate,
+  slideWidth,
+  cardWidth,
+}: BannerSlideItemProps) {
+  const [imgUri, setImgUri] = useState(item.bgImage);
+
+  useEffect(() => {
+    setImgUri(item.bgImage);
+  }, [item.bgImage]);
+
+  return (
+    <View style={[homeCardStyles.bannerSlideWrapper, slideWidth ? { width: slideWidth } : null]}>
+      <View style={[homeCardStyles.bannerSlide, cardWidth ? { width: cardWidth } : null]}>
+        <Image
+          source={{ uri: imgUri }}
+          style={homeCardStyles.bannerImage}
+          contentFit="cover"
+          onError={() => {
+            if (imgUri !== HERO_BANNERS[0].bgImage) {
+              setImgUri(HERO_BANNERS[0].bgImage);
+            }
+          }}
+        />
+        <LinearGradient
+          colors={['transparent', 'rgba(20,14,8,0.12)', 'rgba(20,14,8,0.72)']}
+          locations={[0, 0.45, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+
+        <View style={homeCardStyles.bannerContent}>
+          {/* Headline — capped at 2 lines: banner copy can come from the
+              admin-managed banners API, and an uncapped title would silently
+              overflow this card's fixed height with no ellipsis. */}
+          <Text style={homeCardStyles.bannerTitle} numberOfLines={2}>{item.title}</Text>
+
+          {/* Subtitle */}
+          <Text style={homeCardStyles.bannerSub} numberOfLines={2}>
+            {item.subtitle}
+          </Text>
+
+          {/* CTA Button */}
+          <TouchableOpacity
+            style={homeCardStyles.bannerCtaBtn}
+            onPress={() => onNavigate(item.targetScreen)}
+            activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel={item.ctaText}
+          >
+            <Text style={homeCardStyles.bannerCtaText}>{item.ctaText}</Text>
+            <ArrowRight size={15} color="#FFFFFF" strokeWidth={2.4} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+});
+
+interface ProductFavoriteCardProps {
+  product: Product;
+  inCartItem?: { id: number; quantity: number };
+  isFav: boolean;
+  onToggleFavorite: (id: number) => void;
+  onAddItem: (productId: number, quantity: number) => void;
+  onUpdateQuantity: (itemId: number, quantity: number) => void;
+  onRemoveItem: (itemId: number) => void;
+  onSelectProduct: (productId: number) => void;
+  // Set when shop_checkout is off (e.g. "Coming Soon" / "Unavailable") — same
+  // treatment web's RecipeCard uses: browsing stays live, only the actual
+  // purchase action disables, showing this label instead of "Add".
+  orderingDisabledLabel?: string;
+}
+
+export const ProductFavoriteCard = memo(function ProductFavoriteCard({
+  product,
+  inCartItem,
+  isFav,
+  onToggleFavorite,
+  onAddItem,
+  onUpdateQuantity,
+  onRemoveItem,
+  onSelectProduct,
+  orderingDisabledLabel,
+}: ProductFavoriteCardProps) {
+  const hasReviews = !!product.review_count && product.review_count > 0;
+  const hasStockInfo = product.available_stock !== null && product.available_stock !== undefined;
+  const isOutOfStock = hasStockInfo && product.available_stock === 0;
+
+  return (
+    <View style={homeCardStyles.favoriteCard}>
+      {/* Product Image & Badges */}
+      <TouchableOpacity
+        style={homeCardStyles.cardImageContainer}
+        onPress={() => onSelectProduct(product.id)}
+        activeOpacity={0.9}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${product.name}`}
+      >
+        <Image
+          source={{
+            uri:
+              product.image_url ||
+              'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=400&auto=format&fit=crop&q=75',
+          }}
+          style={homeCardStyles.cardProductImage}
+          contentFit="cover"
+        />
+
+        {/* Stock Badge — reflects the product's real available_stock, hidden when unknown */}
+        {hasStockInfo && (
+          <View style={[homeCardStyles.stockTag, isOutOfStock && homeCardStyles.stockTagOut]}>
+            <Text style={[homeCardStyles.stockTagText, isOutOfStock && homeCardStyles.stockTagTextOut]}>
+              {isOutOfStock ? 'OUT OF STOCK' : 'IN STOCK'}
+            </Text>
+          </View>
+        )}
+
+        {/* Heart Button */}
+        <TouchableOpacity
+          style={homeCardStyles.heartCircle}
+          onPress={() => onToggleFavorite(product.id)}
+          activeOpacity={0.8}
+          hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
+          accessibilityRole="button"
+          accessibilityLabel={isFav ? `Remove ${product.name} from favorites` : `Add ${product.name} to favorites`}
+        >
+          <Heart
+            size={14}
+            color={isFav ? COLORS.accentRed : COLORS.textCoffee}
+            fill={isFav ? COLORS.accentRed : 'none'}
+          />
+        </TouchableOpacity>
+      </TouchableOpacity>
+
+      {/* Card Body */}
+      <View style={homeCardStyles.cardBody}>
+        <TouchableOpacity
+          onPress={() => onSelectProduct(product.id)}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${product.name}`}
+        >
+          {/* Rating (only shown once the recipe has real reviews) */}
+          {hasReviews && (
+            <View style={homeCardStyles.ratingRow}>
+              <Star size={13} color={COLORS.accentGold} fill={COLORS.accentGold} />
+              <Text style={homeCardStyles.ratingText}>
+                {(product.average_rating ?? 0).toFixed(1)}{' '}
+                <Text style={homeCardStyles.reviewsCount}>
+                  ({product.review_count} review{product.review_count === 1 ? '' : 's'})
+                </Text>
+              </Text>
+            </View>
+          )}
+
+          {/* Product Title & Subtitle */}
+          <Text style={homeCardStyles.cardTitle} numberOfLines={1}>
+            {product.name}
+          </Text>
+          <Text style={homeCardStyles.cardSubtitle} numberOfLines={1}>
+            {product.description || 'Digestive comfort & gentle fiber balance'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Batch & Price + Add Button */}
+        <View style={homeCardStyles.cardFooter}>
+          <View style={homeCardStyles.cardFooterLeft}>
+            {product.sku && (
+              <Text style={homeCardStyles.batchLabel} numberOfLines={1}>
+                SKU: {product.sku}
+              </Text>
+            )}
+            <Text style={homeCardStyles.cardPrice}>₹{product.price}</Text>
+          </View>
+
+          {orderingDisabledLabel ? (
+            <View style={homeCardStyles.cardAddBtnDisabled}>
+              <Text style={homeCardStyles.cardAddDisabledText}>{orderingDisabledLabel}</Text>
+            </View>
+          ) : inCartItem && inCartItem.quantity > 0 ? (
+            /* Connected Quantity Stepper */
+            <View style={homeCardStyles.stepperContainer}>
+              <TouchableOpacity
+                style={homeCardStyles.stepperBtn}
+                onPress={() => {
+                  if (inCartItem.quantity > 1) {
+                    onUpdateQuantity(inCartItem.id, inCartItem.quantity - 1);
+                  } else {
+                    onRemoveItem(inCartItem.id);
+                  }
+                }}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel={inCartItem.quantity > 1 ? `Decrease quantity of ${product.name}` : `Remove ${product.name} from cart`}
+              >
+                <Minus size={11} color="#FFFFFF" strokeWidth={2.6} />
+              </TouchableOpacity>
+
+              <Text style={homeCardStyles.stepperQty}>{inCartItem.quantity}</Text>
+
+              <TouchableOpacity
+                style={homeCardStyles.stepperBtn}
+                onPress={() => onUpdateQuantity(inCartItem.id, inCartItem.quantity + 1)}
+                hitSlop={{ top: 12, bottom: 12, left: 10, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Increase quantity of ${product.name}`}
+              >
+                <Plus size={11} color="#FFFFFF" strokeWidth={2.6} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={homeCardStyles.cardAddBtn}
+              onPress={() => onAddItem(product.id, 1)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={`Add ${product.name} to cart`}
+            >
+              <Plus size={13} color="#FFFFFF" strokeWidth={2.5} />
+              <Text style={homeCardStyles.cardAddText}>Add</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+});
+
+interface ReviewCardItemProps {
+  review: UnifiedReview;
+  index: number;
+  onOpenModal: (review: UnifiedReview) => void;
+  onNavigateTarget: (review: UnifiedReview) => void;
+}
+
+export const ReviewCardItem = memo(function ReviewCardItem({
+  review,
+  index,
+  onOpenModal,
+  onNavigateTarget,
+}: ReviewCardItemProps) {
+  const displayImage =
+    review.image_url || DEFAULT_DOG_IMAGES[index % DEFAULT_DOG_IMAGES.length];
+
+  return (
+    <TouchableOpacity
+      style={homeCardStyles.reviewCard}
+      onPress={() => onOpenModal(review)}
+      activeOpacity={0.88}
+      accessibilityRole="button"
+      accessibilityLabel={`View review by ${review.author_name}, ${review.rating} out of 5 stars`}
+    >
+      {/* Review Picture with Badge */}
+      <View style={homeCardStyles.reviewImageWrap}>
+        <Image
+          source={{ uri: displayImage }}
+          style={homeCardStyles.reviewCardImg as any}
+          contentFit="cover"
+        />
+        <View
+          style={[
+            homeCardStyles.reviewTypeBadge,
+            review.type === 'doctor' ? homeCardStyles.doctorTypeBadge : homeCardStyles.productTypeBadge,
+          ]}
+        >
+          {review.type === 'doctor' ? (
+            <Stethoscope size={9} color={COLORS.navy} strokeWidth={2.4} />
+          ) : (
+            <UtensilsCrossed size={9} color={COLORS.sageTintText} strokeWidth={2.4} />
+          )}
+          <Text
+            style={[
+              homeCardStyles.reviewTypeBadgeText,
+              review.type === 'doctor' ? homeCardStyles.doctorTypeText : homeCardStyles.productTypeText,
+            ]}
+          >
+            {review.type === 'doctor' ? 'Vet Consult' : 'Fresh Meal'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Star rating (accentGold — same token as ProductFavoriteCard's stars) */}
+      <View style={homeCardStyles.reviewStarRow}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            size={13}
+            color={COLORS.accentGold}
+            fill={star <= review.rating ? COLORS.accentGold : COLORS.kraftBorder}
+          />
+        ))}
+      </View>
+
+      {/* Review Comment Snippet */}
+      <Text style={homeCardStyles.reviewCommentSnippet} numberOfLines={3}>
+        "{review.comment || 'Outstanding quality and nutrition for our companion.'}"
+      </Text>
+
+      {/* Review Footer with Author, Verified Check, and Actionable Item Link */}
+      <View style={homeCardStyles.reviewFooter}>
+        <View style={homeCardStyles.reviewAuthorRow}>
+          <Text style={homeCardStyles.reviewAuthorName} numberOfLines={1}>
+            {review.author_name}
+          </Text>
+          {review.is_verified_buyer && (
+            <CheckCircle2 size={13} color={COLORS.sageIcon} />
+          )}
+        </View>
+
+        <TouchableOpacity
+          style={homeCardStyles.reviewCardTargetLink}
+          onPress={(e) => {
+            e.stopPropagation?.();
+            onNavigateTarget(review);
+          }}
+          activeOpacity={0.75}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          accessibilityRole="button"
+          accessibilityLabel={review.type === 'doctor' ? 'View consultation details' : 'View product details'}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+            {review.type === 'doctor' ? (
+              <Stethoscope size={11} color={COLORS.navy} />
+            ) : (
+              <UtensilsCrossed size={11} color="#C27835" />
+            )}
+            <Text
+              style={[
+                homeCardStyles.reviewTargetItem,
+                review.type === 'doctor' && { color: COLORS.navy },
+              ]}
+              numberOfLines={1}
+            >
+              {review.reviewed_item_name}
+            </Text>
+          </View>
+          <ChevronRight
+            size={12}
+            color={review.type === 'doctor' ? COLORS.navy : '#C27835'}
+          />
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+export const homeCardStyles = StyleSheet.create({
+  bannerSlideWrapper: {
+    width: SCREEN_WIDTH,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bannerSlide: {
+    width: BANNER_WIDTH,
+    height: 220,
+    borderRadius: 20,
+    overflow: 'hidden',
+    position: 'relative',
+    justifyContent: 'flex-end',
+    padding: 18,
+    backgroundColor: COLORS.textCoffee,
+  },
+  bannerImage: {
+    ...StyleSheet.absoluteFill,
+    width: '100%',
+    height: '100%',
+  },
+  bannerContent: {
+    gap: 8,
+    maxWidth: '90%',
+  },
+  bannerTitle: {
+    fontSize: 18,
+    fontFamily: FONT_DISPLAY,
+    color: '#F5F1EA',
+    lineHeight: 23,
+    // Same 18px/FONT_DISPLAY tier as telehealthTitle in HomeScreen — both are
+    // prominent headlines set over a dark/image surface, so they share one
+    // tracking value instead of one having it and the other not.
+    letterSpacing: -0.3,
+  },
+  bannerSub: {
+    fontSize: 11,
+    fontFamily: FONT_BODY,
+    color: COLORS.kraftBorder,
+    lineHeight: 15,
+  },
+  bannerCtaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: COLORS.forestGreen,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginTop: 4,
+  },
+  bannerCtaText: {
+    fontSize: 12,
+    fontFamily: FONT_BODY_BOLD,
+    color: '#FFFFFF',
+  },
+  favoriteCard: {
+    width: 200,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.kraftBorder,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cardImageContainer: {
+    width: '100%',
+    height: 120,
+    position: 'relative',
+    backgroundColor: '#EAE1D5',
+  },
+  cardProductImage: {
+    width: '100%',
+    height: '100%',
+  },
+  stockTag: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: COLORS.sageTintBadgeBg, // Sage tint — DESIGN.md's sage is the documented "verified label" color, replacing generic Tailwind green
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  stockTagOut: {
+    backgroundColor: '#EEE0DD', // accentRed tint — the existing brand "Urgent/Alert" color, not generic red
+  },
+  stockTagText: {
+    fontSize: 9,
+    fontFamily: LEDGER_MONO,
+    color: COLORS.sageTintText,
+    letterSpacing: 0.4,
+  },
+  stockTagTextOut: {
+    color: '#672F22',
+  },
+  heartCircle: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardBody: {
+    padding: 12,
+    gap: 4,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 2,
+  },
+  ratingText: {
+    fontSize: 11,
+    fontFamily: LEDGER_MONO,
+    color: COLORS.textCoffee,
+  },
+  reviewsCount: {
+    fontSize: 10,
+    fontFamily: LEDGER_MONO,
+    color: COLORS.textMuted,
+  },
+  cardTitle: {
+    fontSize: 13,
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
+    color: COLORS.textCoffee,
+  },
+  cardSubtitle: {
+    fontSize: 11,
+    fontFamily: FONT_BODY,
+    color: COLORS.textMuted,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3EFE9',
+  },
+  // Lets the SKU/price block shrink and truncate instead of forcing the
+  // row wider than the card — without this, a long SKU pushed the Add
+  // button/stepper past the card's own right edge.
+  cardFooterLeft: {
+    flex: 1,
+    marginRight: 8,
+  },
+  batchLabel: {
+    fontSize: 9,
+    fontFamily: LEDGER_MONO,
+    color: COLORS.textLight,
+  },
+  cardPrice: {
+    fontSize: 14,
+    fontFamily: LEDGER_MONO,
+    color: COLORS.textCoffee,
+  },
+  cardAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.ctaBrown,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    flexShrink: 0,
+  },
+  cardAddText: {
+    fontSize: 12,
+    fontFamily: FONT_BODY_BOLD,
+    color: '#FFFFFF',
+  },
+  cardAddBtnDisabled: {
+    backgroundColor: COLORS.kraftBorder,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    flexShrink: 0,
+  },
+  cardAddDisabledText: {
+    fontSize: 11,
+    fontFamily: FONT_BODY_BOLD,
+    color: COLORS.textLight,
+  },
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.forestGreen,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 3,
+    gap: 6,
+    flexShrink: 0,
+  },
+  stepperBtn: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperQty: {
+    fontSize: 11,
+    fontFamily: LEDGER_MONO,
+    color: '#FFFFFF',
+    minWidth: 14,
+    textAlign: 'center',
+  },
+  reviewCard: {
+    width: 250,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1.2,
+    borderColor: '#EBE0D0',
+    padding: 12,
+    gap: 8,
+    shadowColor: COLORS.textCoffee,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  reviewImageWrap: {
+    width: '100%',
+    height: 140,
+    borderRadius: 10,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#F5EFE6',
+  },
+  reviewCardImg: {
+    width: '100%',
+    height: 140,
+  },
+  reviewTypeBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  productTypeBadge: {
+    backgroundColor: COLORS.sageTintBadgeBg,
+    borderColor: COLORS.sageLight,
+  },
+  doctorTypeBadge: {
+    backgroundColor: COLORS.navyTintBg,
+    borderColor: COLORS.navyTintBorder,
+  },
+  reviewTypeBadgeText: {
+    fontSize: 8.5,
+    fontFamily: LEDGER_MONO,
+  },
+  productTypeText: {
+    color: COLORS.sageTintText,
+  },
+  doctorTypeText: {
+    color: COLORS.navy,
+  },
+  reviewStarRow: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  reviewCommentSnippet: {
+    fontSize: 11,
+    fontFamily: FONT_BODY,
+    color: COLORS.textCoffee,
+    fontStyle: 'italic',
+    lineHeight: 15,
+  },
+  reviewFooter: {
+    borderTopWidth: 1,
+    borderTopColor: '#F3EFE9',
+    paddingTop: 8,
+    gap: 3,
+  },
+  reviewAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  reviewAuthorName: {
+    fontSize: 11.5,
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
+    color: COLORS.textCoffee,
+  },
+  reviewTargetItem: {
+    fontSize: 9.5,
+    fontFamily: LEDGER_MONO,
+    color: '#C27835',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  reviewCardTargetLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+    gap: 4,
+  },
+});

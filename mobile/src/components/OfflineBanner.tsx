@@ -1,25 +1,39 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Text, StyleSheet, LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WifiOff } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
 import { useNetworkStore } from '../store/networkStore';
 
+// The banner's real height (status-bar inset + content) varies by device —
+// a fixed -60 hide offset was smaller than that real height on devices with
+// a taller inset, leaving a permanent sliver of red peeking on screen no
+// matter what isConnected said. Hide it by its own measured height instead,
+// with a safely-larger fallback for the one frame before that's known.
+const FALLBACK_HIDDEN_OFFSET = -150;
+
 export default function OfflineBanner() {
   const isConnected = useNetworkStore((state) => state.isConnected);
   const insets = useSafeAreaInsets();
-  const translateY = useRef(new Animated.Value(-60)).current;
+  const translateY = useRef(new Animated.Value(FALLBACK_HIDDEN_OFFSET)).current;
+  const [bannerHeight, setBannerHeight] = useState(0);
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    setBannerHeight(event.nativeEvent.layout.height);
+  };
 
   useEffect(() => {
+    const hiddenOffset = bannerHeight > 0 ? -bannerHeight : FALLBACK_HIDDEN_OFFSET;
     Animated.timing(translateY, {
-      toValue: isConnected ? -60 : 0,
+      toValue: isConnected ? hiddenOffset : 0,
       duration: 220,
       useNativeDriver: true,
     }).start();
-  }, [isConnected, translateY]);
+  }, [isConnected, bannerHeight, translateY]);
 
   return (
     <Animated.View
+      onLayout={handleLayout}
       pointerEvents="none"
       style={[
         styles.banner,

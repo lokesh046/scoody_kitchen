@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Dimensions,
   ActivityIndicator,
   FlatList,
   NativeSyntheticEvent,
@@ -16,6 +15,7 @@ import {
   Modal,
   Animated,
   Easing,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -45,6 +45,17 @@ import {
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
 import { FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_DISPLAY_BLACK, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
+import FAQSection from '../components/FAQSection';
+import BlogPreviewSection from '../components/BlogPreviewSection';
+import {
+  BannerSlideItem,
+  ProductFavoriteCard,
+  ReviewCardItem,
+  HERO_BANNERS,
+  DEFAULT_DOG_IMAGES,
+  homeCardStyles,
+  type HeroBanner,
+} from '../components/HomeCards';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { usePetStore } from '../store/petStore';
@@ -60,64 +71,8 @@ import { BrandHeader } from '../components/BrandLogo';
 import { fetchUnreadCount } from '../api/notifications';
 import { BASE_URL } from '../api/client';
 import { useResponsive } from '../hooks/useResponsive';
-import { useFeatureFlag } from '../hooks/useFeatureFlag';
+import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
 import ResponsiveContainer from '../components/ResponsiveContainer';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const BANNER_WIDTH = SCREEN_WIDTH - 32;
-
-const DEFAULT_DOG_IMAGES = [
-  'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600',
-  'https://images.unsplash.com/photo-1534361960057-19889db9621e?auto=format&fit=crop&q=80&w=600',
-  'https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&q=80&w=600',
-  'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&q=80&w=600',
-  'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&q=80&w=600',
-  'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&q=80&w=600',
-];
-
-interface HeroBanner {
-  id: string;
-  title: string;
-  subtitle: string;
-  ctaText: string;
-  targetScreen: string;
-  bgImage: string;
-}
-
-const HERO_BANNERS: HeroBanner[] = [
-  {
-    id: '1',
-    title: 'Hearth & Hound: Small-Batch Nutrition',
-    subtitle: 'Wholesome Chicken & Sweet Potato recipes hand-crafted with human-grade ingredients.',
-    ctaText: 'Explore Kitchen',
-    targetScreen: 'Shop',
-    bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521361/scooby_kitchen/zfmzprttuoojru2qleeh.jpg',
-  },
-  {
-    id: '2',
-    title: 'Honest Ingredients. Zero Filler.',
-    subtitle: 'Every batch contains zero corn, wheat, soy, or synthetic preservatives. Tested by nutritionists.',
-    ctaText: 'Explore Recipes',
-    targetScreen: 'Shop',
-    bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg',
-  },
-  {
-    id: '3',
-    title: 'Farm-To-Freezer Holistic Meals',
-    subtitle: 'Real whole-food chicken and sweet potatoes, cooked once and flash-frozen to lock in nutrition — no preservatives needed.',
-    ctaText: 'Explore Menu',
-    targetScreen: 'Shop',
-    bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521315/scooby_kitchen/nji85annhntaovsycm9q.jpg',
-  },
-  {
-    id: '4',
-    title: 'Raptor: All-Meat Diet',
-    subtitle: 'Pure primal nutrition engineered for athletic endurance, lean muscle, and digestive resilience.',
-    ctaText: 'View Recipe',
-    targetScreen: 'Shop',
-    bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521296/scooby_kitchen/fcw2fhniavnni3qracok.jpg',
-  },
-];
 
 interface CoreService {
   id: string;
@@ -167,351 +122,6 @@ const REVIEW_CARD_WIDTH = 260;
 const REVIEW_CARD_GAP = 14;
 const REVIEW_STRIDE = REVIEW_CARD_WIDTH + REVIEW_CARD_GAP;
 
-interface BannerSlideItemProps {
-  item: HeroBanner;
-  onNavigate: (targetScreen: string) => void;
-  slideWidth?: number;
-  cardWidth?: number;
-}
-
-const BannerSlideItem = memo(function BannerSlideItem({
-  item,
-  onNavigate,
-  slideWidth,
-  cardWidth,
-}: BannerSlideItemProps) {
-  const [imgUri, setImgUri] = useState(item.bgImage);
-
-  useEffect(() => {
-    setImgUri(item.bgImage);
-  }, [item.bgImage]);
-
-  return (
-    <View style={[styles.bannerSlideWrapper, slideWidth ? { width: slideWidth } : null]}>
-      <View style={[styles.bannerSlide, cardWidth ? { width: cardWidth } : null]}>
-        <Image
-          source={{ uri: imgUri }}
-          style={styles.bannerImage}
-          contentFit="cover"
-          onError={() => {
-            if (imgUri !== HERO_BANNERS[0].bgImage) {
-              setImgUri(HERO_BANNERS[0].bgImage);
-            }
-          }}
-        />
-        <LinearGradient
-          colors={['transparent', 'rgba(20,14,8,0.12)', 'rgba(20,14,8,0.72)']}
-          locations={[0, 0.45, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-
-        <View style={styles.bannerContent}>
-          {/* Headline — capped at 2 lines: banner copy can come from the
-              admin-managed banners API, and an uncapped title would silently
-              overflow this card's fixed height with no ellipsis. */}
-          <Text style={styles.bannerTitle} numberOfLines={2}>{item.title}</Text>
-
-          {/* Subtitle */}
-          <Text style={styles.bannerSub} numberOfLines={2}>
-            {item.subtitle}
-          </Text>
-
-          {/* CTA Button */}
-          <TouchableOpacity
-            style={styles.bannerCtaBtn}
-            onPress={() => onNavigate(item.targetScreen)}
-            activeOpacity={0.88}
-            accessibilityRole="button"
-            accessibilityLabel={item.ctaText}
-          >
-            <Text style={styles.bannerCtaText}>{item.ctaText}</Text>
-            <ArrowRight size={15} color="#FFFFFF" strokeWidth={2.4} />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-});
-
-interface ProductFavoriteCardProps {
-  product: Product;
-  inCartItem?: { id: number; quantity: number };
-  isFav: boolean;
-  onToggleFavorite: (id: number) => void;
-  onAddItem: (productId: number, quantity: number) => void;
-  onUpdateQuantity: (itemId: number, quantity: number) => void;
-  onRemoveItem: (itemId: number) => void;
-  onSelectProduct: (productId: number) => void;
-}
-
-const ProductFavoriteCard = memo(function ProductFavoriteCard({
-  product,
-  inCartItem,
-  isFav,
-  onToggleFavorite,
-  onAddItem,
-  onUpdateQuantity,
-  onRemoveItem,
-  onSelectProduct,
-}: ProductFavoriteCardProps) {
-  const hasReviews = !!product.review_count && product.review_count > 0;
-  const hasStockInfo = product.available_stock !== null && product.available_stock !== undefined;
-  const isOutOfStock = hasStockInfo && product.available_stock === 0;
-
-  return (
-    <View style={styles.favoriteCard}>
-      {/* Product Image & Badges */}
-      <TouchableOpacity
-        style={styles.cardImageContainer}
-        onPress={() => onSelectProduct(product.id)}
-        activeOpacity={0.9}
-        accessibilityRole="button"
-        accessibilityLabel={`View ${product.name}`}
-      >
-        <Image
-          source={{
-            uri:
-              product.image_url ||
-              'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?w=400&auto=format&fit=crop&q=75',
-          }}
-          style={styles.cardProductImage}
-          contentFit="cover"
-        />
-
-        {/* Stock Badge — reflects the product's real available_stock, hidden when unknown */}
-        {hasStockInfo && (
-          <View style={[styles.stockTag, isOutOfStock && styles.stockTagOut]}>
-            <Text style={[styles.stockTagText, isOutOfStock && styles.stockTagTextOut]}>
-              {isOutOfStock ? 'OUT OF STOCK' : 'IN STOCK'}
-            </Text>
-          </View>
-        )}
-
-        {/* Heart Button */}
-        <TouchableOpacity
-          style={styles.heartCircle}
-          onPress={() => onToggleFavorite(product.id)}
-          activeOpacity={0.8}
-          hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
-          accessibilityRole="button"
-          accessibilityLabel={isFav ? `Remove ${product.name} from favorites` : `Add ${product.name} to favorites`}
-        >
-          <Heart
-            size={14}
-            color={isFav ? COLORS.accentRed : COLORS.textCoffee}
-            fill={isFav ? COLORS.accentRed : 'none'}
-          />
-        </TouchableOpacity>
-      </TouchableOpacity>
-
-      {/* Card Body */}
-      <View style={styles.cardBody}>
-        <TouchableOpacity
-          onPress={() => onSelectProduct(product.id)}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel={`View ${product.name}`}
-        >
-          {/* Rating (only shown once the recipe has real reviews) */}
-          {hasReviews && (
-            <View style={styles.ratingRow}>
-              <Star size={13} color={COLORS.accentGold} fill={COLORS.accentGold} />
-              <Text style={styles.ratingText}>
-                {(product.average_rating ?? 0).toFixed(1)}{' '}
-                <Text style={styles.reviewsCount}>
-                  ({product.review_count} review{product.review_count === 1 ? '' : 's'})
-                </Text>
-              </Text>
-            </View>
-          )}
-
-          {/* Product Title & Subtitle */}
-          <Text style={styles.cardTitle} numberOfLines={1}>
-            {product.name}
-          </Text>
-          <Text style={styles.cardSubtitle} numberOfLines={1}>
-            {product.description || 'Digestive comfort & gentle fiber balance'}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Batch & Price + Add Button */}
-        <View style={styles.cardFooter}>
-          <View style={styles.cardFooterLeft}>
-            {product.sku && (
-              <Text style={styles.batchLabel} numberOfLines={1}>
-                SKU: {product.sku}
-              </Text>
-            )}
-            <Text style={styles.cardPrice}>₹{product.price}</Text>
-          </View>
-
-          {inCartItem && inCartItem.quantity > 0 ? (
-            /* Connected Quantity Stepper */
-            <View style={styles.stepperContainer}>
-              <TouchableOpacity
-                style={styles.stepperBtn}
-                onPress={() => {
-                  if (inCartItem.quantity > 1) {
-                    onUpdateQuantity(inCartItem.id, inCartItem.quantity - 1);
-                  } else {
-                    onRemoveItem(inCartItem.id);
-                  }
-                }}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 10 }}
-                accessibilityRole="button"
-                accessibilityLabel={inCartItem.quantity > 1 ? `Decrease quantity of ${product.name}` : `Remove ${product.name} from cart`}
-              >
-                <Minus size={11} color="#FFFFFF" strokeWidth={2.6} />
-              </TouchableOpacity>
-
-              <Text style={styles.stepperQty}>{inCartItem.quantity}</Text>
-
-              <TouchableOpacity
-                style={styles.stepperBtn}
-                onPress={() => onUpdateQuantity(inCartItem.id, inCartItem.quantity + 1)}
-                hitSlop={{ top: 12, bottom: 12, left: 10, right: 12 }}
-                accessibilityRole="button"
-                accessibilityLabel={`Increase quantity of ${product.name}`}
-              >
-                <Plus size={11} color="#FFFFFF" strokeWidth={2.6} />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.cardAddBtn}
-              onPress={() => onAddItem(product.id, 1)}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel={`Add ${product.name} to cart`}
-            >
-              <Plus size={13} color="#FFFFFF" strokeWidth={2.5} />
-              <Text style={styles.cardAddText}>Add</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    </View>
-  );
-});
-
-interface ReviewCardItemProps {
-  review: UnifiedReview;
-  index: number;
-  onOpenModal: (review: UnifiedReview) => void;
-  onNavigateTarget: (review: UnifiedReview) => void;
-}
-
-const ReviewCardItem = memo(function ReviewCardItem({
-  review,
-  index,
-  onOpenModal,
-  onNavigateTarget,
-}: ReviewCardItemProps) {
-  const displayImage =
-    review.image_url || DEFAULT_DOG_IMAGES[index % DEFAULT_DOG_IMAGES.length];
-
-  return (
-    <TouchableOpacity
-      style={styles.reviewCard}
-      onPress={() => onOpenModal(review)}
-      activeOpacity={0.88}
-      accessibilityRole="button"
-      accessibilityLabel={`View review by ${review.author_name}, ${review.rating} out of 5 stars`}
-    >
-      {/* Review Picture with Badge */}
-      <View style={styles.reviewImageWrap}>
-        <Image
-          source={{ uri: displayImage }}
-          style={styles.reviewCardImg as any}
-          contentFit="cover"
-        />
-        <View
-          style={[
-            styles.reviewTypeBadge,
-            review.type === 'doctor' ? styles.doctorTypeBadge : styles.productTypeBadge,
-          ]}
-        >
-          {review.type === 'doctor' ? (
-            <Stethoscope size={9} color={COLORS.navy} strokeWidth={2.4} />
-          ) : (
-            <UtensilsCrossed size={9} color={COLORS.sageTintText} strokeWidth={2.4} />
-          )}
-          <Text
-            style={[
-              styles.reviewTypeBadgeText,
-              review.type === 'doctor' ? styles.doctorTypeText : styles.productTypeText,
-            ]}
-          >
-            {review.type === 'doctor' ? 'Vet Consult' : 'Fresh Meal'}
-          </Text>
-        </View>
-      </View>
-
-      {/* Star rating (accentGold — same token as ProductFavoriteCard's stars) */}
-      <View style={styles.reviewStarRow}>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            size={13}
-            color={COLORS.accentGold}
-            fill={star <= review.rating ? COLORS.accentGold : COLORS.kraftBorder}
-          />
-        ))}
-      </View>
-
-      {/* Review Comment Snippet */}
-      <Text style={styles.reviewCommentSnippet} numberOfLines={3}>
-        "{review.comment || 'Outstanding quality and nutrition for our companion.'}"
-      </Text>
-
-      {/* Review Footer with Author, Verified Check, and Actionable Item Link */}
-      <View style={styles.reviewFooter}>
-        <View style={styles.reviewAuthorRow}>
-          <Text style={styles.reviewAuthorName} numberOfLines={1}>
-            {review.author_name}
-          </Text>
-          {review.is_verified_buyer && (
-            <CheckCircle2 size={13} color={COLORS.sageIcon} />
-          )}
-        </View>
-
-        <TouchableOpacity
-          style={styles.reviewCardTargetLink}
-          onPress={(e) => {
-            e.stopPropagation?.();
-            onNavigateTarget(review);
-          }}
-          activeOpacity={0.75}
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          accessibilityRole="button"
-          accessibilityLabel={review.type === 'doctor' ? 'View consultation details' : 'View product details'}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
-            {review.type === 'doctor' ? (
-              <Stethoscope size={11} color={COLORS.navy} />
-            ) : (
-              <UtensilsCrossed size={11} color="#C27835" />
-            )}
-            <Text
-              style={[
-                styles.reviewTargetItem,
-                review.type === 'doctor' && { color: COLORS.navy },
-              ]}
-              numberOfLines={1}
-            >
-              {review.reviewed_item_name}
-            </Text>
-          </View>
-          <ChevronRight
-            size={12}
-            color={review.type === 'doctor' ? COLORS.navy : '#C27835'}
-          />
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
-});
-
 export default function HomeScreen({ navigation }: any) {
   const isFocused = useIsFocused();
   const { user } = useAuthStore();
@@ -520,6 +130,25 @@ export default function HomeScreen({ navigation }: any) {
 
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
+  // Mirrors web's HomePage: the Shop/Consult tabs are gated behind these same
+  // flags (see TabNavigator), but Home's own recipe cards and vet CTA had no
+  // matching check — letting someone add to cart or book a vet consult here
+  // even while both were flagged off everywhere else in the app.
+  const isShopEnabled = useFeatureFlag('shop_checkout', true);
+  const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  const shopFallback = useFeatureFlagFallback('shop_checkout');
+  const consultationsFallback = useFeatureFlagFallback('consultations_booking');
+  // The Add button itself always shows a disabled state when ordering is
+  // off, whatever the fallback — 'hide' only applies to secondary elements
+  // like the "View Full Product Ledger" link below, never to leaving the
+  // purchase action silently tappable-but-broken.
+  const shopDisabledLabel = isShopEnabled
+    ? undefined
+    : shopFallback === 'coming_soon'
+    ? 'Coming Soon'
+    : shopFallback === 'unavailable'
+    ? 'Unavailable'
+    : 'Ordering Unavailable';
 
   const [banners, setBanners] = useState<HeroBanner[]>(HERO_BANNERS);
   const [products, setProducts] = useState<Product[]>([]);
@@ -589,7 +218,7 @@ export default function HomeScreen({ navigation }: any) {
     () => [
       {
         icon: PawPrint,
-        title: 'Welcome to Scooby’s Kitchen 🐾',
+        title: 'Welcome to Hearth & One',
         description:
           'A 20-second look at what makes us different: total ingredient transparency, backed by real veterinary guidance.',
       },
@@ -807,6 +436,22 @@ export default function HomeScreen({ navigation }: any) {
     [navigation]
   );
 
+  // Same copy as the Consult tab's own disabled-tab alert (TabNavigator) —
+  // tapping "Find a Vet" here used to skip that gate entirely and navigate
+  // straight into VetScreen.
+  const handleFindVetPress = useCallback(() => {
+    if (!isConsultationsEnabled) {
+      Alert.alert(
+        consultationsFallback === 'coming_soon' ? 'Coming Soon' : 'Temporarily Unavailable',
+        consultationsFallback === 'coming_soon'
+          ? "Vet Consultations isn't available yet — check back soon!"
+          : 'Vet Consultations is temporarily unavailable. Please check back later.'
+      );
+      return;
+    }
+    handleNavigateScreen('Consult');
+  }, [isConsultationsEnabled, consultationsFallback, handleNavigateScreen]);
+
   const handleNavigateToReviewTarget = useCallback(
     (review: UnifiedReview) => {
       setSelectedReviewModal(null);
@@ -833,9 +478,10 @@ export default function HomeScreen({ navigation }: any) {
 
   const handleAddToCart = useCallback(
     (productId: number, quantity: number) => {
+      if (!isShopEnabled) return; // safety net — the card's own Add button is already disabled in this case
       addItem(productId, quantity);
     },
-    [addItem]
+    [addItem, isShopEnabled]
   );
 
   const handleUpdateQuantity = useCallback(
@@ -1119,7 +765,7 @@ export default function HomeScreen({ navigation }: any) {
       {/* 1. Header with Logo & Notification Controls */}
       <View style={styles.header}>
         <BrandHeader
-          subtitle={primaryPet ? `Feeding ${primaryPet.name} 🐕` : 'CANINE NUTRITION LEDGER'}
+          subtitle={primaryPet ? `Feeding ${primaryPet.name}` : 'CANINE NUTRITION LEDGER'}
           medallionSize="sm"
         />
 
@@ -1289,7 +935,7 @@ export default function HomeScreen({ navigation }: any) {
             "AI ECOSYSTEM" chip and a restating subtitle were saying the
             same thing twice. */}
         <View style={styles.sectionHeaderRowPlain}>
-          <Text style={styles.sectionTitleLarge}>Scooby Care & Services</Text>
+          <Text style={styles.sectionTitleLarge}>Hearth & One Care & Services</Text>
         </View>
 
         {/* Feature Spotlight: AI Pet Vision Scanner. Reads through a
@@ -1346,8 +992,13 @@ export default function HomeScreen({ navigation }: any) {
             a field journal: one weight, one hairline divider between rows,
             no per-row colour or badge competing for attention. */}
         <View style={styles.serviceLedger}>
-          {CORE_SERVICES.filter((srv) => srv.id !== 'pets' || isKnowYourPetEnabled).map((srv, i, arr) => {
+          {CORE_SERVICES.filter(
+            (srv) =>
+              (srv.id !== 'pets' || isKnowYourPetEnabled) &&
+              (srv.id !== 'telehealth' || consultationsFallback !== 'hide')
+          ).map((srv, i, arr) => {
             const IconComp = srv.icon;
+            const isDisabledConsult = srv.target === 'Consult' && !isConsultationsEnabled;
             return (
               <TouchableOpacity
                 key={srv.id}
@@ -1356,7 +1007,9 @@ export default function HomeScreen({ navigation }: any) {
                   i === arr.length - 1 && styles.serviceRowLast,
                 ]}
                 onPress={() => {
-                  if (srv.actionType === 'navigate' && srv.target) {
+                  if (srv.target === 'Consult') {
+                    handleFindVetPress();
+                  } else if (srv.actionType === 'navigate' && srv.target) {
                     handleNavigateScreen(srv.target);
                   } else if (srv.actionType === 'vision') {
                     setPetVisionVisible(true);
@@ -1366,12 +1019,27 @@ export default function HomeScreen({ navigation }: any) {
                 }}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel={`${srv.title}: ${srv.desc}`}
+                accessibilityLabel={
+                  isDisabledConsult
+                    ? `${srv.title}: ${consultationsFallback === 'coming_soon' ? 'Coming soon' : 'Temporarily unavailable'}`
+                    : `${srv.title}: ${srv.desc}`
+                }
               >
-                <IconComp size={20} color={COLORS.textCoffee} strokeWidth={1.75} />
+                <IconComp size={20} color={isDisabledConsult ? COLORS.textLight : COLORS.textCoffee} strokeWidth={1.75} />
 
                 <View style={styles.serviceRowBody}>
-                  <Text style={styles.serviceRowTitle}>{srv.title}</Text>
+                  <View style={styles.serviceRowTitleRow}>
+                    <Text style={[styles.serviceRowTitle, isDisabledConsult && styles.serviceRowTitleDisabled]}>
+                      {srv.title}
+                    </Text>
+                    {isDisabledConsult && (
+                      <View style={styles.serviceRowSoonPill}>
+                        <Text style={styles.serviceRowSoonPillText}>
+                          {consultationsFallback === 'coming_soon' ? 'SOON' : 'PAUSED'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.serviceRowDesc} numberOfLines={1}>{srv.desc}</Text>
                 </View>
 
@@ -1436,6 +1104,7 @@ export default function HomeScreen({ navigation }: any) {
                 onUpdateQuantity={handleUpdateQuantity}
                 onRemoveItem={handleRemoveCartItem}
                 onSelectProduct={handleSelectProduct}
+                orderingDisabledLabel={shopDisabledLabel}
               />
             ))}
           </ScrollView>
@@ -1473,45 +1142,55 @@ export default function HomeScreen({ navigation }: any) {
             pill is gone (rates vary by doctor and aren't fixed at ₹499), and
             the pulse-line glyph that replaces it in that slot says
             "clinical" through the design instead of another label. Copy
-            trimmed to what a glance actually needs. */}
-        <View style={styles.telehealthCard} ref={vetCardRef} collapsable={false}>
-          <View style={styles.telehealthHeaderRow}>
-            <View style={styles.telehealthPill}>
-              <Stethoscope size={13} color={COLORS.sageLight} />
-              <Text style={styles.telehealthPillText}>VET CONSULTATION</Text>
+            trimmed to what a glance actually needs.
+            Hidden entirely when consultations_booking's fallback is 'hide',
+            matching web's HomePage (FeaturePlaceholderCard or nothing). */}
+        {consultationsFallback !== 'hide' && (
+          <View style={styles.telehealthCard} ref={vetCardRef} collapsable={false}>
+            <View style={styles.telehealthHeaderRow}>
+              <View style={styles.telehealthPill}>
+                <Stethoscope size={13} color={COLORS.sageLight} />
+                <Text style={styles.telehealthPillText}>VET CONSULTATION</Text>
+              </View>
+
+              <Svg width={52} height={20} viewBox="0 0 130 40" accessibilityElementsHidden importantForAccessibility="no">
+                <Path
+                  d="M0,20 L28,20 L36,4 L46,36 L54,20 L102,20 L110,4 L120,36 L130,20"
+                  stroke="rgba(255,255,255,0.3)"
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </Svg>
             </View>
 
-            <Svg width={52} height={20} viewBox="0 0 130 40" accessibilityElementsHidden importantForAccessibility="no">
-              <Path
-                d="M0,20 L28,20 L36,4 L46,36 L54,20 L102,20 L110,4 L120,36 L130,20"
-                stroke="rgba(255,255,255,0.3)"
-                strokeWidth={3}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-            </Svg>
+            <Text style={styles.telehealthTitle}>
+              {isConsultationsEnabled ? 'Need expert vet advice?' : 'Vet consultations paused'}
+            </Text>
+
+            <Text style={styles.telehealthSubtitle}>
+              {isConsultationsEnabled
+                ? 'Certified vets, ready in minutes.'
+                : consultationsFallback === 'coming_soon'
+                ? "Online booking isn't open yet — check back soon."
+                : 'Online booking is temporarily unavailable.'}
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.findVetBtn, !isConsultationsEnabled && styles.findVetBtnDisabled]}
+              onPress={handleFindVetPress}
+              activeOpacity={0.88}
+              accessibilityRole="button"
+              accessibilityLabel="Find a vet"
+            >
+              <Stethoscope size={16} color={isConsultationsEnabled ? '#FFFFFF' : COLORS.sageLight} />
+              <Text style={[styles.findVetBtnText, !isConsultationsEnabled && styles.findVetBtnTextDisabled]}>
+                {isConsultationsEnabled ? 'Find a Vet' : consultationsFallback === 'coming_soon' ? 'Coming Soon' : 'Unavailable'}
+              </Text>
+            </TouchableOpacity>
           </View>
-
-          <Text style={styles.telehealthTitle}>
-            Need expert vet advice?
-          </Text>
-
-          <Text style={styles.telehealthSubtitle}>
-            Certified vets, ready in minutes.
-          </Text>
-
-          <TouchableOpacity
-            style={styles.findVetBtn}
-            onPress={() => handleNavigateScreen('Consult')}
-            activeOpacity={0.88}
-            accessibilityRole="button"
-            accessibilityLabel="Find a vet"
-          >
-            <Stethoscope size={16} color="#FFFFFF" />
-            <Text style={styles.findVetBtnText}>Find a Vet</Text>
-          </TouchableOpacity>
-        </View>
+        )}
 
         {/* 8. Community Feedback Ledger (Dynamic Reviews Carousel) — only shown once real reviews exist */}
         {reviews.length > 0 && (
@@ -1641,15 +1320,9 @@ export default function HomeScreen({ navigation }: any) {
             copy, forcing a re-evaluation of choices already made above with
             zero new information. See critique 2026-09-10. */}
 
-        {/* 10. Footer Brand Signature */}
-        <View style={styles.footerSignature}>
-          <Text style={styles.footerLoveText}>
-            Scooby Kitchen • Batched with Love in Bangalore & Portland
-          </Text>
-          <Text style={styles.footerLicenseText}>
-            Clinical Veterinary License #SC-4891-PET
-          </Text>
-        </View>
+        <BlogPreviewSection navigation={navigation} />
+
+        <FAQSection />
         </>
         )}
         </ResponsiveContainer>
@@ -1742,7 +1415,7 @@ export default function HomeScreen({ navigation }: any) {
               <View style={styles.reviewModalBody}>
                 {/* Meta Row: Non-overlapping Stars on left & Badge on right */}
                 <View style={styles.reviewModalMetaRow}>
-                  <View style={styles.reviewStarRow}>
+                  <View style={homeCardStyles.reviewStarRow}>
                     {[1, 2, 3, 4, 5].map((star) => (
                       <Star
                         key={star}
@@ -1756,8 +1429,8 @@ export default function HomeScreen({ navigation }: any) {
                     style={[
                       styles.reviewModalBadge,
                       selectedReviewModal.type === 'doctor'
-                        ? styles.doctorTypeBadge
-                        : styles.productTypeBadge,
+                        ? homeCardStyles.doctorTypeBadge
+                        : homeCardStyles.productTypeBadge,
                     ]}
                   >
                     {selectedReviewModal.type === 'doctor' ? (
@@ -1767,10 +1440,10 @@ export default function HomeScreen({ navigation }: any) {
                     )}
                     <Text
                       style={[
-                        styles.reviewTypeBadgeText,
+                        homeCardStyles.reviewTypeBadgeText,
                         selectedReviewModal.type === 'doctor'
-                          ? styles.doctorTypeText
-                          : styles.productTypeText,
+                          ? homeCardStyles.doctorTypeText
+                          : homeCardStyles.productTypeText,
                       ]}
                     >
                       {selectedReviewModal.type === 'doctor' ? 'Vet Consult' : 'Fresh Meal'}
@@ -2043,58 +1716,6 @@ const styles = StyleSheet.create({
   bannerCarouselContainer: {
     marginBottom: 20,
   },
-  bannerSlideWrapper: {
-    width: SCREEN_WIDTH,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bannerSlide: {
-    width: BANNER_WIDTH,
-    height: 220,
-    borderRadius: 20,
-    overflow: 'hidden',
-    position: 'relative',
-    justifyContent: 'flex-end',
-    padding: 18,
-    backgroundColor: COLORS.textCoffee,
-  },
-  bannerImage: {
-    ...StyleSheet.absoluteFill,
-    width: '100%',
-    height: '100%',
-  },
-  bannerContent: {
-    gap: 8,
-    maxWidth: '90%',
-  },
-  bannerTitle: {
-    fontSize: 18,
-    fontFamily: FONT_DISPLAY,
-    color: '#F5F1EA',
-    lineHeight: 23,
-  },
-  bannerSub: {
-    fontSize: 11,
-    fontFamily: FONT_BODY,
-    color: COLORS.kraftBorder,
-    lineHeight: 15,
-  },
-  bannerCtaBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: COLORS.forestGreen,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    marginTop: 4,
-  },
-  bannerCtaText: {
-    fontSize: 12,
-    fontFamily: FONT_BODY_BOLD,
-    color: '#FFFFFF',
-  },
   paginationDotsWrapper: {
     position: 'absolute',
     bottom: 14,
@@ -2131,7 +1752,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontFamily: FONT_DISPLAY,
-    color: COLORS.brandGold, // Ochre Hierarchy Rule — main section headings on the light canvas
+    // Deliberate deviation from DESIGN.md's Ochre Hierarchy Rule (main
+    // titles default to brandGold), scoped to this screen only, per
+    // explicit user request: unify every light-canvas section heading to
+    // the same black used by sectionTitleLarge, instead of splitting them
+    // between ochre and black. See DESIGN.md discussion before applying
+    // this color elsewhere in the app.
+    color: COLORS.textCoffee,
+    // Every other headline size on this screen carries a size-proportional
+    // negative tracking (20px: -0.6, 18px: -0.3, 16px card titles: -0.2) —
+    // this was the one left flat at 0, not a deliberate exception.
+    letterSpacing: -0.2,
   },
   sectionSubtitle: {
     fontSize: 11,
@@ -2260,10 +1891,33 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  serviceRowTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   serviceRowTitle: {
     fontSize: 15,
     fontFamily: FONT_DISPLAY_SEMIBOLD,
     color: COLORS.textCoffee,
+    // Matches the tightened-tracking voice every other headline role on
+    // this screen now carries — the services list was the one left out.
+    letterSpacing: -0.2,
+  },
+  serviceRowTitleDisabled: {
+    color: COLORS.textLight,
+  },
+  serviceRowSoonPill: {
+    backgroundColor: COLORS.kraftBorder,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 5,
+  },
+  serviceRowSoonPillText: {
+    fontSize: 8.5,
+    fontFamily: FONT_BODY_BOLD,
+    color: COLORS.textLight,
+    letterSpacing: 0.4,
   },
   serviceRowDesc: {
     fontSize: 12,
@@ -2330,158 +1984,6 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     marginBottom: 20,
   },
-  favoriteCard: {
-    width: 200,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.kraftBorder,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardImageContainer: {
-    width: '100%',
-    height: 120,
-    position: 'relative',
-    backgroundColor: '#EAE1D5',
-  },
-  cardProductImage: {
-    width: '100%',
-    height: '100%',
-  },
-  stockTag: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: COLORS.sageTintBadgeBg, // Sage tint — DESIGN.md's sage is the documented "verified label" color, replacing generic Tailwind green
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  stockTagOut: {
-    backgroundColor: '#EEE0DD', // accentRed tint — the existing brand "Urgent/Alert" color, not generic red
-  },
-  stockTagText: {
-    fontSize: 9,
-    fontFamily: LEDGER_MONO,
-    color: COLORS.sageTintText,
-    letterSpacing: 0.4,
-  },
-  stockTagTextOut: {
-    color: '#672F22',
-  },
-  heartCircle: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardBody: {
-    padding: 12,
-    gap: 4,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 2,
-  },
-  ratingText: {
-    fontSize: 11,
-    fontFamily: LEDGER_MONO,
-    color: COLORS.textCoffee,
-  },
-  reviewsCount: {
-    fontSize: 10,
-    fontFamily: LEDGER_MONO,
-    color: COLORS.textMuted,
-  },
-  cardTitle: {
-    fontSize: 13,
-    fontFamily: FONT_DISPLAY_SEMIBOLD,
-    color: COLORS.textCoffee,
-  },
-  cardSubtitle: {
-    fontSize: 11,
-    fontFamily: FONT_BODY,
-    color: COLORS.textMuted,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#F3EFE9',
-  },
-  // Lets the SKU/price block shrink and truncate instead of forcing the
-  // row wider than the card — without this, a long SKU pushed the Add
-  // button/stepper past the card's own right edge.
-  cardFooterLeft: {
-    flex: 1,
-    marginRight: 8,
-  },
-  batchLabel: {
-    fontSize: 9,
-    fontFamily: LEDGER_MONO,
-    color: COLORS.textLight,
-  },
-  cardPrice: {
-    fontSize: 14,
-    fontFamily: LEDGER_MONO,
-    color: COLORS.textCoffee,
-  },
-  cardAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.ctaBrown,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    flexShrink: 0,
-  },
-  cardAddText: {
-    fontSize: 12,
-    fontFamily: FONT_BODY_BOLD,
-    color: '#FFFFFF',
-  },
-  stepperContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.forestGreen,
-    borderRadius: 8,
-    paddingHorizontal: 4,
-    paddingVertical: 3,
-    gap: 6,
-    flexShrink: 0,
-  },
-  stepperBtn: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepperQty: {
-    fontSize: 11,
-    fontFamily: LEDGER_MONO,
-    color: '#FFFFFF',
-    minWidth: 14,
-    textAlign: 'center',
-  },
-
   /* 7. Meal Planner CTA & Vet Consultation Card */
   mealPlannerCard: {
     flexDirection: 'row',
@@ -2505,9 +2007,13 @@ const styles = StyleSheet.create({
   },
   mealPlannerTextCol: { flex: 1, gap: 2 },
   mealPlannerTitle: {
-    fontSize: 14,
+    // Matches visionSpotlightTitle exactly (16px, -0.2 tracking) — both are
+    // the same "icon circle + headline + trailing arrow" row-card pattern,
+    // and had drifted to two different sizes for no functional reason.
+    fontSize: 16,
     fontFamily: FONT_DISPLAY,
     color: COLORS.textCoffee,
+    letterSpacing: -0.2,
   },
   mealPlannerSubtitle: {
     fontSize: 11.5,
@@ -2557,7 +2063,8 @@ const styles = StyleSheet.create({
     fontFamily: FONT_DISPLAY,
     color: '#FFFFFF',
     lineHeight: 23,
-    letterSpacing: -0.2,
+    // Unified with bannerTitle at -0.3 — same 18px tier, one tracking value.
+    letterSpacing: -0.3,
   },
   telehealthSubtitle: {
     fontSize: 12.5,
@@ -2578,6 +2085,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: FONT_BODY_BOLD,
     color: '#FFFFFF',
+  },
+  findVetBtnDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  findVetBtnTextDisabled: {
+    color: COLORS.sageLight,
   },
 
   /* 8. Community Feedback Ledger (Reviews Carousel) */
@@ -2646,104 +2159,6 @@ const styles = StyleSheet.create({
     fontFamily: FONT_BODY,
     color: COLORS.textMuted,
   },
-  reviewCard: {
-    width: 250,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1.2,
-    borderColor: '#EBE0D0',
-    padding: 12,
-    gap: 8,
-    shadowColor: COLORS.textCoffee,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  reviewImageWrap: {
-    width: '100%',
-    height: 140,
-    borderRadius: 10,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#F5EFE6',
-  },
-  reviewCardImg: {
-    width: '100%',
-    height: 140,
-  },
-  reviewTypeBadge: {
-    position: 'absolute',
-    top: 6,
-    left: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  productTypeBadge: {
-    backgroundColor: COLORS.sageTintBadgeBg,
-    borderColor: COLORS.sageLight,
-  },
-  doctorTypeBadge: {
-    backgroundColor: COLORS.navyTintBg,
-    borderColor: COLORS.navyTintBorder,
-  },
-  reviewTypeBadgeText: {
-    fontSize: 8.5,
-    fontFamily: LEDGER_MONO,
-  },
-  productTypeText: {
-    color: COLORS.sageTintText,
-  },
-  doctorTypeText: {
-    color: COLORS.navy,
-  },
-  reviewStarRow: {
-    flexDirection: 'row',
-    gap: 3,
-  },
-  reviewCommentSnippet: {
-    fontSize: 11,
-    fontFamily: FONT_BODY,
-    color: COLORS.textCoffee,
-    fontStyle: 'italic',
-    lineHeight: 15,
-  },
-  reviewFooter: {
-    borderTopWidth: 1,
-    borderTopColor: '#F3EFE9',
-    paddingTop: 8,
-    gap: 3,
-  },
-  reviewAuthorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  reviewAuthorName: {
-    fontSize: 11.5,
-    fontFamily: FONT_DISPLAY_SEMIBOLD,
-    color: COLORS.textCoffee,
-  },
-  reviewTargetItem: {
-    fontSize: 9.5,
-    fontFamily: LEDGER_MONO,
-    color: '#C27835',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  reviewCardTargetLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 2,
-    gap: 4,
-  },
-
   /* Review Detail Modal */
   reviewModalOverlay: {
     flex: 1,
@@ -2950,23 +2365,4 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  /* 10. Footer */
-  footerSignature: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    gap: 4,
-    marginBottom: 10,
-  },
-  footerLoveText: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    fontFamily: FONT_BODY,
-  },
-  footerLicenseText: {
-    fontSize: 10,
-    color: COLORS.textLight,
-    textAlign: 'center',
-    fontFamily: LEDGER_MONO,
-  },
 });

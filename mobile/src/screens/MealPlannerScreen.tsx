@@ -23,8 +23,13 @@ import {
   RefreshCw,
   Minus,
   Plus,
+  Clock,
+  FlaskConical,
+  CheckCircle2,
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
+import { StackHeader } from '../components/ScreenHeader';
+import { FeaturePrivacyNote } from '../components/FeaturePrivacyNote';
 import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
 import { fetchProducts } from '../api/products';
 import { createPet } from '../api/pets';
@@ -117,17 +122,19 @@ export default function MealPlannerScreen({ navigation }: any) {
     return Math.round(rer * factor);
   }, [weightNum, activity]);
 
-  // Breeds visible in the search dropdown are scoped to the group picked
-  // first, not the full 202-breed dataset — group is a way to find the
-  // breed faster, not a filter the user can get stuck behind (see
-  // filteredBreeds' search matching any breed name regardless of group
-  // would defeat that scoping, so this intentionally stays group-first).
+  // Most pet parents don't know their dog's AKC group off the top of their
+  // head — requiring it to be picked correctly before the breed search even
+  // matched anything left them stuck with an empty dropdown and no way out.
+  // Typing a breed name now searches the full dataset regardless of
+  // whichever group happens to be selected; picking a group without typing
+  // anything still narrows browsing to that group, for people who do know it.
   const filteredBreeds = useMemo(() => {
-    if (!selectedGroup) return [];
     const query = breedSearchQuery.trim().toLowerCase();
-    return BREED_DATA.filter(
-      (b) => b.group === selectedGroup && (query === '' || b.name.toLowerCase().includes(query))
-    );
+    if (query) {
+      return BREED_DATA.filter((b) => b.name.toLowerCase().includes(query));
+    }
+    if (!selectedGroup) return [];
+    return BREED_DATA.filter((b) => b.group === selectedGroup);
   }, [selectedGroup, breedSearchQuery]);
 
   const selectedBreedData = useMemo(
@@ -273,19 +280,7 @@ export default function MealPlannerScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <ArrowLeft size={20} color={COLORS.textCoffee} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Meal Planner</Text>
-        <View style={{ width: 36 }} />
-      </View>
+      <StackHeader title="Meal Planner" onBack={() => navigation.goBack()} />
 
       <KeyboardAvoidingView style={styles.flexFill} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView
@@ -310,14 +305,26 @@ export default function MealPlannerScreen({ navigation }: any) {
               <View style={styles.welcomeIconCircle}>
                 <Sparkles size={32} color={COLORS.brandGold} />
               </View>
-              <Text style={styles.welcomeEyebrow}>Scooby's Kitchen Nutritionist</Text>
+              <Text style={styles.welcomeEyebrow}>Hearth & One Nutritionist</Text>
               <Text style={styles.welcomeTitle}>Tailor the Perfect Recipe</Text>
               <Text style={styles.welcomeSub}>
                 Enter your dog's diagnostics to calculate customized daily caloric demands and discover the optimal nutritional formula suited to their body condition.
               </Text>
               <View style={styles.welcomeFacts}>
-                <Text style={styles.welcomeFactText}>⚡ Takes 90 seconds</Text>
-                <Text style={styles.welcomeFactText}>📊 Scientific RER & MER metrics</Text>
+                <View style={styles.welcomeFactRow}>
+                  <Clock size={12} color={COLORS.textMuted} />
+                  <Text style={styles.welcomeFactText}>Takes 90 seconds</Text>
+                </View>
+                <View style={styles.welcomeFactRow}>
+                  <FlaskConical size={12} color={COLORS.textMuted} />
+                  <Text style={styles.welcomeFactText}>Scientific RER & MER metrics</Text>
+                </View>
+              </View>
+              <View style={{ marginBottom: 16, width: '100%' }}>
+                <FeaturePrivacyNote
+                  text="Your answers are built from your pet's profile to generate this plan — they stay within our systems and are used only to personalize your recommendation."
+                  onPressFullPolicy={() => navigation.navigate('PrivacyPolicy')}
+                />
               </View>
               <TouchableOpacity
                 style={styles.primaryBtn}
@@ -425,8 +432,70 @@ export default function MealPlannerScreen({ navigation }: any) {
                 <Text style={styles.stepTitle}>Dog stats index</Text>
               </View>
 
+              {/* Breed search leads — most people know their dog's breed
+                  name, not its AKC group. Picking a result below sets the
+                  group automatically, so nobody has to guess it correctly
+                  first just to find their own dog's breed. */}
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Breed</Text>
+                <TextInput
+                  value={breedSearchQuery}
+                  onChangeText={(t) => {
+                    setBreedSearchQuery(t);
+                    setShowBreedDropdown(true);
+                    if (breed && t !== breed) setBreed('');
+                  }}
+                  onFocus={() => setShowBreedDropdown(true)}
+                  placeholder="Search any breed (e.g. Golden Retriever)"
+                  placeholderTextColor={COLORS.textLight}
+                  style={styles.input}
+                />
+                {showBreedDropdown && filteredBreeds.length > 0 && (
+                  <View style={styles.breedDropdown}>
+                    <ScrollView
+                      style={styles.breedDropdownScroll}
+                      keyboardShouldPersistTaps="handled"
+                      nestedScrollEnabled
+                    >
+                      {filteredBreeds.map((b) => (
+                        <TouchableOpacity
+                          key={b.name}
+                          style={styles.breedDropdownItem}
+                          onPress={() => {
+                            setBreed(b.name);
+                            setBreedSearchQuery(b.name);
+                            setShowBreedDropdown(false);
+                            setSelectedGroup(b.group);
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Select breed ${b.name}`}
+                        >
+                          <Text style={styles.breedDropdownItemText}>{b.name}</Text>
+                          <Text style={styles.breedDropdownItemMeta}>~{b.typicalWeightKg}kg</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+                {showBreedDropdown && breedSearchQuery.trim() !== '' && filteredBreeds.length === 0 && (
+                  <Text style={styles.breedNoMatchNote}>
+                    No breed matches "{breedSearchQuery.trim()}" — check the spelling and try again.
+                  </Text>
+                )}
+                {breed !== '' && (
+                  <Text style={styles.breedSelectedNote}>
+                    Selected: {breed} (typical adult weight ~{selectedBreedData?.typicalWeightKg}kg)
+                  </Text>
+                )}
+              </View>
+
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Breed Group (AKC)</Text>
+                <Text style={styles.fieldSubLabel}>
+                  {breed
+                    ? 'Set automatically from the breed above.'
+                    : "Not sure? Just search your dog's breed above instead."}
+                </Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -444,7 +513,7 @@ export default function MealPlannerScreen({ navigation }: any) {
                         setShowBreedDropdown(false);
                       }}
                       accessibilityRole="button"
-                      accessibilityLabel={`Select ${g.replace(' Group', '')} group`}
+                      accessibilityLabel={`Browse the ${g.replace(' Group', '')} group`}
                       accessibilityState={{ selected: selectedGroup === g }}
                     >
                       <Text style={[styles.breedChipText, selectedGroup === g && styles.breedChipTextActive]}>
@@ -454,55 +523,6 @@ export default function MealPlannerScreen({ navigation }: any) {
                   ))}
                 </ScrollView>
               </View>
-
-              {selectedGroup !== '' && (
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Breed</Text>
-                  <TextInput
-                    value={breedSearchQuery}
-                    onChangeText={(t) => {
-                      setBreedSearchQuery(t);
-                      setShowBreedDropdown(true);
-                      if (breed && t !== breed) setBreed('');
-                    }}
-                    onFocus={() => setShowBreedDropdown(true)}
-                    placeholder={`Search ${selectedGroup.replace(' Group', '')} breeds (e.g. Golden Retriever)`}
-                    placeholderTextColor={COLORS.textLight}
-                    style={styles.input}
-                  />
-                  {showBreedDropdown && filteredBreeds.length > 0 && (
-                    <View style={styles.breedDropdown}>
-                      <ScrollView
-                        style={styles.breedDropdownScroll}
-                        keyboardShouldPersistTaps="handled"
-                        nestedScrollEnabled
-                      >
-                        {filteredBreeds.map((b) => (
-                          <TouchableOpacity
-                            key={b.name}
-                            style={styles.breedDropdownItem}
-                            onPress={() => {
-                              setBreed(b.name);
-                              setBreedSearchQuery(b.name);
-                              setShowBreedDropdown(false);
-                            }}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Select breed ${b.name}`}
-                          >
-                            <Text style={styles.breedDropdownItemText}>{b.name}</Text>
-                            <Text style={styles.breedDropdownItemMeta}>~{b.typicalWeightKg}kg</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  )}
-                  {breed !== '' && (
-                    <Text style={styles.breedSelectedNote}>
-                      Selected: {breed} (typical adult weight ~{selectedBreedData?.typicalWeightKg}kg)
-                    </Text>
-                  )}
-                </View>
-              )}
 
               <View style={styles.ageRow}>
                 <View style={styles.stepperFieldGroup}>
@@ -724,8 +744,9 @@ export default function MealPlannerScreen({ navigation }: any) {
 
               {weightStatus === 'on-track' && (
                 <View style={styles.onTrackBadge}>
+                  <CheckCircle2 size={14} color={COLORS.forestGreen} />
                   <Text style={styles.onTrackBadgeText}>
-                    ✓ Right on track for a {breed}
+                    Right on track for a {breed}
                   </Text>
                 </View>
               )}
@@ -818,26 +839,6 @@ export default function MealPlannerScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.canvas },
   flexFill: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: COLORS.canvas,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.kraftBorder,
-  },
-  backBtn: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: COLORS.cardAlt,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontFamily: FONT_DISPLAY,
-    color: COLORS.textCoffee,
-  },
   scrollContent: {
     padding: 16,
     paddingBottom: 40,
@@ -908,6 +909,11 @@ const styles = StyleSheet.create({
     gap: 4,
     alignItems: 'center',
   },
+  welcomeFactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
   welcomeFactText: {
     fontSize: 11,
     fontFamily: LEDGER_MONO,
@@ -958,6 +964,13 @@ const styles = StyleSheet.create({
     fontFamily: FONT_BODY_BOLD,
     color: COLORS.textCoffee,
     textTransform: 'uppercase',
+  },
+  fieldSubLabel: {
+    fontSize: 11,
+    fontFamily: FONT_BODY,
+    color: COLORS.textMuted,
+    marginTop: 2,
+    marginBottom: 4,
   },
   input: {
     backgroundColor: COLORS.canvas,
@@ -1032,6 +1045,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: FONT_BODY,
     color: COLORS.forestGreen,
+    marginTop: 4,
+  },
+  breedNoMatchNote: {
+    fontSize: 11,
+    fontFamily: FONT_BODY,
+    color: COLORS.textMuted,
     marginTop: 4,
   },
 
@@ -1190,6 +1209,7 @@ const styles = StyleSheet.create({
   talkToVetBtnText: { fontSize: 11.5, fontFamily: FONT_BODY_BOLD, color: '#FFFFFF' },
 
   onTrackBadge: {
+    flexDirection: 'row',
     backgroundColor: '#EDF5F0',
     borderWidth: 1,
     borderColor: COLORS.forestGreen,
@@ -1197,6 +1217,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
   onTrackBadgeText: { fontSize: 12, fontFamily: FONT_BODY_BOLD, color: COLORS.forestGreen },
 

@@ -113,7 +113,7 @@ export const CartStep = memo(function CartStep({
               <TextInput
                 value={couponCode}
                 onChangeText={onChangeCouponCode}
-                placeholder="Enter coupon code (e.g. SCOOBY20)"
+                placeholder="Enter coupon code (e.g. HEARTH20)"
                 placeholderTextColor={COLORS.textLight}
                 autoCapitalize="characters"
                 autoCorrect={false}

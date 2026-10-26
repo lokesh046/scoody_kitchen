@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Headset, Plus, X, ChevronRight, Package, Stethoscope } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
 import {
   createSupportTicket,
@@ -187,22 +188,24 @@ export default function SupportScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
+      <ScreenHeader
+        title="Support"
+        leadingElement={
           <View style={styles.headerIconCircle}>
             <Headset size={18} color={COLORS.brandGold} />
           </View>
-          <Text style={styles.headerTitle}>Support</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.newBtn}
-          onPress={() => setShowForm((v) => !v)}
-          accessibilityRole="button"
-          accessibilityLabel={showForm ? 'Cancel new ticket' : 'Start a new support ticket'}
-        >
-          {showForm ? <X size={16} color={COLORS.textCoffee} /> : <Plus size={16} color={COLORS.textCoffee} />}
-        </TouchableOpacity>
-      </View>
+        }
+        rightContent={
+          <TouchableOpacity
+            style={styles.newBtn}
+            onPress={() => setShowForm((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={showForm ? 'Cancel new ticket' : 'Start a new support ticket'}
+          >
+            {showForm ? <X size={16} color={COLORS.textCoffee} /> : <Plus size={16} color={COLORS.textCoffee} />}
+          </TouchableOpacity>
+        }
+      />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         {showForm && (
@@ -345,19 +348,7 @@ export default function SupportScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.canvas },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.kraftBorder,
-    backgroundColor: COLORS.canvas,
-  },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerIconCircle: { width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.cardAlt, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 17, fontFamily: FONT_DISPLAY, color: COLORS.textCoffee },
   newBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.cardAlt, alignItems: 'center', justifyContent: 'center' },
   centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
   errorText: { fontSize: 13, fontFamily: FONT_BODY, color: COLORS.textMuted, textAlign: 'center' },

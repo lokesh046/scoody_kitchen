@@ -1,0 +1,57 @@
+# This is a monorepo; EAS Build for the `mobile/` app only needs that
+# directory. Everything else here (other services, ML assets, generated
+# video/render output, reference docs) is irrelevant to the mobile build
+# and was pushing the upload archive to 7+ GB (limit is 2 GB). EAS looks
+# for .easignore at the git root, not inside mobile/, so it has to live
+# here rather than in mobile/.easignore.
+#
+# IMPORTANT: EAS CLI's Ignore class stops reading .gitignore entirely the
+# moment ANY .easignore exists (see eas-cli/build/vcs/local.js) -- it does
+# not merge the two. So every path .gitignore used to exclude for this
+# project has to be re-listed here explicitly, or it gets uploaded raw.
+# This matters a lot for mobile/android: it holds local native build
+# caches (Gradle, CMake/.cxx) with this machine's absolute paths baked
+# into cached CMake metadata -- uploading that stale, foreign-path cache
+# to EAS's Linux build server is suspected of corrupting its Gradle
+# configure step (a native module's project directory going "missing").
+
+mobile/android/app/build
+mobile/android/app/.cxx
+mobile/android/build
+mobile/android/.gradle
+mobile/ios
+
+.agents
+.claude
+.github
+.impeccable
+.logs
+.stitch
+.tunnel_logs
+.vscode
+
+ACE-Step-1.5
+brand_assets
+chatbot-service
+deploy
+docs
+frontend
+logos
+ml-inference-service
+nginx
+pet-platform-backend
+pet-platform-mcp-server
+pet-vision-service
+qr-code
+references
+renders
+videos
+
+*.pdf
+*.sql
+*.csv
+*.webp
+*.drawio
+*.drawio.html
+*.drawio.svg
+db_backup.sql
