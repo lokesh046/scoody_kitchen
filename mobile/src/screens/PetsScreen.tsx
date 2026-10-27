@@ -11,6 +11,7 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Image as RNImage,
 } from 'react-native';
 import { Image } from 'expo-image';
 import AIDogIcon from '../components/AIDogIcon';
@@ -513,7 +514,7 @@ export default function PetsScreen({ navigation }: any) {
               accessibilityRole="button"
               accessibilityLabel="Scan breed and nutrition blueprint with AI Pet Vision"
             >
-              <Image source={require('../../assets/toolkit/scan-diagnose.webp')} style={styles.visionBannerIcon} contentFit="contain" />
+              <RNImage source={require('../../assets/toolkit/scan-diagnose.webp')} style={styles.visionBannerIcon} resizeMode="contain" />
               <View style={styles.visionBannerContent}>
                 <Text style={styles.visionBannerTitle}>Scan Breed & Nutrition Blueprint</Text>
                 <Text style={styles.visionBannerDesc}>
@@ -585,7 +586,7 @@ export default function PetsScreen({ navigation }: any) {
                 <View style={styles.recordsSection}>
                   <View style={styles.sectionHeaderRow}>
                     <View style={styles.sectionHeaderLeft}>
-                      <Image source={require('../../assets/pet/health-records.webp')} style={styles.sectionHeadingIcon} contentFit="contain" />
+                      <RNImage source={require('../../assets/pet/health-records.webp')} style={styles.sectionHeadingIcon} resizeMode="contain" />
                       <Text style={styles.sectionHeading}>Clinical Health Ledger</Text>
                     </View>
                     <View style={styles.recordsCountBadge}>

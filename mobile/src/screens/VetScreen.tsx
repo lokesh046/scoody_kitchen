@@ -8,6 +8,8 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Animated,
+  Easing,
   RefreshControl,
   Platform,
 } from 'react-native';
@@ -77,6 +79,14 @@ export default function VetScreen({ navigation, route }: any) {
   // "Consult Vet" lands on nearby clinics/pharmacies by default, with a
   // header toggle to switch into the video-call booking flow below.
   const [viewMode, setViewMode] = useState<'nearby' | 'consult'>('nearby');
+  const [nearbyCompact, setNearbyCompact] = useState(false);
+  const nearbyChrome = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const animation = Animated.timing(nearbyChrome, { toValue: viewMode === 'nearby' && nearbyCompact ? 0 : 1, duration: 300, easing: Easing.inOut(Easing.cubic), useNativeDriver: false });
+    animation.start();
+    if (viewMode !== 'nearby') setNearbyCompact(false);
+    return () => animation.stop();
+  }, [nearbyCompact, viewMode, nearbyChrome]);
   const [activeTab, setActiveTab] = useState<ActiveTab>('QUEUE');
   const [consultationFilter, setConsultationFilter] = useState<ConsultationFilter>('ALL');
 
@@ -1050,6 +1060,9 @@ export default function VetScreen({ navigation, route }: any) {
 
       {viewMode === 'nearby' ? (
         <NearbyVetsView
+          compact={nearbyCompact}
+          chromeProgress={nearbyChrome}
+          onCompactChange={setNearbyCompact}
           onSelectDoctor={setSelectedDoctor}
           onSwitchToConsult={() => setViewMode('consult')}
         />

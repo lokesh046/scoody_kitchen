@@ -98,7 +98,34 @@ export default function TabNavigator() {
             tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/home.webp')} focused={focused} />,
           }}
         />
-
+        {/* 4. Pets Tab */}
+        <Tab.Screen
+          name="Pets"
+          component={PetsScreen}
+          options={{
+            tabBarLabel: 'Pets',
+            tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/pet-3d.webp')} focused={focused} />,
+          }}
+        />
+        {/* 5. Consult / Vet Tab */}
+        <Tab.Screen
+          name="Consult"
+          component={VetScreen}
+          options={{
+            tabBarLabel: 'Consult',
+            tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/vet-3d.webp')} focused={focused} />,
+            ...(isConsultationsEnabled
+              ? {}
+              : consultationsFallback !== 'hide'
+              ? disabledTabOptions(consultationsFallback)
+              : { tabBarButton: () => null }),
+          }}
+          listeners={
+            !isConsultationsEnabled && consultationsFallback !== 'hide'
+              ? disabledTabListeners(consultationsFallback, 'Vet Consultations')
+              : undefined
+          }
+        />
         {/* 2. Shop / Kitchen Tab */}
         <Tab.Screen
           name="Shop"
@@ -114,8 +141,7 @@ export default function TabNavigator() {
           }}
           listeners={!isShopEnabled && shopFallback !== 'hide' ? disabledTabListeners(shopFallback, 'Shop') : undefined}
         />
-
-        {/* 3. My Orders Tab */}
+        {/* Orders */}
         <Tab.Screen
           name="Orders"
           component={OrdersScreen}
@@ -123,36 +149,6 @@ export default function TabNavigator() {
             tabBarLabel: 'Orders',
             tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/orders.webp')} focused={focused} />,
           }}
-        />
-
-        {/* 4. Pets Tab */}
-        <Tab.Screen
-          name="Pets"
-          component={PetsScreen}
-          options={{
-            tabBarLabel: 'Pets',
-            tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/pets.webp')} focused={focused} />,
-          }}
-        />
-
-        {/* 5. Consult / Vet Tab */}
-        <Tab.Screen
-          name="Consult"
-          component={VetScreen}
-          options={{
-            tabBarLabel: 'Consult',
-            tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/consult.webp')} focused={focused} />,
-            ...(isConsultationsEnabled
-              ? {}
-              : consultationsFallback !== 'hide'
-              ? disabledTabOptions(consultationsFallback)
-              : { tabBarButton: () => null }),
-          }}
-          listeners={
-            !isConsultationsEnabled && consultationsFallback !== 'hide'
-              ? disabledTabListeners(consultationsFallback, 'Vet Consultations')
-              : undefined
-          }
         />
 
         {/* 6. Profile Tab */}
@@ -164,6 +160,7 @@ export default function TabNavigator() {
             tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/profile.webp')} focused={focused} />,
           }}
         />
+
 
         {/* Hidden Stack Routes in Tab Navigator for seamless deep-linking */}
         <Tab.Screen

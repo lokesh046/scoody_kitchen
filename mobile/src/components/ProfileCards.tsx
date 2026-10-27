@@ -210,7 +210,7 @@ export const ProfileStatsMatrix = memo(function ProfileStatsMatrix({
   return (
     <View style={profileCardStyles.statsCard}>
       <View style={profileCardStyles.statBox}>
-        <RNImage source={require('../../assets/toolkit/know-your-pet.webp')} style={profileCardStyles.statIcon} resizeMode="contain" />
+        <RNImage source={require('../../assets/toolkit/pet-3d.webp')} style={profileCardStyles.statIcon} resizeMode="contain" />
         <Text style={profileCardStyles.statNumber}>{petsCount}</Text>
         <Text style={profileCardStyles.statLabel}>Registered Pets</Text>
       </View>
@@ -298,7 +298,7 @@ export const AccountHubMenu = memo(function AccountHubMenu({
       >
         <View style={profileCardStyles.menuItemLeft}>
           <View style={profileCardStyles.menuIconTile}>
-            <RNImage source={require('../../assets/toolkit/know-your-pet.webp')} style={[profileCardStyles.menuIconImg]} resizeMode="contain" />
+            <RNImage source={require('../../assets/toolkit/pet-3d.webp')} style={profileCardStyles.menuIconImg} resizeMode="contain" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={profileCardStyles.menuItemTitle}>Registered Pets</Text>
@@ -315,7 +315,7 @@ export const AccountHubMenu = memo(function AccountHubMenu({
         </View>
       </TouchableOpacity>
 
-      {consultationsFallback !== 'hide' && (
+      {(isConsultationsEnabled || consultationsFallback !== 'hide') && (
         <>
           <View style={profileCardStyles.menuDivider} />
 
@@ -328,7 +328,7 @@ export const AccountHubMenu = memo(function AccountHubMenu({
           >
             <View style={profileCardStyles.menuItemLeft}>
               <View style={profileCardStyles.menuIconTile}>
-            <RNImage source={require('../../assets/toolkit/vet-consults.webp')} style={[profileCardStyles.menuIconImg, !isConsultationsEnabled && { opacity: 0.4 }]} resizeMode="contain" />
+            <RNImage source={require('../../assets/toolkit/vet-3d.webp')} style={[profileCardStyles.menuIconImg, !isConsultationsEnabled && { opacity: 0.4 }]} resizeMode="contain" />
           </View>
               <View style={{ flex: 1 }}>
                 <View style={profileCardStyles.menuItemTitleRow}>

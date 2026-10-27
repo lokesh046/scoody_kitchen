@@ -3,18 +3,24 @@ import { Image, ImageSourcePropType, StyleSheet, View } from 'react-native';
 
 // Equal-size illustrations with a warm gold surface marking the active tab.
 interface TabIconProps {
-  source: ImageSourcePropType;
+  source?: ImageSourcePropType;
+  /** Draws a vector icon instead of an image; receives the focused state. */
+  render?: (focused: boolean) => React.ReactNode;
   focused: boolean;
 }
 
-export const TabIcon = memo(function TabIcon({ source, focused }: TabIconProps) {
+export const TabIcon = memo(function TabIcon({ source, render, focused }: TabIconProps) {
   return (
     <View style={[styles.wrap, focused && styles.wrapFocused]}>
-      <Image
-        source={source}
-        style={[styles.icon, { opacity: focused ? 1 : 0.72 }]}
-        resizeMode="contain"
-      />
+      {render ? (
+        render(focused)
+      ) : (
+        <Image
+          source={source as ImageSourcePropType}
+          style={[styles.icon, { opacity: focused ? 1 : 0.72 }]}
+          resizeMode="contain"
+        />
+      )}
     </View>
   );
 });

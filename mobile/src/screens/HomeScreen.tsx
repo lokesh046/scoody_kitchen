@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   FlatList,
   NativeSyntheticEvent,
@@ -24,7 +23,6 @@ import {
   Search,
   ShoppingBag,
   Bell,
-  SlidersHorizontal,
   Sparkles,
   ArrowRight,
   Heart,
@@ -96,23 +94,15 @@ const CORE_SERVICES: CoreService[] = [
     id: 'telehealth',
     title: 'Vet Consults',
     desc: 'Certified holistic doctors online for video diet consultations.',
-    image: require('../../assets/toolkit/vet-consults.webp'),
+    image: require('../../assets/toolkit/vet-3d.webp'),
     actionType: 'navigate',
     target: 'Consult',
-  },
-  {
-    id: 'orders',
-    title: 'My Orders',
-    desc: 'Real-time kitchen delivery tracking & 1-tap fast reordering.',
-    image: require('../../assets/toolkit/my-orders.webp'),
-    actionType: 'navigate',
-    target: 'Orders',
   },
   {
     id: 'pets',
     title: 'Know Your Pet',
     desc: 'Manage medical history, vaccination calendar & allergy flags.',
-    image: require('../../assets/toolkit/know-your-pet.webp'),
+    image: require('../../assets/toolkit/pet-3d.webp'),
     actionType: 'navigate',
     target: 'Pets',
   },
@@ -159,7 +149,6 @@ export default function HomeScreen({ navigation }: any) {
   const [productsLoadFailed, setProductsLoadFailed] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [activeBannerIndex, setActiveBannerIndex] = useState<number>(0);
-  const [searchQuery, setSearchQuery] = useState<string>('');
   const [petVisionVisible, setPetVisionVisible] = useState<boolean>(false);
   const [reviews, setReviews] = useState<UnifiedReview[]>([]);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'product' | 'doctor'>('all');
@@ -847,32 +836,6 @@ export default function HomeScreen({ navigation }: any) {
         }
       >
         <ResponsiveContainer>
-        {/* 3. Search Bar with Filter Sliders */}
-        <View style={styles.searchBarContainer}>
-          <Search size={18} color={COLORS.textLight} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search fresh recipes, calming chews..."
-            placeholderTextColor={COLORS.textLight}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={() =>
-              handleNavigateScreen('Shop', searchQuery.trim() ? { searchQuery: searchQuery.trim() } : undefined)
-            }
-            returnKeyType="search"
-          />
-          <TouchableOpacity
-            style={styles.filterBtn}
-            onPress={() => handleNavigateScreen('Shop')}
-            activeOpacity={0.8}
-            hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-            accessibilityRole="button"
-            accessibilityLabel="Filter search results"
-          >
-            <SlidersHorizontal size={16} color={COLORS.textCoffee} />
-          </TouchableOpacity>
-        </View>
-
         {/* 4. Hero Banner Carousel with Infinite Loop & Progress Bar */}
         <View style={styles.bannerCarouselContainer}>
           <FlatList
@@ -958,7 +921,7 @@ export default function HomeScreen({ navigation }: any) {
           {CORE_SERVICES.filter(
             (srv) =>
               (srv.id !== 'pets' || isKnowYourPetEnabled) &&
-              (srv.id !== 'telehealth' || consultationsFallback !== 'hide')
+              (srv.id !== 'telehealth' || isConsultationsEnabled || consultationsFallback !== 'hide')
           ).map((srv, i, arr) => {
             const isDisabledConsult = srv.target === 'Consult' && !isConsultationsEnabled;
             return (
@@ -1110,7 +1073,7 @@ export default function HomeScreen({ navigation }: any) {
             trimmed to what a glance actually needs.
             Hidden entirely when consultations_booking's fallback is 'hide',
             matching web's HomePage (FeaturePlaceholderCard or nothing). */}
-        {consultationsFallback !== 'hide' && (
+        {(isConsultationsEnabled || consultationsFallback !== 'hide') && (
           <View style={styles.telehealthCard} ref={vetCardRef} collapsable={false}>
             <View style={styles.telehealthHeaderRow}>
               <View style={styles.telehealthPill}>
@@ -1658,30 +1621,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: FONT_DISPLAY_SEMIBOLD,
     color: '#FFFFFF',
-  },
-
-  /* 3. Search Bar */
-  searchBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
-    borderWidth: 1,
-    borderColor: COLORS.kraftBorder,
-    marginBottom: 14,
-    gap: 10,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: FONT_BODY,
-    color: COLORS.textCoffee,
-  },
-  filterBtn: {
-    padding: 4,
   },
 
   /* 4. Hero Banner Carousel */

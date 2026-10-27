@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Animated,
   AccessibilityInfo,
+  Image as RNImage,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { FlameIcon, DrumstickIcon, PouchIcon } from './PetStatIcons';
@@ -235,7 +236,7 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
           {/* Species */}
           <View style={petCardStyles.ledgerRow}>
             <View style={petCardStyles.ledgerKeyGroup}>
-              <Image source={require('../../assets/pet/species.webp')} style={petCardStyles.rowIcon} contentFit="contain" />
+              <RNImage source={require('../../assets/pet/species.webp')} style={petCardStyles.rowIcon} resizeMode="contain" />
               <Text style={petCardStyles.ledgerKeyText}>SPECIES</Text>
             </View>
             <Text style={petCardStyles.ledgerValText}>
@@ -246,7 +247,7 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
           {/* Breed */}
           <View style={petCardStyles.ledgerRow}>
             <View style={petCardStyles.ledgerKeyGroup}>
-              <Image source={require('../../assets/pet/breed.webp')} style={petCardStyles.rowIcon} contentFit="contain" />
+              <RNImage source={require('../../assets/pet/breed.webp')} style={petCardStyles.rowIcon} resizeMode="contain" />
               <Text style={petCardStyles.ledgerKeyText}>BREED</Text>
             </View>
             <Text style={[petCardStyles.ledgerValText, { maxWidth: '58%' }]} numberOfLines={1}>
@@ -261,7 +262,7 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
           {/* Gender */}
           <View style={petCardStyles.ledgerRow}>
             <View style={petCardStyles.ledgerKeyGroup}>
-              <Image source={require('../../assets/pet/gender.webp')} style={petCardStyles.rowIcon} contentFit="contain" />
+              <RNImage source={require('../../assets/pet/gender.webp')} style={petCardStyles.rowIcon} resizeMode="contain" />
               <Text style={petCardStyles.ledgerKeyText}>GENDER</Text>
             </View>
             <Text style={petCardStyles.ledgerValText}>
@@ -274,7 +275,7 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
           {/* Weight */}
           <View style={petCardStyles.ledgerRow}>
             <View style={petCardStyles.ledgerKeyGroup}>
-              <Image source={require('../../assets/pet/weight.webp')} style={petCardStyles.rowIcon} contentFit="contain" />
+              <RNImage source={require('../../assets/pet/weight.webp')} style={petCardStyles.rowIcon} resizeMode="contain" />
               <Text style={petCardStyles.ledgerKeyText}>WEIGHT</Text>
             </View>
             <Text style={petCardStyles.ledgerValText}>{weightDisplay}</Text>
@@ -283,7 +284,7 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
           {/* Birthday */}
           <View style={[petCardStyles.ledgerRow, petCardStyles.ledgerRowLast]}>
             <View style={petCardStyles.ledgerKeyGroup}>
-              <Image source={require('../../assets/pet/date-of-birth.webp')} style={petCardStyles.rowIcon} contentFit="contain" />
+              <RNImage source={require('../../assets/pet/date-of-birth.webp')} style={petCardStyles.rowIcon} resizeMode="contain" />
               <Text style={petCardStyles.ledgerKeyText}>BIRTHDAY</Text>
             </View>
             <Text style={petCardStyles.ledgerValText}>{birthdayDisplay}</Text>
