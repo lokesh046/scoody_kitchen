@@ -162,6 +162,13 @@ def check_and_complete_expired_consultations_task() -> int:
     """
     Background worker task to automatically finalize consultations that have passed their duration + grace period.
     """
+    # Stand down while consultations are switched off: no scan, no database connection.
+    # Consultations left in progress are picked up by the first run after it is switched back on.
+    from app.services.feature_flag_service import is_feature_enabled
+    if not is_feature_enabled("consultations_booking"):
+        logger.info("Consultations are switched off; skipping the expired-consultation check.")
+        return 0
+
     from app.services.consultation_service import auto_complete_expired_consultations
     db = SessionLocal()
     try:

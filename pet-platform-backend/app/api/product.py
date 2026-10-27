@@ -89,7 +89,10 @@ def get_all_products(
             k: v for k, v in result.items() if k not in ("total", "pages")
         }
         cache_data["items"] = serialized_items
-        cache.set(cache_key, cache_data, ttl_seconds=120)
+        # A day: saves to products, stock and product reviews clear this automatically
+        # (core/product_cache_hooks.py). Free-text searches rarely repeat, so they keep a
+        # short lifetime rather than piling up a day's worth of one-off keys.
+        cache.set(cache_key, cache_data, ttl_seconds=120 if search else 86400)
         return JSONResponse(content=cache_data)
     except ValueError as exc:
         raise HTTPException(
@@ -136,7 +139,7 @@ def get_product_details(
 
     serialized = ProductResponse.model_validate(product).model_dump(mode="json")
     if not is_admin and product.is_active:
-        cache.set(cache_key, serialized, ttl_seconds=300)
+        cache.set(cache_key, serialized, ttl_seconds=86400)
 
     return serialized
 

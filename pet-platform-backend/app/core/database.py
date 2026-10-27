@@ -21,6 +21,10 @@ class Base(DeclarativeBase):
     pass
 
 
+# Registers the hooks that clear the product caches after relevant commits.
+from app.core import product_cache_hooks  # noqa: E402,F401
+
+
 def get_db():
     db = SessionLocal()
 

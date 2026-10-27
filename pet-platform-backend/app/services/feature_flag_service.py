@@ -2,6 +2,12 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 from app.models.feature_flag import FeatureFlag
+from app.core.cache import cache
+
+# The public flag map is cached under this key (api/feature_flags.py) and cleared whenever an
+# admin toggles a flag, so reading it here costs no database query unless the cache is empty.
+PUBLIC_FLAGS_CACHE_KEY = "feature_flags:public"
+PUBLIC_FLAGS_TTL_SECONDS = 3600
 
 DEFAULT_FLAGS = [
     {
@@ -127,6 +133,31 @@ def get_public_flags(db: Session) -> Dict[str, Dict[str, object]]:
     seed_default_flags_if_missing(db)
     flags = db.query(FeatureFlag).all()
     return {f.key: {"enabled": f.is_enabled, "fallback_behavior": f.fallback_behavior} for f in flags}
+
+def is_feature_enabled(key: str, default: bool = True) -> bool:
+    """Whether a feature is switched on, for background jobs that must stand down when it is off.
+
+    Reads the cached public flag map; only when that cache is empty does it query the database
+    (and refills the cache for an hour). Any failure returns `default`, so a flag problem never
+    stops work that should run.
+    """
+    flags = cache.get(PUBLIC_FLAGS_CACHE_KEY)
+    if flags is None:
+        try:
+            from app.core.database import SessionLocal
+            db = SessionLocal()
+            try:
+                flags = get_public_flags(db)
+            finally:
+                db.close()
+            cache.set(PUBLIC_FLAGS_CACHE_KEY, flags, ttl_seconds=PUBLIC_FLAGS_TTL_SECONDS)
+        except Exception:
+            return default
+    state = flags.get(key)
+    if state is None:
+        return default
+    return bool(state.get("enabled", default))
+
 
 def get_all_flags_admin(db: Session) -> List[FeatureFlag]:
     """Return all feature flags with complete metadata for Admin Dashboard."""
