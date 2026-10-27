@@ -26,5 +26,9 @@ celery_app.conf.update(
             # period, so this adds at most one extra interval of delay.
             "schedule": 900.0,
         },
+        "cleanup-unverified-users-every-6-hours": {
+            "task": "app.tasks.notification_tasks.cleanup_unverified_users_task",
+            "schedule": 21600.0,
+        },
     },
 )

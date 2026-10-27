@@ -142,6 +142,21 @@ def notify_admins_task(title: str, message: str) -> bool:
         db.close()
 
 
+@celery_app.task(name="app.tasks.notification_tasks.cleanup_unverified_users_task")
+def cleanup_unverified_users_task() -> int:
+    """Remove unverified signups older than 24 hours (previously run at every backend boot)."""
+    from app.services.auth_service import cleanup_unverified_users
+    db = SessionLocal()
+    try:
+        count = cleanup_unverified_users(db, max_age_hours=24)
+        return int(count or 0)
+    except Exception as e:
+        logger.error(f"Error in cleanup_unverified_users_task: {e}", exc_info=True)
+        return 0
+    finally:
+        db.close()
+
+
 @celery_app.task(name="app.tasks.notification_tasks.check_and_complete_expired_consultations_task")
 def check_and_complete_expired_consultations_task() -> int:
     """

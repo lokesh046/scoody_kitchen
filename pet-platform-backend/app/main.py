@@ -81,15 +81,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Failed to initialize Firebase Admin SDK: {e}")
 
-    # Startup cleanup of unverified typo accounts older than 24 hours
-    try:
-        from app.core.database import SessionLocal
-        from app.services.auth_service import cleanup_unverified_users
-        db = SessionLocal()
-        count = cleanup_unverified_users(db, max_age_hours=24)
-        db.close()
-    except Exception:
-        pass
+    # Cleanup of unverified typo accounts used to run here, once per worker at every
+    # boot -- a database query for each worker on every deploy or restart. It now runs
+    # as a scheduled task (cleanup_unverified_users_task, every 6 hours).
 
     # Start the background Redis notification channel listener
     listener_task = asyncio.create_task(redis_notifications_listener())

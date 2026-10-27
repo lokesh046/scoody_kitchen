@@ -6,6 +6,7 @@ from app.dependencies.auth import get_current_user, require_admin
 from app.models.user import User
 from app.core.config import settings
 from app.core.websocket_manager import manager
+from app.core.cache import cache
 from app.schemas.notification import NotificationResponse, NotificationUnreadCountResponse, PushTokenRegister
 from app.services.notification_service import (
     get_user_notifications,
@@ -42,6 +43,32 @@ def send_broadcast_notification(
             detail=f"Failed to queue broadcast task: {e}"
         )
     return {"message": "Announcement broadcast task has been queued successfully."}
+
+
+async def get_websocket_user_id(token: str | None) -> int | None:
+    """Validate the websocket token and return the user id without touching the database.
+
+    The socket only receives notifications addressed to this user id, and access tokens are
+    short-lived, so an account deactivated mid-session loses the socket when its token
+    expires. Skipping the user lookup saves one query on every page load and every app
+    foreground."""
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM]
+        )
+        user_id = payload.get("sub")
+        if user_id is None or payload.get("type") != "access":
+            return None
+        from app.core.security import hash_token
+        if cache.get(f"blacklist:access:{hash_token(token)}"):
+            return None
+        return int(user_id)
+    except Exception:
+        return None
 
 
 async def get_websocket_user(db: Session, token: str | None) -> User | None:
@@ -137,15 +164,11 @@ async def websocket_endpoint(
     websocket: WebSocket,
     token: str | None = Query(None),
 ):
-    # Verify the user inside a localized short-lived database context block
-    with SessionLocal() as db:
-        user = await get_websocket_user(db, token)
-        if not user:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
-        user_id = user.id
+    user_id = await get_websocket_user_id(token)
+    if user_id is None:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
 
-    # Session is closed immediately as context manager exits, releasing the connection.
     await manager.connect(user_id, websocket)
     try:
         while True:
