@@ -10,7 +10,7 @@ const PROMISES = ['Human-Grade', 'Pesticide-Free', 'Sustainably Sourced', 'Vet-R
 export const HearthHoundSection = memo(function HearthHoundSection() {
   return (
     <View style={styles.section}>
-      <Text style={styles.label}>HEARTH & HOUND · COMING SOON</Text>
+      <Text style={styles.label}>Coming Soon</Text>
       <Text style={styles.heading}>
         Thoughtfully made for the ones who are <Text style={styles.headingAccent}>one of us.</Text>
       </Text>
@@ -31,7 +31,7 @@ export const HearthHoundSection = memo(function HearthHoundSection() {
 
 const styles = StyleSheet.create({
   section: { paddingHorizontal: 20, marginBottom: 32 },
-  label: { fontSize: 11, letterSpacing: 1.4, fontFamily: LEDGER_MONO, color: COLORS.brandGold, marginBottom: 10 },
+  label: { fontSize: 44, lineHeight: 52, fontFamily: FONT_HEADING_SCRIPT, color: COLORS.brandGold, marginBottom: 6 },
   heading: { fontSize: 29, lineHeight: 38, fontFamily: FONT_HEADING_SCRIPT, color: COLORS.textCoffee },
   headingAccent: { color: COLORS.brandGold },
   body: { marginTop: 12, fontSize: 14, lineHeight: 21, fontFamily: FONT_BODY, color: COLORS.textMuted },
