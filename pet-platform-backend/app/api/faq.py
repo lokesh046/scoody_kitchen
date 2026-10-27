@@ -30,7 +30,7 @@ def get_active_faqs(page: FAQPage = "home", db: Session = Depends(get_db)):
     faqs = db.scalars(stmt).all()
 
     serialized = [FAQResponse.model_validate(f).model_dump(mode="json") for f in faqs]
-    cache.set(_cache_key(page), serialized, ttl_seconds=3600)
+    cache.set(_cache_key(page), serialized, ttl_seconds=86400)
     return faqs
 
 

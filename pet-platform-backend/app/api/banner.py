@@ -30,7 +30,7 @@ def get_active_banners(placement: BannerPlacement = "home", db: Session = Depend
         BannerResponse.model_validate(b).model_dump(mode="json")
         for b in banners
     ]
-    cache.set(cache_key, serialized, ttl_seconds=3600)
+    cache.set(cache_key, serialized, ttl_seconds=86400)
     return banners
 
 @router.get("/all", response_model=list[BannerResponse])

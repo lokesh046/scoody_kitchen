@@ -44,7 +44,7 @@ def list_categories(
         return cached
     result = get_categories(db)
     serialized = [CategoryResponse.model_validate(c).model_dump(mode="json") for c in result]
-    cache.set("categories:all", serialized, ttl_seconds=3600)
+    cache.set("categories:all", serialized, ttl_seconds=86400)
     return serialized
 
 
@@ -61,7 +61,7 @@ def list_category_tree(
         return cached
     result = get_category_tree(db)
     serialized = [CategoryTreeResponse.model_validate(c).model_dump(mode="json") for c in result]
-    cache.set("categories:tree", serialized, ttl_seconds=3600)
+    cache.set("categories:tree", serialized, ttl_seconds=86400)
     return serialized
 
 
