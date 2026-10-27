@@ -1,3 +1,4 @@
+import { HeroScrollHint } from './HeroScrollHint';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -266,7 +267,8 @@ export const HomeBannerCarousel: React.FC = () => {
 
   return (
     <div
-      className="relative w-full overflow-hidden bg-paper py-8 md:py-14 border-b border-cardboard border-opacity-35 select-none group"
+      data-scroll-hero
+      className="relative w-full overflow-hidden bg-paper pt-8 pb-28 md:pt-14 border-b border-cardboard border-opacity-35 select-none group"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onTouchStart={handleTouchStart}
@@ -441,6 +443,7 @@ export const HomeBannerCarousel: React.FC = () => {
           })}
         </div>
       )}
+      <HeroScrollHint light />
     </div>
   );
 };

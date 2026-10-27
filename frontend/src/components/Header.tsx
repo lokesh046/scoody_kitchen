@@ -113,13 +113,12 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
 
   const navLinks = [
-    ...(isMealPlannerEnabled ? [{ id: 'onboarding', label: 'Meal Planner 🥗', path: '/onboarding' }] : []),
-    ...(isShopEnabled ? [{ id: 'shop', label: 'Shop Recipes', path: '/shop' }] : []),
     ...(isKnowYourPetEnabled ? [{ id: 'pets', label: 'Know Your Pet', path: '/pets' }] : []),
-    ...(isConsultationsEnabled ? [{ id: 'consultations', label: 'Vet Consults', path: '/consultations' }] : []),
+    ...(isConsultationsEnabled ? [{ id: 'consultations', label: 'Vet Consult', path: '/consultations' }] : []),
+    ...(isShopEnabled ? [{ id: 'shop', label: 'Shop', path: '/shop' }] : []),
     { id: 'orders', label: 'My Orders', path: '/orders' },
-    ...(isChatbotEnabled ? [{ id: 'assistant', label: 'AI Assistant 🐾', path: '/assistant' }] : []),
-    { id: 'blog', label: 'Journal', path: '/blog' },
+    ...(isMealPlannerEnabled ? [{ id: 'onboarding', label: 'Meal Planner', path: '/onboarding' }] : []),
+    ...(isChatbotEnabled ? [{ id: 'assistant', label: 'AI Assistant', path: '/assistant' }] : []),
   ];
 
   return (

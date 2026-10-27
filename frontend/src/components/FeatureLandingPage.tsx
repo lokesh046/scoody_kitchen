@@ -1,3 +1,4 @@
+import { HeroScrollHint } from './HeroScrollHint';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, type LucideIcon } from 'lucide-react';
@@ -94,7 +95,7 @@ export function FeatureLandingPage({
       <Header activeTab={activeTab} onCartToggle={() => setIsCartOpen(true)} />
 
       {/* Hero -- static, no carousel */}
-      <section className="px-4 sm:px-6 md:px-8 pt-14 pb-16 md:pt-20 md:pb-24">
+      <section data-scroll-hero className="relative px-4 sm:px-6 md:px-8 pt-14 pb-28 md:pt-20 md:pb-28">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-10 lg:gap-16 items-center">
           <div className="space-y-6">
             <Eyebrow label={eyebrow} />
@@ -122,6 +123,7 @@ export function FeatureLandingPage({
             />
           </div>
         </div>
+        <HeroScrollHint light />
       </section>
 
       {/* Highlights */}

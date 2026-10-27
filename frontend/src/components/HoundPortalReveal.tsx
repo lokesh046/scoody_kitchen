@@ -15,8 +15,8 @@ const IMAGES = [
 const HERO_IMAGE = IMAGES[0];
 
 const PHRASE = 'Coming Soon';
-const REST_WIDTH = 34; // width of the portal slot at rest, just enough to show "&"
-const MAX_PORTAL_WIDTH = 140;
+const LOGO = '/images/brand/hearth-hound-gold.png';
+const REST_WIDTH = 72; // width of the portal slot at rest, just enough to show "&"
 const TOTAL_DURATION = 2900;
 
 function easeInCubic(p: number) {
@@ -31,6 +31,7 @@ function clamp01(n: number) {
 
 export function HoundPortalReveal() {
   const sectionRef = useRef<HTMLDivElement>(null);
+  const restWidthRef = useRef(REST_WIDTH);
   const portalRef = useRef<HTMLDivElement>(null);
   const ampRef = useRef<HTMLSpanElement>(null);
   const bgRef = useRef<HTMLImageElement>(null);
@@ -44,13 +45,28 @@ export function HoundPortalReveal() {
   const prefersReducedMotion = useRef(false);
 
   useEffect(() => {
+    const node = sectionRef.current;
+    if (!node) return;
+    const resize = () => {
+      const width = Math.max(120, Math.min(440, node.clientWidth - 104));
+      node.style.setProperty('--wordmark-width', `${width}px`);
+      restWidthRef.current = width * 0.18;
+      if (portalRef.current && rafRef.current === null) portalRef.current.style.width = `${restWidthRef.current}px`;
+    };
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     prefersReducedMotion.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReducedMotion.current) {
       setImagesReady(true);
       if (bgRef.current) bgRef.current.style.opacity = '1';
       if (gradientRef.current) gradientRef.current.style.opacity = '1';
       if (phraseRef.current) phraseRef.current.style.opacity = '1';
-      if (portalRef.current) portalRef.current.style.width = `${REST_WIDTH}px`;
+      if (portalRef.current) portalRef.current.style.width = `${restWidthRef.current}px`;
       if (ampRef.current) ampRef.current.style.opacity = '1';
       return;
     }
@@ -98,6 +114,8 @@ export function HoundPortalReveal() {
     const tick = (now: number) => {
       if (startRef.current === null) startRef.current = now;
       const t = now - startRef.current;
+      const REST_WIDTH = restWidthRef.current;
+      const MAX_PORTAL_WIDTH = REST_WIDTH + 70;
 
       // The "&" sits in the portal slot at rest, then fades as the portal
       // opens past it, then fades back in as the portal returns to rest.
@@ -176,21 +194,20 @@ export function HoundPortalReveal() {
         }}
       />
 
-      <div className="relative z-10 flex items-center justify-center select-none">
-        <span className="font-display font-black text-[7.5vw] sm:text-4xl lg:text-5xl text-paper tracking-tight leading-none whitespace-nowrap">HEARTH</span>
+      <div role="img" aria-label="Hearth & Hound" className="relative z-10 flex items-center justify-center select-none">
+        <span aria-hidden="true" className="block shrink-0" style={{ width: 'calc(var(--wordmark-width) * 0.41)', height: 'calc(var(--wordmark-width) * 0.26425)', backgroundImage: `url(${LOGO})`, backgroundSize: '243.902439% 100%', backgroundPosition: 'left center', backgroundRepeat: 'no-repeat' }} />
 
         <div
           ref={portalRef}
-          className="relative shrink-0 will-change-[width] mx-1 sm:mx-2"
+          className="relative shrink-0 will-change-[width]"
           style={{ width: REST_WIDTH, height: 1 }}
         >
           <span
             ref={ampRef}
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 font-display font-black text-[7.5vw] sm:text-4xl lg:text-5xl text-turmeric leading-none"
-            style={{ opacity: 1 }}
-          >
-            &amp;
-          </span>
+            aria-hidden="true"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+            style={{ opacity: 1, width: 'calc(var(--wordmark-width) * 0.18)', height: 'calc(var(--wordmark-width) * 0.26425)', backgroundImage: `url(${LOGO})`, backgroundSize: '555.555556% 100%', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
+          />
           {IMAGES.map((src, i) => (
             <img
               key={src}
@@ -205,7 +222,7 @@ export function HoundPortalReveal() {
           ))}
         </div>
 
-        <span className="font-display font-black text-[7.5vw] sm:text-4xl lg:text-5xl text-paper tracking-tight leading-none whitespace-nowrap">HOUND</span>
+        <span aria-hidden="true" className="block shrink-0" style={{ width: 'calc(var(--wordmark-width) * 0.41)', height: 'calc(var(--wordmark-width) * 0.26425)', backgroundImage: `url(${LOGO})`, backgroundSize: '243.902439% 100%', backgroundPosition: 'right center', backgroundRepeat: 'no-repeat' }} />
       </div>
 
       <div
