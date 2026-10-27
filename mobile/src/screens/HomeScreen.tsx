@@ -18,7 +18,7 @@ import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
-import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import { useIsFocused } from '@react-navigation/native';
 import {
   Search,
   ShoppingBag,
@@ -72,6 +72,7 @@ import { ToolIcon } from '../components/ToolIcon';
 import { WhyHearthSection } from '../components/WhyHearthSection';
 import { HearthHoundSection } from '../components/HearthHoundSection';
 
+import { useFocusRefresh } from '../hooks/useFocusRefresh';
 interface CoreService {
   id: string;
   title: string;
@@ -550,11 +551,9 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   // Automatically refresh live banners and notifications when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      loadHomeData();
-    }, [loadHomeData])
-  );
+  useFocusRefresh(() => {
+    loadHomeData();
+  }, user?.id, 60_000);
 
   const handleUnreadCountChange = useCallback((count: number) => {
     setUnreadNotificationsCount((prev) => (prev !== count ? count : prev));

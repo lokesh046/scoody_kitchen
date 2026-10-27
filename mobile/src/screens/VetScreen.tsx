@@ -15,7 +15,6 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import SafeAreaView from '../components/FeatureSafeArea';
-import { useFocusEffect } from '@react-navigation/native';
 import {
   Stethoscope,
   Video,
@@ -65,6 +64,7 @@ import { ReviewModal } from './vet/ReviewModal';
 import { NearbyVetsView } from './vet/NearbyVetsView';
 import { ConsultationCardItem, DoctorDirectoryCard } from './vet/VetCards';
 
+import { useFocusRefresh } from '../hooks/useFocusRefresh';
 type ActiveTab = 'QUEUE' | 'DOCTORS';
 type ConsultationFilter = 'ALL' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
 
@@ -425,13 +425,11 @@ export default function VetScreen({ navigation, route }: any) {
   }, [loadConsultations, loadDoctorsAndPets]);
 
   // Automatically sync consultations ledger when screen gains focus
-  useFocusEffect(
-    useCallback(() => {
-      if (user && !isGuest) {
-        loadConsultations();
-      }
-    }, [user, isGuest, loadConsultations])
-  );
+  useFocusRefresh(() => {
+    if (user && !isGuest) {
+      loadConsultations();
+    }
+  }, `${user?.id ?? ''}-${isGuest}`);
 
   // Check if a slot is already past for today in local time
   const isSlotInPast = useCallback((time24: string, dateStr: string) => {

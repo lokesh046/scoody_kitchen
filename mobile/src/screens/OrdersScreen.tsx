@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import SafeAreaView from '../components/FeatureSafeArea';
-import { useFocusEffect } from '@react-navigation/native';
 import { useFonts, Outfit_700Bold, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
 import { Quicksand_400Regular, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
 import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
@@ -38,6 +37,7 @@ import ResponsiveContainer from '../components/ResponsiveContainer';
 import { isConfirmedAndPaid, isDelivered, isCancelled, getStatusBadgeStyle } from '../utils/orderStatus';
 import { LEDGER_MONO, FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD } from '../theme/typography';
 
+import { useFocusRefresh } from '../hooks/useFocusRefresh';
 type FilterType = 'ALL' | 'CONFIRMED' | 'CANCELLED' | 'DELIVERED';
 
 interface OrderCardItemProps {
@@ -206,13 +206,11 @@ export default function OrdersScreen({ navigation }: any) {
   }, [loadOrders]);
 
   // Synchronize orders automatically when user focuses the tab
-  useFocusEffect(
-    useCallback(() => {
-      if (user && !isGuest) {
-        loadOrders();
-      }
-    }, [user, isGuest, loadOrders])
-  );
+  useFocusRefresh(() => {
+    if (user && !isGuest) {
+      loadOrders();
+    }
+  }, `${user?.id ?? ''}-${isGuest}`);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

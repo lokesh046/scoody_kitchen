@@ -14,7 +14,6 @@ import {
   Platform,
 } from 'react-native';
 import SafeAreaView from '../components/FeatureSafeArea';
-import { useFocusEffect } from '@react-navigation/native';
 import { Plus, X, ChevronRight, Package, Stethoscope } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
 import { ScreenHeader, headerActionStyle, HEADER_GOLD } from '../components/ScreenHeader';
@@ -29,6 +28,7 @@ import {
 import { fetchMyOrders, Order } from '../api/orders';
 import { fetchMyConsultations, Consultation } from '../api/consultations';
 
+import { useFocusRefresh } from '../hooks/useFocusRefresh';
 const STATUS_COLORS: Record<SupportTicketStatus, { bg: string; text: string }> = {
   open: { bg: '#FFF8E8', text: COLORS.brandGold },
   in_progress: { bg: '#E8F0FE', text: '#1D5FBF' },
@@ -100,11 +100,9 @@ export default function SupportScreen({ navigation }: any) {
     }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  useFocusRefresh(() => {
+    load();
+  }, 'support');
 
   const handleCategoryChange = async (value: SupportTicketCategory) => {
     setCategory(value);

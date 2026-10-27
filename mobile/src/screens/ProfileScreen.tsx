@@ -10,7 +10,6 @@ import {
   Platform,
 } from 'react-native';
 import SafeAreaView from '../components/FeatureSafeArea';
-import { useFocusEffect } from '@react-navigation/native';
 import {
   LogOut,
   Check,
@@ -31,6 +30,7 @@ import { useResponsive } from '../hooks/useResponsive';
 import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
 import ScoobyAIFAB from '../components/ScoobyAIFAB';
 import ResponsiveContainer from '../components/ResponsiveContainer';
+import { useFocusRefresh } from '../hooks/useFocusRefresh';
 import {
   ProfileHeroCard,
   ProfileStatsMatrix,
@@ -102,11 +102,9 @@ export default function ProfileScreen({ navigation }: any) {
   );
 
   // Sync on screen focus
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [loadData])
-  );
+  useFocusRefresh(() => {
+    loadData();
+  }, user?.id);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resolveHost } from './resolveHost';
+import { bumpFocusRefresh } from '../services/focusRefresh';
 import { getRefreshToken, setAccessToken, setRefreshToken, clearTokens } from '../services/secureTokenStorage';
 
 export const BASE_URL = resolveHost(8000, process.env.EXPO_PUBLIC_API_URL);
@@ -49,7 +50,15 @@ function isTransientFailure(error: any): boolean {
 
 // Response Interceptor: transient-failure retry, 429 messaging, then 401 refresh
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // A successful create/update/delete means cached screen data may be out of date.
+    const method = (response.config?.method || 'get').toLowerCase();
+    const url = response.config?.url || '';
+    if (method !== 'get' && !url.includes('/auth/refresh') && !url.includes('push-token')) {
+      bumpFocusRefresh();
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
     if (!originalRequest) {

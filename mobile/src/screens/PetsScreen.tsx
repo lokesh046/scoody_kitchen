@@ -16,7 +16,6 @@ import {
 import { Image } from 'expo-image';
 import AIDogIcon from '../components/AIDogIcon';
 import SafeAreaView from '../components/FeatureSafeArea';
-import { useFocusEffect } from '@react-navigation/native';
 import {
   PawPrint,
   Plus,
@@ -50,6 +49,7 @@ import PetVisionModal from '../components/PetVisionModal';
 import { useResponsive } from '../hooks/useResponsive';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import { useFeatureFlag } from '../hooks/useFeatureFlag';
+import { useFocusRefresh } from '../hooks/useFocusRefresh';
 import {
   CompanionSelectorTab,
   CompanionLedgerCard,
@@ -184,13 +184,11 @@ export default function PetsScreen({ navigation }: any) {
   }, [loadPets]);
 
   // Sync pets & records when tab is focused
-  useFocusEffect(
-    useCallback(() => {
-      if (user && !isGuest) {
-        loadPets();
-      }
-    }, [user, isGuest, loadPets])
-  );
+  useFocusRefresh(() => {
+    if (user && !isGuest) {
+      loadPets();
+    }
+  }, `${user?.id ?? ''}-${isGuest}`);
 
   const currentPet = useMemo(
     () => pets.find((p) => p.id === selectedPetId) || pets[0] || null,
