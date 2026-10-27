@@ -64,7 +64,14 @@ class RedisCacheManager:
         try:
             import redis
             redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-            self.client = redis.Redis.from_url(redis_url, decode_responses=True)
+            # Short timeouts: a retry now runs inside a normal request, so an
+            # unreachable Redis must fail fast instead of stalling it.
+            self.client = redis.Redis.from_url(
+                redis_url,
+                decode_responses=True,
+                socket_connect_timeout=2,
+                socket_timeout=2,
+            )
             self.client.ping()
             self.redis_active = True
             logger.info("Redis cache manager connected successfully.")

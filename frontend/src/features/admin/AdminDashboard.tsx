@@ -237,7 +237,7 @@ export const AdminDashboard: React.FC = () => {
   const { data: supportUnreadCount } = useQuery({
     queryKey: ['adminSupportUnreadCount'],
     queryFn: fetchAdminSupportUnreadCount,
-    refetchInterval: 60000,
+    refetchInterval: 300000,
   });
 
 

@@ -33,11 +33,11 @@ const CLOSER_LOOK = [
 const PROFILE_DETAILS = [
   { icon: '/images/pet-icons/name.svg', label: 'Name', value: 'Puma', position: 'lg:col-start-1 lg:row-start-1', side: 1 },
   { icon: '/images/pet-icons/date-of-birth.svg', label: 'Date of birth', value: '14 Mar 2022', position: 'lg:col-start-3 lg:row-start-1', side: -1 },
-  { icon: '/images/pet-icons/species.svg', label: 'Species', value: 'Dog', position: 'lg:col-start-1 lg:row-start-2', side: 1 },
   { icon: '/images/pet-icons/gender.svg', label: 'Gender', value: 'Male', position: 'lg:col-start-3 lg:row-start-2', side: -1 },
-  { icon: '/images/pet-icons/breed.svg', label: 'Breed', value: 'Golden Retriever', position: 'lg:col-start-1 lg:row-start-3', side: 1 },
+  { icon: '/images/pet-icons/breed.svg', label: 'Species & breed', value: 'Dog · Golden Retriever', position: 'lg:col-start-1 lg:row-start-2', side: 1 },
   { icon: '/images/pet-icons/weight.svg', label: 'Weight', value: '28 kg', position: 'lg:col-start-3 lg:row-start-3', side: -1 },
-  { icon: '/images/pet-icons/breed-origin.svg', label: 'Breed origin', value: 'Scotland', position: 'lg:col-start-1 lg:row-start-4', side: 1 },
+  { icon: '/images/pet-icons/breed-origin.svg', label: 'Breed origin', value: 'Scotland', position: 'lg:col-start-1 lg:row-start-3', side: 1 },
+  { icon: '/images/pet-icons/rfid.svg', label: 'RFID', value: 'Microchip ID on file', position: 'lg:col-start-1 lg:row-start-4', side: 1 },
   { icon: '/images/pet-icons/health-records.svg', label: 'Health records', value: 'Vaccinations & check-ups', position: 'lg:col-start-3 lg:row-start-4', side: -1 },
 ];
 
@@ -203,10 +203,8 @@ export function PetsLandingPage() {
       <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-gradient-to-b from-midnight via-midnightCard to-midnight">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
-            <div className="flex items-center justify-center space-x-2 font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">
-              <span>A closer look</span>
-            </div>
-            <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug text-paper">
+            <p className="font-script font-normal text-5xl sm:text-6xl lg:text-7xl tracking-normal leading-tight text-turmeric">A closer look</p>
+            <h2 className="font-body font-normal text-lg sm:text-xl tracking-normal leading-snug text-paper">
               Get to know them, beyond the basics.
             </h2>
             <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
@@ -221,8 +219,8 @@ export function PetsLandingPage() {
       <section aria-labelledby="pet-profile-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-2xl mx-auto text-center space-y-4 mb-10 md:mb-12">
-            <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">Your Pet's Profile</p>
-            <h2 id="pet-profile-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
+            <p className="font-script font-normal text-5xl sm:text-6xl lg:text-7xl tracking-normal leading-tight text-turmeric">Your Pet's Profile</p>
+            <h2 id="pet-profile-heading" className="font-body font-normal text-lg sm:text-xl tracking-normal leading-snug">
               <span className="sr-only">A clearer picture of the companion you know by heart.</span>
               <span aria-hidden="true">
                 {'A clearer picture of the companion you know by heart.'.split(' ').map((word, index) => (
@@ -239,7 +237,7 @@ export function PetsLandingPage() {
               </span>
             </h2>
             <p className="font-body text-sm text-paper/75 leading-relaxed">
-              Name, species, breed, gender, date of birth, and weight — the real details that make their profile theirs, kept together and easy to update.
+              Name, species, breed, gender, date of birth, weight, and RFID microchip — the real details that make their profile theirs, kept together and easy to update.
             </p>
           </div>
 

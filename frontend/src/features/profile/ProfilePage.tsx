@@ -108,7 +108,7 @@ export const ProfilePage: React.FC = () => {
     queryKey: ['mySupportUnreadCount'],
     queryFn: fetchMySupportUnreadCount,
     enabled: !!accessToken,
-    refetchInterval: 60000,
+    refetchInterval: 300000,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -386,9 +386,9 @@ export default function HomePage() {
                   <HoundPortalReveal />
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
-                  <div className="flex items-center font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">
-                    <span>Hearth &amp; Hound · Coming Soon</span>
-                  </div>
+                  <p className="font-script font-normal text-5xl sm:text-6xl lg:text-7xl tracking-normal leading-tight text-turmeric">
+                    Coming Soon
+                  </p>
                   <h2 className="font-script text-3xl sm:text-4xl lg:text-5xl font-normal tracking-normal text-ink leading-snug">
                     Thoughtfully made for the ones who are <span className="text-turmeric">one of us.</span>
                   </h2>
