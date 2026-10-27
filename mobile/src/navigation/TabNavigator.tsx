@@ -143,7 +143,7 @@ export default function TabNavigator() {
           name="Pets"
           component={PetsScreen}
           options={{
-            tabBarLabel: 'Pets',
+            tabBarLabel: 'KYP',
             tabBarIcon: ({ color, focused }) => (
               <PawPrint
                 size={20}
@@ -160,7 +160,7 @@ export default function TabNavigator() {
           name="Consult"
           component={VetScreen}
           options={{
-            tabBarLabel: 'Consult',
+            tabBarLabel: 'VET',
             tabBarIcon: ({ color, focused }) => (
               <Stethoscope size={20} color={color} strokeWidth={focused ? 2.5 : 1.8} />
             ),

@@ -1,3 +1,4 @@
+import { HeroScrollHint } from './HeroScrollHint';
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -70,6 +71,7 @@ export const FullscreenHomeHero: React.FC = () => {
 
   return (
     <section
+      data-scroll-hero
       className="relative w-full min-h-[100svh] overflow-hidden bg-ink"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -92,7 +94,7 @@ export const FullscreenHomeHero: React.FC = () => {
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
 
       {/* Hero copy, anchored bottom-left */}
-      <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-16 sm:pb-20 max-w-5xl">
+      <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-28 sm:pb-28 max-w-5xl">
         <div className="max-w-2xl space-y-4 text-left animate-fade-in-up">
           {slide.title && (
             <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
@@ -150,7 +152,7 @@ export const FullscreenHomeHero: React.FC = () => {
             <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
 
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center space-x-2">
+          <div className="absolute bottom-6 right-4 sm:right-8 z-10 flex items-center space-x-2">
             {slides.map((s, i) => (
               <button
                 key={s.id}
@@ -164,6 +166,7 @@ export const FullscreenHomeHero: React.FC = () => {
           </div>
         </>
       )}
+      <HeroScrollHint />
     </section>
   );
 };
