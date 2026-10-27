@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ArrowRight, Activity, Sparkles, Heart, RefreshCw, ShoppingBag, Loader2 } from 'lucide-react';
@@ -10,6 +10,7 @@ import { useCartStore } from '../../store/cart';
 import { BREED_DATA, type AkcGroup } from '../../constants/breedData';
 
 import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
+import { DRAFT_KEY, parseDraft, toKilograms, displayWeight, estimateCalories, recommendRecipe, progressForStep, type WeightUnit, type ActivityLevel, type Allergy } from './mealPlanner';
 
 // Same 7 real AKC groups mobile's MealPlannerScreen shows, in the same
 // order (Foundation Stock Service / Miscellaneous Class are excluded at
@@ -24,7 +25,7 @@ const AKC_GROUPS: AkcGroup[] = [
   'Herding Group',
 ];
 
-const KG_PER_LB = 0.45359237;
+
 
 // Ports mobile's ±15% tolerance verbatim, so the two platforms flag the
 // same dogs as above/below typical range for the same inputs.
@@ -38,17 +39,30 @@ export const OnboardingPage: React.FC = () => {
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
   const mealPlannerFallback = useFeatureFlagFallback('shop_meal_planner');
 
-  const [step, setStep] = useState(0);
-  const [dogName, setDogName] = useState('');
-  const [gender, setGender] = useState<'male' | 'female' | ''>('');
-  const [neutered, setNeutered] = useState<boolean | null>(null);
-  const [breed, setBreed] = useState('');
-  const [ageYears, setAgeYears] = useState<number>(2);
-  const [ageMonths, setAgeMonths] = useState<number>(0);
-  const [weight, setWeight] = useState<number | ''>('');
-  const [activity, setActivity] = useState<'sedentary' | 'active' | 'very_active' | ''>('');
-  const [allergies, setAllergies] = useState<string[]>([]);
+  const [draft] = useState(() => {
+    try { return parseDraft(sessionStorage.getItem(DRAFT_KEY)); }
+    catch { return parseDraft(null); }
+  });
+  const [step, setStep] = useState(draft.step);
+  const [feedback, setFeedback] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [draftAvailable, setDraftAvailable] = useState(true);
+  const [hasSavedPet, setHasSavedPet] = useState(false);
+  const [dogName, setDogName] = useState(draft.dogName);
+  const [gender, setGender] = useState<'male' | 'female' | ''>(draft.gender);
+  const [breed, setBreed] = useState(draft.breed);
+  const [ageYears, setAgeYears] = useState<number>(draft.ageYears);
+  const [ageMonths, setAgeMonths] = useState<number>(draft.ageMonths);
+  const [weight, setWeight] = useState<number | ''>(draft.weight);
+  const [activity, setActivity] = useState<ActivityLevel | ''>(draft.activity);
+  const [allergies, setAllergies] = useState<Allergy[]>(draft.allergies);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(draft.weightUnit);
+  const weightKg = toKilograms(Number(weight), weightUnit);
+  const changeWeightUnit = (unit: WeightUnit) => {
+    if (unit === weightUnit) return;
+    if (weight !== '') setWeight(displayWeight(weightKg, unit));
+    setWeightUnit(unit);
+  };
 
   // Breed group + search state. Most pet parents don't know their dog's AKC
   // group off the top of their head — requiring it to be picked correctly
@@ -57,9 +71,20 @@ export const OnboardingPage: React.FC = () => {
   // dataset regardless of whichever group happens to be selected; picking a
   // group without typing anything still narrows browsing to that group, for
   // people who do know it (mirrors mobile's MealPlannerScreen fix).
-  const [selectedGroup, setSelectedGroup] = useState<AkcGroup | ''>('');
-  const [breedQuery, setBreedQuery] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState<AkcGroup | ''>(AKC_GROUPS.includes(draft.selectedGroup as AkcGroup) ? draft.selectedGroup as AkcGroup : '');
+  const [breedQuery, setBreedQuery] = useState(draft.breedQuery);
   const [showBreedDropdown, setShowBreedDropdown] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (hasSavedPet || (step === 0 && !dogName)) {
+        sessionStorage.removeItem(DRAFT_KEY);
+      } else {
+        sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ step, dogName, gender, breed, ageYears, ageMonths, weight, weightUnit, activity, allergies, selectedGroup, breedQuery }));
+      }
+      setDraftAvailable(true);
+    } catch { setDraftAvailable(false); }
+  }, [step, dogName, gender, breed, ageYears, ageMonths, weight, weightUnit, activity, allergies, selectedGroup, breedQuery, hasSavedPet]);
 
   const filteredBreeds = useMemo(() => {
     const query = breedQuery.trim().toLowerCase();
@@ -73,8 +98,8 @@ export const OnboardingPage: React.FC = () => {
   const selectedBreedData = useMemo(() => BREED_DATA.find((b) => b.name === breed) || null, [breed]);
 
   // Fetch products to match a recipe
-  const { data: productsData } = useQuery({
-    queryKey: ['products'],
+  const { data: productsData, isPending: productsLoading, isError: productsError, refetch: retryProducts } = useQuery({
+    queryKey: ['products', 'meal-planner', 100],
     queryFn: () => fetchProducts({ limit: 100 }),
   });
 
@@ -82,60 +107,19 @@ export const OnboardingPage: React.FC = () => {
   const createPetMutation = useMutation({
     mutationFn: createPet,
     onSuccess: () => {
-      alert(`Success! ${dogName}'s profile has been saved to your account.`);
-      navigate('/pets');
+      setHasSavedPet(true);
+      setFeedback({ kind: 'success', text: `${dogName}'s profile has been saved. You can view it in Know Your Pet.` });
     },
     onError: (err: any) => {
       console.error(err);
-      alert(err.response?.data?.detail || 'Failed to save pet profile.');
+      const detail = err.response?.data?.detail;
+      setFeedback({ kind: 'error', text: typeof detail === 'string' ? detail : 'We couldn’t save the profile. Please try again.' });
     }
   });
 
-  // Calculate RER & MER calorie math
-  const calculateCalories = () => {
-    if (!weight) return 0;
-    // convert lbs to kg: 1 lb = 0.45359237 kg
-    const weightInKg = Number(weight) * 0.45359237;
-    // RER = 70 * (weight in kg)^0.75
-    const rer = 70 * Math.pow(weightInKg, 0.75);
-    
-    let factor = 1.4; // active standard
-    if (activity === 'sedentary') factor = 1.0;
-    if (activity === 'very_active') factor = 1.8;
-    
-    return Math.round(rer * factor);
-  };
-
-  // Match best recipe from catalog
-  const getRecommendedProduct = () => {
-    if (!productsData?.items || productsData.items.length === 0) return null;
-    const items = productsData.items;
-    
-    // Check allergy exclusions first
-    const safeProducts = items.filter(p => {
-      const name = p.name.toLowerCase();
-      const desc = (p.description || '').toLowerCase();
-      
-      if (allergies.includes('grains') && (name.includes('rice') || desc.includes('rice') || name.includes('grain'))) {
-        return false;
-      }
-      if (allergies.includes('beef') && (name.includes('beef') || desc.includes('beef'))) return false;
-      if (allergies.includes('chicken') && (name.includes('chicken') || desc.includes('chicken'))) return false;
-      return true;
-    });
-
-    const activeList = safeProducts.length > 0 ? safeProducts : items;
-
-    if (activity === 'very_active') {
-      return activeList.find(p => p.name.toLowerCase().includes('beef') || p.name.toLowerCase().includes('active')) || activeList[0];
-    } else if (Number(weight) < 18) {
-      return activeList.find(p => p.name.toLowerCase().includes('salmon') || p.name.toLowerCase().includes('fish') || p.name.toLowerCase().includes('delicate')) || activeList[0];
-    } else {
-      return activeList.find(p => p.name.toLowerCase().includes('chicken') || p.name.toLowerCase().includes('turkey')) || activeList[0];
-    }
-  };
-
   const handleSavePet = () => {
+    if (hasSavedPet || createPetMutation.isPending) return;
+    setFeedback(null);
     if (!user) {
       // Save onboarding answers in localStorage, redirect to login
       const onboardingData = {
@@ -143,14 +127,18 @@ export const OnboardingPage: React.FC = () => {
         species: 'dog',
         breed,
         gender,
-        weight: Number(weight),
+        weight: Number(weightKg.toFixed(3)),
         ageYears,
         ageMonths,
         activity,
         allergies
       };
-      localStorage.setItem('pending_onboarding_pet', JSON.stringify(onboardingData));
-      alert('Please log in or sign up to save your pet profile. We have saved your progress!');
+      try {
+        localStorage.setItem('pending_onboarding_pet', JSON.stringify({ ...onboardingData, weight_unit: 'kg' }));
+      } catch {
+        setFeedback({ kind: 'error', text: 'Your browser could not save these details. Allow site storage, then try signing in again.' });
+        return;
+      }
       navigate('/login?redirect=onboarding');
       return;
     }
@@ -167,38 +155,39 @@ export const OnboardingPage: React.FC = () => {
       breed: breed || 'Mixed Breed',
       gender: gender || 'unknown',
       date_of_birth: dateOfBirthStr,
-      weight: Number(weight),
+      weight: Number(weightKg.toFixed(3)),
     });
   };
 
   const handleAddToCart = async (productId: number) => {
+    if (isAddingToCart) return;
+    setFeedback(null);
     setIsAddingToCart(true);
     try {
       await addItem(productId, 1);
-      alert('Recipe successfully added to your cart!');
+      setFeedback({ kind: 'success', text: 'Recipe added to your cart.' });
     } catch (err) {
       console.error(err);
-      alert('Failed to add recipe to cart.');
+      setFeedback({ kind: 'error', text: 'We couldn’t add the recipe to your cart. Please try again.' });
     } finally {
       setIsAddingToCart(false);
     }
   };
 
-  const nextStep = () => setStep((prev) => prev + 1);
+  const nextStep = () => { if (isStepValid()) { setFeedback(null); setStep((prev) => Math.min(4, prev + 1)); } };
   const prevStep = () => setStep((prev) => prev - 1);
 
   const isStepValid = () => {
-    if (step === 1) return dogName.trim() !== '' && gender !== '' && neutered !== null;
-    if (step === 2) return selectedGroup !== '' && breed.trim() !== '' && weight !== '' && Number(weight) > 0;
+    if (step === 1) return dogName.trim() !== '' && gender !== '';
+    if (step === 2) return selectedGroup !== '' && selectedBreedData !== null && Number.isFinite(weightKg) && weightKg > 0 && ageYears + ageMonths > 0;
     if (step === 3) return activity !== '';
     return true;
   };
 
-  const totalSteps = 4;
-  const progressPercent = (step / totalSteps) * 100;
+  const progressPercent = progressForStep(step);
 
-  const recProduct = getRecommendedProduct();
-  const calculatedCalories = calculateCalories();
+  const recProduct = productsError ? null : recommendRecipe(productsData?.items || [], allergies, activity, weightKg);
+  const calculatedCalories = estimateCalories(weightKg, activity);
 
   // Compares the user's dog (real weight they entered) against that breed's
   // precomputed default (typical weight for the breed, same activity
@@ -217,15 +206,15 @@ export const OnboardingPage: React.FC = () => {
 
   if (!isMealPlannerEnabled) {
     return (
-      <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full text-left">
+      <div className="min-h-screen bg-midnight flex flex-col font-body selection:bg-turmeric selection:text-[#362820] w-full text-left">
         <Header />
-        <main className="flex-grow flex items-center justify-center py-16 px-4 md:px-8">
+        <main className="flex-grow flex items-center justify-center py-16 px-4 md:px-8 bg-gradient-to-b from-midnight via-midnightCard to-midnight">
           <div className="max-w-md w-full bg-paperLight border border-cardboard p-8 text-center space-y-5 shadow-md rounded-[16px]">
             <div className="w-14 h-14 bg-paper border border-dashed border-cardboard rounded-[12px] flex items-center justify-center mx-auto">
               <Sparkles className="w-7 h-7 text-turmeric" />
             </div>
             <div className="space-y-2">
-              <h2 className="font-display font-black text-2xl uppercase tracking-tight text-ink">
+              <h2 className="font-script font-normal text-3xl tracking-normal text-ink">
                 Diet Planner Unavailable
               </h2>
               <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
@@ -236,8 +225,8 @@ export const OnboardingPage: React.FC = () => {
             </div>
             <div className="pt-2">
               <button
-                onClick={() => navigate('/shop')}
-                className="inline-flex items-center space-x-2 bg-turmeric text-ink font-mono text-[10px] uppercase font-bold px-5 py-2.5 rounded-[8px] hover:bg-opacity-90 transition-all cursor-pointer shadow-xs active:scale-98"
+                onClick={() => navigate('/shop/app')}
+                className="pet-profile-cta relative isolate overflow-hidden rounded-[4px] min-h-11 inline-flex items-center justify-center space-x-2 bg-turmeric text-ink font-mono text-[10px] uppercase font-bold px-5 py-2.5 hover:bg-opacity-90 transition-all cursor-pointer shadow-xs active:scale-98"
               >
                 <span>Explore Recipes</span>
                 <ArrowRight className="w-4 h-4" />
@@ -250,23 +239,24 @@ export const OnboardingPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full text-left">
+    <div className="min-h-screen bg-midnight flex flex-col font-body selection:bg-turmeric selection:text-[#362820] w-full text-left">
       <Header />
 
-      <main className="flex-grow flex items-center justify-center py-10 px-4 md:px-8 relative bg-paper">
+      <main className="flex-grow flex items-center justify-center py-10 sm:py-14 px-4 md:px-8 relative bg-gradient-to-b from-midnight via-midnightCard to-midnight">
         {/* Notebook blueprint grid decoration */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808007_1px,transparent_1px),linear-gradient(to_bottom,#80808007_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
-        <div className="absolute left-6 md:left-12 top-0 bottom-0 border-l border-dashed border-cardboard opacity-20 hidden md:block pointer-events-none"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#D09E6B08_1px,transparent_1px),linear-gradient(to_bottom,#D09E6B08_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
+        <div className="absolute left-6 md:left-12 top-0 bottom-0 border-l border-dashed border-turmeric opacity-15 hidden md:block pointer-events-none"></div>
 
-        <div className="max-w-2xl w-full bg-paperLight border border-cardboard p-6 md:p-10 shadow-md relative z-10 space-y-6">
+        <div className="max-w-2xl w-full bg-paper border border-turmeric/30 rounded-[4px] p-6 md:p-10 shadow-[0_20px_60px_rgba(0,0,0,0.25)] relative z-10 space-y-6">
+          {step > 0 && <p className="font-body text-xs text-ink/65" role="status">{draftAvailable ? (hasSavedPet ? 'Pet profile saved to your account.' : 'Your answers are saved in this tab while you complete the planner.') : 'Your browser cannot keep a draft. Keep this page open to preserve your answers.'}</p>}
           {/* Progress Indicator */}
           {step > 0 && step < 4 && (
             <div className="space-y-2 animate-fade-in-up">
-              <div className="flex justify-between items-center text-[10px] font-mono font-bold uppercase text-herb tracking-wider">
-                <span>Diet Profile Step {step} of 3</span>
-                <span>{Math.round(progressPercent)}% Done</span>
+              <div className="flex justify-between items-center text-[10px] font-mono font-bold uppercase text-turmeric tracking-wider">
+                <span>Step {step} of 3</span>
+                <span>{Math.round(progressPercent)}% of steps</span>
               </div>
-              <div className="w-full h-1 bg-cardboard bg-opacity-25 rounded-none overflow-hidden">
+              <div role="progressbar" aria-label="Meal planner progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent} className="w-full h-1 bg-cardboard bg-opacity-25 rounded-none overflow-hidden">
                 <div 
                   className="h-full bg-turmeric transition-all duration-500 ease-out" 
                   style={{ width: `${progressPercent}%` }}
@@ -278,29 +268,29 @@ export const OnboardingPage: React.FC = () => {
           {/* STEP 0: Welcome Screen */}
           {step === 0 && (
             <div className="text-center py-6 space-y-6 animate-fade-in-up">
-              <div className="w-16 h-16 bg-paper border border-dashed border-cardboard rounded-none flex items-center justify-center mx-auto shadow-xs">
+              <div className="w-16 h-16 bg-midnight border border-turmeric/40 rounded-[4px] flex items-center justify-center mx-auto shadow-xs">
                 <Sparkles className="w-8 h-8 text-turmeric" />
               </div>
               <div className="space-y-2">
-                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Hearth & One Nutritionist</span>
-                <h2 className="font-display font-black text-3xl uppercase tracking-tight text-ink leading-none">
-                  Tailor the Perfect Recipe
+                <span className="font-mono text-[11px] uppercase font-bold text-turmeric tracking-widest block">Your pet’s meal planner</span>
+                <h2 className="font-script font-normal text-4xl sm:text-5xl tracking-normal text-ink leading-snug">
+                  Find their daily balance
                 </h2>
-                <p className="font-body text-xs text-ink opacity-85 max-w-md mx-auto leading-relaxed">
-                  Enter your dog's diagnostics to calculate customized daily caloric demands and discover the optimal nutritional formula suited to their body condition.
+                <p className="font-body text-sm text-ink opacity-80 max-w-md mx-auto leading-relaxed">
+                  Tell us about your dog to see a daily calorie estimate and explore recipes that match your preferences.
                 </p>
               </div>
 
               <div className="max-w-xs mx-auto border-t border-b border-cardboard border-dashed py-3 font-mono text-[9px] text-ink opacity-70 space-y-1">
                 <div>⚡ Takes 90 seconds</div>
-                <div>📊 Scientific RER & MER metrics</div>
+                <div>📊 Weight and activity-based estimates</div>
               </div>
 
               <button
                 onClick={nextStep}
-                className="inline-flex items-center space-x-2 bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[10px] uppercase font-bold px-8 py-3.5 tracking-wider transition-colors hover-bounce cursor-pointer shadow-sm mx-auto"
+                className="pet-profile-cta relative isolate overflow-hidden rounded-[4px] min-h-11 inline-flex items-center justify-center space-x-2 bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[10px] uppercase font-bold px-8 py-3.5 tracking-wider transition-colors hover-bounce cursor-pointer shadow-sm mx-auto"
               >
-                <span>Begin Profile Assessment</span>
+                <span>Get started</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -310,8 +300,8 @@ export const OnboardingPage: React.FC = () => {
           {step === 1 && (
             <div className="space-y-6 animate-fade-in-up">
               <div className="border-b border-cardboard border-dashed pb-3">
-                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wider block">Diagnostics / Part 1</span>
-                <h3 className="font-display font-bold text-lg text-ink">Tell us about your pup</h3>
+                <span className="font-mono text-[11px] uppercase font-bold text-turmeric tracking-wider block">Your pet / Step 1</span>
+                <h3 className="font-display font-semibold text-xl text-ink">Tell us about your pup</h3>
               </div>
 
               <div className="space-y-4">
@@ -323,7 +313,7 @@ export const OnboardingPage: React.FC = () => {
                     placeholder="e.g. Scooby"
                     value={dogName}
                     onChange={(e) => setDogName(e.target.value)}
-                    className="w-full px-3 py-2 border border-cardboard bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                    className="w-full min-h-11 rounded-[4px] px-3 py-2 border border-cardboard bg-paperLight font-body text-base sm:text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                   />
                 </div>
 
@@ -333,10 +323,10 @@ export const OnboardingPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setGender('male')}
-                      className={`py-3.5 border font-mono text-[10px] uppercase font-bold transition-all cursor-pointer ${
+                      className={`rounded-[4px] py-3.5 border font-mono text-[10px] uppercase font-bold transition-all cursor-pointer ${
                         gender === 'male' 
-                          ? 'bg-turmeric border-cardboard text-ink shadow-xs scale-[0.98]'
-                          : 'border-cardboard bg-paper hover:bg-paperLight text-ink opacity-75'
+                          ? 'bg-turmeric border-turmeric text-ink shadow-xs scale-[0.98]'
+                          : 'border-cardboard bg-paperLight hover:bg-paper text-ink opacity-75'
                       }`}
                     >
                       Male ♂
@@ -344,10 +334,10 @@ export const OnboardingPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setGender('female')}
-                      className={`py-3.5 border font-mono text-[10px] uppercase font-bold transition-all cursor-pointer ${
+                      className={`rounded-[4px] py-3.5 border font-mono text-[10px] uppercase font-bold transition-all cursor-pointer ${
                         gender === 'female' 
-                          ? 'bg-turmeric border-cardboard text-ink shadow-xs scale-[0.98]'
-                          : 'border-cardboard bg-paper hover:bg-paperLight text-ink opacity-75'
+                          ? 'bg-turmeric border-turmeric text-ink shadow-xs scale-[0.98]'
+                          : 'border-cardboard bg-paperLight hover:bg-paper text-ink opacity-75'
                       }`}
                     >
                       Female ♀
@@ -355,33 +345,7 @@ export const OnboardingPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="font-mono text-[10px] uppercase font-bold text-ink block">Is Spayed / Neutered?</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <button
-                      type="button"
-                      onClick={() => setNeutered(true)}
-                      className={`py-3.5 border font-mono text-[10px] uppercase font-bold transition-all cursor-pointer ${
-                        neutered === true
-                          ? 'bg-turmeric border-cardboard text-ink shadow-xs scale-[0.98]'
-                          : 'border-cardboard bg-paper hover:bg-paperLight text-ink opacity-75'
-                      }`}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNeutered(false)}
-                      className={`py-3.5 border font-mono text-[10px] uppercase font-bold transition-all cursor-pointer ${
-                        neutered === false
-                          ? 'bg-turmeric border-cardboard text-ink shadow-xs scale-[0.98]'
-                          : 'border-cardboard bg-paper hover:bg-paperLight text-ink opacity-75'
-                      }`}
-                    >
-                      No
-                    </button>
-                  </div>
-                </div>
+
               </div>
 
               <div className="flex justify-between items-center pt-4 border-t border-cardboard border-dashed">
@@ -395,7 +359,7 @@ export const OnboardingPage: React.FC = () => {
                 <button
                   onClick={nextStep}
                   disabled={!isStepValid()}
-                  className="inline-flex items-center space-x-2 bg-turmeric text-ink font-mono text-[10px] uppercase font-bold px-6 py-3 tracking-wider disabled:opacity-50 cursor-pointer shadow-xs hover-bounce"
+                  className="pet-profile-cta relative isolate overflow-hidden rounded-[4px] min-h-11 inline-flex items-center justify-center space-x-2 bg-turmeric text-ink font-mono text-[10px] uppercase font-bold px-6 py-3 tracking-wider disabled:opacity-50 cursor-pointer shadow-xs hover-bounce"
                 >
                   <span>Continue</span>
                   <ArrowRight className="w-4 h-4" />
@@ -408,8 +372,8 @@ export const OnboardingPage: React.FC = () => {
           {step === 2 && (
             <div className="space-y-6 animate-fade-in-up">
               <div className="border-b border-cardboard border-dashed pb-3">
-                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wider block">Diagnostics / Part 2</span>
-                <h3 className="font-display font-bold text-lg text-ink">Dog stats index</h3>
+                <span className="font-mono text-[11px] uppercase font-bold text-turmeric tracking-wider block">Your pet / Step 2</span>
+                <h3 className="font-display font-semibold text-xl text-ink">Breed, age & weight</h3>
               </div>
 
               <div className="space-y-4 relative">
@@ -430,7 +394,7 @@ export const OnboardingPage: React.FC = () => {
                       if (breed && e.target.value !== breed) setBreed('');
                     }}
                     onFocus={() => setShowBreedDropdown(true)}
-                    className="w-full px-3 py-2 border border-cardboard bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                    className="w-full min-h-11 rounded-[4px] px-3 py-2 border border-cardboard bg-paperLight font-body text-base sm:text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                   />
                   {showBreedDropdown && filteredBreeds.length > 0 && (
                     <div className="absolute left-0 right-0 top-full mt-1 bg-paper border border-cardboard max-h-40 overflow-y-auto z-30 shadow-md">
@@ -448,7 +412,7 @@ export const OnboardingPage: React.FC = () => {
                         >
                           <span>{b.name}</span>
                           <span className="text-[10px] opacity-60 font-mono shrink-0">
-                            ~{Math.round(b.typicalWeightKg / KG_PER_LB)} lbs
+                            ~{displayWeight(b.typicalWeightKg, weightUnit)} {weightUnit}
                           </span>
                         </button>
                       ))}
@@ -461,7 +425,7 @@ export const OnboardingPage: React.FC = () => {
                   )}
                   {breed !== '' && selectedBreedData && (
                     <p className="text-[10px] text-ink opacity-60 font-mono">
-                      Selected: {breed} (typical adult weight ~{Math.round(selectedBreedData.typicalWeightKg / KG_PER_LB)} lbs)
+                      Selected: {breed} (typical adult weight ~{displayWeight(selectedBreedData.typicalWeightKg, weightUnit)} {weightUnit})
                     </p>
                   )}
                 </div>
@@ -484,7 +448,7 @@ export const OnboardingPage: React.FC = () => {
                         }}
                         className={`font-mono text-[9px] uppercase tracking-wider px-3 py-2 border font-bold cursor-pointer transition-colors ${
                           selectedGroup === g
-                            ? 'bg-turmeric border-cardboard text-ink'
+                            ? 'bg-turmeric border-turmeric text-ink'
                             : 'border-cardboard bg-paper text-ink opacity-75 hover:opacity-100'
                         }`}
                       >
@@ -501,7 +465,7 @@ export const OnboardingPage: React.FC = () => {
                     <select
                       value={ageYears}
                       onChange={(e) => setAgeYears(Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-cardboard bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric"
+                      className="w-full min-h-11 rounded-[4px] px-3 py-2 border border-cardboard bg-paperLight font-body text-base sm:text-sm text-ink focus:outline-none focus:border-turmeric"
                     >
                       {Array.from({ length: 21 }).map((_, i) => (
                         <option key={i} value={i}>{i} yrs</option>
@@ -513,7 +477,7 @@ export const OnboardingPage: React.FC = () => {
                     <select
                       value={ageMonths}
                       onChange={(e) => setAgeMonths(Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-cardboard bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric"
+                      className="w-full min-h-11 rounded-[4px] px-3 py-2 border border-cardboard bg-paperLight font-body text-base sm:text-sm text-ink focus:outline-none focus:border-turmeric"
                     >
                       {Array.from({ length: 12 }).map((_, i) => (
                         <option key={i} value={i}>{i} months</option>
@@ -524,15 +488,24 @@ export const OnboardingPage: React.FC = () => {
 
                 {/* Weight Input */}
                 <div className="space-y-1.5">
-                  <label className="font-mono text-[10px] uppercase font-bold text-ink block">Weight (lbs)</label>
+                  <div className="flex items-center justify-between gap-3">
+                    <label htmlFor="planner-weight" className="font-mono text-[10px] uppercase font-bold text-ink block">Weight ({weightUnit})</label>
+                    <div className="flex gap-1" role="group" aria-label="Weight unit">
+                      {(['kg', 'lbs'] as const).map((unit) => (
+                        <button key={unit} type="button" aria-pressed={weightUnit === unit} onClick={() => changeWeightUnit(unit)} className={`min-h-11 min-w-11 rounded-[4px] border px-3 font-mono text-xs ${weightUnit === unit ? 'bg-turmeric border-turmeric text-ink' : 'bg-paperLight border-cardboard text-ink'}`}>{unit}</button>
+                      ))}
+                    </div>
+                  </div>
                   <input
+                    id="planner-weight"
                     type="number"
                     required
-                    min="1"
-                    placeholder="e.g. 35"
+                    min="0.01"
+                    step="0.01"
+                    placeholder={weightUnit === 'kg' ? 'e.g. 16' : 'e.g. 35'}
                     value={weight}
                     onChange={(e) => setWeight(e.target.value !== '' ? Number(e.target.value) : '')}
-                    className="w-full px-3 py-2 border border-cardboard bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                    className="w-full min-h-11 rounded-[4px] px-3 py-2 border border-cardboard bg-paperLight font-body text-base sm:text-sm text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                   />
                 </div>
               </div>
@@ -548,7 +521,7 @@ export const OnboardingPage: React.FC = () => {
                 <button
                   onClick={nextStep}
                   disabled={!isStepValid()}
-                  className="inline-flex items-center space-x-2 bg-turmeric text-ink font-mono text-[10px] uppercase font-bold px-6 py-3 tracking-wider disabled:opacity-50 cursor-pointer shadow-xs hover-bounce"
+                  className="pet-profile-cta relative isolate overflow-hidden rounded-[4px] min-h-11 inline-flex items-center justify-center space-x-2 bg-turmeric text-ink font-mono text-[10px] uppercase font-bold px-6 py-3 tracking-wider disabled:opacity-50 cursor-pointer shadow-xs hover-bounce"
                 >
                   <span>Continue</span>
                   <ArrowRight className="w-4 h-4" />
@@ -561,13 +534,13 @@ export const OnboardingPage: React.FC = () => {
           {step === 3 && (
             <div className="space-y-6 animate-fade-in-up">
               <div className="border-b border-cardboard border-dashed pb-3">
-                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wider block">Diagnostics / Part 3</span>
-                <h3 className="font-display font-bold text-lg text-ink">Lifestyle & Health</h3>
+                <span className="font-mono text-[11px] uppercase font-bold text-turmeric tracking-wider block">Your pet / Step 3</span>
+                <h3 className="font-display font-semibold text-xl text-ink">Lifestyle & Health</h3>
               </div>
 
               <div className="space-y-5">
                 <div className="space-y-2">
-                  <label className="font-mono text-[10px] uppercase font-bold text-ink block">Energy Output Level</label>
+                  <label className="font-mono text-[10px] uppercase font-bold text-ink block">Activity level</label>
                   <div className="space-y-2">
                     {[
                       { id: 'sedentary', title: 'Sedentary', desc: 'Mainly couches, short block walks, relaxed lifestyle.' },
@@ -577,11 +550,11 @@ export const OnboardingPage: React.FC = () => {
                       <button
                         key={item.id}
                         type="button"
-                        onClick={() => setActivity(item.id as any)}
-                        className={`w-full text-left p-4 border transition-all cursor-pointer ${
+                        onClick={() => setActivity(item.id as ActivityLevel)}
+                        className={`w-full rounded-[4px] text-left p-4 border transition-all cursor-pointer ${
                           activity === item.id 
-                            ? 'bg-turmeric border-cardboard text-ink shadow-xs scale-[0.99]'
-                            : 'border-cardboard bg-paper hover:bg-paperLight text-ink'
+                            ? 'bg-turmeric border-turmeric text-ink shadow-xs scale-[0.99]'
+                            : 'border-cardboard bg-paperLight hover:bg-paper text-ink'
                         }`}
                       >
                         <span className="font-mono text-[10px] uppercase font-bold block">{item.title}</span>
@@ -599,7 +572,7 @@ export const OnboardingPage: React.FC = () => {
                       { id: 'chicken', label: 'Chicken Sensitive' },
                       { id: 'grains', label: 'Grain Sensitive' },
                     ].map((all) => {
-                      const isChecked = allergies.includes(all.id);
+                      const isChecked = allergies.includes(all.id as Allergy);
                       return (
                         <button
                           key={all.id}
@@ -608,13 +581,13 @@ export const OnboardingPage: React.FC = () => {
                             if (isChecked) {
                               setAllergies(allergies.filter(x => x !== all.id));
                             } else {
-                              setAllergies([...allergies, all.id]);
+                              setAllergies([...allergies, all.id as Allergy]);
                             }
                           }}
-                          className={`py-2 px-3 border font-mono text-[9px] uppercase font-bold tracking-wide transition-all cursor-pointer ${
+                          className={`min-h-11 rounded-[4px] py-2 px-3 border font-mono text-[9px] uppercase font-bold tracking-wide transition-all cursor-pointer ${
                             isChecked
-                              ? 'bg-paprika border-cardboard text-paper shadow-xs'
-                              : 'border-cardboard bg-paper hover:bg-paperLight text-ink opacity-75'
+                              ? 'bg-turmeric border-turmeric text-ink shadow-xs'
+                              : 'border-cardboard bg-paperLight hover:bg-paper text-ink opacity-75'
                           }`}
                         >
                           {all.label}
@@ -636,9 +609,9 @@ export const OnboardingPage: React.FC = () => {
                 <button
                   onClick={nextStep}
                   disabled={!isStepValid()}
-                  className="inline-flex items-center space-x-2 bg-turmeric text-ink font-mono text-[10px] uppercase font-bold px-6 py-3 tracking-wider disabled:opacity-50 cursor-pointer shadow-xs hover-bounce"
+                  className="pet-profile-cta relative isolate overflow-hidden rounded-[4px] min-h-11 inline-flex items-center justify-center space-x-2 bg-turmeric text-ink font-mono text-[10px] uppercase font-bold px-6 py-3 tracking-wider disabled:opacity-50 cursor-pointer shadow-xs hover-bounce"
                 >
-                  <span>Analyze Diagnostics</span>
+                  <span>See my results</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -649,20 +622,20 @@ export const OnboardingPage: React.FC = () => {
           {step === 4 && (
             <div className="space-y-6 text-center animate-fade-in-up">
               <div className="border-b border-cardboard border-dashed pb-3 text-left">
-                <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wider block">Diagnostics Output</span>
-                <h3 className="font-display font-bold text-lg text-ink">Personalized Meal Formulation</h3>
+                <span className="font-mono text-[11px] uppercase font-bold text-turmeric tracking-wider block">Your results</span>
+                <h3 className="font-display font-semibold text-xl text-ink">Daily estimate & suggested recipe</h3>
               </div>
 
               {/* Thermal Printer Receipt Layout */}
-              <div className="bg-paper p-6 border-4 border-double border-cardboard relative shadow-xs text-left max-w-md mx-auto">
+              <div className="bg-paperLight p-6 border-4 border-double border-cardboard relative shadow-xs text-left max-w-md mx-auto">
                 <div className="absolute top-0 left-0 right-0 h-1.5 bg-paper border-b border-dashed border-cardboard opacity-40"></div>
                 
                 <div className="space-y-4 pt-1">
                   <div className="flex justify-between items-center pb-2 border-b border-dashed border-cardboard">
                     <div>
-                      <span className="font-mono text-xs uppercase font-bold text-turmeric block">// CALCULATOR OUTPUT</span>
+                      <span className="font-mono text-xs uppercase font-bold text-turmeric block">// DAILY ESTIMATE</span>
                       <span className="font-mono text-xs uppercase tracking-wider text-ink opacity-75">
-                        SUBJECT: {dogName || 'N/A'} ({weight} LBS, {breed})
+                        PET: {dogName || 'N/A'} ({weight} {weightUnit.toUpperCase()}, {breed})
                       </span>
                     </div>
                     <Activity className="w-6 h-6 text-turmeric shrink-0" />
@@ -671,7 +644,7 @@ export const OnboardingPage: React.FC = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm font-mono text-ink">
                       <span>Resting Energy (RER):</span>
-                      <span>{Math.round(70 * Math.pow((Number(weight) * 0.45359237), 0.75))} kcal</span>
+                      <span>{Math.round(70 * Math.pow(weightKg, 0.75))} kcal</span>
                     </div>
                     <div className="flex justify-between text-sm font-mono text-ink">
                       <span>Activity Multiplier:</span>
@@ -688,7 +661,7 @@ export const OnboardingPage: React.FC = () => {
                   </div>
 
                   <div className="flex justify-between items-center pt-3 border-t-2 border-dashed border-cardboard">
-                    <span className="font-mono text-sm text-ink uppercase font-bold">DAILY CALORIE DEMAND:</span>
+                    <span className="font-mono text-sm text-ink uppercase font-bold">ESTIMATED DAILY CALORIES:</span>
                     <span className="font-mono font-bold text-lg text-ink">{calculatedCalories} kCal / day</span>
                   </div>
                   {selectedBreedData && activity !== '' && (
@@ -703,7 +676,7 @@ export const OnboardingPage: React.FC = () => {
               {weightStatus && weightStatus !== 'on-track' && (
                 <div className="border border-paprika bg-paprika/5 p-4 text-left space-y-2">
                   <h4 className="font-display font-bold text-sm text-ink">
-                    {weightStatus === 'above' ? 'Running Above Typical Range' : 'Running Below Typical Range'}
+                    {weightStatus === 'above' ? 'Above the breed comparison' : 'Below the breed comparison'}
                   </h4>
                   <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
                     {weightStatus === 'above'
@@ -711,7 +684,7 @@ export const OnboardingPage: React.FC = () => {
                       : `${dogName || 'Your dog'}'s calorie need is lower than what's typical for a ${breed}. This isn't a diagnosis — individual dogs vary — but it may be worth checking in with a vet if you're unsure.`}
                   </p>
                   <button
-                    onClick={() => navigate('/consultations')}
+                    onClick={() => navigate('/consultations/app')}
                     className="font-mono text-[9px] uppercase font-bold text-paprika hover:underline cursor-pointer"
                   >
                     Talk to a Vet &rarr;
@@ -720,15 +693,29 @@ export const OnboardingPage: React.FC = () => {
               )}
 
               {weightStatus === 'on-track' && (
-                <div className="border border-herb bg-herb/10 p-3 text-center">
-                  <span className="font-mono text-[10px] uppercase font-bold text-herb">
-                    &#10003; Right on track for a {breed}
+                <div className="border border-turmeric/40 bg-turmeric/10 p-3 text-center">
+                  <span className="font-mono text-[10px] uppercase font-bold text-ink">
+                    &#10003; Close to the breed comparison for a {breed}
                   </span>
                 </div>
               )}
 
+              <p className="text-left font-body text-sm leading-relaxed text-ink/75">
+                This general estimate uses weight and activity. Age is saved to your pet’s profile but does not adjust these calories. Breed comparisons are reference values, not a body-condition assessment.
+              </p>
+              <p className="text-left font-body text-xs leading-relaxed text-ink/70">
+                Recipe filters check catalogue names and descriptions, not a verified allergen list. Confirm the full ingredients before choosing food for a dog with allergies.
+              </p>
+
               {/* Recommended Product Box */}
-              {recProduct ? (
+              {productsLoading ? (
+                <p role="status" className="p-5 text-sm text-ink">Finding recipes…</p>
+              ) : productsError ? (
+                <div role="alert" className="border border-cardboard p-5 text-left text-sm text-ink">
+                  We couldn’t load recipes. Your calorie estimate is still available.
+                  <button type="button" onClick={() => retryProducts()} className="ml-2 underline font-semibold">Try again</button>
+                </div>
+              ) : recProduct ? (
                 <div className="border border-cardboard bg-paperLight p-5 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-5 text-left">
                   <img
                     src={recProduct.image_url || 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&q=80&w=300'}
@@ -736,7 +723,7 @@ export const OnboardingPage: React.FC = () => {
                     className="w-24 h-24 object-cover border border-cardboard"
                   />
                   <div className="flex-grow space-y-1">
-                    <span className="font-mono text-[8px] uppercase font-bold text-herb block">Recommended Blend</span>
+                    <span className="font-mono text-[8px] uppercase font-bold text-turmeric block">Suggested recipe</span>
                     <h4 className="font-display font-black text-sm text-ink uppercase tracking-tight">{recProduct.name}</h4>
                     <p className="font-body text-[10px] text-ink opacity-75 line-clamp-2 leading-relaxed">
                       {recProduct.description}
@@ -745,7 +732,7 @@ export const OnboardingPage: React.FC = () => {
                       <button
                         onClick={() => handleAddToCart(recProduct.id)}
                         disabled={isAddingToCart}
-                        className="inline-flex items-center space-x-1 bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[9px] uppercase font-bold px-3 py-1.5 tracking-wider transition-colors cursor-pointer shadow-xs"
+                        className="pet-profile-cta relative isolate overflow-hidden rounded-[4px] min-h-11 inline-flex items-center justify-center space-x-1 bg-turmeric hover:bg-opacity-95 text-ink font-mono text-[9px] uppercase font-bold px-3 py-1.5 tracking-wider transition-colors cursor-pointer shadow-xs"
                       >
                         {isAddingToCart ? (
                           <RefreshCw className="w-3 h-3 animate-spin" />
@@ -756,7 +743,7 @@ export const OnboardingPage: React.FC = () => {
                       </button>
                       <button
                         onClick={() => navigate(`/product/${recProduct.id}`)}
-                        className="font-mono text-[9px] text-herb font-bold hover:underline"
+                        className="font-mono text-[9px] text-turmeric font-bold hover:underline"
                       >
                         Explore Recipe Details &rarr;
                       </button>
@@ -765,31 +752,43 @@ export const OnboardingPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="border border-dashed border-cardboard p-5 text-left text-ink opacity-70 text-xs">
-                  No recipes currently match the selected allergy filters.
+                  No available recipes match your selected filters. Your exclusions have been kept.
                 </div>
               )}
 
+              {feedback && (
+                <div role={feedback.kind === 'error' ? 'alert' : 'status'} className="border border-turmeric/40 bg-turmeric/10 p-4 text-left font-body text-sm text-ink">
+                  {feedback.text}
+                  {hasSavedPet && <button onClick={() => navigate('/pets/app')} className="ml-2 font-semibold underline">View pet profile</button>}
+                </div>
+              )}
               {/* Action Buttons */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-cardboard border-dashed">
                 <button
                   onClick={handleSavePet}
-                  disabled={createPetMutation.isPending}
-                  className="w-full bg-paper hover:bg-paperLight text-ink border border-cardboard font-mono text-[10px] uppercase font-bold py-3.5 tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-xs hover-bounce flex items-center justify-center space-x-1.5"
+                  disabled={createPetMutation.isPending || hasSavedPet}
+                  className="w-full bg-paperLight hover:bg-paper text-ink border border-cardboard font-mono text-[10px] uppercase font-bold py-3.5 tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-xs hover-bounce flex items-center justify-center space-x-1.5"
                 >
                   {createPetMutation.isPending ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : (
                     <Heart className="w-3.5 h-3.5 text-paprika fill-paprika" />
                   )}
-                  <span>{user ? 'Save Pet to Profile' : 'Sign Up to Save Pet'}</span>
+                  <span>{hasSavedPet ? 'Profile Saved' : user ? 'Save Pet to Profile' : 'Sign In to Save Pet'}</span>
                 </button>
 
                 <button
                   onClick={() => {
+                    setHasSavedPet(false);
+                    createPetMutation.reset();
+                    setFeedback(null);
+                    setAgeYears(2);
+                    setAgeMonths(0);
+                    setWeightUnit('kg');
+                    setShowBreedDropdown(false);
                     setStep(0);
                     setDogName('');
                     setGender('');
-                    setNeutered(null);
                     setSelectedGroup('');
                     setBreed('');
                     setBreedQuery('');
@@ -799,7 +798,7 @@ export const OnboardingPage: React.FC = () => {
                   }}
                   className="w-full border border-cardboard border-dashed hover:bg-paperLight font-mono text-[10px] uppercase font-bold py-3.5 text-ink tracking-wider cursor-pointer shadow-xs hover-bounce"
                 >
-                  Start New Assessment
+                  Start again
                 </button>
               </div>
             </div>

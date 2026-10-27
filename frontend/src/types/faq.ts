@@ -2,6 +2,7 @@ export interface FAQResponse {
   id: number;
   question: string;
   answer: string;
+  page: string;
   display_order: number;
   is_active: boolean;
   created_at: string;

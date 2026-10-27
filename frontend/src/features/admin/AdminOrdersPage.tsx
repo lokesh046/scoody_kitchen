@@ -93,7 +93,7 @@ export default function AdminOrdersPage() {
 
   const downloadSingleOrderTXT = (order: any) => {
     let content = `=========================================\n`;
-    content += `SCOOBY'S KITCHEN - SHIPPING MANIFEST\n`;
+    content += `HEARTH & ONE - SHIPPING MANIFEST\n`;
     content += `=========================================\n`;
     content += `Order ID: #${order.id}\n`;
     content += `Date: ${new Date(order.created_at).toLocaleString()}\n`;
@@ -644,7 +644,7 @@ export default function AdminOrdersPage() {
             </button>
 
             <div className="space-y-1">
-              <Eyebrow label="SCOOBY PLATFORM TRANSACTION LEDGER" />
+              <Eyebrow label="HEARTH & ONE PLATFORM TRANSACTION LEDGER" />
               <h3 className="font-display font-bold text-xl text-ink">
                 Order Sourcing Record #{selectedOrderId}
               </h3>

@@ -123,7 +123,7 @@ def test_reviews_system_lifecycle(db_session):
     # Create Pet
     pet = Pet(
         user_id=customer.id,
-        name="Bruno",
+        name="Puma",
         species="dog",
         breed="Labrador",
         weight=25.0,

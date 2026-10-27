@@ -1,5 +1,6 @@
 from decimal import Decimal
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session  
@@ -56,7 +57,11 @@ def get_all_products(
 
     cached = cache.get(cache_key)
     if cached is not None:
-        return cached
+        # Cached payload was already validated and serialized once when it was
+        # written (see below) — returning it via JSONResponse instead of a
+        # plain dict skips FastAPI re-running it through the response_model
+        # a second time on every cache hit, which was pure repeated work.
+        return JSONResponse(content=cached)
 
     try:
         result = get_products_paginated(
@@ -75,12 +80,20 @@ def get_all_products(
             ProductResponse.model_validate(item).model_dump(mode="json")
             for item in result["items"]
         ]
+        # paginate_query() includes "total"/"pages" as convenience aliases for
+        # total_items/total_pages, but PaginatedProductResponse never declared
+        # them — the old response_model validation silently dropped both on
+        # every response. Excluding them here keeps this endpoint's output
+        # identical now that nothing validates it against that schema anymore.
         cache_data = {
-            **result,
-            "items": serialized_items
+            k: v for k, v in result.items() if k not in ("total", "pages")
         }
-        cache.set(cache_key, cache_data, ttl_seconds=120)
-        return cache_data
+        cache_data["items"] = serialized_items
+        # A day: saves to products, stock and product reviews clear this automatically
+        # (core/product_cache_hooks.py). Free-text searches rarely repeat, so they keep a
+        # short lifetime rather than piling up a day's worth of one-off keys.
+        cache.set(cache_key, cache_data, ttl_seconds=120 if search else 86400)
+        return JSONResponse(content=cache_data)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -126,7 +139,7 @@ def get_product_details(
 
     serialized = ProductResponse.model_validate(product).model_dump(mode="json")
     if not is_admin and product.is_active:
-        cache.set(cache_key, serialized, ttl_seconds=300)
+        cache.set(cache_key, serialized, ttl_seconds=86400)
 
     return serialized
 

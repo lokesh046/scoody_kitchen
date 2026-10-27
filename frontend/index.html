@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/scooby-logo.png" />
+    <link rel="icon" type="image/png" href="/scooby-logo-64.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="origin-when-cross-origin" />
     <title>Hearth & One | Honest Small-Batch Pet Cooking</title>
@@ -24,6 +24,14 @@
     <meta name="twitter:title" content="Hearth & One | Honest Small-Batch Pet Cooking" />
     <meta name="twitter:description" content="Human-grade, small-batch pet food cooked under veterinary supervision. Transparent recipes for pet parents who care." />
     <meta name="twitter:image" content="https://hearthandone.com/images/scoobys_fam_banner.jpg" />
+
+    <!-- Fonts loaded as a direct <link>, not CSS @import -- @import inside
+         index.css is render-blocking and delays font discovery until after
+         the stylesheet itself downloads and parses. A <link> here lets the
+         browser discover and fetch fonts in parallel with everything else. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Quicksand:wght@300;400;500;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Lobster&family=Parisienne&display=swap" />
 
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>

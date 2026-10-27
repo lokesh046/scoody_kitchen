@@ -1,15 +1,63 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchActiveBanners } from '../api/banners';
 import { useFeatureFlag } from '../hooks/useFeatureFlag';
 
+// Default fallback banners matching the user's custom designs with 4K ultra-high resolution
+const fallbackBanners: any[] = [
+  {
+    id: -1,
+    badge: "Family Owned • Since 2016",
+    pretitle: "Welcome to",
+    title: "THE HEARTH & ONE FAM",
+    subtitle: "Come be a part of our family's quest for delighted and thriving pets! We craft unique pet meals infused with care and premium ingredients, striving to turn each nibble into a source of joy for your furry companions overall well being.",
+    tagline: "Our Recipes are crafted to nurture their Mind, Body and Spirit!",
+    image_url: "https://res.cloudinary.com/utnenyxi/image/upload/v1788521361/scooby_kitchen/zfmzprttuoojru2qleeh.jpg",
+    link_url: "/shop",
+    button_text: "Know More",
+  },
+  {
+    id: -2,
+    pretitle: "100% Transparent",
+    title: "Honest Ingredients. Zero Filler.",
+    subtitle: "Every single recipe batch contains zero corn, wheat, soy, or rendering byproducts. Certified and tested by pet nutrition specialists.",
+    tagline: "Human-grade, small-batch recipes cooked for active pet health.",
+    image_url: "https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg",
+    link_url: "/shop",
+    button_text: "Explore Recipes",
+  },
+  {
+    id: -3,
+    pretitle: "Farm Fresh",
+    title: "Farm-To-Bowl Holistic Meals",
+    subtitle: "Real whole-food chicken and farm-fresh sweet potatoes slow-cooked daily to nurture vitality and active health.",
+    tagline: "Tailored dietary blueprints for every life stage.",
+    image_url: "https://res.cloudinary.com/utnenyxi/image/upload/v1788521315/scooby_kitchen/nji85annhntaovsycm9q.jpg",
+    link_url: "/shop",
+    button_text: "Explore Menu",
+  },
+  {
+    id: -4,
+    pretitle: "High Protein",
+    title: "Raptor: All-Meat Diet",
+    subtitle: "Pure primal nutrition engineered for athletic endurance, lean muscle development, and digestive resilience.",
+    tagline: "Zero fillers, zero rendering byproducts.",
+    image_url: "https://res.cloudinary.com/utnenyxi/image/upload/v1788521296/scooby_kitchen/fcw2fhniavnni3qracok.jpg",
+    link_url: "/shop",
+    button_text: "View Recipe",
+  }
+];
+
 export const HomeBannerCarousel: React.FC = () => {
   const navigate = useNavigate();
   const trackRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState(1); // Start at 1 (first real banner)
   const [transitionEnabled, setTransitionEnabled] = useState(true);
+  // The track is positioned instantly the first time it appears; slide animations
+  // only switch on afterwards, so it never glides in from the wrong place.
+  const [trackSettled, setTrackSettled] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const autoPlayTimerRef = useRef<any>(null);
 
@@ -22,54 +70,10 @@ export const HomeBannerCarousel: React.FC = () => {
   // Fetch banners from API
   const { data: banners, isLoading } = useQuery({
     queryKey: ['active-banners'],
-    queryFn: fetchActiveBanners,
+    queryFn: () => fetchActiveBanners(),
   });
 
-  // Default fallback banners matching the user's custom designs with 4K ultra-high resolution
-  const fallbackBanners: any[] = [
-    {
-      id: -1,
-      badge: "Family Owned • Since 2016",
-      pretitle: "Welcome to",
-      title: "THE HEARTH & ONE FAM",
-      subtitle: "Come be a part of our family's quest for delighted and thriving pets! We craft unique pet meals infused with care and premium ingredients, striving to turn each nibble into a source of joy for your furry companions overall well being.",
-      tagline: "Our Recipes are crafted to nurture their Mind, Body and Spirit!",
-      image_url: "https://res.cloudinary.com/utnenyxi/image/upload/v1788521361/scooby_kitchen/zfmzprttuoojru2qleeh.jpg",
-      link_url: "/shop",
-      button_text: "Know More",
-    },
-    {
-      id: -2,
-      pretitle: "100% Transparent",
-      title: "Honest Ingredients. Zero Filler.",
-      subtitle: "Every single recipe batch contains zero corn, wheat, soy, or rendering byproducts. Certified and tested by pet nutrition specialists.",
-      tagline: "Human-grade, small-batch recipes cooked for active pet health.",
-      image_url: "https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg",
-      link_url: "/shop",
-      button_text: "Explore Recipes",
-    },
-    {
-      id: -3,
-      pretitle: "Farm Fresh",
-      title: "Farm-To-Bowl Holistic Meals",
-      subtitle: "Real whole-food chicken and farm-fresh sweet potatoes slow-cooked daily to nurture vitality and active health.",
-      tagline: "Tailored dietary blueprints for every life stage.",
-      image_url: "https://res.cloudinary.com/utnenyxi/image/upload/v1788521315/scooby_kitchen/nji85annhntaovsycm9q.jpg",
-      link_url: "/shop",
-      button_text: "Explore Menu",
-    },
-    {
-      id: -4,
-      pretitle: "High Protein",
-      title: "Raptor: All-Meat Diet",
-      subtitle: "Pure primal nutrition engineered for athletic endurance, lean muscle development, and digestive resilience.",
-      tagline: "Zero fillers, zero rendering byproducts.",
-      image_url: "https://res.cloudinary.com/utnenyxi/image/upload/v1788521296/scooby_kitchen/fcw2fhniavnni3qracok.jpg",
-      link_url: "/shop",
-      button_text: "View Recipe",
-    }
-  ];
-
+  const activeBanners = useMemo(() => {
   const enrichedBanners = (banners && banners.length > 0 ? banners : fallbackBanners)
     .filter((b: any) => {
       if (b.link_url === '/consultations' && !isConsultationsEnabled) return false;
@@ -90,43 +94,41 @@ export const HomeBannerCarousel: React.FC = () => {
       };
     });
 
-  const activeBanners = enrichedBanners.length < 3 
-    ? [...enrichedBanners, ...fallbackBanners.slice(0, 3 - enrichedBanners.length)] 
+  return enrichedBanners.length < 3
+    ? [...enrichedBanners, ...fallbackBanners.slice(0, 3 - enrichedBanners.length)]
     : enrichedBanners;
+  }, [banners, isConsultationsEnabled, isShopEnabled, isMealPlannerEnabled, isKnowYourPetEnabled]);
 
   const [imagesLoaded, setImagesLoaded] = useState(false);
 
-  // Preload and decode all banner images into browser GPU memory before rendering
+  // Wait for the first banner only (so the carousel appears quickly), and warm
+  // the remaining banners in the background without blocking the page.
+  const bannerKey = activeBanners.map((banner: any) => banner.image_url || '').join('|');
   useEffect(() => {
-    if (activeBanners.length === 0) return;
-
+    const urls = bannerKey.split('|').filter(Boolean);
+    if (urls.length === 0) {
+      setImagesLoaded(true);
+      return;
+    }
     let isMounted = true;
-    const imagePromises = activeBanners.map((banner: any) => {
-      if (!banner.image_url) return Promise.resolve();
-      return new Promise<void>((resolve) => {
+    const load = (url: string) =>
+      new Promise<void>((resolve) => {
         const img = new Image();
-        img.src = banner.image_url!;
+        img.src = url;
         img.onload = () => {
-          if ('decode' in img) {
-            img.decode().then(() => resolve()).catch(() => resolve());
-          } else {
-            resolve();
-          }
+          if ('decode' in img) img.decode().then(() => resolve()).catch(() => resolve());
+          else resolve();
         };
         img.onerror = () => resolve();
       });
+    load(urls[0]).then(() => {
+      if (isMounted) setImagesLoaded(true);
+      urls.slice(1).forEach((url) => { void load(url); });
     });
-
-    Promise.all(imagePromises).then(() => {
-      if (isMounted) {
-        setImagesLoaded(true);
-      }
-    });
-
     return () => {
       isMounted = false;
     };
-  }, [activeBanners]);
+  }, [bannerKey]);
 
   // Cloned banners for infinite circular loop: [Last, A, B, C, First]
   const clonedBanners = activeBanners.length > 1
@@ -176,6 +178,12 @@ export const HomeBannerCarousel: React.FC = () => {
       }
     }
   };
+
+  useEffect(() => {
+    if (isLoading || !imagesLoaded || trackSettled) return;
+    const frame = requestAnimationFrame(() => requestAnimationFrame(() => setTrackSettled(true)));
+    return () => cancelAnimationFrame(frame);
+  }, [isLoading, imagesLoaded, trackSettled]);
 
   // Re-enable transition safely after layout has committed
   useEffect(() => {
@@ -245,11 +253,12 @@ export const HomeBannerCarousel: React.FC = () => {
   };
 
   if (isLoading || !imagesLoaded) {
+    // Same box model as the loaded carousel (outer + inner padding, card height),
+    // so the page does not jump when the banners appear.
     return (
-      <div className="w-full h-[340px] sm:h-[460px] md:h-[540px] lg:h-[600px] bg-paper flex items-center justify-center border-b border-cardboard border-opacity-35">
-        <div className="animate-pulse space-y-4 text-center">
-          <div className="w-12 h-12 rounded-full border-4 border-dashed border-turmeric animate-spin mx-auto"></div>
-          <span className="font-mono text-[9px] uppercase font-bold text-ink opacity-60">Preloading high-definition banners...</span>
+      <div className="w-full bg-paper py-8 md:py-14 border-b border-cardboard border-opacity-35" aria-hidden="true">
+        <div className="py-2">
+          <div className="mx-auto w-[88vw] max-w-[1380px] h-[320px] sm:h-[440px] md:h-[540px] lg:h-[600px] rounded-[24px] bg-cardboard/20 animate-pulse" />
         </div>
       </div>
     );
@@ -276,7 +285,7 @@ export const HomeBannerCarousel: React.FC = () => {
             width: '100%',
             transform: `translate3d(calc(50vw - (var(--slide-width) / 2) - (${translationIndex} * var(--slide-width))), 0, 0)`,
             WebkitTransform: `translate3d(calc(50vw - (var(--slide-width) / 2) - (${translationIndex} * var(--slide-width))), 0, 0)`,
-            transition: transitionEnabled ? 'transform 600ms cubic-bezier(0.25, 1, 0.5, 1)' : 'none',
+            transition: transitionEnabled && trackSettled ? 'transform 600ms cubic-bezier(0.25, 1, 0.5, 1)' : 'none',
             //@ts-ignore
             '--slide-width': typeof window !== 'undefined' && window.innerWidth < 768 ? '92vw' : 'min(88vw, 1380px)',
           }}
@@ -315,7 +324,7 @@ export const HomeBannerCarousel: React.FC = () => {
                     className="w-full h-full object-cover select-none pointer-events-none rounded-[24px]"
                     draggable={false}
                     loading={isActive ? "eager" : "lazy"}
-                    decoding="sync"
+                    decoding="async"
                     // @ts-ignore
                     fetchpriority={isActive ? "high" : "low"}
                   />
@@ -368,9 +377,9 @@ export const HomeBannerCarousel: React.FC = () => {
                               e.stopPropagation();
                               navigate(slide.link_url);
                             }}
-                            className="inline-flex items-center space-x-1.5 bg-[#b91c1c] hover:bg-[#991b1b] active:scale-95 text-white font-mono text-[9px] sm:text-[10px] font-bold uppercase px-4 sm:px-5 py-2 sm:py-2.5 rounded-[6px] shadow-md hover:shadow-lg transition-all cursor-pointer"
+                            className="pet-profile-cta cta-glow [--cta-glow:239_68_68] relative isolate overflow-hidden inline-flex items-center space-x-1.5 bg-[#b91c1c] hover:bg-[#991b1b] active:scale-95 text-white font-mono text-[9px] sm:text-[10px] font-bold uppercase px-4 sm:px-5 py-2 sm:py-2.5 rounded-[6px] border border-red-400/40 transition-all cursor-pointer motion-reduce:transform-none"
                           >
-                            <span>{slide.button_text || 'Know More'}</span>
+                            <span className="relative">{slide.button_text || 'Know More'}</span>
                           </button>
                         </div>
                       )}

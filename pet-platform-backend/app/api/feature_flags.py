@@ -16,7 +16,7 @@ from app.services.feature_flag_service import (
 
 router = APIRouter(tags=["Feature Flags"])
 
-CACHE_KEY_PUBLIC = "feature_flags:public"
+from app.services.feature_flag_service import PUBLIC_FLAGS_CACHE_KEY as CACHE_KEY_PUBLIC
 
 
 @router.get("/features/public", response_model=Dict[str, PublicFeatureFlagState])

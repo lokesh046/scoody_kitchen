@@ -41,7 +41,7 @@ def get_published_posts(db: Session = Depends(get_db)):
     posts = db.scalars(stmt).all()
 
     serialized = [BlogPostListItem.model_validate(p).model_dump(mode="json") for p in posts]
-    cache.set(CACHE_KEY_LIST, serialized, ttl_seconds=600)
+    cache.set(CACHE_KEY_LIST, serialized, ttl_seconds=86400)
     return posts
 
 

@@ -121,7 +121,7 @@ export const AssistantPage: React.FC = () => {
     checkHealth();
 
     // Poll every 30 seconds
-    const interval = setInterval(checkHealth, 30000);
+    const interval = setInterval(checkHealth, 300000);
     return () => clearInterval(interval);
   }, []);
 

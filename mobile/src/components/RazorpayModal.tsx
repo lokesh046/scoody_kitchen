@@ -89,7 +89,7 @@ export default function RazorpayModal({
         </style>
       </head>
       <body>
-        <div class="title">Scooby's Kitchen</div>
+        <div class="title">Hearth & One</div>
         <div class="sub">Launching secure Razorpay checkout sheet...</div>
 
         <script>
@@ -99,7 +99,7 @@ export default function RazorpayModal({
                 key: "${razorpayKeyId}",
                 amount: "${amountInPaise}",
                 currency: "INR",
-                name: "Scooby's Kitchen",
+                name: "Hearth & One",
                 description: "${safeDescription}",
                 order_id: "${razorpayOrderId}",
                 prefill: {

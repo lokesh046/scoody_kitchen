@@ -13,9 +13,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { ArrowLeft, Send, Package, Stethoscope } from 'lucide-react-native';
+import { Send, Package, Stethoscope } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
-import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
+import { StackHeader } from '../components/ScreenHeader';
+import { FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
 import {
   fetchMySupportTicketById,
   replyToMySupportTicket,
@@ -89,13 +90,7 @@ export default function SupportTicketScreen({ navigation, route }: any) {
   if (loading || !ticket) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-            <ArrowLeft size={20} color={COLORS.textCoffee} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Ticket</Text>
-          <View style={{ width: 36 }} />
-        </View>
+        <StackHeader title="Ticket" onBack={() => navigation.goBack()} />
         <View style={styles.centerFill}>
           <ActivityIndicator size="large" color={COLORS.forestGreen} />
         </View>
@@ -108,13 +103,7 @@ export default function SupportTicketScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
-          <ArrowLeft size={20} color={COLORS.textCoffee} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{ticket.subject}</Text>
-        <View style={{ width: 36 }} />
-      </View>
+      <StackHeader title={ticket.subject} onBack={() => navigation.goBack()} />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
@@ -160,7 +149,7 @@ export default function SupportTicketScreen({ navigation, route }: any) {
               style={[styles.messageBubble, m.is_staff_reply ? styles.staffBubble : styles.customerBubble]}
             >
               <Text style={styles.messageMeta}>
-                {m.is_staff_reply ? "Scooby's Kitchen Support" : 'You'} &middot; {formatWhen(m.created_at)}
+                {m.is_staff_reply ? "Hearth & One Support" : 'You'} &middot; {formatWhen(m.created_at)}
               </Text>
               <Text style={styles.messageBody}>{m.body}</Text>
             </View>
@@ -194,18 +183,6 @@ export default function SupportTicketScreen({ navigation, route }: any) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.canvas },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.kraftBorder,
-    backgroundColor: COLORS.canvas,
-  },
-  backBtn: { padding: 8, borderRadius: 8, backgroundColor: COLORS.cardAlt },
-  headerTitle: { fontSize: 15, fontFamily: FONT_DISPLAY, color: COLORS.textCoffee, flex: 1, textAlign: 'center', marginHorizontal: 8 },
   centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { padding: 16, gap: 10, paddingBottom: 24 },
   statusRow: { flexDirection: 'row', marginBottom: 4 },

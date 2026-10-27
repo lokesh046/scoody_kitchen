@@ -32,6 +32,7 @@ import type { CreateProductData, InventoryUpdate } from '../../api/productsAdmin
 import { fetchRAGDocuments, uploadRAGDocument, deleteRAGDocument } from '../../api/chatbot';
 import { fetchAllBanners, createBanner, updateBanner, deleteBanner } from '../../api/banners';
 import { fetchAllFaqs, createFaq, updateFaq, deleteFaq } from '../../api/faqs';
+import { FAQ_PAGES, BANNER_PLACEMENTS, bannerPlacementLabel, faqPageLabel, type FaqPage, type BannerPlacement } from '../../constants/contentPlacements';
 import type { FAQResponse } from '../../types/faq';
 import { fetchAllBlogPosts, updateBlogPost, deleteBlogPost, uploadBlogCoverImage } from '../../api/blog';
 import type { BlogPostResponse } from '../../types/blog';
@@ -156,6 +157,8 @@ export const AdminDashboard: React.FC = () => {
   const [bannerTitle, setBannerTitle] = useState('');
   const [bannerSubtitle, setBannerSubtitle] = useState('');
   const [bannerLinkUrl, setBannerLinkUrl] = useState('');
+  const [bannerPlacement, setBannerPlacement] = useState<BannerPlacement>('home');
+  const [bannerFilter, setBannerFilter] = useState<'all' | BannerPlacement>('all');
   const [bannerDisplayOrder, setBannerDisplayOrder] = useState('0');
   const [bannerIsActive, setBannerIsActive] = useState(true);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
@@ -165,6 +168,7 @@ export const AdminDashboard: React.FC = () => {
   const [editBannerTitle, setEditBannerTitle] = useState('');
   const [editBannerSubtitle, setEditBannerSubtitle] = useState('');
   const [editBannerLinkUrl, setEditBannerLinkUrl] = useState('');
+  const [editBannerPlacement, setEditBannerPlacement] = useState<BannerPlacement>('home');
   const [editBannerDisplayOrder, setEditBannerDisplayOrder] = useState('0');
   const [editBannerIsActive, setEditBannerIsActive] = useState(true);
   const [editBannerFile, setEditBannerFile] = useState<File | null>(null);
@@ -173,6 +177,7 @@ export const AdminDashboard: React.FC = () => {
     setBannerTitle('');
     setBannerSubtitle('');
     setBannerLinkUrl('');
+    setBannerPlacement('home');
     setBannerDisplayOrder('0');
     setBannerIsActive(true);
     setBannerFile(null);
@@ -183,6 +188,8 @@ export const AdminDashboard: React.FC = () => {
   // Form State - FAQs
   const [faqQuestion, setFaqQuestion] = useState('');
   const [faqAnswer, setFaqAnswer] = useState('');
+  const [faqPage, setFaqPage] = useState<FaqPage>('home');
+  const [faqFilter, setFaqFilter] = useState<'all' | FaqPage>('all');
   const [faqDisplayOrder, setFaqDisplayOrder] = useState('0');
   const [faqIsActive, setFaqIsActive] = useState(true);
 
@@ -190,12 +197,14 @@ export const AdminDashboard: React.FC = () => {
   const [editingFaqId, setEditingFaqId] = useState<number | null>(null);
   const [editFaqQuestion, setEditFaqQuestion] = useState('');
   const [editFaqAnswer, setEditFaqAnswer] = useState('');
+  const [editFaqPage, setEditFaqPage] = useState<FaqPage>('home');
   const [editFaqDisplayOrder, setEditFaqDisplayOrder] = useState('0');
   const [editFaqIsActive, setEditFaqIsActive] = useState(true);
 
   const resetFaqForm = () => {
     setFaqQuestion('');
     setFaqAnswer('');
+    setFaqPage('home');
     setFaqDisplayOrder('0');
     setFaqIsActive(true);
   };
@@ -228,7 +237,7 @@ export const AdminDashboard: React.FC = () => {
   const { data: supportUnreadCount } = useQuery({
     queryKey: ['adminSupportUnreadCount'],
     queryFn: fetchAdminSupportUnreadCount,
-    refetchInterval: 60000,
+    refetchInterval: 300000,
   });
 
 
@@ -634,7 +643,7 @@ export const AdminDashboard: React.FC = () => {
   });
 
   const updateFaqMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: Partial<{ question: string; answer: string; display_order: number; is_active: boolean }> }) =>
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<{ question: string; answer: string; page: FaqPage; display_order: number; is_active: boolean }> }) =>
       updateFaq(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-faqs'] });
@@ -760,7 +769,7 @@ export const AdminDashboard: React.FC = () => {
         {/* Back Link */}
         <div className="mb-8 text-left">
           <button
-            onClick={() => navigate('/shop')}
+            onClick={() => navigate('/shop/app')}
             className="font-mono text-[9px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1"
           >
             <ArrowLeft className="w-3 h-3" />
@@ -2216,9 +2225,9 @@ export const AdminDashboard: React.FC = () => {
         {activeTab === 'banners' && (
           <div className="space-y-8 text-left animate-fade-in-up">
             <div>
-              <h3 className="font-display font-bold text-xl text-ink">Homepage Banners</h3>
+              <h3 className="font-display font-bold text-xl text-ink">Banners &amp; Page Images</h3>
               <p className="font-body text-xs text-ink opacity-70 mt-0.5">
-                Upload and configure the featured banners displayed on the homepage slider.
+                Upload and configure the home page slider, the top image of each landing page, and the home page tool cards.
               </p>
             </div>
 
@@ -2241,6 +2250,7 @@ export const AdminDashboard: React.FC = () => {
                     if (bannerTitle) formData.append('title', bannerTitle);
                     if (bannerSubtitle) formData.append('subtitle', bannerSubtitle);
                     if (bannerLinkUrl) formData.append('link_url', bannerLinkUrl);
+                    formData.append('placement', bannerPlacement);
                     formData.append('display_order', bannerDisplayOrder);
                     formData.append('is_active', String(bannerIsActive));
                     formData.append('image', bannerFile);
@@ -2251,7 +2261,25 @@ export const AdminDashboard: React.FC = () => {
                 >
                   <div className="space-y-1.5">
                     <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
-                      Select Banner Image (Landscape, e.g. 1920x600):
+                      Used On:
+                    </label>
+                    <select
+                      value={bannerPlacement}
+                      onChange={(e) => setBannerPlacement(e.target.value as BannerPlacement)}
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none focus:border-turmeric"
+                    >
+                      {BANNER_PLACEMENTS.map((p) => (
+                        <option key={p.value} value={p.value}>{p.label}</option>
+                      ))}
+                    </select>
+                    <p className="font-body text-[10px] text-ink opacity-70">
+                      {BANNER_PLACEMENTS.find((p) => p.value === bannerPlacement)?.hint}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                      Select Banner Image (size depends on "Used On"):
                     </label>
                     <input
                       id="banner-file-input"
@@ -2359,6 +2387,17 @@ export const AdminDashboard: React.FC = () => {
                 <div className="border-b border-cardboard border-dashed pb-3 text-left">
                   <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">Active Banners Registry</span>
                   <h4 className="font-display font-bold text-sm text-ink mt-0.5">Uploaded Banners</h4>
+                  <select
+                    value={bannerFilter}
+                    onChange={(e) => setBannerFilter(e.target.value as 'all' | BannerPlacement)}
+                    aria-label="Filter banners by placement"
+                    className="mt-2 px-3 py-1.5 border border-cardboard rounded-none bg-paper text-[11px] text-ink focus:outline-none focus:border-turmeric"
+                  >
+                    <option value="all">All placements</option>
+                    {BANNER_PLACEMENTS.map((p) => (
+                      <option key={p.value} value={p.value}>{p.label}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {bannersLoading ? (
@@ -2388,7 +2427,7 @@ export const AdminDashboard: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-cardboard divide-dashed">
-                          {banners.map((b) => (
+                          {banners.filter((b) => bannerFilter === 'all' || b.placement === bannerFilter).map((b) => (
                             <tr key={b.id} className="hover:bg-paper transition-colors">
                               <td className="p-4">
                                 <img
@@ -2398,6 +2437,7 @@ export const AdminDashboard: React.FC = () => {
                                 />
                               </td>
                               <td className="p-4 text-left space-y-1">
+                                <div className="font-mono text-[8px] uppercase tracking-wider text-herb font-bold">{bannerPlacementLabel(b.placement)}</div>
                                 <div className="font-bold text-xs">{b.title || 'Untitled Banner'}</div>
                                 {b.subtitle && <div className="text-[10px] text-ink opacity-70 line-clamp-1">{b.subtitle}</div>}
                                 {b.link_url && <div className="text-[9px] font-mono text-herb">Link: {b.link_url}</div>}
@@ -2418,6 +2458,7 @@ export const AdminDashboard: React.FC = () => {
                                       setEditBannerTitle(b.title || '');
                                       setEditBannerSubtitle(b.subtitle || '');
                                       setEditBannerLinkUrl(b.link_url || '');
+                                      setEditBannerPlacement((b.placement as BannerPlacement) || 'home');
                                       setEditBannerDisplayOrder(String(b.display_order));
                                       setEditBannerIsActive(b.is_active);
                                       setEditBannerFile(null);
@@ -2478,6 +2519,7 @@ export const AdminDashboard: React.FC = () => {
                         payload: {
                           question: editFaqQuestion,
                           answer: editFaqAnswer,
+                          page: editFaqPage,
                           display_order: parseInt(editFaqDisplayOrder, 10) || 0,
                           is_active: editFaqIsActive,
                         },
@@ -2490,6 +2532,7 @@ export const AdminDashboard: React.FC = () => {
                       createFaqMutation.mutate({
                         question: faqQuestion,
                         answer: faqAnswer,
+                        page: faqPage,
                         display_order: parseInt(faqDisplayOrder, 10) || 0,
                         is_active: faqIsActive,
                       });
@@ -2521,6 +2564,21 @@ export const AdminDashboard: React.FC = () => {
                       rows={4}
                       className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric resize-none transition-colors"
                     />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                      Shown On:
+                    </label>
+                    <select
+                      value={editingFaqId !== null ? editFaqPage : faqPage}
+                      onChange={(e) => editingFaqId !== null ? setEditFaqPage(e.target.value as FaqPage) : setFaqPage(e.target.value as FaqPage)}
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none focus:border-turmeric"
+                    >
+                      {FAQ_PAGES.map((p) => (
+                        <option key={p.value} value={p.value}>{p.label}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -2578,6 +2636,17 @@ export const AdminDashboard: React.FC = () => {
                 <div className="border-b border-cardboard border-dashed pb-3 text-left">
                   <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-widest block">FAQ Registry</span>
                   <h4 className="font-display font-bold text-sm text-ink mt-0.5">Published Questions</h4>
+                  <select
+                    value={faqFilter}
+                    onChange={(e) => setFaqFilter(e.target.value as 'all' | FaqPage)}
+                    aria-label="Filter questions by page"
+                    className="mt-2 px-3 py-1.5 border border-cardboard rounded-none bg-paper text-[11px] text-ink focus:outline-none focus:border-turmeric"
+                  >
+                    <option value="all">All pages</option>
+                    {FAQ_PAGES.map((p) => (
+                      <option key={p.value} value={p.value}>{p.label}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {faqsLoading ? (
@@ -2606,9 +2675,10 @@ export const AdminDashboard: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-cardboard divide-dashed">
-                          {faqs.map((f: FAQResponse) => (
+                          {faqs.filter((f: FAQResponse) => faqFilter === 'all' || f.page === faqFilter).map((f: FAQResponse) => (
                             <tr key={f.id} className="hover:bg-paper transition-colors">
                               <td className="p-4 text-left space-y-1 max-w-sm">
+                                <div className="font-mono text-[8px] uppercase tracking-wider text-herb font-bold">{faqPageLabel(f.page)}</div>
                                 <div className="font-bold text-xs">{f.question}</div>
                                 <div className="text-[10px] text-ink opacity-70 line-clamp-2">{f.answer}</div>
                               </td>
@@ -2627,6 +2697,7 @@ export const AdminDashboard: React.FC = () => {
                                       setEditingFaqId(f.id);
                                       setEditFaqQuestion(f.question);
                                       setEditFaqAnswer(f.answer);
+                                      setEditFaqPage((f.page as FaqPage) || 'home');
                                       setEditFaqDisplayOrder(String(f.display_order));
                                       setEditFaqIsActive(f.is_active);
                                     }}
@@ -3957,6 +4028,7 @@ export const AdminDashboard: React.FC = () => {
                 formData.append('title', editBannerTitle);
                 formData.append('subtitle', editBannerSubtitle);
                 formData.append('link_url', editBannerLinkUrl);
+                formData.append('placement', editBannerPlacement);
                 formData.append('display_order', editBannerDisplayOrder);
                 formData.append('is_active', String(editBannerIsActive));
                 if (editBannerFile) {
@@ -4034,6 +4106,24 @@ export const AdminDashboard: React.FC = () => {
                   className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none"
                 />
               </div>
+
+              <div className="space-y-1.5">
+                    <label className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">
+                      Used On:
+                    </label>
+                    <select
+                      value={editBannerPlacement}
+                      onChange={(e) => setEditBannerPlacement(e.target.value as BannerPlacement)}
+                      className="w-full px-3 py-2 border border-cardboard rounded-none bg-paper text-xs text-ink focus:outline-none focus:border-turmeric"
+                    >
+                      {BANNER_PLACEMENTS.map((p) => (
+                        <option key={p.value} value={p.value}>{p.label}</option>
+                      ))}
+                    </select>
+                    <p className="font-body text-[10px] text-ink opacity-70">
+                      {BANNER_PLACEMENTS.find((p) => p.value === editBannerPlacement)?.hint}
+                    </p>
+                  </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">

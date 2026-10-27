@@ -62,7 +62,7 @@ class PetVisionPipeline:
         b64_img = base64.b64encode(image_bytes).decode("utf-8")
 
         prompt = (
-            "You are an expert veterinary companion animal specialist for Scooby's Kitchen, an honest small-batch pet wellness and fresh meal company in India.\n\n"
+            "You are an expert veterinary companion animal specialist for Hearth & One, an honest small-batch pet wellness and fresh meal company in India.\n\n"
             "Analyze the uploaded image and determine:\n"
             "1. Is this a pet dog or cat? (is_pet: boolean). If it is a human, furniture, car, object, or other non-dog/non-cat subject, set is_pet: false.\n"
             "2. Species: 'Dog' or 'Cat'\n"
@@ -83,7 +83,7 @@ class PetVisionPipeline:
             "6. Adult Size Category: e.g. 'Toy (2 - 4 kg)', 'Small (5 - 10 kg)', 'Medium (12 - 22 kg)', 'Large (25 - 38 kg)', 'Giant (40+ kg)'.\n"
             "7. Temperament: Short 3-5 word description of personality.\n"
             "8. Nutritional Focus: Specific nutritional needs for this breed.\n"
-            "9. Recommended Recipe: Recommended Scooby's Kitchen fresh food recipe.\n"
+            "9. Recommended Recipe: Recommended Hearth & One fresh food recipe.\n"
             "10. Health Watch: 2 to 3 key health watchpoints for this breed.\n\n"
             "Return strictly JSON adhering to this structure:\n"
             "{\n"
@@ -98,7 +98,7 @@ class PetVisionPipeline:
             '    "temperament": "Alert, loyal, intuitive, highly adaptable",\n'
             '    "adult_size_category": "Medium (15 - 25 kg)",\n'
             '    "nutritional_focus": "Balanced ancestral lean poultry proteins, golden turmeric anti-inflammatory stew, and omega-3s",\n'
-            '    "recommended_recipe": "Scooby Heritage Chicken, Rice & Golden Turmeric Stew",\n'
+            '    "recommended_recipe": "Hearth & One Heritage Chicken, Rice & Golden Turmeric Stew",\n'
             '    "health_watch": ["Tick & seasonal parasite resilience", "Skin barrier nourishment", "Joint agility"]\n'
             "  },\n"
             '  "error_message": null\n'

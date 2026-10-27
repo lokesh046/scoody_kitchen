@@ -8,19 +8,21 @@ from app.dependencies.auth import require_role
 from app.models.enums import UserRole
 from app.models.user import User
 from app.models.banner import Banner
-from app.schemas.banner import BannerResponse
+from app.schemas.banner import BannerResponse, BannerPlacement
 from app.services.storage_service import get_storage_provider, validate_image_file
 
 router = APIRouter(prefix="/banners", tags=["Banners"])
 
 @router.get("/", response_model=list[BannerResponse])
-def get_active_banners(db: Session = Depends(get_db)):
-    cache_key = "banners:active"
+def get_active_banners(placement: BannerPlacement = "home", db: Session = Depends(get_db)):
+    # No placement given means the home carousel, which is how this endpoint always behaved.
+    # The home list keeps the original cache key; other placements get their own.
+    cache_key = "banners:active" if placement == "home" else f"banners:active:{placement}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
-    stmt = select(Banner).where(Banner.is_active == True).order_by(Banner.display_order.asc())
+    stmt = select(Banner).where(Banner.is_active == True, Banner.placement == placement).order_by(Banner.display_order.asc())
     banners = db.scalars(stmt).all()
     
     # Serialize results to list of dicts to safely store in cache
@@ -28,7 +30,7 @@ def get_active_banners(db: Session = Depends(get_db)):
         BannerResponse.model_validate(b).model_dump(mode="json")
         for b in banners
     ]
-    cache.set(cache_key, serialized, ttl_seconds=600)
+    cache.set(cache_key, serialized, ttl_seconds=86400)
     return banners
 
 @router.get("/all", response_model=list[BannerResponse])
@@ -44,6 +46,7 @@ async def create_banner(
     title: str | None = Form(None),
     subtitle: str | None = Form(None),
     link_url: str | None = Form(None),
+    placement: BannerPlacement = Form("home"),
     display_order: int = Form(0),
     is_active: bool = Form(True),
     image: UploadFile = File(...),
@@ -67,13 +70,14 @@ async def create_banner(
         subtitle=subtitle,
         image_url=uploaded_url,
         link_url=link_url,
+        placement=placement,
         display_order=display_order,
         is_active=is_active
     )
     db.add(new_banner)
     db.commit()
     db.refresh(new_banner)
-    cache.delete("banners:active")
+    cache.clear_prefix("banners:active")
     return new_banner
 
 @router.patch("/{id}", response_model=BannerResponse)
@@ -82,6 +86,7 @@ async def update_banner(
     title: str | None = Form(None),
     subtitle: str | None = Form(None),
     link_url: str | None = Form(None),
+    placement: BannerPlacement | None = Form(None),
     display_order: int | None = Form(None),
     is_active: bool | None = Form(None),
     image: UploadFile | None = File(None),
@@ -123,6 +128,8 @@ async def update_banner(
         banner.subtitle = subtitle if subtitle != "" else None
     if link_url is not None:
         banner.link_url = link_url if link_url != "" else None
+    if placement is not None:
+        banner.placement = placement
     if display_order is not None:
         banner.display_order = display_order
     if is_active is not None:
@@ -130,7 +137,7 @@ async def update_banner(
 
     db.commit()
     db.refresh(banner)
-    cache.delete("banners:active")
+    cache.clear_prefix("banners:active")
     return banner
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -156,4 +163,4 @@ def delete_banner(
 
     db.delete(banner)
     db.commit()
-    cache.delete("banners:active")
+    cache.clear_prefix("banners:active")

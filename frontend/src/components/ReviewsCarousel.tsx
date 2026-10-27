@@ -80,7 +80,7 @@ const FALLBACK_COMMUNITY_REVIEWS: UnifiedReview[] = [
     id: -106,
     type: 'product',
     rating: 5,
-    comment: 'Our senior Labrador had low energy, but since switching to Scoobys fresh meals, he is playful and energetic again.',
+    comment: "Our senior Labrador had low energy, but since switching to Hearth & One's fresh meals, he is playful and energetic again.",
     image_url: 'https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&q=80&w=600',
     created_at: '2026-08-25T15:20:00Z',
     author_name: 'Sneha Patel',
@@ -90,7 +90,7 @@ const FALLBACK_COMMUNITY_REVIEWS: UnifiedReview[] = [
   }
 ];
 
-export function ReviewsCarousel() {
+export function ReviewsCarousel({ dark = false }: { dark?: boolean }) {
   const [selectedReview, setSelectedReview] = useState<UnifiedReview | null>(null);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'product' | 'doctor'>('all');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -135,7 +135,8 @@ export function ReviewsCarousel() {
     const interval = setInterval(() => {
       if (!scrollContainerRef.current) return;
       const container = scrollContainerRef.current;
-      const scrollAmount = window.innerWidth < 768 ? 260 : 320;
+      const firstCard = container.firstElementChild as HTMLElement | null;
+      const scrollAmount = (firstCard?.offsetWidth || 320) + (parseFloat(getComputedStyle(container).columnGap) || 0);
       const maxScroll = container.scrollWidth - container.clientWidth;
 
       if (container.scrollLeft >= maxScroll - 15) {
@@ -151,7 +152,8 @@ export function ReviewsCarousel() {
   const handleScroll = (direction: 'left' | 'right') => {
     if (!scrollContainerRef.current) return;
     const container = scrollContainerRef.current;
-    const scrollAmount = window.innerWidth < 768 ? 260 : 320;
+    const firstCard = container.firstElementChild as HTMLElement | null;
+    const scrollAmount = (firstCard?.offsetWidth || 320) + (parseFloat(getComputedStyle(container).columnGap) || 0);
     if (direction === 'left') {
       container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
     } else {
@@ -161,7 +163,9 @@ export function ReviewsCarousel() {
 
   if (isLoading) {
     return (
-      <div className="py-16 text-center">
+      // Reserve the same height as the loaded section so the page does not jump
+      // when the reviews arrive.
+      <div className="min-h-[730px] md:min-h-[783px] py-12 md:py-20 text-center" aria-hidden="true">
         <div className="animate-pulse flex flex-col items-center space-y-4">
           <div className="h-6 bg-cardboard/20 w-48 rounded-sm"></div>
           <div className="h-10 bg-cardboard/20 w-80 rounded-sm"></div>
@@ -175,21 +179,26 @@ export function ReviewsCarousel() {
     );
   }
 
+  const chipSelected = dark ? 'bg-turmeric text-ink shadow-xs' : null;
+  const chipUnselected = dark
+    ? 'bg-transparent border border-ink border-opacity-20 text-ink opacity-70 hover:opacity-100'
+    : 'bg-paper border border-cardboard/40 text-ink opacity-70 hover:opacity-100';
+
   return (
-    <section ref={sectionRef} className="bg-paperLight py-12 md:py-20 px-3 sm:px-6 md:px-8 border-b border-cardboard border-opacity-30 relative overflow-hidden">
+    <section
+      ref={sectionRef}
+      className={`${dark ? 'bg-obsidian border-ink border-opacity-10' : 'bg-paperLight border-cardboard border-opacity-30'} py-12 md:py-20 px-3 sm:px-6 md:px-8 border-b relative overflow-hidden`}
+    >
       <div className="max-w-7xl mx-auto space-y-8 md:space-y-10">
-        
+
         {/* Header Section */}
         <div className="text-center space-y-2 max-w-3xl mx-auto animate-fade-in">
-          <span className="font-mono text-[9px] uppercase tracking-widest font-bold text-herb block">
+          <span className={`font-mono text-xs sm:text-sm uppercase tracking-widest font-bold block ${dark ? 'text-turmeric' : 'text-herb'}`}>
             // COMMUNITY FEEDBACK LEDGER ({reviews.length} ENTRIES)
           </span>
-          <h2 className="font-display font-black text-2xl sm:text-3xl md:text-5xl text-ink tracking-tight">
-            Let our #Scoobysfam speak
+          <h2 className={`font-display font-black text-2xl sm:text-3xl md:text-5xl tracking-tight ${dark ? 'text-ink' : 'text-ink'}`}>
+            Let our #HearthAndOneFam speak
           </h2>
-          <p className="font-body text-xs sm:text-sm text-ink opacity-75 max-w-xl mx-auto">
-            Real experiences from pet parents nourishing their companions with whole bioavailable recipes and consulting certified veterinarians.
-          </p>
 
           {/* Filter Chips */}
           <div className="flex items-center justify-center space-x-2 pt-3 font-mono text-[10px] uppercase font-bold">
@@ -198,8 +207,8 @@ export function ReviewsCarousel() {
               onClick={() => setReviewFilter('all')}
               className={`px-3.5 py-1.5 rounded-sm transition-colors cursor-pointer ${
                 reviewFilter === 'all'
-                  ? 'bg-ink text-paper shadow-xs'
-                  : 'bg-paper border border-cardboard/40 text-ink opacity-70 hover:opacity-100'
+                  ? (chipSelected || 'bg-ink text-paper shadow-xs')
+                  : chipUnselected
               }`}
             >
               All Reviews ({allReviews.length})
@@ -209,8 +218,8 @@ export function ReviewsCarousel() {
               onClick={() => setReviewFilter('product')}
               className={`px-3.5 py-1.5 rounded-sm transition-colors cursor-pointer flex items-center space-x-1.5 ${
                 reviewFilter === 'product'
-                  ? 'bg-herb text-white shadow-xs'
-                  : 'bg-paper border border-cardboard/40 text-ink opacity-70 hover:opacity-100'
+                  ? (chipSelected || 'bg-herb text-white shadow-xs')
+                  : chipUnselected
               }`}
             >
               <Package className="w-3.5 h-3.5" />
@@ -221,8 +230,8 @@ export function ReviewsCarousel() {
               onClick={() => setReviewFilter('doctor')}
               className={`px-3.5 py-1.5 rounded-sm transition-colors cursor-pointer flex items-center space-x-1.5 ${
                 reviewFilter === 'doctor'
-                  ? 'bg-blue-700 text-white shadow-xs'
-                  : 'bg-paper border border-cardboard/40 text-ink opacity-70 hover:opacity-100'
+                  ? (chipSelected || 'bg-blue-700 text-white shadow-xs')
+                  : chipUnselected
               }`}
             >
               <Stethoscope className="w-3.5 h-3.5" />
@@ -236,10 +245,10 @@ export function ReviewsCarousel() {
           {/* Scroll Left Button */}
           <button
             onClick={() => handleScroll('left')}
-            className="absolute -left-2 sm:-left-4 md:-left-5 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full border border-cardboard bg-paper hover:bg-turmeric text-ink shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            className={`absolute -left-2 sm:-left-4 md:-left-5 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full border shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer hover:bg-turmeric ${dark ? 'border-ink border-opacity-20 bg-obsidian text-ink hover:text-ink' : 'border-cardboard bg-paper text-ink'}`}
             aria-label="Scroll reviews left"
           >
-            <ChevronLeft className="w-5 h-5 text-ink" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
 
           {/* Scrollable Row */}
@@ -247,72 +256,66 @@ export function ReviewsCarousel() {
             ref={scrollContainerRef}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            className="flex gap-4 sm:gap-6 overflow-x-auto scrollbar-none py-3 px-1 snap-x snap-mandatory"
+            className="flex gap-4 sm:gap-6 overflow-x-auto scrollbar-none pt-3 pb-8 px-1 snap-x snap-mandatory"
             style={{ scrollbarWidth: 'none' }}
           >
             {reviews.map((review, index) => {
               const displayImage = review.image_url || DEFAULT_DOG_IMAGES[index % DEFAULT_DOG_IMAGES.length];
               return (
-                <div
+                <button
+                  type="button"
                   key={`${review.id}-${index}`}
                   onClick={() => setSelectedReview(review)}
-                  className="w-[78vw] max-w-[270px] sm:w-[280px] md:w-[300px] border border-cardboard border-opacity-40 hover:border-turmeric bg-paper p-4 sm:p-5 rounded-sm flex flex-col justify-between cursor-pointer hover:shadow-md transition-all duration-300 snap-center shrink-0 select-none group/card"
+                  aria-label={`Read ${review.author_name}'s ${review.rating}-star review`}
+                  className="group/card flex w-[82vw] max-w-[340px] sm:w-[320px] md:w-[340px] shrink-0 snap-center flex-col text-left cursor-pointer rounded-[20px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-turmeric focus-visible:ring-offset-4 focus-visible:ring-offset-paper motion-safe:transition-transform motion-safe:duration-300 motion-safe:hover:-translate-y-1"
                 >
-                  <div className="space-y-3 sm:space-y-4">
-                    {/* Review Picture */}
-                    <div className="w-full aspect-square overflow-hidden bg-paperLight border border-cardboard border-opacity-30 rounded-xs relative">
-                      <img
-                        src={displayImage}
-                        alt={`Review by ${review.author_name}`}
-                        width={300}
-                        height={300}
-                        className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500"
-                        loading="lazy"
-                        decoding="async"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = DEFAULT_DOG_IMAGES[index % DEFAULT_DOG_IMAGES.length];
-                        }}
-                      />
-                      <span className={`absolute top-2 left-2 text-[8px] font-mono font-bold uppercase px-2 py-0.5 rounded-xs border shadow-xs ${
-                        review.type === 'doctor'
-                          ? 'bg-blue-50 text-blue-800 border-blue-200'
-                          : 'bg-emerald-50 text-herb border-emerald-200'
-                      }`}>
-                        {review.type === 'doctor' ? '🩺 Vet Consult' : '🐾 Fresh Meal'}
-                      </span>
-                    </div>
-
-                    {/* Stars */}
-                    <div className="flex space-x-1 justify-center">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          className={`w-4 h-4 ${
-                            star <= review.rating ? 'fill-[#00b67a] text-[#00b67a]' : 'text-cardboard opacity-40'
-                          }`}
-                        />
-                      ))}
-                    </div>
-
-                    {/* Review Body Snippet */}
-                    <p className="font-body text-xs text-ink opacity-85 leading-relaxed text-center italic line-clamp-3">
-                      "{review.comment || 'No comment provided.'}"
-                    </p>
-                  </div>
-
-                  <div className="pt-3 sm:pt-4 border-t border-cardboard border-opacity-35 mt-3 text-center space-y-1">
-                    <div className="flex items-center justify-center space-x-1.5">
-                      <span className="font-display font-bold text-xs text-ink">{review.author_name}</span>
-                      {review.is_verified_buyer && (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-[#00b67a] shrink-0" />
-                      )}
-                    </div>
-                    
-                    <span className="font-mono text-[9px] uppercase tracking-wider text-paprika block truncate">
-                      {review.reviewed_item_name}
+                  <span className="relative block w-full h-[210px] sm:h-[230px] shrink-0 overflow-hidden rounded-[20px] bg-cardboard/30">
+                    <img
+                      src={displayImage}
+                      alt={`Review by ${review.author_name}`}
+                      width={680}
+                      height={460}
+                      className="h-full w-full object-cover motion-safe:group-hover/card:scale-105 motion-safe:transition-transform motion-safe:duration-500"
+                      loading="lazy"
+                      decoding="async"
+                      onError={(e) => {
+                        const fallback = DEFAULT_DOG_IMAGES[index % DEFAULT_DOG_IMAGES.length];
+                        if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback;
+                      }}
+                    />
+                    <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-midnight/85 px-3 py-1.5 font-mono text-[9px] uppercase tracking-wider text-paper backdrop-blur-sm">
+                      {review.type === 'doctor' ? <Stethoscope aria-hidden="true" className="h-3.5 w-3.5 text-turmeric" /> : <Package aria-hidden="true" className="h-3.5 w-3.5 text-turmeric" />}
+                      {review.type === 'doctor' ? 'Vet Consult' : 'Fresh Meal'}
                     </span>
-                  </div>
-                </div>
+                  </span>
+
+                  <span className="relative z-10 mx-3 -mt-7 flex flex-1 flex-col rounded-[16px] border border-cardboard/50 bg-white p-5 sm:p-6 shadow-[0_8px_24px_rgba(54,40,32,0.08)] transition-shadow group-hover/card:shadow-[0_12px_30px_rgba(54,40,32,0.13)]">
+                    <span className="mb-4 flex items-center gap-1" aria-label={`${review.rating} out of 5 stars`}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star key={star} aria-hidden="true" className={`h-4 w-4 ${star <= review.rating ? 'fill-turmeric text-turmeric' : 'text-cardboard'}`} />
+                      ))}
+                      <span className="ml-2 font-mono text-xs text-ink/60">{review.rating.toFixed(1)}</span>
+                    </span>
+                    <span className="block min-h-[7.5rem] font-body text-sm leading-6 text-ink/80">
+                      <span className="line-clamp-5">“{review.comment || 'No comment provided.'}”</span>
+                    </span>
+                    <span className="mt-5 flex items-center gap-3 border-t border-cardboard/60 pt-4">
+                      <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-midnight font-display text-base font-semibold text-turmeric">
+                        {review.author_name.trim().charAt(0).toUpperCase()}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5">
+                          <span className="truncate font-display text-sm font-semibold text-ink">{review.author_name}</span>
+                          {review.is_verified_buyer && <CheckCircle2 aria-label="Verified reviewer" className="h-3.5 w-3.5 shrink-0 text-turmeric" />}
+                        </span>
+                        <span className="mt-1 block truncate font-body text-xs text-ink/60">{review.reviewed_item_name}</span>
+                      </span>
+                    </span>
+                    <span className="mt-4 inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-ink/70">
+                      Read their story <ChevronRight aria-hidden="true" className="h-3.5 w-3.5 text-turmeric" />
+                    </span>
+                  </span>
+                </button>
               );
             })}
           </div>
@@ -320,10 +323,10 @@ export function ReviewsCarousel() {
           {/* Scroll Right Button */}
           <button
             onClick={() => handleScroll('right')}
-            className="absolute -right-2 sm:-right-4 md:-right-5 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full border border-cardboard bg-paper hover:bg-turmeric text-ink shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+            className={`absolute -right-2 sm:-right-4 md:-right-5 top-1/2 -translate-y-1/2 z-20 w-10 h-10 flex items-center justify-center rounded-full border shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer hover:bg-turmeric ${dark ? 'border-ink border-opacity-20 bg-obsidian text-ink hover:text-ink' : 'border-cardboard bg-paper text-ink'}`}
             aria-label="Scroll reviews right"
           >
-            <ChevronRight className="w-5 h-5 text-ink" />
+            <ChevronRight className="w-5 h-5" />
           </button>
         </div>
       </div>

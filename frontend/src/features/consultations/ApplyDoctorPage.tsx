@@ -491,7 +491,7 @@ export default function ApplyDoctorPage() {
         {/* Back Link */}
         <div className="mb-6 text-left">
           <button
-            onClick={() => navigate('/consultations')}
+            onClick={() => navigate('/consultations/app')}
             className="font-mono text-[9px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1 border-0 bg-transparent cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />

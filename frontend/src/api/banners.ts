@@ -1,8 +1,9 @@
 import { apiClient } from './client';
 import type { BannerResponse } from '../types/banner';
+import type { BannerPlacement } from '../constants/contentPlacements';
 
-export const fetchActiveBanners = async (): Promise<BannerResponse[]> => {
-  const response = await apiClient.get<BannerResponse[]>('/banners/');
+export const fetchActiveBanners = async (placement: BannerPlacement = 'home'): Promise<BannerResponse[]> => {
+  const response = await apiClient.get<BannerResponse[]>('/banners/', { params: { placement } });
   return response.data;
 };
 

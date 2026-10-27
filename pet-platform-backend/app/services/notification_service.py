@@ -3,8 +3,19 @@ from datetime import datetime, UTC
 from sqlalchemy import select, func, update
 from sqlalchemy.orm import Session
 from app.models.notification import Notification
+from app.core.cache import cache
 from app.core.redis_pubsub import publish_notification_async, publish_notification_sync
 from app.services.push_token_service import get_push_tokens_for_user
+
+
+# Unread counts are read on every page load and every app Home visit, but only change
+# when a notification is created or read. Keep them in the cache and clear the entry on
+# those events, so a count is only recomputed from the database after a real change.
+UNREAD_TTL_SECONDS = 600
+
+
+def _unread_key(user_id: int) -> str:
+    return f"notif:unread:{user_id}"
 
 
 def create_notification(
@@ -26,6 +37,7 @@ def create_notification(
     db.add(notification)
     db.commit()
     db.refresh(notification)
+    cache.delete(_unread_key(user_id))
 
     # Format the payload for WebSocket
     created_at_dt = notification.created_at or datetime.now(UTC)
@@ -83,6 +95,9 @@ def get_user_notifications(
 
 
 def get_unread_notifications_count(db: Session, user_id: int) -> int:
+    cached = cache.get(_unread_key(user_id))
+    if cached is not None:
+        return int(cached)
     statement = (
         select(func.count(Notification.id))
         .where(
@@ -90,7 +105,9 @@ def get_unread_notifications_count(db: Session, user_id: int) -> int:
             Notification.is_read == False
         )
     )
-    return db.scalar(statement) or 0
+    count = db.scalar(statement) or 0
+    cache.set(_unread_key(user_id), count, ttl_seconds=UNREAD_TTL_SECONDS)
+    return count
 
 
 def mark_as_read(db: Session, user_id: int, notification_id: int) -> Notification | None:
@@ -103,6 +120,7 @@ def mark_as_read(db: Session, user_id: int, notification_id: int) -> Notificatio
         notification.is_read = True
         db.commit()
         db.refresh(notification)
+        cache.delete(_unread_key(user_id))
     return notification
 
 
@@ -117,4 +135,5 @@ def mark_all_read(db: Session, user_id: int) -> int:
     )
     result = db.execute(statement)
     db.commit()
+    cache.delete(_unread_key(user_id))
     return getattr(result, "rowcount", 0)

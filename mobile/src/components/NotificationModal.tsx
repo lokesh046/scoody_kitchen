@@ -299,7 +299,7 @@ export function NotificationModal({
                 <Bell size={28} color="#00B67A" />
               </View>
               <Text style={styles.emptyTitle}>
-                {filterTab === 'unread' ? 'All Caught Up! 🐾' : 'No Notifications Yet'}
+                {filterTab === 'unread' ? 'All Caught Up!' : 'No Notifications Yet'}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {filterTab === 'unread'
@@ -391,7 +391,7 @@ export function NotificationModal({
           {/* Footer branding */}
           <View style={styles.footerBar}>
             <Text style={styles.footerBarText}>
-              SCOOBY'S KITCHEN NOTIFICATION SYSTEM
+              HEARTH & ONE NOTIFICATION SYSTEM
             </Text>
           </View>
         </SafeAreaView>

@@ -18,8 +18,8 @@ import { Quicksand_400Regular, Quicksand_700Bold } from '@expo-google-fonts/quic
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
+import { Asset } from 'expo-asset';
 import {
-  ArrowLeft,
   Share2,
   CheckCircle2,
   Truck,
@@ -32,9 +32,10 @@ import {
 import { COLORS } from '../theme/colors';
 import { fetchOrderById, fetchOrderTracking, Order, OrderItem, OrderTrackingResponse } from '../api/orders';
 import ResponsiveContainer from '../components/ResponsiveContainer';
+import { StackHeader } from '../components/ScreenHeader';
 import { getStatusBadgeStyle } from '../utils/orderStatus';
 import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
-import { LEDGER_MONO, FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_BODY_BOLD } from '../theme/typography';
+import { LEDGER_MONO, FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD } from '../theme/typography';
 
 // Determine milestone step index (0-3) outside component
 const getStepIndex = (statusStr: string): number => {
@@ -56,9 +57,27 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
-// Renders the order as a branded, printable receipt (used to generate a PDF
+// Loads the bundled logo as a data: URI so it renders inside the generated
+// PDF without needing network access — expo-print's HTML renderer can't
+// resolve a bare require()'d asset path, only inline data or real URLs.
+let cachedLogoDataUri: string | null = null;
+async function getLogoDataUri(): Promise<string | null> {
+  if (cachedLogoDataUri) return cachedLogoDataUri;
+  try {
+    const asset = Asset.fromModule(require('../../assets/scooby-logo-256.png'));
+    await asset.downloadAsync();
+    const base64 = await FileSystem.readAsStringAsync(asset.localUri!, { encoding: FileSystem.EncodingType.Base64 });
+    cachedLogoDataUri = `data:image/png;base64,${base64}`;
+    return cachedLogoDataUri;
+  } catch (e) {
+    console.log('Could not load logo for receipt, continuing without it:', e);
+    return null;
+  }
+}
+
+// Renders the order as a branded, printable invoice (used to generate a PDF
 // for sharing) instead of a plain text message.
-function buildReceiptHtml(order: Order, formattedDate: string): string {
+function buildReceiptHtml(order: Order, formattedDate: string, logoDataUri: string | null): string {
   const itemsRows = order.items
     .map((item) => {
       const lineTotal = item.subtotal ?? Number(item.unit_price) * item.quantity;
@@ -84,85 +103,126 @@ function buildReceiptHtml(order: Order, formattedDate: string): string {
     ? `<tr><td class="label">Payment Ref</td><td class="value mono" colspan="2">${escapeHtml(order.razorpay_order_id)}</td></tr>`
     : '';
 
+  const invoiceNumber = `INV-${String(order.id).padStart(6, '0')}`;
+  const logoImg = logoDataUri
+    ? `<img src="${logoDataUri}" class="logo" alt="Hearth & One" />`
+    : '';
+
   return `<!DOCTYPE html>
   <html>
   <head>
     <meta charset="utf-8" />
     <style>
       * { box-sizing: border-box; }
-      body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: #2C1810; margin: 0; padding: 36px; background: #FFFFFF; }
-      .brand-row { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #3F5E4D; padding-bottom: 16px; margin-bottom: 20px; }
-      .brand-name { font-size: 22px; font-weight: 800; color: #3F5E4D; letter-spacing: 0.5px; }
-      .brand-tag { font-size: 11px; color: #6E6259; margin-top: 2px; }
-      .receipt-label { text-align: right; font-size: 11px; letter-spacing: 1px; color: ${COLORS.brandGold}; font-weight: 700; text-transform: uppercase; }
-      .order-id { font-size: 16px; font-weight: 800; text-align: right; }
-      .status-row { display: flex; justify-content: space-between; align-items: center; background: #F9F6F0; border-radius: 10px; padding: 12px 16px; margin-bottom: 24px; }
-      .status-pill { display: inline-block; background: #EDF5F0; color: #3F5E4D; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; padding: 4px 10px; border-radius: 12px; }
+      html, body { height: 100%; }
+      body {
+        font-family: -apple-system, Helvetica, Arial, sans-serif;
+        color: #2C1810;
+        margin: 0;
+        padding: 28px;
+        background: #F4EFEB;
+      }
+      .sheet {
+        max-width: 720px;
+        margin: 0 auto;
+        background: #FFFFFF;
+        border: 1px solid #E6DFD5;
+        border-radius: 14px;
+        padding: 40px 44px;
+      }
+      .brand-row { display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 2px solid #3F5E4D; padding-bottom: 20px; margin-bottom: 24px; }
+      .brand-left { display: flex; align-items: center; gap: 12px; }
+      .logo { width: 40px; height: 50px; object-fit: contain; }
+      .brand-name { font-size: 20px; font-weight: 800; color: #3F5E4D; letter-spacing: 0.3px; }
+      .brand-tag { font-size: 10.5px; color: #6E6259; margin-top: 1px; }
+      .invoice-meta { text-align: right; }
+      .invoice-title { font-size: 20px; font-weight: 800; color: #2C1810; letter-spacing: 1.5px; }
+      .invoice-number { font-size: 12px; color: ${COLORS.brandGold}; font-weight: 700; margin-top: 2px; font-family: 'Courier New', monospace; }
+      .meta-grid { display: flex; justify-content: space-between; margin-bottom: 26px; gap: 24px; }
+      .meta-col { flex: 1; }
+      .meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: ${COLORS.brandGold}; font-weight: 800; margin-bottom: 6px; }
+      .meta-value { font-size: 12.5px; line-height: 1.6; }
+      .status-pill { display: inline-block; background: #EDF5F0; color: #3F5E4D; font-weight: 800; font-size: 10.5px; letter-spacing: 0.5px; padding: 4px 10px; border-radius: 12px; }
       .muted { color: #6E6259; font-size: 11px; }
-      .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: ${COLORS.brandGold}; font-weight: 800; margin: 22px 0 8px; }
+      .section-title { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.6px; color: ${COLORS.brandGold}; font-weight: 800; margin: 24px 0 8px; }
       table { width: 100%; border-collapse: collapse; }
-      thead th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: ${COLORS.brandGold}; border-bottom: 1px solid #E6DFD5; padding-bottom: 8px; }
+      thead th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #FFFFFF; background: #3F5E4D; padding: 9px 10px; }
+      thead th:first-child { border-radius: 6px 0 0 6px; }
+      thead th:last-child { border-radius: 0 6px 6px 0; }
       th.num, td.num { text-align: right; }
-      tbody td { padding: 10px 0; border-bottom: 1px solid #F1ECE3; font-size: 13px; vertical-align: top; }
+      tbody td { padding: 10px; border-bottom: 1px solid #F1ECE3; font-size: 12.5px; vertical-align: top; }
+      tbody tr:nth-child(even) { background: #FAF8F5; }
       .item-name { font-weight: 700; }
       .item-meta { font-size: 11px; color: #6E6259; margin-top: 2px; }
-      .totals td { border-bottom: none; padding: 4px 0; font-size: 13px; }
+      .totals { margin-top: 4px; }
+      .totals td { border-bottom: none; padding: 4px 10px; font-size: 12.5px; }
       .totals .label { color: #6E6259; }
       .totals .value { text-align: right; }
       .discount { color: #3F5E4D; }
-      .grand-row td { border-top: 1px solid #E6DFD5; padding-top: 10px; font-size: 16px; font-weight: 800; }
+      .grand-row td { border-top: 1.5px solid #3F5E4D; padding-top: 10px; font-size: 15px; font-weight: 800; }
       .grand-row .num { color: #3F5E4D; }
       .address-box { background: #F9F6F0; border-radius: 10px; padding: 12px 16px; font-size: 12.5px; line-height: 1.5; }
       .mono { font-family: 'Courier New', monospace; font-size: 11px; }
-      .footer { margin-top: 30px; text-align: center; font-size: 11px; color: #6E6259; }
+      .footer { margin-top: 34px; padding-top: 18px; border-top: 1px solid #E6DFD5; text-align: center; font-size: 10.5px; color: #6E6259; line-height: 1.7; }
       .footer strong { color: #3F5E4D; }
     </style>
   </head>
   <body>
-    <div class="brand-row">
-      <div>
-        <div class="brand-name">🐾 Scooby's Kitchen</div>
-        <div class="brand-tag">Fresh, Human-Grade Canine Nutrition</div>
+    <div class="sheet">
+      <div class="brand-row">
+        <div class="brand-left">
+          ${logoImg}
+          <div>
+            <div class="brand-name">Hearth &amp; One</div>
+            <div class="brand-tag">Fresh, Human-Grade Canine Nutrition</div>
+          </div>
+        </div>
+        <div class="invoice-meta">
+          <div class="invoice-title">INVOICE</div>
+          <div class="invoice-number">${invoiceNumber}</div>
+        </div>
       </div>
-      <div>
-        <div class="receipt-label">Order Receipt</div>
-        <div class="order-id">#${order.id}</div>
+
+      <div class="meta-grid">
+        <div class="meta-col">
+          <div class="meta-label">Billed To</div>
+          <div class="meta-value">
+            ${order.user_phone ? escapeHtml(order.user_phone) + '<br/>' : ''}
+            ${escapeHtml(order.shipping_address)}
+          </div>
+        </div>
+        <div class="meta-col" style="text-align: right;">
+          <div class="meta-label">Invoice Details</div>
+          <div class="meta-value">
+            Date: ${escapeHtml(formattedDate)}<br/>
+            Status: <span class="status-pill">${escapeHtml(order.status.toUpperCase())}</span>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="status-row">
-      <span class="status-pill">${escapeHtml(order.status.toUpperCase())}</span>
-      <span class="muted">${escapeHtml(formattedDate)}</span>
-    </div>
+      <div class="section-title">Recipe Items</div>
+      <table>
+        <thead><tr><th>Item</th><th class="num">Unit</th><th class="num">Total</th></tr></thead>
+        <tbody>${itemsRows}</tbody>
+      </table>
 
-    <div class="section-title">Recipe Items</div>
-    <table>
-      <thead><tr><th>Item</th><th class="num">Unit</th><th class="num">Total</th></tr></thead>
-      <tbody>${itemsRows}</tbody>
-    </table>
+      <table class="totals">
+        <tr><td class="label">Fresh Meals Subtotal</td><td></td><td class="value num">₹${subtotal.toFixed(2)}</td></tr>
+        ${discountRow}
+        <tr><td class="label">Delivery Fee</td><td></td><td class="value num discount">FREE</td></tr>
+        <tr class="grand-row"><td>Total Paid</td><td></td><td class="num">₹${Number(order.total_amount).toFixed(2)}</td></tr>
+      </table>
 
-    <table class="totals">
-      <tr><td class="label">Fresh Meals Subtotal</td><td></td><td class="value num">₹${subtotal.toFixed(2)}</td></tr>
-      ${discountRow}
-      <tr><td class="label">Delivery Fee</td><td></td><td class="value num discount">FREE</td></tr>
-      <tr class="grand-row"><td>Total Paid</td><td></td><td class="num">₹${Number(order.total_amount).toFixed(2)}</td></tr>
-    </table>
+      <div class="section-title">Payment</div>
+      <table class="totals">
+        <tr><td class="label">Gateway</td><td class="value" colspan="2">Razorpay Secure</td></tr>
+        ${paymentRefRow}
+      </table>
 
-    <div class="section-title">Payment</div>
-    <table class="totals">
-      <tr><td class="label">Gateway</td><td class="value" colspan="2">Razorpay Secure</td></tr>
-      ${paymentRefRow}
-    </table>
-
-    <div class="section-title">Delivery Address</div>
-    <div class="address-box">
-      ${escapeHtml(order.shipping_address)}
-      ${order.user_phone ? `<br/><span class="muted">Recipient: ${escapeHtml(order.user_phone)}</span>` : ''}
-    </div>
-
-    <div class="footer">
-      <strong>100% Verified Server Ledger</strong> &middot; Razorpay Authenticated<br/>
-      Thank you for choosing Scooby's Kitchen 🐾
+      <div class="footer">
+        <strong>Hearth &amp; One</strong> &middot; 100% Verified Server Ledger &middot; Razorpay Authenticated<br/>
+        Thank you for choosing Hearth &amp; One
+      </div>
     </div>
   </body>
   </html>`;
@@ -258,7 +318,7 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
       .map((i) => `• ${i.product_name || 'Recipe'} (${i.selected_weight || 'Regular'}) x${i.quantity} = ₹${i.subtotal || (Number(i.unit_price) * i.quantity)}`)
       .join('\n');
 
-    const message = `🐾 Scooby's Kitchen - Order #${order.id} Receipt\n` +
+    const message = `🐾 Hearth & One - Order #${order.id} Receipt\n` +
       `Status: ${order.status.toUpperCase()}\n` +
       `Date: ${new Date(order.created_at).toLocaleDateString('en-IN')}\n\n` +
       `Items:\n${itemsList}\n\n` +
@@ -266,7 +326,7 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
       `Delivery To: ${order.shipping_address}\n\n` +
       `Fresh, Human-Grade Canine Nutrition.`;
 
-    await Share.share({ message, title: `Scooby's Kitchen Order #${order.id}` });
+    await Share.share({ message, title: `Hearth & One Order #${order.id}` });
   };
 
   const handleShareReceipt = async () => {
@@ -279,7 +339,8 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
         return;
       }
 
-      const html = buildReceiptHtml(order, formattedDate);
+      const logoDataUri = await getLogoDataUri();
+      const html = buildReceiptHtml(order, formattedDate, logoDataUri);
 
       // On Android, ask Print for the PDF as base64 instead of a file path.
       // Reading/copying the file it wrote directly (cacheDirectory/Print/...)
@@ -288,12 +349,19 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
       // writes the bytes into a brand-new file it owns under documentDirectory,
       // so no module ever has to reach into another module's file. iOS has no
       // such restriction and can share Print's file:// URI directly.
+      //
+      // The resulting destUri is passed to Sharing.shareAsync as-is (a plain
+      // file:// path) — NOT converted via FileSystem.getContentUriAsync.
+      // That conversion produces a content:// URI, which this version of
+      // expo-sharing rejects outright (ERR_SHARING_INVALID_ARGS: "expected
+      // scheme to be 'file', got 'content'"), which is exactly what was
+      // silently sending every share to the text fallback below.
       let shareUri: string;
       if (Platform.OS === 'android') {
         const { base64 } = await Print.printToFileAsync({ html, base64: true });
-        const destUri = `${FileSystem.documentDirectory}scooby-kitchen-order-${order.id}-receipt.pdf`;
+        const destUri = `${FileSystem.documentDirectory}hearth-and-one-order-${order.id}-receipt.pdf`;
         await FileSystem.writeAsStringAsync(destUri, base64!, { encoding: FileSystem.EncodingType.Base64 });
-        shareUri = await FileSystem.getContentUriAsync(destUri);
+        shareUri = destUri;
       } else {
         const { uri } = await Print.printToFileAsync({ html, base64: false });
         shareUri = uri;
@@ -301,7 +369,7 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
 
       await Sharing.shareAsync(shareUri, {
         mimeType: 'application/pdf',
-        dialogTitle: `Scooby's Kitchen Order #${order.id} Receipt`,
+        dialogTitle: `Hearth & One Order #${order.id} Receipt`,
         UTI: 'com.adobe.pdf',
       });
     } catch (e) {
@@ -353,19 +421,7 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
   if (error || !order) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <ArrowLeft size={20} color={COLORS.textCoffee} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Order Details</Text>
-          <View style={{ width: 40 }} />
-        </View>
+        <StackHeader title="Order Details" onBack={() => navigation.goBack()} />
         <View style={styles.errorContainer}>
           <AlertCircle size={44} color="#C0392B" />
           <Text style={styles.errorTitle}>Order Not Found</Text>
@@ -388,36 +444,28 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Top App Bar */}
       <ResponsiveContainer maxWidth={880}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backBtn}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <ArrowLeft size={20} color={COLORS.textCoffee} />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerBadge}>OFFICIAL ORDER LEDGER</Text>
-            <Text style={styles.headerTitle}>Order #{order.id}</Text>
-          </View>
-          <TouchableOpacity
-            onPress={handleShareReceipt}
-            style={styles.shareBtn}
-            disabled={isSharing}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel="Share order receipt"
-            accessibilityState={{ disabled: isSharing, busy: isSharing }}
-          >
-            {isSharing ? (
-              <ActivityIndicator size="small" color={COLORS.forestGreen} />
-            ) : (
-              <Share2 size={18} color={COLORS.forestGreen} />
-            )}
-          </TouchableOpacity>
-        </View>
+        <StackHeader
+          title={`Order #${order.id}`}
+          eyebrow="OFFICIAL ORDER LEDGER"
+          onBack={() => navigation.goBack()}
+          rightContent={
+            <TouchableOpacity
+              onPress={handleShareReceipt}
+              style={styles.shareBtn}
+              disabled={isSharing}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Share order receipt"
+              accessibilityState={{ disabled: isSharing, busy: isSharing }}
+            >
+              {isSharing ? (
+                <ActivityIndicator size="small" color={COLORS.forestGreen} />
+              ) : (
+                <Share2 size={18} color={COLORS.forestGreen} />
+              )}
+            </TouchableOpacity>
+          }
+        />
       </ResponsiveContainer>
 
       <ScrollView
@@ -704,35 +752,6 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FAF7F2' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FAF7F2',
-  },
-  backBtn: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: COLORS.canvas,
-  },
-  headerCenter: {
-    alignItems: 'center',
-  },
-  headerBadge: {
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1,
-    color: COLORS.brandGold,
-    fontFamily: FONT_BODY_BOLD,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: COLORS.textCoffee,
-    fontFamily: FONT_DISPLAY,
-  },
   shareBtn: {
     padding: 8,
     borderRadius: 8,

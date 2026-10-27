@@ -33,10 +33,15 @@ import httpx
 logger = logging.getLogger(__name__)
 
 ML_INFERENCE_URL = os.getenv("ML_INFERENCE_URL", "http://localhost:8010")
+ML_INFERENCE_SHARED_SECRET = os.getenv("ML_INFERENCE_SHARED_SECRET")
 PROMPT_GUARD_ENABLED = os.getenv("PROMPT_GUARD_ENABLED", "true").lower() == "true"
 _TIMEOUT_SECONDS = 5.0
 
-_client = httpx.Client(base_url=ML_INFERENCE_URL, timeout=_TIMEOUT_SECONDS)
+_client = httpx.Client(
+    base_url=ML_INFERENCE_URL,
+    timeout=_TIMEOUT_SECONDS,
+    headers={"X-Internal-Api-Key": ML_INFERENCE_SHARED_SECRET} if ML_INFERENCE_SHARED_SECRET else {},
+)
 
 
 class PromptGuardResult:

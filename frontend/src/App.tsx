@@ -7,17 +7,21 @@ import { useCartStore } from './store/cart';
 import { RequireAuth } from './components/RequireAuth';
 import { ChatbotWidget } from './components/ChatbotWidget';
 import { PhoneVerificationGate } from './components/PhoneVerificationGate';
+import { ScrollToTop } from './components/ScrollToTop';
 
 // Route-level code splitting via React.lazy
 const HomePage = lazy(() => import('./features/home/HomePage'));
 const ShopPage = lazy(() => import('./features/shop/ShopPage'));
+const ShopLandingPage = lazy(() => import('./features/shop/ShopLandingPage').then((m) => ({ default: m.ShopLandingPage })));
 const AuthPage = lazy(() => import('./features/auth/AuthPage').then((m) => ({ default: m.AuthPage })));
 const VerifyCallback = lazy(() => import('./features/auth/VerifyCallback').then((m) => ({ default: m.VerifyCallback })));
 const ProductDetailPage = lazy(() => import('./features/products/ProductDetailPage').then((m) => ({ default: m.ProductDetailPage })));
 const CheckoutPage = lazy(() => import('./features/checkout/CheckoutPage').then((m) => ({ default: m.CheckoutPage })));
 const OrdersPage = lazy(() => import('./features/orders/OrdersPage').then((m) => ({ default: m.OrdersPage })));
 const PetsPage = lazy(() => import('./features/pets/PetsPage').then((m) => ({ default: m.PetsPage })));
+const PetsLandingPage = lazy(() => import('./features/pets/PetsLandingPage').then((m) => ({ default: m.PetsLandingPage })));
 const ConsultationsPage = lazy(() => import('./features/consultations/ConsultationsPage').then((m) => ({ default: m.ConsultationsPage })));
+const VetLandingPage = lazy(() => import('./features/consultations/VetLandingPage').then((m) => ({ default: m.VetLandingPage })));
 const VideoCallPage = lazy(() => import('./features/consultations/VideoCallPage').then((m) => ({ default: m.VideoCallPage })));
 const AssistantPage = lazy(() => import('./features/chatbot/AssistantPage').then((m) => ({ default: m.AssistantPage })));
 const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
@@ -146,6 +150,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <ScrollToTop />
         <SessionProvider>
           <AuthEventListener />
           <WebSocketNotificationListener />
@@ -153,7 +158,8 @@ export default function App() {
           <Suspense fallback={<RouteLoadingFallback />}>
             <Routes>
               <Route path="/" element={<HomePage />} />
-              <Route path="/shop" element={<ShopPage />} />
+              <Route path="/shop" element={<ShopLandingPage />} />
+              <Route path="/shop/app" element={<ShopPage />} />
               <Route path="/login" element={<AuthPage />} />
               <Route path="/auth/verify" element={<VerifyCallback />} />
               <Route path="/auth/magic-link/verify" element={<VerifyCallback />} />
@@ -161,8 +167,10 @@ export default function App() {
               <Route path="/product/:id" element={<ProductDetailPage />} />
               <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
               <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
-              <Route path="/pets" element={<RequireAuth><PetsPage /></RequireAuth>} />
-              <Route path="/consultations" element={<RequireAuth><ConsultationsPage /></RequireAuth>} />
+              <Route path="/pets" element={<PetsLandingPage />} />
+              <Route path="/pets/app" element={<RequireAuth><PetsPage /></RequireAuth>} />
+              <Route path="/consultations" element={<VetLandingPage />} />
+              <Route path="/consultations/app" element={<RequireAuth><ConsultationsPage /></RequireAuth>} />
               <Route path="/consultations/:id" element={<RequireAuth><ConsultationsPage /></RequireAuth>} />
               <Route path="/consultations/:id/call" element={<RequireAuth><VideoCallPage /></RequireAuth>} />
               <Route path="/consultations/room/:id" element={<RequireAuth><VideoCallPage /></RequireAuth>} />

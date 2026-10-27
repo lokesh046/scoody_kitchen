@@ -75,7 +75,7 @@ export const PetHeritagePassport: React.FC<PetHeritagePassportProps> = ({
 
     ctx.fillStyle = '#F8F4EE';
     ctx.font = 'bold 13px monospace';
-    ctx.fillText("SCOOBY'S KITCHEN BIOLOGICAL CANINE & FELINE ARCHIVE", 70, 112);
+    ctx.fillText("HEARTH & ONE BIOLOGICAL CANINE & FELINE ARCHIVE", 70, 112);
 
     ctx.fillStyle = '#D99B26';
     ctx.font = 'bold 14px monospace';
@@ -278,7 +278,7 @@ export const PetHeritagePassport: React.FC<PetHeritagePassportProps> = ({
   };
 
   const handleShareWhatsApp = () => {
-    const text = `🐾 Check out ${displayName}'s Official Pet Heritage Passport! 🌍 Homeland: ${heritage.origin_flag} ${heritage.origin_country} (${heritage.origin_era})! Superpowers: 👃 Scent Radar ${heritage.superpowers.scent_radar}/10 | ⚡ Speed ${heritage.superpowers.stamina_speed}/10 | ❤️ Cuddle Index ${heritage.superpowers.cuddle_index}/10. Verified on Scooby's Kitchen!`;
+    const text = `🐾 Check out ${displayName}'s Official Pet Heritage Passport! 🌍 Homeland: ${heritage.origin_flag} ${heritage.origin_country} (${heritage.origin_era})! Superpowers: 👃 Scent Radar ${heritage.superpowers.scent_radar}/10 | ⚡ Speed ${heritage.superpowers.stamina_speed}/10 | ❤️ Cuddle Index ${heritage.superpowers.cuddle_index}/10. Verified on Hearth & One!`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
 

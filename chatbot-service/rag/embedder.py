@@ -22,6 +22,7 @@ import time
 import httpx
 
 ML_INFERENCE_URL = os.getenv("ML_INFERENCE_URL", "http://localhost:8010")
+ML_INFERENCE_SHARED_SECRET = os.getenv("ML_INFERENCE_SHARED_SECRET")
 EMBEDDING_DIMENSION = 384
 _TIMEOUT_SECONDS = 10.0
 
@@ -30,7 +31,12 @@ class EmbeddingGenerator:
     """Generate dense vector embeddings via the shared ml-inference service."""
 
     def __init__(self):
-        self._client = httpx.Client(base_url=ML_INFERENCE_URL, timeout=_TIMEOUT_SECONDS)
+        headers = (
+            {"X-Internal-Api-Key": ML_INFERENCE_SHARED_SECRET}
+            if ML_INFERENCE_SHARED_SECRET
+            else {}
+        )
+        self._client = httpx.Client(base_url=ML_INFERENCE_URL, timeout=_TIMEOUT_SECONDS, headers=headers)
 
     def embed_text(self, text: str) -> list[float]:
         """Embed a single text string into a float vector."""

@@ -12,8 +12,12 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import {
+  GoogleSignin,
+  isSuccessResponse,
+  isErrorWithCode,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 import {
   PawPrint,
   Mail,
@@ -32,10 +36,21 @@ import apiClient from '../api/client';
 import { captureApiError } from '../services/sentry';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 
-WebBrowser.maybeCompleteAuthSession();
-
-// Google Client ID configured in pet-platform-backend
+// Web-type client — the backend verifies Google ID tokens against this one
+// (pet-platform-backend), so it stays as-is for webClientId/clientId.
 const GOOGLE_CLIENT_ID = '372112333224-6aavjp4vg3r6ln20tk43es2dsk6e3l0q.apps.googleusercontent.com';
+// Android-type client (372112333224-9o5monddhqs51iabkij0t7vnlco16j1s.apps.googleusercontent.com),
+// bound to com.scooby.kitchen + the app's signing certificate SHA-1 in
+// Google Cloud Console. Not referenced directly in code — GoogleSignin
+// below resolves it automatically at the native layer via Play Services,
+// matching this app's package name and signing certificate against what's
+// registered for this client. It exists to document why this specific
+// client was created: a Web-type client (above) can't complete Google
+// Sign-In for a real standalone build at all — Google rejects the
+// redirect outright ("Custom scheme URIs are not allowed for 'WEB' client
+// type"), and an Android-type client doesn't support that same
+// browser-redirect flow either, which is why this screen uses the native
+// GoogleSignin SDK below instead of a browser-based OAuth redirect.
 
 interface AuthScreenProps {
   onSuccess?: () => void;
@@ -59,34 +74,69 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
 
   const { setAuth, continueAsGuest } = useAuthStore();
 
-  // Official Expo Google OAuth Hook
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: GOOGLE_CLIENT_ID,
-    webClientId: GOOGLE_CLIENT_ID,
-    androidClientId: GOOGLE_CLIENT_ID,
-    iosClientId: GOOGLE_CLIENT_ID,
-  });
-
+  // Native Google Sign-In SDK setup — replaces the previous expo-auth-session
+  // browser-redirect flow, which Google now rejects outright for native apps
+  // (a Web-type client can't complete the redirect via a custom URL scheme,
+  // and an Android-type client doesn't support this generic redirect flow at
+  // all — confirmed directly against both client types, not assumed). The
+  // native SDK authenticates via Play Services/Credential Manager instead of
+  // a browser round-trip, using the Android OAuth client (package name +
+  // signing certificate SHA-1, registered in Google Cloud Console) that a
+  // browser-based flow can't use. webClientId stays the existing Web client
+  // since that's still what the backend verifies the resulting ID token's
+  // audience against.
   useEffect(() => {
-    if (request?.redirectUri) {
-      console.log('🔗 [Google OAuth] Add this URI to Google Console Authorized redirect URIs:\n', request.redirectUri, '\n');
-    }
-  }, [request?.redirectUri]);
+    GoogleSignin.configure({ webClientId: GOOGLE_CLIENT_ID });
+  }, []);
 
-  // Handle Google OAuth Response
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const idToken = response.params?.id_token || response.authentication?.idToken;
-      if (idToken) {
-        handleGoogleBackendAuth(idToken);
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      await GoogleSignin.hasPlayServices();
+      // Without this, the native SDK silently reuses whatever Google
+      // account was used last time and never shows the account picker —
+      // so a user who wants to switch accounts gets logged straight back
+      // into the old one. signOut() only clears that cached device-level
+      // selection; it doesn't touch the user's app session or revoke the
+      // Google OAuth grant. No-ops harmlessly if nothing was cached.
+      await GoogleSignin.signOut().catch(() => {});
+      const response = await GoogleSignin.signIn();
+      if (isSuccessResponse(response)) {
+        const idToken = response.data.idToken;
+        if (idToken) {
+          await handleGoogleBackendAuth(idToken);
+        } else {
+          setErrorMsg('Google login succeeded, but no ID token was received.');
+          setGoogleLoading(false);
+        }
       } else {
-        setErrorMsg('Google login succeeded, but no ID token was received.');
+        // User cancelled — not an error worth surfacing.
+        setGoogleLoading(false);
       }
-    } else if (response?.type === 'error') {
-      console.log('Google Auth Error:', response.error);
-      setErrorMsg((response.error as any)?.message || 'Google Sign-In failed.');
+    } catch (err) {
+      if (isErrorWithCode(err)) {
+        switch (err.code) {
+          case statusCodes.SIGN_IN_CANCELLED:
+            break;
+          case statusCodes.IN_PROGRESS:
+            setErrorMsg('Sign-in is already in progress.');
+            break;
+          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            setErrorMsg('Google Play Services is not available or outdated on this device.');
+            break;
+          default:
+            console.log('Google Sign-In error:', err.code, err.message);
+            setErrorMsg('Google Sign-In failed. Please try again.');
+        }
+      } else {
+        console.log('Google Sign-In error:', err);
+        setErrorMsg('Google Sign-In failed. Please try again.');
+      }
+      setGoogleLoading(false);
     }
-  }, [response]);
+  };
 
   // Authenticate with Backend using Google ID Token
   const handleGoogleBackendAuth = async (idToken: string) => {
@@ -239,7 +289,7 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
             )}
 
             <View style={styles.brandPill}>
-              <Text style={styles.brandPillText}>Scooby's Kitchen</Text>
+              <Text style={styles.brandPillText}>Hearth & One</Text>
             </View>
           </View>
 
@@ -367,13 +417,13 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
 
                 {/* 3. BOTTOM SECTION: Google Sign-In Button */}
                 <TouchableOpacity
-                  style={[styles.googleBtn, (!request || isBusy) && styles.disabledBtn]}
-                  onPress={() => promptAsync()}
-                  disabled={!request || isBusy}
+                  style={[styles.googleBtn, isBusy && styles.disabledBtn]}
+                  onPress={handleGoogleSignIn}
+                  disabled={isBusy}
                   activeOpacity={0.85}
                   accessibilityRole="button"
                   accessibilityLabel="Continue with Google"
-                  accessibilityState={{ disabled: !request || isBusy, busy: googleLoading }}
+                  accessibilityState={{ disabled: isBusy, busy: googleLoading }}
                 >
                   {googleLoading ? (
                     <ActivityIndicator size="small" color="#4285F4" />

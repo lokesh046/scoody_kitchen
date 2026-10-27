@@ -41,27 +41,39 @@ cleanup() {
 trap cleanup SIGINT SIGTERM EXIT
 
 # 2. Start Core Backend (Port 8000)
-echo "🚀 [1/5] Starting Backend on http://127.0.0.1:8000 ..."
+echo "🚀 [1/6] Starting Backend on http://127.0.0.1:8000 ..."
 (cd "$PROJECT_ROOT/pet-platform-backend" && .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload) &
 PIDS+=($!)
 
 # 3. Start MCP Server (Port 8001)
-echo "🚀 [2/5] Starting FastMCP Server on http://127.0.0.1:8001 ..."
+echo "🚀 [2/6] Starting FastMCP Server on http://127.0.0.1:8001 ..."
 (cd "$PROJECT_ROOT/pet-platform-mcp-server" && .venv/bin/python main.py) &
 PIDS+=($!)
 
-# 4. Start Chatbot Service (Port 8002)
-echo "🚀 [3/5] Starting AI Chatbot Service on http://127.0.0.1:8002 ..."
+# 4. Start ML Inference Service (Port 8010) — chatbot-service's embedder.py
+# calls this over HTTP for every RAG embedding (see its module docstring);
+# started before Chatbot Service below so the dependency is up first. Without
+# it, chatbot-service silently falls back to all-zero embedding vectors on
+# every query (embedder.py's exception path), which then score near-zero
+# against every document regardless of topic and never clear the similarity
+# threshold — the chatbot looks like it's ignoring the knowledge base
+# entirely, for every question, not just a specific topic.
+echo "🚀 [3/6] Starting ML Inference Service on http://127.0.0.1:8010 ..."
+(cd "$PROJECT_ROOT/ml-inference-service" && .venv/bin/python main.py) &
+PIDS+=($!)
+
+# 5. Start Chatbot Service (Port 8002)
+echo "🚀 [4/6] Starting AI Chatbot Service on http://127.0.0.1:8002 ..."
 (cd "$PROJECT_ROOT/chatbot-service" && .venv/bin/python main.py) &
 PIDS+=($!)
 
-# 5. Start Pet Vision Service (Port 8003)
-echo "🚀 [4/5] Starting Pet Vision Service on http://127.0.0.1:8003 ..."
+# 6. Start Pet Vision Service (Port 8003)
+echo "🚀 [5/6] Starting Pet Vision Service on http://127.0.0.1:8003 ..."
 (cd "$PROJECT_ROOT/pet-vision-service" && .venv/bin/python main.py) &
 PIDS+=($!)
 
-# 6. Start Frontend Web App (Port 3000)
-echo "🚀 [5/5] Starting Frontend on http://localhost:3000 ..."
+# 7. Start Frontend Web App (Port 3000)
+echo "🚀 [6/6] Starting Frontend on http://localhost:3000 ..."
 (cd "$PROJECT_ROOT/frontend" && npm run dev) &
 PIDS+=($!)
 
@@ -70,6 +82,7 @@ echo "✨ All services launched!"
 echo "   - Frontend:    http://localhost:3000"
 echo "   - Backend API: http://localhost:8000 (Docs: http://localhost:8000/docs)"
 echo "   - MCP Server:  http://localhost:8001/sse"
+echo "   - ML Inference: http://localhost:8010/health"
 echo "   - Chatbot:     http://localhost:8002 (Docs: http://localhost:8002/docs)"
 echo "   - Pet Vision:  http://localhost:8003 (Docs: http://localhost:8003/docs)"
 echo ""

@@ -1,12 +1,12 @@
 import { COLORS } from '../../theme/colors';
 
 export const QUICK_SYMPTOMS = [
-  '🐾 Skin Itching & Allergies',
-  '🥗 Transition to Fresh Food',
-  '🤢 Digestive Issues & Vomiting',
-  '⚖️ Weight & Portion Guidance',
-  '🦴 Joint & Mobility Health',
-  '🩺 General Nutrition Review',
+  'Skin Itching & Allergies',
+  'Transition to Fresh Food',
+  'Digestive Issues & Vomiting',
+  'Weight & Portion Guidance',
+  'Joint & Mobility Health',
+  'General Nutrition Review',
 ];
 
 export const formatLocalDateStr = (d: Date) => {

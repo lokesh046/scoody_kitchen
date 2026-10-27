@@ -1,12 +1,15 @@
 from datetime import date
 from unittest.mock import MagicMock
 import pytest
+from fastapi import HTTPException
 
+from app.api.doctor import get_doctor_health_record_detail
 from app.models.consultation import Consultation
 from app.models.doctor import Doctor
 from app.models.enums import HealthRecordType
 from app.models.health_record import HealthRecord
 from app.models.pet import Pet
+from app.models.user import User
 from app.schemas.health_record import HealthRecordCreate, HealthRecordUpdate
 from app.services.health_record_service import (
     create_health_record_by_doctor,
@@ -92,3 +95,33 @@ def test_doctor_update_other_doctor_record_rejected():
     with pytest.raises(PermissionError) as exc:
         update_health_record_by_doctor(db, doctor_id=8, record=record, update_data=update_data)
     assert "Doctor cannot modify health records created by another doctor" in str(exc.value)
+
+
+def test_doctor_read_other_doctor_record_rejected():
+    db = MagicMock()
+    # Doctor 8 (querying) is distinct from doctor 7 (owner of the requested record).
+    requesting_doctor = Doctor(id=8, user_id=99)
+    record = HealthRecord(id=1, doctor_id=7, title="Confidential Note")
+    db.scalar.side_effect = [requesting_doctor, record]
+
+    with pytest.raises(HTTPException) as exc:
+        get_doctor_health_record_detail(
+            record_id=1,
+            db=db,
+            current_user=User(id=99),
+        )
+    assert exc.value.status_code == 403
+
+
+def test_doctor_read_own_record_allowed():
+    db = MagicMock()
+    requesting_doctor = Doctor(id=7, user_id=99)
+    record = HealthRecord(id=1, doctor_id=7, title="Own Note")
+    db.scalar.side_effect = [requesting_doctor, record]
+
+    result = get_doctor_health_record_detail(
+        record_id=1,
+        db=db,
+        current_user=User(id=99),
+    )
+    assert result is record

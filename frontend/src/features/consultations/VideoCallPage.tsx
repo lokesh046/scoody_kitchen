@@ -309,7 +309,7 @@ export const VideoCallPage: React.FC = () => {
       },
       bosh: `https://${domain}/http-bind`,
       websocket: `wss://${domain}/xmpp-websocket`,
-      logoClickUrl: window.location.origin + '/consultations',
+      logoClickUrl: window.location.origin + '/consultations/app',
       logoImageUrl: '',
       toolbarButtons: [
         'microphone', 'camera', 'closedcaptions', 'desktop', 'embedmeeting', 'fullscreen',
@@ -490,11 +490,11 @@ export const VideoCallPage: React.FC = () => {
       });
       alert('Thank you for rating your specialist!');
       setShowReviewModal(false);
-      navigate('/consultations');
+      navigate('/consultations/app');
     } catch (err: any) {
       alert(`Failed to submit review: ${err.response?.data?.detail || err.message}`);
       setShowReviewModal(false);
-      navigate('/consultations');
+      navigate('/consultations/app');
     } finally {
       setIsSubmittingReview(false);
     }
@@ -534,7 +534,7 @@ export const VideoCallPage: React.FC = () => {
             </p>
           </div>
           <button
-            onClick={() => navigate(isDoctor ? '/doctor' : '/consultations')}
+            onClick={() => navigate(isDoctor ? '/doctor' : '/consultations/app')}
             className="w-full bg-ink hover:bg-opacity-90 text-paperLight font-mono text-[10px] uppercase font-bold py-3 tracking-wider rounded-sm"
           >
             Return to Dashboard
@@ -567,7 +567,7 @@ export const VideoCallPage: React.FC = () => {
             your veterinarian, and authorized staff who need them to operate the service.
           </FeaturePrivacyNote>
           <button
-            onClick={() => navigate('/consultations')}
+            onClick={() => navigate('/consultations/app')}
             className="w-full border border-cardboard hover:bg-paper text-ink font-mono text-[10px] uppercase font-bold py-3 tracking-wider rounded-sm transition-colors"
           >
             Back to Sessions Ledger
@@ -591,7 +591,7 @@ export const VideoCallPage: React.FC = () => {
             </p>
           </div>
           <button
-            onClick={() => navigate(isDoctor ? '/doctor' : '/consultations')}
+            onClick={() => navigate(isDoctor ? '/doctor' : '/consultations/app')}
             className="w-full bg-ink hover:bg-opacity-90 text-paperLight font-mono text-[10px] uppercase font-bold py-3 tracking-wider rounded-sm"
           >
             Return to Dashboard
@@ -639,7 +639,7 @@ export const VideoCallPage: React.FC = () => {
             </p>
           </div>
           <button
-            onClick={() => navigate(isDoctor ? '/doctor' : '/consultations')}
+            onClick={() => navigate(isDoctor ? '/doctor' : '/consultations/app')}
             className="w-full bg-ink hover:bg-opacity-90 text-paperLight font-mono text-[10px] uppercase font-bold py-3 tracking-wider rounded-sm"
           >
             Return to Dashboard
@@ -658,7 +658,7 @@ export const VideoCallPage: React.FC = () => {
       <header className="bg-paperLight border-b border-cardboard px-6 py-4 flex justify-between items-center shrink-0">
         <div className="flex items-center space-x-3 text-left">
           <button
-            onClick={() => navigate(isDoctor ? '/doctor' : '/consultations')}
+            onClick={() => navigate(isDoctor ? '/doctor' : '/consultations/app')}
             className="text-ink opacity-70 hover:opacity-100 p-1 rounded-sm transition-opacity"
             title="Leave Call Workspace"
           >

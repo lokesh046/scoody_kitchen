@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '../store/auth';
 import { useCartStore } from '../store/cart';
@@ -13,19 +13,41 @@ import {
   X, 
   LogOut 
 } from 'lucide-react';
-import { useFeatureFlag } from '../hooks/useFeatureFlag';
+import { useFeatureFlag, useFeatureFlags } from '../hooks/useFeatureFlag';
 
 interface HeaderProps {
   activeTab?: 'shop' | 'pets' | 'consultations' | 'orders' | 'assistant' | 'profile' | 'admin' | 'doctor' | 'apply-doctor' | 'support' | 'blog';
   onCartToggle?: () => void;
+  // When true, the header floats transparently over whatever sits behind it
+  // (a full-bleed hero image) instead of its normal solid sticky bar.
+  // Caller is responsible for ensuring the content behind it has enough
+  // contrast (e.g. a dark gradient) for the white nav text to stay legible.
+  overlay?: boolean;
+  // When true, the header starts transparent and pinned over a full-screen
+  // hero, then crossfades into the normal solid ink bar once the page is
+  // scrolled past the hero -- the header never leaves the top of the
+  // viewport in either state.
+  floatingUntilScroll?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
+export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay = false, floatingUntilScroll = false }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const handleBrandClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (location.pathname !== '/') return;
+    event.preventDefault();
+    if (location.hash) navigate({ pathname: '/', search: location.search }, { replace: true });
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+    });
+  };
   const { user, clearAuth } = useAuthStore();
   const cartItems = useCartStore((state) => state.items);
   const clearCart = useCartStore((state) => state.clear);
-  
+
   const cleanupUsersMutation = useMutation({
     mutationFn: (maxAge: number) => cleanupUnverifiedUsers(maxAge),
     onSuccess: (data) => {
@@ -37,6 +59,23 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
   });
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isScrolledPastHero, setIsScrolledPastHero] = useState(false);
+  // The bar is the same gradient black in every state now, so nav text is
+  // always the light "paper" colour. Kept as a named constant because the
+  // JSX below applies it to the wrapper and to several children that would
+  // otherwise inherit nothing.
+  const headerTextClass = 'text-paper';
+  // Matches the gradient-black sections (midnight -> midnightCard -> midnight) used
+  // across the feature pages, so the chrome reads as part of them.
+  const barClass = 'bg-gradient-to-b from-midnight via-midnightCard to-midnight border-b border-paper border-opacity-10 shadow-sm';
+
+  useEffect(() => {
+    if (!floatingUntilScroll) return;
+    const handleScroll = () => setIsScrolledPastHero(window.scrollY > window.innerHeight * 0.8);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [floatingUntilScroll]);
 
   const totalCartQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -52,6 +91,20 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
       navigate('/login');
     }
   };
+
+  // Menu items are shown by default and then hidden once the flags load, which made
+  // the menu visibly shrink right after the page opened. Keep the menu invisible
+  // (but laid out) until the flags are known, with a short cap if the request is slow.
+  const { isLoading: flagsLoading } = useFeatureFlags();
+  const [navRevealed, setNavRevealed] = useState(false);
+  useEffect(() => {
+    if (!flagsLoading) {
+      setNavRevealed(true);
+      return;
+    }
+    const timer = setTimeout(() => setNavRevealed(true), 1200);
+    return () => clearTimeout(timer);
+  }, [flagsLoading]);
 
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
   const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
@@ -71,19 +124,31 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
 
   return (
     <>
-      <header className="w-full border-b border-cardboard border-opacity-25 bg-ink bg-opacity-95 backdrop-blur-md sticky top-0 z-30 shadow-sm text-paper">
+      <header
+        className={`w-full transition-colors duration-300 ${headerTextClass} ${
+          floatingUntilScroll
+            ? `fixed top-0 left-0 z-30 transition-colors duration-300 ${
+                isScrolledPastHero ? barClass : 'bg-transparent'
+              }`
+            : overlay
+            ? 'absolute top-0 left-0 z-30 bg-transparent'
+            : `sticky top-0 z-30 ${barClass}`
+        }`}
+      >
         <div className="w-full px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5 flex justify-between items-center lg:grid lg:grid-cols-12 gap-2">
           
           {/* Left Corner: Brand Logo & Title with Artisanal Porcelain Medallion Badge */}
-          <div 
-            className="flex items-center space-x-2.5 sm:space-x-3.5 cursor-pointer lg:col-span-3 justify-start select-none min-w-0 group" 
-            onClick={() => navigate('/')}
+          <Link
+            to="/"
+            aria-label="Hearth & One — back to home"
+            className="flex items-center space-x-2.5 sm:space-x-3.5 cursor-pointer lg:col-span-3 justify-start select-none min-w-0 group focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-turmeric"
+            onClick={handleBrandClick}
           >
             <div className="relative flex items-center justify-center shrink-0">
               {/* Porcelain Medallion Badge Container (Enlarged & Sharp) */}
               <div className="w-12 h-12 sm:w-13 sm:h-13 md:w-14 md:h-14 lg:w-15 lg:h-15 logo-medallion flex items-center justify-center p-1 overflow-hidden shrink-0 shadow-md">
                 <img
-                  src="/scooby-logo.png"
+                  src="/scooby-logo-160.webp"
                   alt="Hearth & One Logo"
                   width={60}
                   height={60}
@@ -93,17 +158,17 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
               </div>
             </div>
             <div className="min-w-0">
-              <h1 className="font-display font-black text-base sm:text-xl lg:text-2xl tracking-tight text-paper group-hover:text-turmeric transition-colors leading-tight truncate">
+              <h1 className={`font-display font-black text-base sm:text-xl lg:text-2xl tracking-tight ${headerTextClass} group-hover:text-turmeric transition-colors leading-tight truncate`}>
                 Hearth & One
               </h1>
               <p className="font-mono text-[8px] sm:text-[9px] uppercase tracking-wider text-turmeric opacity-90 hidden sm:block truncate">
                 Human-Grade Pet Cooking
               </p>
             </div>
-          </div>
+          </Link>
 
           {/* Center: Desktop Navigation Menu */}
-          <nav className="hidden lg:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider text-paper lg:col-span-6 justify-center">
+          <nav className={`hidden lg:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider ${headerTextClass} lg:col-span-6 justify-center transition-opacity duration-300 ${navRevealed ? 'opacity-100' : 'opacity-0'}`}>
             {navLinks.map((link) => (
               <button
                 key={link.id}
@@ -170,7 +235,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
             {user && (
               <button
                 onClick={() => navigate('/profile')}
-                className={`p-1.5 sm:p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper flex items-center space-x-1.5 font-mono text-[10px] uppercase font-bold transition-all cursor-pointer ${
+                className={`p-1.5 sm:p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 ${headerTextClass} flex items-center space-x-1.5 font-mono text-[10px] uppercase font-bold transition-all cursor-pointer ${
                   activeTab === 'profile' ? 'bg-paperLight border-turmeric text-turmeric' : ''
                 }`}
               >
@@ -196,7 +261,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
               <button 
                 onClick={() => onCartToggle?.()}
                 aria-label="Open cart drawer"
-                className="p-1.5 sm:p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 relative text-paper cursor-pointer"
+                className={`p-1.5 sm:p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 relative ${headerTextClass} cursor-pointer`}
               >
                 <ShoppingCart className="w-4 h-4" />
                 {totalCartQuantity > 0 && (
@@ -210,7 +275,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
             {user ? (
               <button
                 onClick={handleLogout}
-                className="hidden lg:flex p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper items-center space-x-1.5 font-body text-[10px] font-bold uppercase"
+                className={`hidden lg:flex p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 ${headerTextClass} items-center space-x-1.5 font-body text-[10px] font-bold uppercase`}
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Log Out</span>
@@ -218,7 +283,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
             ) : (
               <button
                 onClick={() => navigate('/login')}
-                className="hidden lg:flex p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper items-center space-x-1.5 font-body text-[10px] font-bold uppercase"
+                className={`hidden lg:flex p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 ${headerTextClass} items-center space-x-1.5 font-body text-[10px] font-bold uppercase`}
               >
                 <User className="w-3.5 h-3.5" />
                 <span>Log In</span>
@@ -230,9 +295,9 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label="Toggle navigation menu"
               aria-expanded={isMobileMenuOpen}
-              className="p-1.5 sm:p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 text-paper lg:hidden cursor-pointer"
+              className={`p-1.5 sm:p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 ${headerTextClass} lg:hidden cursor-pointer`}
             >
-              {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4 text-paper" />}
+              {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className={`w-4 h-4 ${headerTextClass}`} />}
             </button>
           </div>
         </div>
@@ -252,7 +317,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle }) => {
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 logo-medallion flex items-center justify-center p-1 overflow-hidden shrink-0 shadow-md">
                   <img
-                    src="/scooby-logo-256.png"
+                    src="/scooby-logo-256.webp"
                     alt="Hearth & One Logo"
                     width={48}
                     height={48}

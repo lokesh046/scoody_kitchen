@@ -81,8 +81,8 @@ export function ScoobyAIFAB({
         accessibilityRole="button"
         accessibilityLabel={
           disabledFallback
-            ? `Scooby AI chat assistant — ${disabledFallback === 'coming_soon' ? 'coming soon' : 'temporarily unavailable'}`
-            : 'Open Scooby AI chat assistant'
+            ? `Hearth & One AI chat assistant — ${disabledFallback === 'coming_soon' ? 'coming soon' : 'temporarily unavailable'}`
+            : 'Open Hearth & One AI chat assistant'
         }
       >
         <View style={[styles.innerRing, disabledFallback && styles.innerRingDisabled]}>

@@ -5,29 +5,6 @@ import { LEDGER_MONO } from '../../theme/typography';
 export const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FAF7F2' },
 
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: '#FAF7F2',
-  },
-  headerLeftGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-    minWidth: 0,
-  },
-  headerTextCol: { flex: 1, minWidth: 0 },
-  headerTitle: {
-    fontSize: 21,
-    fontWeight: '800',
-    color: COLORS.textCoffee,
-    flexShrink: 1,
-  },
   // Presence ring on the brand mark itself — "the practice is staffed
   // right now" reads directly off the logo, like an online-status dot on
   // a profile picture, instead of a separate text line.

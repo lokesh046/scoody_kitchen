@@ -222,7 +222,7 @@ export const OrdersPage: React.FC = () => {
         {/* Back Link */}
         <div className="mb-6 text-left">
           <button
-            onClick={() => navigate('/shop')}
+            onClick={() => navigate('/shop/app')}
             className="font-mono text-[10px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1.5 transition-opacity"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -232,15 +232,11 @@ export const OrdersPage: React.FC = () => {
 
         {/* Section Header Title */}
         <div className="space-y-1 text-left mb-8">
-          <Eyebrow label="FULFILLMENT & DISPATCH LEDGER" />
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="font-display font-black text-2xl sm:text-4xl text-ink tracking-tight">
                 Your Order Ledger
               </h1>
-              <p className="font-body text-xs sm:text-sm text-ink opacity-75 max-w-2xl mt-1">
-                Track live courier fulfillment milestones, shipment journey ledgers, and rate small-batch recipe meals.
-              </p>
             </div>
             <div className="flex items-center space-x-2 shrink-0">
               <span className="inline-flex items-center px-3 py-1.5 rounded-sm text-xs font-mono font-bold bg-herb/10 text-herb border border-herb/30">
@@ -338,7 +334,7 @@ export const OrdersPage: React.FC = () => {
             {activeTab === 'active' && (
               <button
                 type="button"
-                onClick={() => navigate('/shop')}
+                onClick={() => navigate('/shop/app')}
                 className="bg-herb hover:bg-herb/90 text-white font-body font-bold text-xs uppercase px-5 py-2.5 rounded-sm tracking-wider transition-colors cursor-pointer shadow-xs"
               >
                 Browse Fresh Meals 🐾

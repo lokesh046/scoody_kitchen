@@ -516,6 +516,8 @@ def get_doctor_health_record_detail(
     record = get_health_record_by_id(db, record_id)
     if record is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Health record not found")
+    if record.doctor_id != doctor.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Doctor cannot access health records created by another doctor")
 
     return record
 
