@@ -9,7 +9,7 @@ import {
   RefreshControl,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import SafeAreaView from '../components/FeatureSafeArea';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   LogOut,
@@ -18,7 +18,7 @@ import {
   Bug,
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { ScreenHeader, headerActionStyle, HEADER_GOLD } from '../components/ScreenHeader';
 import { Sentry, isSentryEnabled } from '../services/sentry';
 import { useAuthStore, UserProfile } from '../store/authStore';
 import { usePetStore } from '../store/petStore';
@@ -29,6 +29,7 @@ import { PhoneVerificationModal } from '../components/PhoneVerificationModal';
 import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
 import { useResponsive } from '../hooks/useResponsive';
 import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
+import ScoobyAIFAB from '../components/ScoobyAIFAB';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import {
   ProfileHeroCard,
@@ -44,6 +45,8 @@ import {
 
 export default function ProfileScreen({ navigation }: any) {
   const { user, logout, updateUser } = useAuthStore();
+  const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
+  const chatbotFallback = useFeatureFlagFallback('ai_chatbot');
   const { pets, setPets } = usePetStore();
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -234,19 +237,19 @@ export default function ProfileScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ResponsiveContainer maxWidth={840}>
+      <ResponsiveContainer maxWidth={840} style={{ flex: 1 }}>
         {/* Header */}
         <ScreenHeader
-          title="Pet Parent Profile"
-          eyebrow="ACCOUNT LEDGER"
-          eyebrowLive
+          title="Profile"
           rightContent={
             <TouchableOpacity
-              style={styles.iconCircleBtn}
+              style={[styles.iconCircleBtn, headerActionStyle]}
               onPress={handleLogoutConfirm}
+              accessibilityRole="button"
+              accessibilityLabel="Log out"
               activeOpacity={0.8}
             >
-              <LogOut size={16} color="#C25E48" />
+              <LogOut size={16} color={HEADER_GOLD} />
             </TouchableOpacity>
           }
         />
@@ -272,6 +275,10 @@ export default function ProfileScreen({ navigation }: any) {
 
           {/* Quick Stats Matrix */}
           <ProfileStatsMatrix petsCount={pets.length} ordersCount={orders.length} />
+
+          {isChatbotEnabled || chatbotFallback !== 'hide' ? (
+            <ScoobyAIFAB inline disabledFallback={isChatbotEnabled ? undefined : chatbotFallback === 'hide' ? undefined : chatbotFallback} />
+          ) : null}
 
           {/* Account Hub Menu */}
           <AccountHubMenu
@@ -350,29 +357,29 @@ export default function ProfileScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FAF7F2' },
   iconCircleBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: COLORS.kraftBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scrollBody: { padding: 20, gap: 16, paddingBottom: 40 },
+  scrollBody: { padding: 16, gap: 14, paddingBottom: 32 },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#FEE2E2',
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-    paddingVertical: 13,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: '#C25E48',
+    paddingVertical: 14,
     borderRadius: 14,
     marginTop: 4,
   },
-  logoutText: { fontSize: 13, fontWeight: '700', color: '#991B1B' },
+  logoutText: { fontSize: 13.5, fontWeight: '800', color: '#B4472F', letterSpacing: 0.3 },
   devTestBtn: {
     flexDirection: 'row',
     alignItems: 'center',

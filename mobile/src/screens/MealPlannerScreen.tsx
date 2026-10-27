@@ -11,8 +11,9 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import AIDogIcon from '../components/AIDogIcon';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import SafeAreaView from '../components/FeatureSafeArea';
 import {
   ArrowLeft,
   ArrowRight,
@@ -303,7 +304,7 @@ export default function MealPlannerScreen({ navigation }: any) {
           {step === 0 && (
             <View style={styles.welcomeWrap}>
               <View style={styles.welcomeIconCircle}>
-                <Sparkles size={32} color={COLORS.brandGold} />
+                <AIDogIcon size={52} />
               </View>
               <Text style={styles.welcomeEyebrow}>Hearth & One Nutritionist</Text>
               <Text style={styles.welcomeTitle}>Tailor the Perfect Recipe</Text>

@@ -13,11 +13,11 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import SafeAreaView from '../components/FeatureSafeArea';
 import { useFocusEffect } from '@react-navigation/native';
-import { Headset, Plus, X, ChevronRight, Package, Stethoscope } from 'lucide-react-native';
+import { Plus, X, ChevronRight, Package, Stethoscope } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { ScreenHeader, headerActionStyle, HEADER_GOLD } from '../components/ScreenHeader';
 import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
 import {
   createSupportTicket,
@@ -190,19 +190,14 @@ export default function SupportScreen({ navigation }: any) {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScreenHeader
         title="Support"
-        leadingElement={
-          <View style={styles.headerIconCircle}>
-            <Headset size={18} color={COLORS.brandGold} />
-          </View>
-        }
         rightContent={
           <TouchableOpacity
-            style={styles.newBtn}
+            style={[styles.newBtn, headerActionStyle]}
             onPress={() => setShowForm((v) => !v)}
             accessibilityRole="button"
             accessibilityLabel={showForm ? 'Cancel new ticket' : 'Start a new support ticket'}
           >
-            {showForm ? <X size={16} color={COLORS.textCoffee} /> : <Plus size={16} color={COLORS.textCoffee} />}
+            {showForm ? <X size={16} color={HEADER_GOLD} /> : <Plus size={16} color={HEADER_GOLD} />}
           </TouchableOpacity>
         }
       />
@@ -349,7 +344,7 @@ export default function SupportScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.canvas },
   headerIconCircle: { width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.cardAlt, alignItems: 'center', justifyContent: 'center' },
-  newBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.cardAlt, alignItems: 'center', justifyContent: 'center' },
+  newBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.cardAlt, alignItems: 'center', justifyContent: 'center' },
   centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
   errorText: { fontSize: 13, fontFamily: FONT_BODY, color: COLORS.textMuted, textAlign: 'center' },
   emptyText: { fontSize: 13, fontFamily: FONT_BODY, color: COLORS.textMuted, textAlign: 'center' },

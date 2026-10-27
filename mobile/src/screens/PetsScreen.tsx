@@ -13,7 +13,8 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import AIDogIcon from '../components/AIDogIcon';
+import SafeAreaView from '../components/FeatureSafeArea';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   PawPrint,
@@ -29,7 +30,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useFonts, Outfit_700Bold, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
 import { Quicksand_400Regular, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
 import { COLORS } from '../theme/colors';
-import { LEDGER_MONO } from '../theme/typography';
+import { LEDGER_MONO, FONT_HEADING_SCRIPT } from '../theme/typography';
 import { PetProfile } from '../types';
 import {
   fetchMyPets,
@@ -43,7 +44,7 @@ import { uploadAvatarImage } from '../api/auth';
 import { useAuthStore } from '../store/authStore';
 import { usePetStore } from '../store/petStore';
 import { tabPrefetchCache } from '../services/tabPrefetch';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { ScreenHeader, headerActionStyle, HEADER_GOLD } from '../components/ScreenHeader';
 import PetVisionModal from '../components/PetVisionModal';
 import { useResponsive } from '../hooks/useResponsive';
 import ResponsiveContainer from '../components/ResponsiveContainer';
@@ -392,12 +393,31 @@ export default function PetsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Header — a real avatar cluster of the registered companions
-          replaces the eyebrow label, so this reads as an actual roster
-          for these specific pets rather than a generic section label. */}
+      {/* Compact toolbar; the pet roster scrolls with the page. */}
       <ScreenHeader
-        title="Companion Registry"
-        belowTitle={
+        title="My pets"
+        rightContent={
+          <TouchableOpacity
+            style={[styles.addPetBtn, headerActionStyle]}
+            onPress={openAddModal}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Register a new companion"
+          >
+            <Plus size={20} color={HEADER_GOLD} strokeWidth={2.5} />
+          </TouchableOpacity>
+        }
+      />
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollBody}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.forestGreen]} />
+        }
+      >
+        <ResponsiveContainer maxWidth={960} style={styles.sectionsColumn}>
+        {
           pets.length > 0 && (
             <View style={styles.rosterRow}>
               <View style={styles.rosterStack}>
@@ -427,27 +447,7 @@ export default function PetsScreen({ navigation }: any) {
             </View>
           )
         }
-        rightContent={
-          <TouchableOpacity
-            style={styles.addPetBtn}
-            onPress={openAddModal}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Register a new companion"
-          >
-            <Plus size={20} color="#FFFFFF" strokeWidth={2.5} />
-          </TouchableOpacity>
-        }
-      />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollBody}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.forestGreen]} />
-        }
-      >
-        <ResponsiveContainer maxWidth={960} style={styles.sectionsColumn}>
         {loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={COLORS.forestGreen} />
@@ -513,9 +513,7 @@ export default function PetsScreen({ navigation }: any) {
               accessibilityRole="button"
               accessibilityLabel="Scan breed and nutrition blueprint with AI Pet Vision"
             >
-              <View style={styles.visionBannerIconCol}>
-                <Sparkles size={20} color={COLORS.brandGold} />
-              </View>
+              <Image source={require('../../assets/toolkit/scan-diagnose.webp')} style={styles.visionBannerIcon} contentFit="contain" />
               <View style={styles.visionBannerContent}>
                 <Text style={styles.visionBannerTitle}>Scan Breed & Nutrition Blueprint</Text>
                 <Text style={styles.visionBannerDesc}>
@@ -568,9 +566,7 @@ export default function PetsScreen({ navigation }: any) {
                   accessibilityLabel={`Ask Hearth & One AI Nutritionist about ${currentPet.name}`}
                 >
                   <View style={styles.aiConsultInner}>
-                    <View style={styles.aiIconBubble}>
-                      <PawPrint size={16} color="#FFFFFF" strokeWidth={2.5} />
-                    </View>
+                    <AIDogIcon size={46} />
                     <View style={{ flex: 1 }}>
                       <View style={styles.aiConsultTitleRow}>
                         <Text style={styles.aiConsultTitle}>Ask Hearth & One AI Nutritionist</Text>
@@ -582,7 +578,6 @@ export default function PetsScreen({ navigation }: any) {
                         Personalized dietary transition & allergy advice for {currentPet.name}
                       </Text>
                     </View>
-                    <Sparkles size={16} color={COLORS.brandGold} />
                   </View>
                 </TouchableOpacity>
 
@@ -590,8 +585,8 @@ export default function PetsScreen({ navigation }: any) {
                 <View style={styles.recordsSection}>
                   <View style={styles.sectionHeaderRow}>
                     <View style={styles.sectionHeaderLeft}>
-                      <Stethoscope size={15} color={COLORS.forestGreen} />
-                      <Text style={styles.sectionHeading}>CLINICAL HEALTH LEDGER</Text>
+                      <Image source={require('../../assets/pet/health-records.webp')} style={styles.sectionHeadingIcon} contentFit="contain" />
+                      <Text style={styles.sectionHeading}>Clinical Health Ledger</Text>
                     </View>
                     <View style={styles.recordsCountBadge}>
                       <Text style={styles.recordsCountText}>{healthRecords.length}</Text>
@@ -874,12 +869,11 @@ const styles = StyleSheet.create({
   },
   sectionHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionHeading: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: COLORS.brandGold,
-    letterSpacing: 0.8,
-    fontFamily: FONT_BODY_BOLD,
+    fontSize: 20,
+    color: COLORS.textCoffee,
+    fontFamily: FONT_HEADING_SCRIPT,
   },
+  sectionHeadingIcon: { width: 26, height: 26 },
   recordsCountBadge: {
     backgroundColor: '#FAF5EE',
     paddingHorizontal: 8,
@@ -944,6 +938,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     gap: 12,
   },
+  visionBannerIcon: { width: 52, height: 52 },
   visionBannerIconCol: {
     width: 40,
     height: 40,

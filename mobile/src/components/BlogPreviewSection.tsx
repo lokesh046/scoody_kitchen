@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { Image } from 'expo-image';
 import { BookOpen, ArrowRight } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
-import { FONT_DISPLAY_BLACK, FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
+import { FONT_HEADING_SCRIPT, FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
 import { fetchPublishedBlogPosts, type BlogPostListItem } from '../api/blog';
 
 const PREVIEW_COUNT = 5;
@@ -116,8 +116,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   heading: {
-    fontSize: 19,
-    fontFamily: FONT_DISPLAY_BLACK,
+    fontSize: 24,
+    fontFamily: FONT_HEADING_SCRIPT,
     color: COLORS.textCoffee,
     maxWidth: 240,
   },

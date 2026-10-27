@@ -14,6 +14,7 @@ import {
   Animated,
   PanResponder,
   Easing,
+  Image as RNImage,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -22,7 +23,7 @@ import * as Location from 'expo-location';
 import { Image } from 'expo-image';
 import { Compass, MapPin, Navigation, Locate, Phone, Clock, Stethoscope, PillBottle, X, ShieldCheck, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react-native';
 import { COLORS } from '../../theme/colors';
-import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../../theme/typography';
+import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD, FONT_HEADING_SCRIPT, LEDGER_MONO } from '../../theme/typography';
 import { BASE_URL } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import {
@@ -464,14 +465,14 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <View style={styles.safeArea}>
           <View style={styles.controls}>
             <View style={styles.categoryRow}>
               <TouchableOpacity
                 style={[styles.categoryChip, category === 'clinic' && styles.categoryChipActive]}
                 onPress={() => handleChangeCategory('clinic')}
               >
-                <Stethoscope size={14} color={category === 'clinic' ? '#FFFFFF' : COLORS.textMuted} />
+                <RNImage source={require('../../../assets/toolkit/vet-consults.webp')} style={styles.categoryChipIcon} resizeMode="contain" />
                 <Text style={[styles.categoryChipText, category === 'clinic' && styles.categoryChipTextActive]}>Clinic</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -505,6 +506,14 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
                 onLayout={(e) => setCollapsibleHeight(e.nativeEvent.layout.height)}
                 style={styles.collapsibleContent}
               >
+                <View style={styles.locateHero}>
+                  <RNImage source={require('../../../assets/vet/locate-vet.webp')} style={styles.locateHeroIcon} resizeMode="contain" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.locateHeroTitle}>Find care near you</Text>
+                    <Text style={styles.locateHeroSub}>Clinics and pharmacies around your location.</Text>
+                  </View>
+                </View>
+
                 <FeaturePrivacyNote
                   text="With your permission, we use your device location to find nearby clinics and pharmacies via Google Places. You can decline and search by pincode instead."
                   onPressFullPolicy={() => navigation.navigate('PrivacyPolicy' as never)}
@@ -666,7 +675,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
               }
             />
           )}
-        </SafeAreaView>
+        </View>
       </KeyboardAvoidingView>
 
       {/* Clinic/Pharmacy Detail — full-screen, same information the web
@@ -812,6 +821,11 @@ const styles = {
     backgroundColor: COLORS.kraftBorder,
   },
   collapsibleContent: { gap: 10, paddingBottom: 8 },
+  locateHero: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12, paddingVertical: 2 },
+  locateHeroIcon: { width: 64, height: 64 },
+  locateHeroTitle: { fontSize: 21, fontFamily: FONT_HEADING_SCRIPT, color: COLORS.textCoffee },
+  locateHeroSub: { marginTop: 1, fontSize: 12, fontFamily: FONT_BODY, color: COLORS.textMuted },
+  categoryChipIcon: { width: 22, height: 22 },
   categoryChip: {
     flex: 1,
     flexDirection: 'row' as const,
@@ -947,12 +961,9 @@ const styles = {
   switchToPincodeLink: { fontSize: 11, fontFamily: FONT_BODY_BOLD, color: COLORS.sageIcon, textDecorationLine: 'underline' as const },
   errorText: { fontSize: 11, fontFamily: FONT_BODY, color: COLORS.ctaBrown },
   centerFill: { flex: 1, alignItems: 'center' as const, justifyContent: 'center' as const },
-  // The global ScoobyAIFAB sits bottom-left at bottom:96, 52px tall (see
-  // its own comment in ScoobyAIFAB.tsx), so its footprint spans roughly
-  // 96-148px up from the screen edge. Every scrollable screen is expected
-  // to keep its own content clear of that zone; this one didn't, so the
-  // last result card scrolled in right underneath the floating button.
-  listContent: { paddingHorizontal: 20, paddingBottom: 180, gap: 10 },
+  // The tab navigator handles the system inset. Keep only enough scroll
+  // clearance to move the final result above the floating assistant.
+  listContent: { paddingHorizontal: 20, paddingBottom: 76, gap: 10 },
   listHeaderRow: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, marginBottom: 4 },
   listHeaderText: { fontSize: 11, fontFamily: LEDGER_MONO, color: COLORS.textMuted },
   attributionText: { fontSize: 9, fontFamily: FONT_BODY, color: COLORS.textMuted },

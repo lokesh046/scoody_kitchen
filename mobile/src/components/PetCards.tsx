@@ -15,17 +15,15 @@ import {
   AccessibilityInfo,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { FlameIcon, DrumstickIcon, PouchIcon } from './PetStatIcons';
 import {
   PawPrint,
   Scale,
-  Flame,
   Sparkles,
-  Heart,
   Check,
   X,
   Trash2,
   AlertCircle,
-  Activity,
   Edit3,
   Camera,
   Image as ImageIcon,
@@ -40,7 +38,9 @@ import { LEDGER_MONO } from '../theme/typography';
 import { PetProfile } from '../types';
 import { HealthRecord } from '../api/pets';
 import { uploadAvatarImage } from '../api/auth';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
+import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useFeatureFlag } from '../hooks/useFeatureFlag';
 
 // DESIGN.md's brand faces: Outfit for display/headings, Quicksand for body
@@ -235,7 +235,7 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
           {/* Species */}
           <View style={petCardStyles.ledgerRow}>
             <View style={petCardStyles.ledgerKeyGroup}>
-              <PawPrint size={14} color={ROW_ICON_COLOR} />
+              <Image source={require('../../assets/pet/species.webp')} style={petCardStyles.rowIcon} contentFit="contain" />
               <Text style={petCardStyles.ledgerKeyText}>SPECIES</Text>
             </View>
             <Text style={petCardStyles.ledgerValText}>
@@ -246,7 +246,7 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
           {/* Breed */}
           <View style={petCardStyles.ledgerRow}>
             <View style={petCardStyles.ledgerKeyGroup}>
-              <Award size={14} color={ROW_ICON_COLOR} />
+              <Image source={require('../../assets/pet/breed.webp')} style={petCardStyles.rowIcon} contentFit="contain" />
               <Text style={petCardStyles.ledgerKeyText}>BREED</Text>
             </View>
             <Text style={[petCardStyles.ledgerValText, { maxWidth: '58%' }]} numberOfLines={1}>
@@ -261,7 +261,7 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
           {/* Gender */}
           <View style={petCardStyles.ledgerRow}>
             <View style={petCardStyles.ledgerKeyGroup}>
-              <Heart size={14} color={ROW_ICON_COLOR} />
+              <Image source={require('../../assets/pet/gender.webp')} style={petCardStyles.rowIcon} contentFit="contain" />
               <Text style={petCardStyles.ledgerKeyText}>GENDER</Text>
             </View>
             <Text style={petCardStyles.ledgerValText}>
@@ -274,7 +274,7 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
           {/* Weight */}
           <View style={petCardStyles.ledgerRow}>
             <View style={petCardStyles.ledgerKeyGroup}>
-              <Scale size={14} color={ROW_ICON_COLOR} />
+              <Image source={require('../../assets/pet/weight.webp')} style={petCardStyles.rowIcon} contentFit="contain" />
               <Text style={petCardStyles.ledgerKeyText}>WEIGHT</Text>
             </View>
             <Text style={petCardStyles.ledgerValText}>{weightDisplay}</Text>
@@ -283,7 +283,7 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
           {/* Birthday */}
           <View style={[petCardStyles.ledgerRow, petCardStyles.ledgerRowLast]}>
             <View style={petCardStyles.ledgerKeyGroup}>
-              <Cake size={14} color={ROW_ICON_COLOR} />
+              <Image source={require('../../assets/pet/date-of-birth.webp')} style={petCardStyles.rowIcon} contentFit="contain" />
               <Text style={petCardStyles.ledgerKeyText}>BIRTHDAY</Text>
             </View>
             <Text style={petCardStyles.ledgerValText}>{birthdayDisplay}</Text>
@@ -320,19 +320,19 @@ export const CompanionTargetGrid = memo(function CompanionTargetGrid({ weight }:
   return (
     <View style={petCardStyles.targetGrid}>
       <View style={petCardStyles.targetBox}>
-        <Flame size={17} color={COLORS.brandGold} />
+        <FlameIcon size={36} />
         <Text style={petCardStyles.targetValue}>{calories}</Text>
         <Text style={petCardStyles.targetLabel}>Daily kCal Target</Text>
       </View>
       <View style={petCardStyles.targetDivider} />
       <View style={petCardStyles.targetBox}>
-        <Activity size={17} color={COLORS.forestGreen} />
+        <DrumstickIcon size={36} />
         <Text style={petCardStyles.targetValue}>{protein}g</Text>
         <Text style={petCardStyles.targetLabel}>Daily Protein</Text>
       </View>
       <View style={petCardStyles.targetDivider} />
       <View style={petCardStyles.targetBox}>
-        <Heart size={17} color="#C25E48" />
+        <PouchIcon size={36} />
         <Text style={petCardStyles.targetValue}>500g</Text>
         <Text style={petCardStyles.targetLabel}>Portion Pouch</Text>
       </View>
@@ -446,6 +446,26 @@ export const PetDossierModal = memo(function PetDossierModal({
   onOpenVision,
 }: PetDossierModalProps) {
   const { isTablet, modalOverlayStyle, modalSheetContainerStyle } = useResponsive();
+  const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboardHeight();
+  // Scrolls whichever field has focus above the keyboard (Android does not do this
+  // inside a Modal). Field groups report their offset within the scroll content.
+  const formScrollRef = useRef<ScrollView>(null);
+  const fieldY = useRef<Record<string, number>>({});
+  const focusedField = useRef<string | null>(null);
+  const scrollToField = (key: string | null) => {
+    if (!key) return;
+    const y = fieldY.current[key];
+    if (y === undefined) return;
+    formScrollRef.current?.scrollTo({ y: Math.max(0, y - 10), animated: true });
+  };
+  const onFieldFocus = (key: string) => {
+    focusedField.current = key;
+    setTimeout(() => scrollToField(key), 60);
+  };
+  useEffect(() => {
+    if (keyboardHeight > 0) setTimeout(() => scrollToField(focusedField.current), 80);
+  }, [keyboardHeight]);
   const isPhotoUploadEnabled = useFeatureFlag('pets_photo_upload', true);
   const [name, setName] = useState('');
   const [species, setSpecies] = useState('Dog');
@@ -599,12 +619,25 @@ export const PetDossierModal = memo(function PetDossierModal({
       statusBarTranslucent
       onRequestClose={onClose}
     >
+      {/* iOS lifts the sheet with KeyboardAvoidingView. On Android the modal window is
+          not resized for the keyboard and the 'height' mode jumped and flickered, so the
+          overlay is padded by the measured keyboard height instead. */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
-        style={isTablet ? modalOverlayStyle : petCardStyles.modalOverlay}
+        enabled={Platform.OS === 'ios'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={[
+          isTablet ? modalOverlayStyle : petCardStyles.modalOverlay,
+          Platform.OS === 'android' && keyboardHeight > 0 && { paddingBottom: keyboardHeight },
+        ]}
       >
-        <View style={[petCardStyles.modalContent, isTablet && modalSheetContainerStyle]}>
+        <View
+          style={[
+            petCardStyles.modalContent,
+            isTablet && modalSheetContainerStyle,
+            // Edge-to-edge: keep the Save button clear of the system navigation bar.
+            Platform.OS === 'android' && { paddingBottom: keyboardHeight > 0 ? 12 : Math.max(insets.bottom, 16) + 12 },
+          ]}
+        >
           {/* Modal Header */}
           <View style={petCardStyles.modalHeader}>
             <View>
@@ -628,7 +661,12 @@ export const PetDossierModal = memo(function PetDossierModal({
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={petCardStyles.modalBody}>
+          <ScrollView
+            ref={formScrollRef}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={petCardStyles.modalBody}
+          >
             {/* Pet Photo Section */}
             <View style={petCardStyles.photoPickerSection}>
               <View style={petCardStyles.photoPreviewWrapper}>
@@ -703,11 +741,12 @@ export const PetDossierModal = memo(function PetDossierModal({
             <View style={petCardStyles.formDivider} />
 
             {/* Form Fields */}
-            <View style={petCardStyles.fieldGroup}>
+            <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.name = e.nativeEvent.layout.y; }}>
               <Text style={petCardStyles.fieldLabel}>COMPANION NAME *</Text>
               <View style={petCardStyles.inputContainer}>
                 <PawPrint size={15} color={COLORS.textLight} />
                 <TextInput
+                  onFocus={() => onFieldFocus('name')}
                   style={petCardStyles.textInput}
                   placeholder="e.g. Spooky, Milo, Puma"
                   placeholderTextColor={COLORS.textLight}
@@ -717,10 +756,11 @@ export const PetDossierModal = memo(function PetDossierModal({
               </View>
             </View>
 
-            <View style={petCardStyles.fieldGroup}>
+            <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.species = e.nativeEvent.layout.y; }}>
               <Text style={petCardStyles.fieldLabel}>SPECIES</Text>
               <View style={petCardStyles.inputContainer}>
                 <TextInput
+                  onFocus={() => onFieldFocus('species')}
                   style={petCardStyles.textInput}
                   placeholder="Dog"
                   placeholderTextColor={COLORS.textLight}
@@ -730,10 +770,11 @@ export const PetDossierModal = memo(function PetDossierModal({
               </View>
             </View>
 
-            <View style={petCardStyles.fieldGroup}>
+            <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.breed = e.nativeEvent.layout.y; }}>
               <Text style={petCardStyles.fieldLabel}>BREED</Text>
               <View style={petCardStyles.inputContainer}>
                 <TextInput
+                  onFocus={() => onFieldFocus('breed')}
                   style={petCardStyles.textInput}
                   placeholder="e.g. Golden Retriever, Beagle"
                   placeholderTextColor={COLORS.textLight}
@@ -773,11 +814,12 @@ export const PetDossierModal = memo(function PetDossierModal({
               </View>
             </View>
 
-            <View style={petCardStyles.fieldGroup}>
+            <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.weight = e.nativeEvent.layout.y; }}>
               <Text style={petCardStyles.fieldLabel}>BODY WEIGHT (KG) *</Text>
               <View style={petCardStyles.inputContainer}>
                 <Scale size={15} color={COLORS.textLight} />
                 <TextInput
+                  onFocus={() => onFieldFocus('weight')}
                   style={petCardStyles.textInput}
                   placeholder="33"
                   placeholderTextColor={COLORS.textLight}
@@ -792,11 +834,12 @@ export const PetDossierModal = memo(function PetDossierModal({
               </Text>
             </View>
 
-            <View style={petCardStyles.fieldGroup}>
+            <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.dob = e.nativeEvent.layout.y; }}>
               <Text style={petCardStyles.fieldLabel}>DATE OF BIRTH (YYYY-MM-DD)</Text>
               <View style={petCardStyles.inputContainer}>
                 <Cake size={15} color={COLORS.textLight} />
                 <TextInput
+                  onFocus={() => onFieldFocus('dob')}
                   style={petCardStyles.textInput}
                   placeholder="2026-03-05"
                   placeholderTextColor={COLORS.textLight}
@@ -1392,6 +1435,7 @@ export const petCardStyles = StyleSheet.create({
   fieldGroup: { gap: 5 },
   // Same bold, mono, forest-green voice as the ledger card's own key labels
   // (SPECIES / BREED / GENDER…) — this form fills in that exact ledger.
+  rowIcon: { width: 22, height: 22 },
   fieldLabel: { fontSize: 10.5, fontWeight: '800', color: COLORS.forestGreen, letterSpacing: 1, fontFamily: LEDGER_MONO },
   formDivider: {
     borderTopWidth: 1,

@@ -2,16 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import {
-  Home as HomeIcon,
-  UtensilsCrossed,
-  Stethoscope,
-  PawPrint,
-  User,
-  ShoppingBag,
-  Package,
-} from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
+import { TabIcon } from '../components/TabIcon';
 import HomeScreen from '../screens/HomeScreen';
 import KitchenScreen from '../screens/KitchenScreen';
 import VetScreen from '../screens/VetScreen';
@@ -88,7 +80,8 @@ export default function TabNavigator() {
             { height: tabBarHeight, paddingBottom: bottomInset },
             isTablet && [styles.tabBarTablet, { marginBottom: Math.max(insets.bottom, 16) }],
           ],
-          tabBarActiveTintColor: COLORS.forestGreen,
+          tabBarActiveTintColor: '#976430',
+          tabBarHideOnKeyboard: true,
           tabBarInactiveTintColor: COLORS.textLight,
           tabBarLabelStyle: [
             styles.tabLabel,
@@ -102,9 +95,7 @@ export default function TabNavigator() {
           component={HomeScreen}
           options={{
             tabBarLabel: 'Home',
-            tabBarIcon: ({ color, focused }) => (
-              <HomeIcon size={20} color={color} strokeWidth={focused ? 2.5 : 1.8} />
-            ),
+            tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/home.webp')} focused={focused} />,
           }}
         />
 
@@ -114,9 +105,7 @@ export default function TabNavigator() {
           component={KitchenScreen}
           options={{
             tabBarLabel: 'Shop',
-            tabBarIcon: ({ color, focused }) => (
-              <UtensilsCrossed size={20} color={color} strokeWidth={focused ? 2.5 : 1.8} />
-            ),
+            tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/shop.webp')} focused={focused} />,
             ...(isShopEnabled
               ? {}
               : shopFallback !== 'hide'
@@ -132,9 +121,7 @@ export default function TabNavigator() {
           component={OrdersScreen}
           options={{
             tabBarLabel: 'Orders',
-            tabBarIcon: ({ color, focused }) => (
-              <Package size={20} color={color} strokeWidth={focused ? 2.5 : 1.8} />
-            ),
+            tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/orders.webp')} focused={focused} />,
           }}
         />
 
@@ -144,14 +131,7 @@ export default function TabNavigator() {
           component={PetsScreen}
           options={{
             tabBarLabel: 'Pets',
-            tabBarIcon: ({ color, focused }) => (
-              <PawPrint
-                size={20}
-                color={color}
-                fill={focused ? color : 'none'}
-                strokeWidth={focused ? 2.5 : 1.8}
-              />
-            ),
+            tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/pets.webp')} focused={focused} />,
           }}
         />
 
@@ -161,9 +141,7 @@ export default function TabNavigator() {
           component={VetScreen}
           options={{
             tabBarLabel: 'Consult',
-            tabBarIcon: ({ color, focused }) => (
-              <Stethoscope size={20} color={color} strokeWidth={focused ? 2.5 : 1.8} />
-            ),
+            tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/consult.webp')} focused={focused} />,
             ...(isConsultationsEnabled
               ? {}
               : consultationsFallback !== 'hide'
@@ -183,9 +161,7 @@ export default function TabNavigator() {
           component={ProfileScreen}
           options={{
             tabBarLabel: 'Profile',
-            tabBarIcon: ({ color, focused }) => (
-              <User size={20} color={color} strokeWidth={focused ? 2.5 : 1.8} />
-            ),
+            tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/profile.webp')} focused={focused} />,
           }}
         />
 
@@ -226,11 +202,11 @@ export default function TabNavigator() {
 
       {/* Persistent Scooby AI Floating Button — bottom-left, mirroring
           FloatingCartBadge's bottom-right anchoring so the two never collide. */}
-      {isChatbotEnabled ? (
+      {currentTab !== 'Profile' && (isChatbotEnabled ? (
         <ScoobyAIFAB bottomOffset={tabBarHeight + 16} />
       ) : chatbotFallback !== 'hide' ? (
         <ScoobyAIFAB bottomOffset={tabBarHeight + 16} disabledFallback={chatbotFallback} />
-      ) : null}
+      ) : null)}
 
       {/* Floating Cart Badge with Count (Only shows when not in Cart and cart has items) */}
       <FloatingCartBadge
