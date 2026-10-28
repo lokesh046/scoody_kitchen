@@ -25,7 +25,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     if (isOpen) {
-      loadCart();
+      loadCart({ force: true });
     }
   }, [isOpen, loadCart]);
 

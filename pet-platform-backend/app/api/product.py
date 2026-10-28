@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.cache import cache
 from app.core.database import get_db
-from app.dependencies.auth import get_current_user, get_current_user_optional, require_role
+from app.dependencies.auth import get_current_user, get_optional_role, require_role
 from app.models.enums import UserRole
 from app.models.product import ProductImage
 from app.models.user import User
@@ -50,9 +50,9 @@ def get_all_products(
     page: int = Query(1),
     limit: int = Query(20),
     db: Session = Depends(get_db),
-    current_user: User | None = Depends(get_current_user_optional),
+    viewer_role: str | None = Depends(get_optional_role),
 ):
-    include_inactive = current_user is not None and current_user.role == UserRole.ADMIN
+    include_inactive = viewer_role == UserRole.ADMIN.value
     cache_key = f"products:{page}_{limit}_{category_id}_{min_price}_{max_price}_{search}_{sort_by}_{sort_order}_{include_inactive}"
 
     cached = cache.get(cache_key)
@@ -110,9 +110,9 @@ def get_all_products(
 def get_product_details(
     product_id: int,
     db: Session = Depends(get_db),
-    current_user: User | None = Depends(get_current_user_optional),
+    viewer_role: str | None = Depends(get_optional_role),
 ):
-    is_admin = current_user is not None and current_user.role == UserRole.ADMIN
+    is_admin = viewer_role == UserRole.ADMIN.value
     cache_key = f"product:detail:{product_id}"
 
     if not is_admin:
