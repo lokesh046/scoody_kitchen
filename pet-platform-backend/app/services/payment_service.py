@@ -161,21 +161,23 @@ def verify_razorpay_payment(
 
     if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
         raise ValueError("Razorpay credentials are not configured on server")
-    else:
-        try:
-            import hmac
-            import hashlib
-            msg = f"{payment.razorpay_order_id}|{razorpay_payment_id}"
-            expected = hmac.new(
-                key=settings.RAZORPAY_KEY_SECRET.encode("utf-8"),
-                msg=msg.encode("utf-8"),
-                digestmod=hashlib.sha256,
-            ).hexdigest()
-            if not hmac.compare_digest(expected, razorpay_signature):
-                raise ValueError("HMAC signature mismatch")
-        except Exception as e:
-            process_payment_failure(db, payment)
-            raise ValueError(f"Invalid payment signature verification failed: {str(e)}")
+
+    import hmac
+    import hashlib
+    try:
+        msg = f"{payment.razorpay_order_id}|{razorpay_payment_id}"
+        expected = hmac.new(
+            key=settings.RAZORPAY_KEY_SECRET.encode("utf-8"),
+            msg=msg.encode("utf-8"),
+            digestmod=hashlib.sha256,
+        ).hexdigest()
+        signature_ok = hmac.compare_digest(expected, razorpay_signature)
+    except Exception:
+        signature_ok = False
+    if not signature_ok:
+        # Leave the payment pending: a forged or mistyped signature must not
+        # let someone flip an order to failed, and a genuine retry can still pass.
+        raise ValueError("Invalid payment signature")
 
     payment.transaction_id = razorpay_payment_id
     payment.razorpay_signature = razorpay_signature

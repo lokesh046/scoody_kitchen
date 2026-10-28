@@ -7,6 +7,7 @@ from app.models.college import College
 from app.core.limiter import limiter
 from app.core.cache import cache
 from app.schemas.college import CollegeSearchResponse
+from app.core.search import like_pattern
 
 logger = logging.getLogger(__name__)
 
@@ -52,12 +53,12 @@ def search_colleges(
         select(College)
         .where(
             (College.is_active == True) &
-            ((College.name.ilike(f"%{q}%")) | (similarity_score > 0.2))
+            ((College.name.ilike(like_pattern(q), escape="\\")) | (similarity_score > 0.2))
         )
     )
     
     if state:
-        stmt = stmt.where(College.state.ilike(f"%{state.strip()}%"))
+        stmt = stmt.where(College.state.ilike(like_pattern(state), escape="\\"))
         
     stmt = stmt.order_by(similarity_score.desc()).limit(10)
     

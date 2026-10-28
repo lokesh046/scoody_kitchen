@@ -7,12 +7,12 @@ import type { NotificationResponse } from '../api/notifications';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-const getWsUrl = (token: string) => {
+const getWsUrl = () => {
   const base = API_BASE_URL.startsWith('http') 
     ? API_BASE_URL 
     : `${window.location.protocol}//${window.location.host}${API_BASE_URL}`;
   const wsBase = base.replace(/^http/, 'ws');
-  return `${wsBase}/notifications/ws?token=${token}`;
+  return `${wsBase}/notifications/ws`;
 };
 
 export function WebSocketNotificationListener() {
@@ -31,11 +31,13 @@ export function WebSocketNotificationListener() {
     const connectWs = () => {
       if (isDisposed) return;
       
-      const url = getWsUrl(accessToken);
+      const url = getWsUrl();
       console.log("[Global WebSocket] Connecting to:", url);
       socket = new WebSocket(url);
 
       socket.onopen = () => {
+        // The token goes in the first message, not the URL, so it stays out of access logs.
+        socket?.send(JSON.stringify({ type: 'auth', token: accessToken }));
         console.log("[Global WebSocket] Connected successfully!");
         // Sync active video call page states on connection or reconnection
         queryClient.invalidateQueries({ queryKey: ['videoConsultation'] });

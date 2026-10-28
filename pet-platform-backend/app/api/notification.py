@@ -1,3 +1,5 @@
+import asyncio
+import json
 from fastapi import APIRouter, Depends, HTTPException, Query, status, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 import jwt
@@ -159,17 +161,44 @@ def mark_my_notification_read(
     return notification
 
 
+WS_AUTH_TIMEOUT_SECONDS = 10
+
+
+async def _close_quietly(websocket: WebSocket) -> None:
+    try:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+    except Exception:
+        pass
+
+
 @router.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,
     token: str | None = Query(None),
 ):
-    user_id = await get_websocket_user_id(token)
-    if user_id is None:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        return
-
-    await manager.connect(user_id, websocket)
+    # Preferred: connect without credentials, then send {"type": "auth", "token": "..."}
+    # as the first message, so the access token never appears in a URL (and so never in
+    # access logs). `?token=` is still accepted for app versions already installed.
+    if token:
+        user_id = await get_websocket_user_id(token)
+        if user_id is None:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+        await manager.connect(user_id, websocket)
+    else:
+        await websocket.accept()
+        try:
+            raw = await asyncio.wait_for(websocket.receive_text(), timeout=WS_AUTH_TIMEOUT_SECONDS)
+            message = json.loads(raw)
+        except (asyncio.TimeoutError, WebSocketDisconnect, ValueError):
+            await _close_quietly(websocket)
+            return
+        first_token = message.get("token") if isinstance(message, dict) and message.get("type") == "auth" else None
+        user_id = await get_websocket_user_id(first_token if isinstance(first_token, str) else None)
+        if user_id is None:
+            await _close_quietly(websocket)
+            return
+        await manager.connect(user_id, websocket, already_accepted=True)
     try:
         while True:
             # Keep connection open waiting for ping/pong frames

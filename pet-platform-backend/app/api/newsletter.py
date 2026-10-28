@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.core.database import get_db
+from app.core.limiter import limiter
 from app.dependencies.auth import require_role
 from app.models.enums import UserRole
 from app.models.user import User
@@ -14,7 +15,8 @@ router = APIRouter(prefix="/newsletter", tags=["Newsletter"])
 
 
 @router.post("/subscribe", response_model=NewsletterSubscriberResponse, status_code=status.HTTP_201_CREATED)
-def subscribe(payload: NewsletterSubscribeRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def subscribe(request: Request, payload: NewsletterSubscribeRequest, db: Session = Depends(get_db)):
     existing = db.scalar(select(NewsletterSubscriber).where(NewsletterSubscriber.email == payload.email))
     if existing:
         if not existing.is_active:

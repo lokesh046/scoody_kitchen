@@ -4,6 +4,13 @@ class Setting(BaseSettings):
     APP_NAME: str = "PET PLATFORM API"
     DEBUG: bool = False
 
+    # Browser origins for local development (localhost, LAN addresses, emulator).
+    # Off by default so production never answers credentialed requests from them.
+    CORS_ALLOW_DEV_ORIGINS: bool = False
+    # Lets a signed-in user mark their own order paid without a real payment.
+    # For local development without Razorpay keys only; never enable on a server.
+    ALLOW_PAYMENT_SIMULATION: bool = False
+
     DATABASE_URL: str = ""
     # Cache only (app/core/cache.py). Split from Celery/rate-limiter storage
     # below so a cache stampede can't starve or evict the task queue or rate

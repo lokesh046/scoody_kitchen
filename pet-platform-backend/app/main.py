@@ -117,24 +117,34 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 
 # Configure CORS Middleware for secure cross-origin requests
+_DEV_CORS_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:8081",
+    "http://127.0.0.1:8081",
+    "http://localhost:19006",
+    "http://127.0.0.1:19006",
+]
+_CORS_ORIGINS = [
+    "https://hearthandone.com",
+    "https://www.hearthandone.com",
+    "https://api.hearthandone.com",
+    "https://beta.hearthandone.com",
+    settings.FRONTEND_URL,
+]
+if settings.CORS_ALLOW_DEV_ORIGINS:
+    _CORS_ORIGINS += _DEV_CORS_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-        "http://localhost:8081",
-        "http://127.0.0.1:8081",
-        "http://localhost:19006",
-        "http://127.0.0.1:19006",
-        "https://hearthandone.com",
-        "https://www.hearthandone.com",
-        "https://api.hearthandone.com",
-        "https://beta.hearthandone.com",
-        settings.FRONTEND_URL,
-    ],
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.0\.2\.2)(:\d+)?",
+    allow_origins=_CORS_ORIGINS,
+    allow_origin_regex=(
+        r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.0\.2\.2)(:\d+)?"
+        if settings.CORS_ALLOW_DEV_ORIGINS
+        else None
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

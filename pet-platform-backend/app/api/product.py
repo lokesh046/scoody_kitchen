@@ -41,7 +41,7 @@ router = APIRouter(
     status_code=status.HTTP_200_OK,
 )
 def get_all_products(
-    search: str | None = Query(None),
+    search: str | None = Query(None, max_length=100),
     category_id: int | None = Query(None),
     min_price: Decimal | None = Query(None),
     max_price: Decimal | None = Query(None),

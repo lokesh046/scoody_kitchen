@@ -119,9 +119,11 @@ def request_login_magic_link(
     response_model=TokenResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit("10/minute")
 def verify_magic_link_via_url(
+    request: Request,
     response: Response,
-    token: str = Query(...),
+    token: str = Query(..., max_length=2048),
     db: Session = Depends(get_db),
 ):
     try:
@@ -138,7 +140,9 @@ def verify_magic_link_via_url(
     response_model=TokenResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit("10/minute")
 def verify_magic_link_via_post(
+    request: Request,
     response: Response,
     verify_data: MagicLinkVerifyToken,
     db: Session = Depends(get_db),
@@ -259,6 +263,7 @@ def logout(
     "/refresh",
     response_model=TokenResponse,
 )
+@limiter.limit("60/minute")
 def refresh_token_endpoint(
     response: Response,
     request: Request,
@@ -383,7 +388,9 @@ async def upload_avatar(
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit("10/minute")
 def verify_firebase_phone(
+    request: Request,
     payload: FirebaseVerifyPhonePayload,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -429,6 +436,7 @@ def get_client_ip(request: Request) -> str:
     "/request-otp",
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit("10/minute")
 def request_otp(
     request: Request,
     payload: OTPRequest,
@@ -540,6 +548,7 @@ def _hash_whatsapp_otp(code: str) -> str:
 
 
 @router.post("/whatsapp/send-otp", status_code=status.HTTP_200_OK)
+@limiter.limit("10/minute")
 async def send_whatsapp_otp_endpoint(
     request: Request,
     payload: OTPRequest,
@@ -617,7 +626,9 @@ async def send_whatsapp_otp_endpoint(
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
 )
+@limiter.limit("10/minute")
 def verify_whatsapp_otp_endpoint(
+    request: Request,
     payload: WhatsAppVerifyOTP,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
