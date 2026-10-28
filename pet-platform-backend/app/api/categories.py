@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.cache import cache
 from app.core.database import get_db
-from app.dependencies.auth import get_current_user, get_current_user_optional, require_role
+from app.dependencies.auth import get_current_user, require_role
 from app.models.enums import UserRole
 from app.models.user import User
 from app.schemas.category import (
@@ -37,7 +37,6 @@ router = APIRouter(
 )
 def list_categories(
     db: Session = Depends(get_db),
-    current_user: User | None = Depends(get_current_user_optional),
 ):
     cached = cache.get("categories:all")
     if cached is not None:
@@ -54,7 +53,6 @@ def list_categories(
 )
 def list_category_tree(
     db: Session = Depends(get_db),
-    current_user: User | None = Depends(get_current_user_optional),
 ):
     cached = cache.get("categories:tree")
     if cached is not None:
