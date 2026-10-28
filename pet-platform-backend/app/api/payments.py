@@ -19,6 +19,21 @@ router = APIRouter(
     tags=["Payments"],
 )
 
+def _ensure_payment_simulation_allowed() -> None:
+    """Manual success/failure endpoints are a local-development aid only: they
+    need ALLOW_PAYMENT_SIMULATION and must never run when Razorpay is active."""
+    from app.core.config import settings
+    if (
+        not settings.ALLOW_PAYMENT_SIMULATION
+        or settings.RAZORPAY_KEY_ID
+        or settings.RAZORPAY_KEY_SECRET
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Manual payment simulation is disabled."
+        )
+
+
 @router.post(
     "/{order_id}",
     response_model=PaymentResponse,
@@ -74,12 +89,7 @@ def simulate_payment_success(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.core.config import settings
-    if settings.RAZORPAY_KEY_ID or settings.RAZORPAY_KEY_SECRET:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Manual payment simulation is disabled when Razorpay is active."
-        )
+    _ensure_payment_simulation_allowed()
 
     order = get_user_order(
         db,
@@ -127,12 +137,7 @@ def simulate_payment_failure(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    from app.core.config import settings
-    if settings.RAZORPAY_KEY_ID or settings.RAZORPAY_KEY_SECRET:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Manual payment simulation is disabled when Razorpay is active."
-        )
+    _ensure_payment_simulation_allowed()
 
     order = get_user_order(
         db,

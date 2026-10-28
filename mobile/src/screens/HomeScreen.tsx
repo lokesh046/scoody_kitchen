@@ -607,8 +607,15 @@ export default function HomeScreen({ navigation }: any) {
     let isMounted = true;
 
     try {
-      const wsUrl = `${BASE_URL.replace(/^http/, 'ws')}/notifications/ws?token=${accessToken}`;
+      const wsUrl = `${BASE_URL.replace(/^http/, 'ws')}/notifications/ws`;
       ws = new WebSocket(wsUrl);
+
+      // The token goes in the first message, not the URL, so it stays out of access logs.
+      ws.onopen = () => {
+        try {
+          ws?.send(JSON.stringify({ type: 'auth', token: accessToken }));
+        } catch {}
+      };
 
       ws.onmessage = (event) => {
         if (!isMounted) return;

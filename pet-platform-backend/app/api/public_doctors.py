@@ -73,7 +73,7 @@ router = APIRouter(
 def list_public_doctors(
     page: int = 1,
     limit: int = 20,
-    search: str | None = None,
+    search: str | None = Query(None, max_length=100),
     specialization: str | None = None,
     clinic_id: int | None = None,
     city: str | None = None,
