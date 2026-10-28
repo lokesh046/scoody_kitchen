@@ -58,7 +58,6 @@ export function SiteFooter({ className = 'bg-midnight' }: { className?: string }
             <ul className="space-y-2.5 font-body text-sm text-paper opacity-80">
               <li><button onClick={() => navigate('/')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Our Story</button></li>
               <li><button onClick={() => goToHomeSection('hearth-hound')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Hearth &amp; Hound · Coming Soon</button></li>
-              <li><button onClick={() => goToHomeSection('faq')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">FAQs</button></li>
               <li><button onClick={() => navigate('/support')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Contact Us</button></li>
             </ul>
           </div>
