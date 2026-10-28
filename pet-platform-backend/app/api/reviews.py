@@ -129,7 +129,7 @@ def get_doctor_reviews(
         for item in result.get("items", [])
     ]
     cached_data = {**result, "items": serialized_items}
-    cache.set(cache_key, cached_data, ttl_seconds=300)
+    cache.set(cache_key, cached_data, ttl_seconds=86400)
     return cached_data
 
 
@@ -248,7 +248,7 @@ def get_product_reviews(
     reviews_list = paginated_data.get("items", [])
 
     if not reviews_list:
-        cache.set(cache_key, paginated_data, ttl_seconds=300)
+        cache.set(cache_key, paginated_data, ttl_seconds=86400)
         return paginated_data
 
     # Perform bulk lookup for verified buyers to avoid N+1 queries
@@ -273,7 +273,7 @@ def get_product_reviews(
         items_response.append(resp.model_dump(mode="json"))
 
     paginated_data["items"] = items_response
-    cache.set(cache_key, paginated_data, ttl_seconds=300)
+    cache.set(cache_key, paginated_data, ttl_seconds=86400)
     return paginated_data
 
 
@@ -402,7 +402,7 @@ def get_recent_reviews(
     # Sort unified list by created_at desc
     unified.sort(key=lambda x: x["created_at"] or "", reverse=True)
     result = {"reviews": unified[:limit]}
-    cache.set(cache_key, result, ttl_seconds=300)
+    cache.set(cache_key, result, ttl_seconds=86400)
     return result
 
 
