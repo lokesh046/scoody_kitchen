@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import SafeAreaView from '../components/FeatureSafeArea';
 import { useFocusEffect } from '@react-navigation/native';
 import { Send, Package, Stethoscope } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';

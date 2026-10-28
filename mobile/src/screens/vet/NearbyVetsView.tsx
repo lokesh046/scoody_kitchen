@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -14,15 +14,16 @@ import {
   Animated,
   PanResponder,
   Easing,
+  Image as RNImage,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Image } from 'expo-image';
-import { Compass, MapPin, Navigation, Locate, Phone, Clock, Stethoscope, PillBottle, X, ShieldCheck, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react-native';
+import { Compass, MapPin, Navigation, Locate, Phone, Clock, Stethoscope, PillBottle, X, ShieldCheck, ChevronRight, ChevronUp, ChevronDown, Star } from 'lucide-react-native';
 import { COLORS } from '../../theme/colors';
-import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../../theme/typography';
+import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD, FONT_HEADING_SCRIPT, LEDGER_MONO } from '../../theme/typography';
 import { BASE_URL } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import {
@@ -48,16 +49,54 @@ const DEFAULT_MAP_COORDS = { lat: 13.0827, lng: 80.2707 };
 interface NearbyVetsViewProps {
   onSelectDoctor: (doctor: Doctor) => void;
   onSwitchToConsult: () => void;
+  compact: boolean;
+  chromeProgress: Animated.Value;
+  onCompactChange: (compact: boolean) => void;
 }
 
-export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVetsViewProps) {
+export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult, compact, chromeProgress, onCompactChange }: NearbyVetsViewProps) {
   const navigation = useNavigation();
+  const scrollAnchor = useRef(0);
+  const scrollTravel = useRef(0);
+  const scrollingByTouch = useRef(false);
+  const chromeLockedUntil = useRef(0);
+  const [locationSummaryHeight, setLocationSummaryHeight] = useState(74);
+  const handleResultsScroll = (event: any) => {
+    const y = Math.max(0, event.nativeEvent.contentOffset.y);
+    const delta = y - scrollAnchor.current;
+    scrollAnchor.current = y;
+    if (!scrollingByTouch.current || Date.now() < chromeLockedUntil.current) return;
+    // Accumulate intentional motion in one direction, ignoring layout shifts
+    // during the transition and small finger movements.
+    scrollTravel.current = Math.sign(delta) === Math.sign(scrollTravel.current)
+      ? scrollTravel.current + delta : delta;
+    if (Math.abs(scrollTravel.current) < 28 && y > 4) return;
+    const nextCompact = y > 4 && scrollTravel.current > 0;
+    if (nextCompact === compact) return;
+    scrollTravel.current = 0;
+    chromeLockedUntil.current = Date.now() + 340;
+    onCompactChange(nextCompact);
+    if (nextCompact) collapseControls();
+  };
   const accessToken = useAuthStore((state) => state.accessToken);
   const mapRef = useRef<MapView | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [mapCoords, setMapCoords] = useState(DEFAULT_MAP_COORDS);
   const [category, setCategory] = useState<NearbyClinicCategory>('clinic');
   const [radiusKm, setRadiusKm] = useState<5 | 15 | 25>(5);
+  const [showDistanceOptions, setShowDistanceOptions] = useState(false);
+  const distanceProgress = useRef(new Animated.Value(0)).current;
+  const [distanceHeight, setDistanceHeight] = useState(44);
+  useEffect(() => {
+    const animation = Animated.timing(distanceProgress, {
+      toValue: showDistanceOptions ? 1 : 0,
+      duration: 260,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [showDistanceOptions, distanceProgress]);
   const [isLocating, setIsLocating] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [pincode, setPincode] = useState('');
@@ -104,9 +143,10 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
   // of settling cleanly, which reads as "janky" -- a fixed-duration eased
   // timing animation gives a controlled, consistent fold/unfold instead.
   const animateExpand = (toValue: 0 | 1) => {
+    expandAnim.stopAnimation();
     Animated.timing(expandAnim, {
       toValue,
-      duration: 240,
+      duration: 300,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
     }).start();
@@ -122,7 +162,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
     animateExpand(0);
   };
 
-  const controlsPanResponder = useRef(
+  const controlsPanResponder = useMemo(() =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       // Loose enough that ordinary finger jitter during a tap doesn't get
@@ -153,8 +193,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
         setIsControlsExpanded(shouldExpand);
         animateExpand(shouldExpand ? 1 : 0);
       },
-    })
-  ).current;
+    }), [isControlsExpanded, collapsibleHeight]);
 
   const runSearch = async (lat: number, lng: number, radius: 5 | 15 | 25, cat: NearbyClinicCategory) => {
     setIsSearching(true);
@@ -163,6 +202,10 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
     try {
       const data = await fetchNearbyClinics(lat, lng, radius, cat);
       setResults(data.results);
+      if (data.results.length > 0) {
+        setShowMapPicker(false);
+        collapseControls();
+      }
       setRadiusUsed(data.radius_km_used);
       setFallback(data.fallback_to_registered_only);
       setLastSearch({
@@ -373,85 +416,59 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
       ? { uri: item.profile_image_url }
       : null;
 
+    const name = item.name || item.clinic_name || 'Unnamed clinic';
+    const phone = item.phone || (item.place_id ? detailsCache[item.place_id]?.phone : null);
+    const directionsUrl = buildDirectionsUrl(item);
+    const busy = !isGoogle && isLoadingDoctor === item.doctor_id;
+    const openDetails = () => isGoogle ? handleOpenClinicDetail(item) : item.doctor_id && handleSelectRegistered(item.doctor_id);
+
     return (
-      <TouchableOpacity
-        style={styles.resultCard}
-        activeOpacity={0.8}
-        onPress={() =>
-          isGoogle
-            ? handleOpenClinicDetail(item)
-            : item.doctor_id && handleSelectRegistered(item.doctor_id)
-        }
-        disabled={!isGoogle && isLoadingDoctor === item.doctor_id}
-      >
-        {imageSource ? (
-          <Image source={imageSource} style={styles.resultImg} contentFit="cover" />
-        ) : (
-          <View style={styles.resultImgFallback}>
-            {category === 'pharmacy' ? (
-              <PillBottle size={28} color={COLORS.forestGreen} />
-            ) : (
-              <Stethoscope size={28} color={COLORS.forestGreen} />
-            )}
-          </View>
-        )}
-
-        <View style={styles.resultBody}>
-          <View style={styles.resultTitleRow}>
-            <Text style={styles.resultName} numberOfLines={1}>
-              {item.name || item.clinic_name || 'Unnamed clinic'}
-            </Text>
-            <Text style={styles.resultDistancePill}>{item.distance_km.toFixed(1)} km</Text>
-          </View>
-
-          {isGoogle ? (
-            <View style={[styles.sourceBadge, styles.sourceBadgeGoogle]}>
-              <Text style={[styles.sourceBadgeText, styles.sourceBadgeTextGoogle]}>Google</Text>
-            </View>
+      <View style={styles.resultCard}>
+        <TouchableOpacity style={styles.cardSummary} activeOpacity={0.8} onPress={openDetails} disabled={busy} accessibilityRole="button" accessibilityLabel={`View ${name}`}>
+          {imageSource ? (
+            <Image source={imageSource} style={styles.resultImg} contentFit="cover" />
           ) : (
-            <View style={[styles.sourceBadge, styles.sourceBadgeRegistered]}>
-              <ShieldCheck size={9} color={COLORS.forestGreen} />
-              <Text style={[styles.sourceBadgeText, styles.sourceBadgeTextRegistered]}>Registered</Text>
+            <View style={styles.resultImgFallback}>
+              {category === 'pharmacy' ? <PillBottle size={26} color={COLORS.brandGold} /> : <Stethoscope size={26} color={COLORS.brandGold} />}
             </View>
           )}
-
-          <Text style={styles.resultSub} numberOfLines={1}>
-            {item.address || item.specialization || ''}
-          </Text>
-
-          <View style={styles.resultMetaWrapRow}>
-            {item.phone && (
-              <View style={styles.resultMetaRow}>
-                <Phone size={11} color={COLORS.forestGreen} />
-                <Text style={styles.resultMetaText} numberOfLines={1}>{item.phone}</Text>
-              </View>
-            )}
-
-            {item.opening_hours && item.opening_hours.length > 0 && (
-              <View style={styles.resultMetaRow}>
-                <Clock size={11} color={COLORS.forestGreen} />
-                <Text style={styles.resultMetaText} numberOfLines={1}>{item.opening_hours[0]}</Text>
-              </View>
-            )}
+          <View style={styles.resultBody}>
+            <Text style={styles.resultName} numberOfLines={2}>{name}</Text>
+            <View style={styles.resultMetaWrapRow}>
+              <Text style={styles.resultDistancePill}>{item.distance_km.toFixed(1)} km away</Text>
+              {item.average_rating != null && item.average_rating > 0 && (
+                <View style={styles.resultMetaRow}>
+                  <Star size={12} color={COLORS.brandGold} />
+                  <Text style={styles.resultMetaText}>{item.average_rating.toFixed(1)}{item.review_count ? ` (${item.review_count})` : ''}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.resultSub} numberOfLines={2}>{item.address || item.specialization || 'View clinic details'}</Text>
+            <Text style={styles.sourceLabel}>{isGoogle ? 'Google Places' : 'Registered veterinarian'}</Text>
           </View>
-
-          <View style={styles.resultCtaRow}>
-            {!isGoogle && isLoadingDoctor === item.doctor_id ? (
-              <ActivityIndicator size="small" color={COLORS.forestGreen} />
-            ) : isGoogle ? (
-              <View style={styles.resultCtaSecondary}>
-                <Text style={styles.resultCtaSecondaryText}>View Details</Text>
-                <ChevronRight size={12} color={COLORS.textCoffee} />
-              </View>
-            ) : (
-              <View style={styles.resultCtaPrimary}>
-                <Text style={styles.resultCtaPrimaryText}>Book Appointment</Text>
-                <ChevronRight size={12} color="#FFFFFF" />
-              </View>
-            )}
-          </View>
+          <ChevronRight size={16} color={COLORS.textMuted} />
+        </TouchableOpacity>
+        <View style={styles.cardActions}>
+          {phone && (
+            <TouchableOpacity style={styles.cardAction} accessibilityRole="button" accessibilityLabel={`Call ${name}`} onPress={() => Linking.openURL(`tel:${phone}`).catch(() => Alert.alert('Unable to open phone', 'Please try calling from your phone app.'))}>
+              <Phone size={15} color={COLORS.textCoffee} /><Text style={styles.cardActionText}>Call</Text>
+            </TouchableOpacity>
+          )}
+          {directionsUrl && (
+            <TouchableOpacity style={styles.cardAction} accessibilityRole="button" accessibilityLabel={`Directions to ${name}`} onPress={() => handleOpenDirections(item)}>
+              <Navigation size={15} color={COLORS.textCoffee} /><Text style={styles.cardActionText}>Directions</Text>
+            </TouchableOpacity>
+          )}
+          {!isGoogle && (
+            <TouchableOpacity style={[styles.cardAction, styles.bookAction]} onPress={openDetails} disabled={busy} accessibilityRole="button" accessibilityLabel={`Book with ${name}`}>
+              {busy ? <ActivityIndicator size="small" color="#FAF4E8" /> : <Text style={[styles.cardActionText, { color: '#FAF4E8' }]}>Book</Text>}
+            </TouchableOpacity>
+          )}
+          {!phone && !directionsUrl && isGoogle && (
+            <TouchableOpacity style={styles.cardAction} onPress={openDetails} accessibilityRole="button"><Text style={styles.cardActionText}>View details</Text></TouchableOpacity>
+          )}
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -464,14 +481,14 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <View style={styles.safeArea}>
           <View style={styles.controls}>
             <View style={styles.categoryRow}>
               <TouchableOpacity
                 style={[styles.categoryChip, category === 'clinic' && styles.categoryChipActive]}
                 onPress={() => handleChangeCategory('clinic')}
               >
-                <Stethoscope size={14} color={category === 'clinic' ? '#FFFFFF' : COLORS.textMuted} />
+                <RNImage source={require('../../../assets/toolkit/vet-consults.webp')} style={styles.categoryChipIcon} resizeMode="contain" />
                 <Text style={[styles.categoryChipText, category === 'clinic' && styles.categoryChipTextActive]}>Clinic</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -481,18 +498,83 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
                 <PillBottle size={14} color={category === 'pharmacy' ? '#FFFFFF' : COLORS.textMuted} />
                 <Text style={[styles.categoryChipText, category === 'pharmacy' && styles.categoryChipTextActive]}>Pharmacy</Text>
               </TouchableOpacity>
-            </View>
-
-            <View {...controlsPanResponder.panHandlers} style={styles.dragHandleRow}>
-              <View style={styles.dragHandleBar} />
-              {isControlsExpanded ? (
-                <ChevronUp size={14} color={COLORS.textMuted} />
-              ) : (
-                <ChevronDown size={14} color={COLORS.textMuted} />
-              )}
+              <TouchableOpacity
+                  style={styles.compactDistance}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Search distance ${radiusKm} kilometres. Tap to change location or distance`}
+                  accessibilityState={{ expanded: showDistanceOptions }}
+                  onPress={() => {
+                    setShowDistanceOptions((visible) => !visible);
+                    if (!showDistanceOptions) {
+                      onCompactChange(false);
+                      setIsControlsExpanded(true);
+                      animateExpand(1);
+                    }
+                    scrollTravel.current = 0;
+                    chromeLockedUntil.current = Date.now() + 340;
+                  }}
+                >
+                  <Text style={styles.categoryChipText}>{radiusKm} km</Text>
+                  {showDistanceOptions ? <ChevronUp size={12} color={COLORS.textCoffee} /> : <ChevronDown size={12} color={COLORS.textCoffee} />}
+                </TouchableOpacity>
             </View>
 
             <Animated.View
+              pointerEvents={showDistanceOptions ? 'auto' : 'none'}
+              accessibilityElementsHidden={!showDistanceOptions}
+              importantForAccessibility={showDistanceOptions ? 'auto' : 'no-hide-descendants'}
+              style={{ height: distanceProgress.interpolate({ inputRange: [0, 1], outputRange: [0, distanceHeight] }), opacity: distanceProgress, overflow: 'hidden' }}
+            >
+                  <View onLayout={(event) => setDistanceHeight(event.nativeEvent.layout.height)} style={[styles.radiusRow, { flexShrink: 0, paddingBottom: 4 }]}>
+                    <Compass size={14} color={COLORS.textMuted} />
+                    {RADIUS_PRESETS_KM.map((preset) => (
+                      <TouchableOpacity
+                        key={preset}
+                        style={[styles.radiusChip, radiusKm === preset && styles.radiusChipActive]}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: radiusKm === preset }}
+                        onPress={() => {
+                          setShowDistanceOptions(false);
+                          if (showMapPicker) setRadiusKm(preset);
+                          else handleChangeRadius(preset);
+                        }}
+                      >
+                        <Text style={[styles.radiusChipText, radiusKm === preset && styles.radiusChipTextActive]}>{preset} km</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+            </Animated.View>
+
+            <Animated.View
+              pointerEvents={compact ? 'none' : 'auto'}
+              accessibilityElementsHidden={compact}
+              importantForAccessibility={compact ? 'no-hide-descendants' : 'auto'}
+              style={{ height: chromeProgress.interpolate({ inputRange: [0, 1], outputRange: [0, locationSummaryHeight] }), opacity: chromeProgress, overflow: 'hidden' }}
+            >
+            <View style={{ flexShrink: 0 }} onLayout={(event) => setLocationSummaryHeight(event.nativeEvent.layout.height)}>
+            <TouchableOpacity
+              style={styles.locationSummary}
+              onPress={() => { setIsControlsExpanded(!isControlsExpanded); animateExpand(isControlsExpanded ? 0 : 1); }}
+              accessibilityRole="button"
+              accessibilityLabel="Change search location"
+              accessibilityState={{ expanded: isControlsExpanded }}
+            >
+              <MapPin size={18} color={COLORS.brandGold} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.locationTitle}>{coords ? 'Searching around your selected location' : 'Choose your search location'}</Text>
+                <Text style={styles.locationSubtitle}>{coords ? `${coords.lat.toFixed(3)}, ${coords.lng.toFixed(3)}` : 'Use your location or search by pincode'}</Text>
+              </View>
+              <Text style={styles.changeLabel}>{isControlsExpanded ? 'Done' : 'Change'}</Text>
+            </TouchableOpacity>
+            <View {...controlsPanResponder.panHandlers} style={styles.dragHandleRow}><View style={styles.dragHandleBar} /></View>
+
+            </View>
+            </Animated.View>
+
+            <Animated.View
+              pointerEvents={isControlsExpanded ? 'auto' : 'none'}
+              accessibilityElementsHidden={!isControlsExpanded}
+              importantForAccessibility={isControlsExpanded ? 'auto' : 'no-hide-descendants'}
               style={{
                 height: collapsibleHeight > 0
                   ? expandAnim.interpolate({ inputRange: [0, 1], outputRange: [0, collapsibleHeight] })
@@ -503,8 +585,16 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
             >
               <View
                 onLayout={(e) => setCollapsibleHeight(e.nativeEvent.layout.height)}
-                style={styles.collapsibleContent}
+                style={[styles.collapsibleContent, { flexShrink: 0 }]}
               >
+                <View style={styles.locateHero}>
+                  <RNImage source={require('../../../assets/vet/locate-vet.webp')} style={styles.locateHeroIcon} resizeMode="contain" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.locateHeroTitle}>Find care near you</Text>
+                    <Text style={styles.locateHeroSub}>Clinics and pharmacies around your location.</Text>
+                  </View>
+                </View>
+
                 <FeaturePrivacyNote
                   text="With your permission, we use your device location to find nearby clinics and pharmacies via Google Places. You can decline and search by pincode instead."
                   onPressFullPolicy={() => navigation.navigate('PrivacyPolicy' as never)}
@@ -583,18 +673,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
                       </TouchableOpacity>
                     </View>
 
-                    <View style={styles.radiusRow}>
-                      <Compass size={14} color={COLORS.textMuted} />
-                      {RADIUS_PRESETS_KM.map((preset) => (
-                        <TouchableOpacity
-                          key={preset}
-                          style={[styles.radiusChip, radiusKm === preset && styles.radiusChipActive]}
-                          onPress={() => setRadiusKm(preset)}
-                        >
-                          <Text style={[styles.radiusChipText, radiusKm === preset && styles.radiusChipTextActive]}>{preset} km</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+
 
                     <TouchableOpacity style={styles.gpsButton} onPress={handleSearchThisLocation} disabled={isSearching}>
                       {isSearching ? (
@@ -606,24 +685,12 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
                   </View>
                 )}
 
-                {coords && !showMapPicker && (
-                  <View style={styles.radiusRow}>
-                    <Compass size={14} color={COLORS.textMuted} />
-                    {RADIUS_PRESETS_KM.map((preset) => (
-                      <TouchableOpacity
-                        key={preset}
-                        style={[styles.radiusChip, radiusKm === preset && styles.radiusChipActive]}
-                        onPress={() => handleChangeRadius(preset)}
-                      >
-                        <Text style={[styles.radiusChipText, radiusKm === preset && styles.radiusChipTextActive]}>{preset} km</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
 
-                {error !== '' && <Text style={styles.errorText}>{error}</Text>}
+
               </View>
             </Animated.View>
+            {error !== '' && <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text>}
+
           </View>
 
           {isSearching ? (
@@ -636,7 +703,10 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
               keyExtractor={(item, idx) => (item.source === 'registered' ? `reg-${item.doctor_id}` : `google-${item.place_id}`) || String(idx)}
               renderItem={renderItem}
               contentContainerStyle={styles.listContent}
-              onScrollBeginDrag={collapseControls}
+              scrollEventThrottle={16}
+              onScroll={handleResultsScroll}
+              onScrollBeginDrag={(event) => { setShowDistanceOptions(false); scrollingByTouch.current = true; scrollTravel.current = 0; scrollAnchor.current = Math.max(0, event.nativeEvent.contentOffset.y); }}
+              onScrollEndDrag={() => { scrollingByTouch.current = false; }}
               ListHeaderComponent={
                 results.length > 0 ? (
                   <View style={styles.listHeaderRow}>
@@ -666,7 +736,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
               }
             />
           )}
-        </SafeAreaView>
+        </View>
       </KeyboardAvoidingView>
 
       {/* Clinic/Pharmacy Detail — full-screen, same information the web
@@ -785,6 +855,17 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult }: NearbyVets
 }
 
 const styles = {
+  compactDistance: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 5, minWidth: 64, minHeight: 44, borderRadius: 12, backgroundColor: '#F1E8DA' },
+  locationSummary: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, minHeight: 58, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#F1E8DA', borderRadius: 12 },
+  locationTitle: { fontSize: 12, fontFamily: FONT_BODY_BOLD, color: COLORS.textCoffee },
+  locationSubtitle: { fontSize: 10, fontFamily: FONT_BODY, color: COLORS.textMuted, marginTop: 3 },
+  changeLabel: { fontSize: 12, fontFamily: FONT_BODY_BOLD, color: '#976430' },
+  cardSummary: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12 },
+  cardActions: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 8, borderTopWidth: 1, borderTopColor: COLORS.kraftBorder, paddingTop: 10 },
+  cardAction: { flex: 1, minWidth: 72, minHeight: 44, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 6, backgroundColor: '#F3EBDD', borderRadius: 10, paddingHorizontal: 10 },
+  cardActionText: { fontSize: 12, fontFamily: FONT_BODY_BOLD, color: COLORS.textCoffee },
+  bookAction: { backgroundColor: '#17120D' },
+  sourceLabel: { fontSize: 10, fontFamily: FONT_BODY, color: COLORS.textMuted },
   safeArea: { flex: 1, backgroundColor: COLORS.canvas },
   header: {
     flexDirection: 'row' as const,
@@ -796,14 +877,14 @@ const styles = {
     borderBottomColor: COLORS.kraftBorder,
   },
   headerTitle: { fontSize: 18, fontFamily: FONT_DISPLAY, color: COLORS.textCoffee },
-  controls: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 0 },
+  controls: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 10 },
   categoryRow: { flexDirection: 'row' as const, gap: 8, marginBottom: 6 },
   dragHandleRow: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     gap: 4,
-    paddingVertical: 16,
+    paddingVertical: 6,
   },
   dragHandleBar: {
     width: 36,
@@ -812,6 +893,11 @@ const styles = {
     backgroundColor: COLORS.kraftBorder,
   },
   collapsibleContent: { gap: 10, paddingBottom: 8 },
+  locateHero: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12, paddingVertical: 2 },
+  locateHeroIcon: { width: 40, height: 40 },
+  locateHeroTitle: { fontSize: 21, fontFamily: FONT_HEADING_SCRIPT, color: COLORS.textCoffee },
+  locateHeroSub: { marginTop: 1, fontSize: 12, fontFamily: FONT_BODY, color: COLORS.textMuted },
+  categoryChipIcon: { width: 22, height: 22 },
   categoryChip: {
     flex: 1,
     flexDirection: 'row' as const,
@@ -935,6 +1021,8 @@ const styles = {
   detailCallChipText: { fontSize: 10, fontFamily: FONT_BODY_BOLD, color: '#FFFFFF', textTransform: 'uppercase' as const },
   radiusRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6 },
   radiusChip: {
+    minHeight: 40,
+    justifyContent: 'center' as const,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -947,12 +1035,9 @@ const styles = {
   switchToPincodeLink: { fontSize: 11, fontFamily: FONT_BODY_BOLD, color: COLORS.sageIcon, textDecorationLine: 'underline' as const },
   errorText: { fontSize: 11, fontFamily: FONT_BODY, color: COLORS.ctaBrown },
   centerFill: { flex: 1, alignItems: 'center' as const, justifyContent: 'center' as const },
-  // The global ScoobyAIFAB sits bottom-left at bottom:96, 52px tall (see
-  // its own comment in ScoobyAIFAB.tsx), so its footprint spans roughly
-  // 96-148px up from the screen edge. Every scrollable screen is expected
-  // to keep its own content clear of that zone; this one didn't, so the
-  // last result card scrolled in right underneath the floating button.
-  listContent: { paddingHorizontal: 20, paddingBottom: 180, gap: 10 },
+  // The tab navigator handles the system inset. Keep only enough scroll
+  // clearance to move the final result above the floating assistant.
+  listContent: { paddingHorizontal: 16, paddingBottom: 76, gap: 10 },
   listHeaderRow: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, marginBottom: 4 },
   listHeaderText: { fontSize: 11, fontFamily: LEDGER_MONO, color: COLORS.textMuted },
   attributionText: { fontSize: 9, fontFamily: FONT_BODY, color: COLORS.textMuted },
@@ -965,18 +1050,17 @@ const styles = {
     marginBottom: 4,
   },
   resultCard: {
-    flexDirection: 'row' as const,
     borderWidth: 1,
     borderColor: COLORS.kraftBorder,
     borderRadius: 14,
     padding: 14,
-    backgroundColor: COLORS.cardAlt,
-    gap: 14,
+    backgroundColor: COLORS.card,
+    gap: 12,
   },
-  resultImg: { width: 80, height: 80, borderRadius: 12, backgroundColor: COLORS.kraftBorder },
+  resultImg: { width: 64, height: 64, borderRadius: 12, backgroundColor: COLORS.kraftBorder },
   resultImgFallback: {
-    width: 80,
-    height: 80,
+    width: 64,
+    height: 64,
     borderRadius: 12,
     backgroundColor: 'rgba(63,94,77,0.1)',
     alignItems: 'center' as const,

@@ -6,5 +6,5 @@
 // exact calculation without importing TabNavigator itself, which would
 // create a circular import (TabNavigator -> HomeScreen -> AppTour -> back
 // to TabNavigator).
-export const TAB_BAR_CONTENT_HEIGHT = 48;
+export const TAB_BAR_CONTENT_HEIGHT = 58;
 export const TAB_BAR_TOP_PADDING = 8;

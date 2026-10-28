@@ -1,3 +1,5 @@
+import { LinearGradient } from 'expo-linear-gradient';
+import { headerActionStyle } from '../components/ScreenHeader';
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import {
   View,
@@ -9,12 +11,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
-  StatusBar,
   ScrollView,
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import SafeAreaView from '../components/FeatureSafeArea';
 import {
   ArrowLeft,
   Send,
@@ -30,11 +32,12 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAccessToken } from '../services/secureTokenStorage';
 import { COLORS } from '../theme/colors';
-import { FONT_DISPLAY, FONT_BODY } from '../theme/typography';
+import { FONT_DISPLAY, FONT_BODY, FONT_HEADING_SCRIPT } from '../theme/typography';
 import { useAuthStore } from '../store/authStore';
 import { usePetStore } from '../store/petStore';
 import { useCartStore } from '../store/cartStore';
 import { BrandMedallion } from '../components/BrandLogo';
+import AIDogIcon from '../components/AIDogIcon';
 import { FeaturePrivacyNote } from '../components/FeaturePrivacyNote';
 import { useResponsive } from '../hooks/useResponsive';
 import { refreshAuthTokenSilently } from '../api/client';
@@ -580,7 +583,9 @@ export default function ChatbotScreen({ navigation, route }: any) {
       >
         {/* Assistant Avatar on Left (WhatsApp style) */}
         {!isUser && (
-          <BrandMedallion size="xs" style={{ marginRight: 6 }} />
+          <View style={{ marginRight: 6 }}>
+            <AIDogIcon size={28} />
+          </View>
         )}
 
         {/* WhatsApp Chat Bubble */}
@@ -639,43 +644,35 @@ export default function ChatbotScreen({ navigation, route }: any) {
 
   return (
     <View style={styles.phoneContainer}>
-      <StatusBar barStyle="light-content" backgroundColor="#1F3A2B" />
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <KeyboardAvoidingView
           style={styles.flexFill}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={0}
         >
-          {/* WhatsApp-Style Dark Green Header */}
-          <View style={styles.header}>
+          {/* Compact chat toolbar */}
+          <LinearGradient colors={['#0E0B08', '#17120D', '#0E0B08']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
             <TouchableOpacity
               onPress={handleClose}
-              style={styles.backButton}
+              style={[styles.backButton, headerActionStyle]}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               accessibilityRole="button"
               accessibilityLabel="Close chat"
             >
-              <ArrowLeft size={22} color="#FFFFFF" />
+              <ArrowLeft size={22} color="#D7AF76" />
             </TouchableOpacity>
-
-            {/* Scooby Avatar with Active Green Status Dot */}
-            <View style={styles.avatarContainer}>
-              <BrandMedallion size="sm" />
-              <View style={styles.onlineBadge} />
-            </View>
 
             {/* Title & Subtitle Info */}
             <View style={styles.headerInfo}>
               <View style={styles.headerTitleRow}>
-                <Text style={styles.headerTitle}>Hearth & One AI Nutritionist</Text>
-                <Sparkles size={14} color="#F6D365" />
+                <Text accessibilityRole="header" style={styles.headerTitle} numberOfLines={1}>AI Assistant</Text>
               </View>
               <Text style={styles.headerSubtitle} numberOfLines={1}>
                 {isSending
                   ? 'typing...'
                   : activePet
                   ? `Companion: ${activePet.name} (${activePet.breed || 'Dog'})`
-                  : 'online • Veterinary Knowledge AI'}
+                  : 'Nutrition & everyday care'}
               </Text>
             </View>
 
@@ -709,14 +706,14 @@ export default function ChatbotScreen({ navigation, route }: any) {
             {/* Reset / Clear Chat Button */}
             <TouchableOpacity
               onPress={handleClearHistory}
-              style={styles.headerActionBtn}
+              style={[styles.headerActionBtn, headerActionStyle]}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
               accessibilityLabel="Clear chat history"
             >
-              <RotateCcw size={18} color="#FFFFFF" />
+              <RotateCcw size={18} color="#D7AF76" />
             </TouchableOpacity>
-          </View>
+          </LinearGradient>
 
           {/* Auth Gate Screen for Unauthenticated Visitors */}
           {!user?.id ? (
@@ -884,11 +881,11 @@ export default function ChatbotScreen({ navigation, route }: any) {
 const styles = StyleSheet.create({
   phoneContainer: {
     flex: 1,
-    backgroundColor: '#1F3A2B',
+    backgroundColor: '#0E0B08',
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#1F3A2B',
+    backgroundColor: '#0E0B08',
   },
   flexFill: { flex: 1 },
   // Caps the conversation column on tablets instead of stretching message
@@ -900,59 +897,22 @@ const styles = StyleSheet.create({
   },
   // WhatsApp Header
   header: {
-    backgroundColor: '#1F3A2B',
+    minHeight: 64,
+    backgroundColor: '#0E0B08',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 12,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2B4D3B',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    gap: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#665034',
   },
-  backButton: {
-    padding: 6,
-    marginRight: 6,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: 10,
-  },
-  onlineBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 11,
-    height: 11,
-    borderRadius: 6,
-    backgroundColor: '#25D366', // WhatsApp Active Green
-    borderWidth: 2,
-    borderColor: '#1F3A2B',
-  },
-  headerInfo: {
-    flex: 1,
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: FONT_DISPLAY,
-    color: '#FFFFFF',
-    letterSpacing: -0.2,
-  },
-  headerSubtitle: {
-    fontSize: 11.5,
-    color: '#D4E2D8',
-    marginTop: 1,
-    fontFamily: FONT_BODY,
-  },
-  headerActionBtn: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#2C4E3A',
-  },
+  backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headerInfo: { flex: 1, minWidth: 0 },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center' },
+  headerTitle: { fontSize: 23, fontFamily: FONT_HEADING_SCRIPT, color: '#FAF4E8', flexShrink: 1 },
+  headerSubtitle: { fontSize: 11, color: '#C1AE93', marginTop: 1, fontFamily: FONT_BODY },
+  headerActionBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerCartBtn: {
     marginRight: 8,
   },

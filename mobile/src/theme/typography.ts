@@ -14,6 +14,8 @@
 import { Outfit_600SemiBold, Outfit_700Bold, Outfit_900Black } from '@expo-google-fonts/outfit';
 import { Quicksand_400Regular, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
 import { CourierPrime_400Regular } from '@expo-google-fonts/courier-prime';
+import { Parisienne_400Regular } from '@expo-google-fonts/parisienne';
+import { Lobster_400Regular } from '@expo-google-fonts/lobster';
 
 // DESIGN.md "Display/Headline: Bold, weight 700" — section titles, banner
 // titles, the brand wordmark.
@@ -37,6 +39,12 @@ export const FONT_BODY_BOLD = 'Quicksand_700Bold';
 // Plex Mono to Courier Prime for its stronger "kitchen journal ledger" /
 // typewriter character.
 export const LEDGER_MONO = 'CourierPrime_400Regular';
+// Thin script for hero headlines and section titles on dark surfaces — the
+// web's `font-hero` token (frontend/tailwind.config.js).
+export const FONT_SCRIPT = 'Parisienne_400Regular';
+// Section headings ("Signature Recipes", "Frequently Asked Questions", ...) — the
+// web's `font-script` token, which is Lobster.
+export const FONT_HEADING_SCRIPT = 'Lobster_400Regular';
 
 // Passed to Expo's `useFonts()` once, centrally, in App.tsx — not re-loaded
 // per screen — so every screen has these ready before its first render.
@@ -47,4 +55,6 @@ export const FONT_ASSETS = {
   Quicksand_400Regular,
   Quicksand_700Bold,
   CourierPrime_400Regular,
+  Parisienne_400Regular,
+  Lobster_400Regular,
 };

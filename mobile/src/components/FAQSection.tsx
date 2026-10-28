@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
-import { FONT_DISPLAY_BLACK, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
+import { FONT_HEADING_SCRIPT, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
 import { fetchActiveFaqs, type FAQ } from '../api/faqs';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -87,8 +87,8 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   heading: {
-    fontSize: 22,
-    fontFamily: FONT_DISPLAY_BLACK,
+    fontSize: 27,
+    fontFamily: FONT_HEADING_SCRIPT,
     color: COLORS.textCoffee,
     textAlign: 'center',
     marginBottom: 16,

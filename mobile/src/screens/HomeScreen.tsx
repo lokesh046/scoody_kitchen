@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   FlatList,
   NativeSyntheticEvent,
@@ -13,20 +12,17 @@ import {
   Platform,
   RefreshControl,
   Modal,
-  Animated,
-  Easing,
   Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
-import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import { useIsFocused } from '@react-navigation/native';
 import {
   Search,
   ShoppingBag,
   Bell,
-  SlidersHorizontal,
   Sparkles,
   ArrowRight,
   Heart,
@@ -37,14 +33,13 @@ import {
   PawPrint,
   ShieldCheck,
   Camera,
-  Package,
   UtensilsCrossed,
   ChevronRight,
   CheckCircle2,
   X,
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
-import { FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_DISPLAY_BLACK, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
+import { FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_BODY, FONT_BODY_BOLD, FONT_HEADING_SCRIPT, LEDGER_MONO } from '../theme/typography';
 import FAQSection from '../components/FAQSection';
 import BlogPreviewSection from '../components/BlogPreviewSection';
 import {
@@ -73,12 +68,15 @@ import { BASE_URL } from '../api/client';
 import { useResponsive } from '../hooks/useResponsive';
 import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
 import ResponsiveContainer from '../components/ResponsiveContainer';
+import { ToolIcon } from '../components/ToolIcon';
+import { HearthHoundSection } from '../components/HearthHoundSection';
 
+import { useFocusRefresh } from '../hooks/useFocusRefresh';
 interface CoreService {
   id: string;
   title: string;
   desc: string;
-  icon: any;
+  image: any;
   actionType: 'navigate' | 'vision' | 'chatbot';
   target?: string;
 }
@@ -88,7 +86,7 @@ const CORE_SERVICES: CoreService[] = [
     id: 'kitchen',
     title: 'Shop Recipes',
     desc: 'Small-batch, human-grade recipes, blast-frozen for freshness.',
-    icon: UtensilsCrossed,
+    image: require('../../assets/toolkit/shop-recipes.webp'),
     actionType: 'navigate',
     target: 'Shop',
   },
@@ -96,29 +94,21 @@ const CORE_SERVICES: CoreService[] = [
     id: 'telehealth',
     title: 'Vet Consults',
     desc: 'Certified holistic doctors online for video diet consultations.',
-    icon: Stethoscope,
+    image: require('../../assets/toolkit/vet-3d.webp'),
     actionType: 'navigate',
     target: 'Consult',
-  },
-  {
-    id: 'orders',
-    title: 'My Orders',
-    desc: 'Real-time kitchen delivery tracking & 1-tap fast reordering.',
-    icon: Package,
-    actionType: 'navigate',
-    target: 'Orders',
   },
   {
     id: 'pets',
     title: 'Know Your Pet',
     desc: 'Manage medical history, vaccination calendar & allergy flags.',
-    icon: PawPrint,
+    image: require('../../assets/toolkit/pet-3d.webp'),
     actionType: 'navigate',
     target: 'Pets',
   },
 ];
 
-const REVIEW_CARD_WIDTH = 260;
+const REVIEW_CARD_WIDTH = 224;
 const REVIEW_CARD_GAP = 14;
 const REVIEW_STRIDE = REVIEW_CARD_WIDTH + REVIEW_CARD_GAP;
 
@@ -159,7 +149,6 @@ export default function HomeScreen({ navigation }: any) {
   const [productsLoadFailed, setProductsLoadFailed] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [activeBannerIndex, setActiveBannerIndex] = useState<number>(0);
-  const [searchQuery, setSearchQuery] = useState<string>('');
   const [petVisionVisible, setPetVisionVisible] = useState<boolean>(false);
   const [reviews, setReviews] = useState<UnifiedReview[]>([]);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'product' | 'doctor'>('all');
@@ -262,33 +251,6 @@ export default function HomeScreen({ navigation }: any) {
   useEffect(() => {
     if (!isFocused && isTourActive) endTour();
   }, [isFocused, isTourActive, endTour]);
-
-  // The AI Vision spotlight card communicates "this scans your pet" through
-  // a camera-viewfinder motif (corner brackets + this sweeping line) instead
-  // of a paragraph of copy — one authored motion moment, not a decorative
-  // loop, so it stays a single continuous animation rather than restarting
-  // visibly on every re-render.
-  const scanLineAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(scanLineAnim, {
-          toValue: 1,
-          duration: 1800,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(scanLineAnim, {
-          toValue: 0,
-          duration: 1800,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [scanLineAnim]);
 
   // Cart item Map for O(1) quantity check per card instead of O(N) .find
   const cartMap = useMemo(() => {
@@ -588,11 +550,9 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   // Automatically refresh live banners and notifications when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      loadHomeData();
-    }, [loadHomeData])
-  );
+  useFocusRefresh(() => {
+    loadHomeData();
+  }, user?.id, 60_000);
 
   const handleUnreadCountChange = useCallback((count: number) => {
     setUnreadNotificationsCount((prev) => (prev !== count ? count : prev));
@@ -669,6 +629,7 @@ export default function HomeScreen({ navigation }: any) {
       return;
     }
 
+    let loopResetTimer: ReturnType<typeof setTimeout> | null = null;
     autoPlayTimerRef.current = setInterval(() => {
       const nextIndex = currentIndexRef.current + 1;
       currentIndexRef.current = nextIndex;
@@ -676,10 +637,20 @@ export default function HomeScreen({ navigation }: any) {
         offset: nextIndex * carouselWidth,
         animated: true,
       });
+      setActiveBannerIndex((nextIndex - 1 + banners.length) % banners.length);
+      if (nextIndex >= banners.length + 1) {
+        // Landed on the clone of the first slide: once the slide animation has
+        // finished, swap silently to the real first slide (identical picture).
+        loopResetTimer = setTimeout(() => {
+          currentIndexRef.current = 1;
+          bannerListRef.current?.scrollToOffset({ offset: carouselWidth, animated: false });
+        }, 450);
+      }
     }, 4000);
 
     return () => {
       if (autoPlayTimerRef.current) clearInterval(autoPlayTimerRef.current);
+      if (loopResetTimer) clearTimeout(loopResetTimer);
     };
   }, [banners.length, isFocused, carouselWidth]);
 
@@ -747,6 +718,7 @@ export default function HomeScreen({ navigation }: any) {
         index={index}
         onOpenModal={setSelectedReviewModal}
         onNavigateTarget={handleNavigateToReviewTarget}
+        width={REVIEW_CARD_WIDTH}
       />
     ),
     [handleNavigateToReviewTarget]
@@ -869,32 +841,6 @@ export default function HomeScreen({ navigation }: any) {
         }
       >
         <ResponsiveContainer>
-        {/* 3. Search Bar with Filter Sliders */}
-        <View style={styles.searchBarContainer}>
-          <Search size={18} color={COLORS.textLight} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search fresh recipes, calming chews..."
-            placeholderTextColor={COLORS.textLight}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={() =>
-              handleNavigateScreen('Shop', searchQuery.trim() ? { searchQuery: searchQuery.trim() } : undefined)
-            }
-            returnKeyType="search"
-          />
-          <TouchableOpacity
-            style={styles.filterBtn}
-            onPress={() => handleNavigateScreen('Shop')}
-            activeOpacity={0.8}
-            hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-            accessibilityRole="button"
-            accessibilityLabel="Filter search results"
-          >
-            <SlidersHorizontal size={16} color={COLORS.textCoffee} />
-          </TouchableOpacity>
-        </View>
-
         {/* 4. Hero Banner Carousel with Infinite Loop & Progress Bar */}
         <View style={styles.bannerCarouselContainer}>
           <FlatList
@@ -908,9 +854,12 @@ export default function HomeScreen({ navigation }: any) {
             onMomentumScrollEnd={onBannerScrollEnd}
             getItemLayout={getBannerItemLayout}
             renderItem={renderBannerItem}
-            initialNumToRender={3}
-            maxToRenderPerBatch={3}
-            windowSize={5}
+            // Every slide (including the loop clones) stays mounted so the jump
+            // from the last slide back to the first never reveals a blank frame.
+            initialNumToRender={extendedBanners.length}
+            maxToRenderPerBatch={extendedBanners.length}
+            windowSize={extendedBanners.length + 1}
+            removeClippedSubviews={false}
             decelerationRate="fast"
             snapToInterval={carouselWidth}
             snapToAlignment="center"
@@ -958,32 +907,7 @@ export default function HomeScreen({ navigation }: any) {
           accessibilityLabel="Scan & Diagnose: open the AI pet vision scanner"
         >
           <View style={styles.visionScanFrame}>
-            <View style={[styles.scanCorner, styles.scanCornerTL]} />
-            <View style={[styles.scanCorner, styles.scanCornerTR]} />
-            <View style={[styles.scanCorner, styles.scanCornerBL]} />
-            <View style={[styles.scanCorner, styles.scanCornerBR]} />
-            <View style={styles.visionCameraIconWrapper}>
-              <Camera size={20} color="#FFFFFF" />
-              <View style={styles.visionPulseDot} />
-            </View>
-            {/* Drawn after (on top of) the lens circle so the line visibly
-                sweeps across it — placing it underneath left it fully
-                hidden behind the opaque circle for its whole travel range,
-                caught only by sampling several live frames, not a single
-                screenshot. */}
-            <Animated.View
-              style={[
-                styles.scanLine,
-                {
-                  opacity: scanLineAnim.interpolate({ inputRange: [0, 0.15, 0.85, 1], outputRange: [0, 1, 1, 0] }),
-                  transform: [
-                    {
-                      translateY: scanLineAnim.interpolate({ inputRange: [0, 1], outputRange: [-16, 16] }),
-                    },
-                  ],
-                },
-              ]}
-            />
+            <ToolIcon source={require('../../assets/toolkit/scan-diagnose.webp')} size={64} />
           </View>
 
           <View style={styles.visionSpotlightCenter}>
@@ -1002,9 +926,8 @@ export default function HomeScreen({ navigation }: any) {
           {CORE_SERVICES.filter(
             (srv) =>
               (srv.id !== 'pets' || isKnowYourPetEnabled) &&
-              (srv.id !== 'telehealth' || consultationsFallback !== 'hide')
+              (srv.id !== 'telehealth' || isConsultationsEnabled || consultationsFallback !== 'hide')
           ).map((srv, i, arr) => {
-            const IconComp = srv.icon;
             const isDisabledConsult = srv.target === 'Consult' && !isConsultationsEnabled;
             return (
               <TouchableOpacity
@@ -1032,7 +955,7 @@ export default function HomeScreen({ navigation }: any) {
                     : `${srv.title}: ${srv.desc}`
                 }
               >
-                <IconComp size={20} color={isDisabledConsult ? COLORS.textLight : COLORS.textCoffee} strokeWidth={1.75} />
+                <ToolIcon source={srv.image} delay={i * 500} dimmed={isDisabledConsult} />
 
                 <View style={styles.serviceRowBody}>
                   <View style={styles.serviceRowTitleRow}>
@@ -1047,7 +970,7 @@ export default function HomeScreen({ navigation }: any) {
                       </View>
                     )}
                   </View>
-                  <Text style={styles.serviceRowDesc} numberOfLines={1}>{srv.desc}</Text>
+                  <Text style={styles.serviceRowDesc} numberOfLines={2}>{srv.desc}</Text>
                 </View>
 
                 <ChevronRight size={18} color={COLORS.textMuted} />
@@ -1055,6 +978,10 @@ export default function HomeScreen({ navigation }: any) {
             );
           })}
         </View>
+
+        {/* Story section, in the web home page's order: the Hearth & Hound
+            teaser, then the recipes. */}
+        <HearthHoundSection />
 
         {/* 6. Kitchen Favorites Section */}
         <View style={styles.sectionHeaderRow} ref={recipesSectionRef} collapsable={false}>
@@ -1122,9 +1049,7 @@ export default function HomeScreen({ navigation }: any) {
             quiz usable any time rather than a first-run/signup gate. */}
         {isMealPlannerEnabled && (
           <View style={styles.mealPlannerCard}>
-            <View style={styles.mealPlannerIconCircle}>
-              <Sparkles size={22} color={COLORS.brandGold} />
-            </View>
+            <ToolIcon source={require('../../assets/toolkit/meal-planner.webp')} size={62} delay={700} />
             <View style={styles.mealPlannerTextCol}>
               <Text style={styles.mealPlannerTitle}>Meal Planner</Text>
               <Text style={styles.mealPlannerSubtitle}>
@@ -1152,7 +1077,7 @@ export default function HomeScreen({ navigation }: any) {
             trimmed to what a glance actually needs.
             Hidden entirely when consultations_booking's fallback is 'hide',
             matching web's HomePage (FeaturePlaceholderCard or nothing). */}
-        {consultationsFallback !== 'hide' && (
+        {(isConsultationsEnabled || consultationsFallback !== 'hide') && (
           <View style={styles.telehealthCard} ref={vetCardRef} collapsable={false}>
             <View style={styles.telehealthHeaderRow}>
               <View style={styles.telehealthPill}>
@@ -1208,8 +1133,7 @@ export default function HomeScreen({ navigation }: any) {
           >
             <View style={styles.sectionHeaderRow}>
               <View>
-                <Text style={styles.sectionTitle}>Community Feedback Ledger</Text>
-                <Text style={styles.sectionSubtitle}>Verified meal & consultation experiences</Text>
+                <Text style={styles.sectionTitle}>Let our #HearthAndOneFam speak</Text>
               </View>
               {overallReviewRating && (
                 <View style={styles.trustpilotBadge}>
@@ -1289,7 +1213,15 @@ export default function HomeScreen({ navigation }: any) {
                 keyExtractor={reviewKeyExtractor}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.reviewsListScroll}
+                contentContainerStyle={[
+                  styles.reviewsListScroll,
+                  // Side padding that puts the active card in the middle of the screen.
+                  { paddingHorizontal: Math.max(16, (windowWidth - REVIEW_CARD_WIDTH) / 2) },
+                ]}
+                // One card at a time, each stopping in the centre.
+                snapToInterval={REVIEW_STRIDE}
+                snapToAlignment="start"
+                decelerationRate="fast"
                 onScrollBeginDrag={() => {
                   isReviewDraggingRef.current = true;
                 }}
@@ -1695,30 +1627,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  /* 3. Search Bar */
-  searchBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
-    borderWidth: 1,
-    borderColor: COLORS.kraftBorder,
-    marginBottom: 14,
-    gap: 10,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: FONT_BODY,
-    color: COLORS.textCoffee,
-  },
-  filterBtn: {
-    padding: 4,
-  },
-
   /* 4. Hero Banner Carousel */
   bannerCarouselContainer: {
     marginBottom: 20,
@@ -1757,8 +1665,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontFamily: FONT_DISPLAY,
+    fontSize: 22,
+    fontFamily: FONT_HEADING_SCRIPT,
     // Deliberate deviation from DESIGN.md's Ochre Hierarchy Rule (main
     // titles default to brandGold), scoped to this screen only, per
     // explicit user request: unify every light-canvas section heading to
@@ -1766,10 +1674,6 @@ const styles = StyleSheet.create({
     // between ochre and black. See DESIGN.md discussion before applying
     // this color elsewhere in the app.
     color: COLORS.textCoffee,
-    // Every other headline size on this screen carries a size-proportional
-    // negative tracking (20px: -0.6, 18px: -0.3, 16px card titles: -0.2) —
-    // this was the one left flat at 0, not a deliberate exception.
-    letterSpacing: -0.2,
   },
   sectionSubtitle: {
     fontSize: 11,
@@ -1782,10 +1686,9 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   sectionTitleLarge: {
-    fontSize: 20,
-    fontFamily: FONT_DISPLAY_BLACK,
+    fontSize: 26,
+    fontFamily: FONT_HEADING_SCRIPT,
     color: COLORS.textCoffee,
-    letterSpacing: -0.6,
   },
 
   /* Feature Spotlight: AI Pet Vision Scanner — a camera-viewfinder motif
@@ -1810,51 +1713,11 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   visionScanFrame: {
-    width: 56,
-    height: 56,
+    width: 68,
+    height: 68,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
-    // Rectangular clip only (no radius) — a rounded frame would cut the
-    // crisp viewfinder corner brackets into curves at their outer tips.
-    overflow: 'hidden',
-  },
-  scanCorner: {
-    position: 'absolute',
-    width: 14,
-    height: 14,
-    borderColor: COLORS.brandGold,
-  },
-  scanCornerTL: { top: 0, left: 0, borderTopWidth: 2, borderLeftWidth: 2, borderTopLeftRadius: 6 },
-  scanCornerTR: { top: 0, right: 0, borderTopWidth: 2, borderRightWidth: 2, borderTopRightRadius: 6 },
-  scanCornerBL: { bottom: 0, left: 0, borderBottomWidth: 2, borderLeftWidth: 2, borderBottomLeftRadius: 6 },
-  scanCornerBR: { bottom: 0, right: 0, borderBottomWidth: 2, borderRightWidth: 2, borderBottomRightRadius: 6 },
-  scanLine: {
-    position: 'absolute',
-    width: 40,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: COLORS.brandGold,
-  },
-  visionCameraIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.forestGreen,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  visionPulseDot: {
-    position: 'absolute',
-    top: 1,
-    right: 1,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#4ADE80',
-    borderWidth: 1.5,
-    borderColor: COLORS.forestDark,
+    marginRight: 12,
   },
   visionSpotlightCenter: {
     flex: 1,
@@ -1880,19 +1743,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 22,
   },
-  // A plain ruled list — a table of contents, not a stack of tinted
-  // tiles. One hairline dashed divider between rows, no per-row colour.
+  // One card per service: the illustrated icon on the left, title and
+  // description beside it.
   serviceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.kraftBorder,
-    borderStyle: 'dashed',
+    gap: 12,
+    paddingVertical: 10,
+    paddingLeft: 10,
+    paddingRight: 14,
+    marginBottom: 12,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.kraftBorder,
+    borderRadius: 20,
   },
   serviceRowLast: {
-    borderBottomWidth: 0,
+    marginBottom: 0,
   },
   serviceRowBody: {
     flex: 1,
@@ -2147,7 +2014,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   reviewsListScroll: {
-    paddingHorizontal: 16,
     gap: 14,
     marginBottom: 24,
   },

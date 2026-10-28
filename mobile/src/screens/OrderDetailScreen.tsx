@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import SafeAreaView from '../components/FeatureSafeArea';
 import { useFonts, Outfit_700Bold, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
 import { Quicksand_400Regular, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
 import * as Print from 'expo-print';
@@ -32,7 +32,7 @@ import {
 import { COLORS } from '../theme/colors';
 import { fetchOrderById, fetchOrderTracking, Order, OrderItem, OrderTrackingResponse } from '../api/orders';
 import ResponsiveContainer from '../components/ResponsiveContainer';
-import { StackHeader } from '../components/ScreenHeader';
+import { StackHeader, headerActionStyle, HEADER_GOLD } from '../components/ScreenHeader';
 import { getStatusBadgeStyle } from '../utils/orderStatus';
 import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 import { LEDGER_MONO, FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD } from '../theme/typography';
@@ -446,12 +446,11 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
       <ResponsiveContainer maxWidth={880}>
         <StackHeader
           title={`Order #${order.id}`}
-          eyebrow="OFFICIAL ORDER LEDGER"
           onBack={() => navigation.goBack()}
           rightContent={
             <TouchableOpacity
               onPress={handleShareReceipt}
-              style={styles.shareBtn}
+              style={[styles.shareBtn, headerActionStyle]}
               disabled={isSharing}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityRole="button"
@@ -459,9 +458,9 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
               accessibilityState={{ disabled: isSharing, busy: isSharing }}
             >
               {isSharing ? (
-                <ActivityIndicator size="small" color={COLORS.forestGreen} />
+                <ActivityIndicator size="small" color={HEADER_GOLD} />
               ) : (
-                <Share2 size={18} color={COLORS.forestGreen} />
+                <Share2 size={18} color={HEADER_GOLD} />
               )}
             </TouchableOpacity>
           }

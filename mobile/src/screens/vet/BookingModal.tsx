@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import {
@@ -22,6 +22,8 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { styles } from './vetStyles';
 import { FeaturePrivacyNote } from '../../components/FeaturePrivacyNote';
 
+import { ModalKeyboardAvoider } from '../../components/ModalKeyboardAvoider';
+import { useNavBarInset } from '../../hooks/useKeyboardHeight';
 interface UpcomingDay {
   date: Date;
   dateStr: string;
@@ -91,6 +93,7 @@ export function BookingModal({
 }: BookingModalProps) {
   const navigation = useNavigation();
   const { isTablet, modalOverlayStyle, modalSheetContainerStyle } = useResponsive();
+  const navInset = useNavBarInset();
 
   const renderSlotChip = (slot: string) => {
     const isSelected = selectedTime === slot;
@@ -128,13 +131,9 @@ export function BookingModal({
 
   return (
     <Modal visible={!!doctor} transparent animationType="slide">
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
-      >
+      <ModalKeyboardAvoider style={{ flex: 1 }}>
       <View style={isTablet ? modalOverlayStyle : styles.modalOverlay}>
-        <View style={[styles.modalSheet, isTablet && modalSheetContainerStyle]}>
+        <View style={[styles.modalSheet, isTablet && modalSheetContainerStyle, { paddingBottom: 16 + navInset }]}>
           {/* Modal Header */}
           <View style={styles.modalHeader}>
             <View>
@@ -456,7 +455,7 @@ export function BookingModal({
           )}
         </View>
       </View>
-      </KeyboardAvoidingView>
+      </ModalKeyboardAvoider>
     </Modal>
   );
 }
