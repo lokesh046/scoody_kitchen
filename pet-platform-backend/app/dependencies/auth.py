@@ -170,6 +170,37 @@ def verify_internal_service(x_internal_api_key: str = Header(...)) -> None:
         )
 
 
+def get_optional_role(request: Request) -> str | None:
+    """The signed-in visitor's role read from their access token, or None -- with no database lookup.
+
+    Public pages (products, categories) only need to know whether the visitor is an admin, to
+    decide whether to show hidden products. Looking the user up in the database for that wakes
+    the Neon compute on every signed-in click even when the page itself is cached. The signed
+    token already carries the role, so use that. A role change or deactivation takes effect when
+    the token expires; the only privilege here is seeing inactive products, so that is acceptable.
+    Protected endpoints still use get_current_user, which checks the database.
+    """
+    token = request.cookies.get("access_token")
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+        else:
+            return None
+
+    from app.core.security import hash_token
+    from app.core.cache import cache
+    if cache.get(f"blacklist:access:{hash_token(token)}"):
+        return None
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+    except Exception:
+        return None
+    if payload.get("type") != "access" or payload.get("sub") is None:
+        return None
+    return payload.get("role")
+
+
 def get_current_user_optional(request: Request, db: Session = Depends(get_db)) -> User | None:
     token = request.cookies.get("access_token")
     if not token:

@@ -165,7 +165,14 @@ export const CheckoutPage: React.FC = () => {
     appliedCoupon,
     applyCoupon,
     removeCoupon,
+    loadCart,
   } = useCartStore();
+
+  // Always confirm the cart with the server before paying; elsewhere it is refreshed only every 10 minutes.
+  useEffect(() => {
+    if (user) loadCart({ force: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   const [doorNo, setDoorNo] = useState('');
   const [street, setStreet] = useState('');
