@@ -255,12 +255,12 @@ export default function HomePage() {
                 <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-10 lg:gap-16 items-center">
                   <div className="space-y-6">
                     <div className="space-y-3">
-                      <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">
+                      <h2 className="font-script font-normal text-4xl sm:text-5xl lg:text-6xl tracking-normal text-turmeric leading-snug">
                         Why Hearth &amp; One
-                      </p>
-                      <h2 className="font-script font-normal text-4xl sm:text-5xl lg:text-6xl tracking-normal text-paper leading-snug">
-                        Bringing the pieces of pet care together.
                       </h2>
+                      <p className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl text-paper leading-snug max-w-lg">
+                        Bringing the pieces of pet care together.
+                      </p>
                     </div>
                     <p className="font-body text-base text-paper opacity-70 leading-relaxed max-w-md">
                       Everything works better when it's <span className="text-turmeric italic">connected.</span>

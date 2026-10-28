@@ -1,3 +1,4 @@
+import { HeroScrollHint } from '../../components/HeroScrollHint';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -170,7 +171,7 @@ export function ShopLandingPage() {
 
       {/* Hero -- same shape as the homepage: full-bleed photo, legibility
           gradients, copy anchored bottom-left. */}
-      <section className="relative w-full min-h-[100svh] overflow-hidden bg-obsidian">
+      <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-obsidian">
         <img
           src={hero.image}
           alt="A Hearth &amp; Hound recipe bag beside the fire"
@@ -180,7 +181,7 @@ export function ShopLandingPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/30 to-black/80" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
 
-        <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-16 sm:pb-20 max-w-5xl">
+        <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-28 sm:pb-28 max-w-5xl">
           <div className={`max-w-2xl space-y-4 text-left animate-fade-in-up ${hero.ready ? '' : 'invisible'}`}>
             <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
               {/* The default headline is a picture drawn in the brand display font, so the font file itself is never served;
@@ -213,7 +214,8 @@ export function ShopLandingPage() {
             </div>
           </div>
         </div>
-      </section>
+        <HeroScrollHint />
+    </section>
 
       {/* A closer look -- scroll-spy timeline */}
       <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-gradient-to-b from-midnight via-midnightCard to-midnight">

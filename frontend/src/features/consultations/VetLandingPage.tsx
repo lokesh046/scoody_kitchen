@@ -1,3 +1,4 @@
+import { HeroScrollHint } from '../../components/HeroScrollHint';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useInView, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
@@ -241,7 +242,7 @@ export function VetLandingPage() {
       <Header floatingUntilScroll activeTab="consultations" onCartToggle={() => setIsCartOpen(true)} />
 
       {/* Hero */}
-      <section className="relative w-full min-h-[100svh] overflow-hidden bg-obsidian">
+      <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-obsidian">
         <img
           src={hero.image}
           alt="A veterinarian in a green coat gently examining a Doberman"
@@ -251,7 +252,7 @@ export function VetLandingPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/30 to-black/80" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
 
-        <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-16 sm:pb-20 max-w-5xl">
+        <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-28 sm:pb-28 max-w-5xl">
           <div className={`max-w-2xl space-y-4 text-left animate-fade-in-up ${hero.ready ? '' : 'invisible'}`}>
             <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
               {/* The default headline is a picture drawn in the brand display font, so the font file itself is never served;
@@ -284,16 +285,17 @@ export function VetLandingPage() {
             </div>
           </div>
         </div>
-      </section>
+        <HeroScrollHint />
+    </section>
 
       {/* A connected journey from location search to contacting a clinic. */}
       <section aria-labelledby="vet-how-it-works" className="px-4 sm:px-6 md:px-8 py-16 md:py-24 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
         <div className="max-w-6xl mx-auto">
           <div className="text-center space-y-3 mb-12 md:mb-20">
-            <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">How It Works</p>
-            <h2 id="vet-how-it-works" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
+            <h2 id="vet-how-it-works" className="font-script font-normal text-4xl sm:text-5xl lg:text-6xl tracking-normal text-turmeric leading-snug">How it works</h2>
+            <p className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
               Three steps to a clinic near you.
-            </h2>
+            </p>
           </div>
 
           <ol className="relative mx-auto max-w-5xl">

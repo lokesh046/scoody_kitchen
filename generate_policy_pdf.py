@@ -32,7 +32,7 @@ class NumberedCanvas(canvas.Canvas):
         
         # Running Header (pages > 1)
         if self._pageNumber > 1:
-            self.drawString(54, 755, "SCOOBY'S KITCHEN — COMPLIANCE & LEGAL POLICY FRAMEWORK")
+            self.drawString(54, 755, "HEARTH & ONE — COMPLIANCE & LEGAL POLICY FRAMEWORK")
             self.setFont("Helvetica", 8)
             self.drawRightString(558, 755, "CONFIDENTIAL & PRIVILEGED")
             self.setStrokeColor(colors.HexColor("#CBD5E1"))
@@ -42,7 +42,7 @@ class NumberedCanvas(canvas.Canvas):
         # Running Footer (all pages)
         self.setFont("Helvetica", 8)
         self.setFillColor(colors.HexColor("#64748B"))
-        self.drawString(54, 34, "Scooby's Kitchen Platform Governance • Prepared for Legal & Compliance Officer Consultation")
+        self.drawString(54, 34, "Hearth & One Platform Governance • Prepared for Legal & Compliance Officer Consultation")
         page_text = f"Page {self._pageNumber} of {page_count}"
         self.drawRightString(558, 34, page_text)
         self.setStrokeColor(colors.HexColor("#CBD5E1"))
@@ -178,7 +178,7 @@ def build_pdf(filename="Scooby_Kitchen_Legal_and_Compliance_Policy_Framework.pdf
     # ==========================================
     # COVER / HEADER BANNER
     # ==========================================
-    story.append(Paragraph("SCOOBY'S KITCHEN", title_style))
+    story.append(Paragraph("HEARTH & ONE", title_style))
     story.append(Paragraph("E-COMMERCE & TELEMEDICINE LEGAL & COMPLIANCE POLICY FRAMEWORK", ParagraphStyle(
         'SubHeader', fontName='Helvetica-Bold', fontSize=12, leading=15, textColor=c_dark, spaceAfter=2
     )))
@@ -189,11 +189,11 @@ def build_pdf(filename="Scooby_Kitchen_Legal_and_Compliance_Policy_Framework.pdf
     meta_data = [
         [
             Paragraph("<b>Target Audience:</b> Legal Counsel / Compliance Officer", table_cell),
-            Paragraph("<b>Document ID:</b> SK-COMP-POL-2026-V1", table_cell),
+            Paragraph("<b>Document ID:</b> SK-COMP-POL-2026-V2", table_cell),
         ],
         [
-            Paragraph("<b>Entity Scope:</b> Scooby's Kitchen (Web & Mobile Apps)", table_cell),
-            Paragraph("<b>Effective Jurisdiction:</b> Republic of India (IT Act, DPDP, VCI)", table_cell),
+            Paragraph("<b>Entity Scope:</b> Hearth & One (Web & Mobile Apps)", table_cell),
+            Paragraph("<b>Effective Jurisdiction:</b> Republic of India (IT Act, DPDP Act & Rules, VCI)", table_cell),
         ],
         [
             Paragraph("<b>Payment Gateway:</b> Razorpay Live Merchant Verification", table_cell),
@@ -211,6 +211,31 @@ def build_pdf(filename="Scooby_Kitchen_Legal_and_Compliance_Policy_Framework.pdf
         ('RIGHTPADDING', (0,0), (-1,-1), 8),
     ]))
     story.append(t_meta)
+    story.append(Spacer(1, 8))
+
+    # Draft / Pending Professional Review Notice
+    review_box = [
+        [
+            Paragraph(
+                "<b>DRAFT — PENDING PROFESSIONAL REVIEW:</b> This is a working template, not a finalized legal document. "
+                "Section 6 (Veterinary Telehealth, Digital Prescriptions & AI Disclaimer) in particular must be reviewed "
+                "and approved by a licensed Indian veterinary professional and by qualified legal counsel before this "
+                "document is published or relied upon in production. Do not treat any clause below as legally sufficient "
+                "until that review is complete.",
+                warn_box_style
+            )
+        ]
+    ]
+    t_review = Table(review_box, colWidths=[504])
+    t_review.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), c_warn_bg),
+        ('BOX', (0,0), (-1,-1), 1, c_warn_border),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ('RIGHTPADDING', (0,0), (-1,-1), 8),
+    ]))
+    story.append(t_review)
     story.append(Spacer(1, 10))
 
     # ==========================================
@@ -218,7 +243,7 @@ def build_pdf(filename="Scooby_Kitchen_Legal_and_Compliance_Policy_Framework.pdf
     # ==========================================
     story.append(Paragraph("1. Executive Regulatory Scope & Statutory Matrix", h1_style))
     story.append(Paragraph(
-        "Scooby's Kitchen operates a multi-modal digital platform comprising fresh small-batch canine food e-commerce, "
+        "Hearth & One operates a multi-modal digital platform comprising fresh small-batch canine food e-commerce, "
         "ambient pet supplies, licensed veterinary telemedicine (WebRTC video consultations and digital prescriptions), "
         "and algorithmic AI pet nutritional advisory. This document synthesizes all mandatory policies required to satisfy "
         "Indian statutory law, payment gateway merchant approval (Razorpay), and Apple & Google mobile app guidelines.",
@@ -235,7 +260,7 @@ def build_pdf(filename="Scooby_Kitchen_Legal_and_Compliance_Policy_Framework.pdf
         ],
         [
             Paragraph("<b>Privacy Policy</b>", table_cell),
-            Paragraph("Digital Personal Data Protection (DPDP) Act, 2023; IT Act 2000 (SPDI Rules)", table_cell),
+            Paragraph("Digital Personal Data Protection (DPDP) Act, 2023 & DPDP Rules, 2025; IT Act 2000 (SPDI Rules)", table_cell),
             Paragraph("Mandates explicit consent for processing owner phone, address, and pet medical histories.", table_cell)
         ],
         [
@@ -251,7 +276,7 @@ def build_pdf(filename="Scooby_Kitchen_Legal_and_Compliance_Policy_Framework.pdf
         [
             Paragraph("<b>Veterinary Telehealth Disclaimer</b>", table_cell),
             Paragraph("Veterinary Council of India (VCI); Indian Veterinary Practitioners Tele-guidelines", table_cell),
-            Paragraph("Immunizes platform against medical malpractice claims; clarifies online triage limits.", table_cell)
+            Paragraph("Defines the scope and limits of tele-triage consultations, clarifying what the platform's veterinary telehealth service does and does not cover.", table_cell)
         ],
         [
             Paragraph("<b>Mobile App & Permissions</b>", table_cell),
@@ -286,8 +311,8 @@ def build_pdf(filename="Scooby_Kitchen_Legal_and_Compliance_Policy_Framework.pdf
     story.append(Paragraph("2. Policy 1: General Terms and Conditions (Terms of Use)", h1_style))
     story.append(Paragraph("<b>Scope & Core Contractual Clauses:</b>", h2_style))
     story.append(Paragraph("• <b>Account Registration & Security:</b> Access to purchase products and book veterinary sessions requires phone number verification via OTP. Users are responsible for maintaining confidentiality of credentials.", bullet_style))
-    story.append(Paragraph("• <b>Perishable Product Classification & Immediate Refrigeration:</b> Fresh small-batch canine diets are preservative-free and perishable. The consumer explicitly agrees to unpack and transfer fresh vacuum-sealed pouches into refrigeration (0°C to 4°C) immediately upon receipt. Scooby's Kitchen disclaims liability for spoilage caused by consumer failure to refrigerate.", bullet_style))
-    story.append(Paragraph("• <b>Canine Allergy & Morbidity Disclaimer:</b> Ingredients are itemized on product packaging and online product cards. It is the pet parent's sole responsibility to ensure recipes do not contain allergens known to harm their canine. The platform is not liable for pre-existing systemic conditions or idiosyncratic food sensitivities.", bullet_style))
+    story.append(Paragraph("• <b>Perishable Product Classification & Immediate Refrigeration:</b> Fresh small-batch canine diets are preservative-free and perishable. The consumer explicitly agrees to unpack and transfer fresh vacuum-sealed pouches into refrigeration (0°C to 4°C) immediately upon receipt. To the extent permitted by applicable law, Hearth & One disclaims liability for spoilage caused by consumer failure to refrigerate.", bullet_style))
+    story.append(Paragraph("• <b>Canine Allergy & Morbidity Disclaimer:</b> Ingredients are itemized on product packaging and online product cards. It is the pet parent's sole responsibility to ensure recipes do not contain allergens known to harm their canine. To the extent permitted by applicable law, the platform is not liable for pre-existing systemic conditions or idiosyncratic food sensitivities.", bullet_style))
     story.append(Paragraph("• <b>Pricing & Inventory Discrepancy:</b> Prices are quoted in Indian Rupees (INR) inclusive of applicable GST. We reserve the right to cancel orders arising from typographical or technical pricing errors.", bullet_style))
     story.append(Spacer(1, 6))
 
@@ -296,14 +321,15 @@ def build_pdf(filename="Scooby_Kitchen_Legal_and_Compliance_Policy_Framework.pdf
     # ==========================================
     story.append(Paragraph("3. Policy 2: Privacy Policy & Personal Data Protection", h1_style))
     story.append(Paragraph(
-        "Structured in adherence to the <i>Digital Personal Data Protection (DPDP) Act, 2023</i>. "
+        "Structured in adherence to the <i>Digital Personal Data Protection (DPDP) Act, 2023</i> and the "
+        "<i>Digital Personal Data Protection Rules, 2025</i>. "
         "The policy specifies what personal data is processed, the lawful grounds, third-party sub-processors, and user rights.",
         body_style
     ))
     story.append(Paragraph("<b>Data Categories Processed:</b>", h2_style))
     story.append(Paragraph("• <b>User Identity & Contact Data:</b> Full name, primary telephone number, email address, physical delivery address with geolocation coordinates.", bullet_style))
     story.append(Paragraph("• <b>Pet Health & Heritage Data:</b> Canine name, breed, age, weight, sterilization status, dietary preferences, clinical records, prescription history, and consultation video notes.", bullet_style))
-    story.append(Paragraph("• <b>Financial & Transactional Records:</b> Razorpay order identifiers and transaction status tokens (Zero raw credit/debit card numbers or CVV are stored on Scooby's Kitchen servers).", bullet_style))
+    story.append(Paragraph("• <b>Financial & Transactional Records:</b> Razorpay order identifiers and transaction status tokens (Zero raw credit/debit card numbers or CVV are stored on Hearth & One servers).", bullet_style))
     
     story.append(Paragraph("<b>Third-Party Service Processors & Data Sharing:</b>", h2_style))
     story.append(Paragraph("• <b>Razorpay Software Private Limited:</b> For PCI-DSS compliant payment processing, webhook verification, and automated refund disbursement.", bullet_style))
@@ -311,9 +337,16 @@ def build_pdf(filename="Scooby_Kitchen_Legal_and_Compliance_Policy_Framework.pdf
     story.append(Paragraph("• <b>Firebase (Google Cloud Platform):</b> For phone identity toolkit authentication and Firebase Cloud Messaging (FCM) push notifications.", bullet_style))
     story.append(Paragraph("• <b>Meta Platforms Ireland / Cloud API:</b> For automated delivery of transactional WhatsApp OTPs and consultation appointment links.", bullet_style))
     story.append(Paragraph("• <b>Cloudinary Inc:</b> Encrypted cloud storage for pet medical documentation, pet profile pictures, and veterinary digital prescription PDFs.", bullet_style))
-    
-    story.append(Paragraph("<b>User Rights under DPDP Act 2023:</b>", h2_style))
-    story.append(Paragraph("Users possess the unalienable right to request access to their stored data, rectify inaccurate records, withdraw consent, or demand complete erasure of personal and pet profiles via our Grievance Officer or self-service account deletion.", body_style))
+    story.append(Paragraph("Some of the above processors operate cloud infrastructure located outside India. Where personal data is transferred or stored outside India, it remains subject to contractual data-protection obligations consistent with this policy and applicable Indian law.", body_style))
+
+    story.append(Paragraph("<b>Data Retention:</b>", h2_style))
+    story.append(Paragraph("Personal data is retained only for as long as reasonably necessary to provide the service, fulfil the purposes described in this policy, and comply with applicable legal, tax, and accounting recordkeeping obligations. Pet health, prescription, and consultation records are retained for the duration of the account's active use, plus any further period required by applicable law, after which they are deleted or anonymized. Account deletion timelines and exceptions are set out in Clause 6.1.", body_style))
+
+    story.append(Paragraph("<b>Data Breach Notification:</b>", h2_style))
+    story.append(Paragraph("In the event of a personal data breach affecting user data, Hearth & One will assess the nature and risk of the breach, take reasonable steps to contain and remediate it, and notify affected users and the Data Protection Board of India (or other applicable authority) where required under the DPDP Act, 2023 and DPDP Rules, 2025.", body_style))
+
+    story.append(Paragraph("<b>User Rights under the DPDP Act, 2023 & DPDP Rules, 2025:</b>", h2_style))
+    story.append(Paragraph("Users possess the right to request access to their stored data, rectify inaccurate records, withdraw consent, or demand complete erasure of personal and pet profiles via our Grievance Officer or self-service account deletion.", body_style))
     story.append(Spacer(1, 8))
 
     # ==========================================
@@ -325,7 +358,7 @@ def build_pdf(filename="Scooby_Kitchen_Legal_and_Compliance_Policy_Framework.pdf
     # Alert Box for Razorpay requirement
     rz_box = [
         [
-            Paragraph("<b>CRITICAL MERCHANT COMPLIANCE NOTICE:</b> Razorpay's live merchant onboarding audit strictly inspects this policy. The policy must explicitly define cancellation cut-offs, non-returnable categories (food hygiene), damage claim timeframes, and refund payout duration.", warn_box_style)
+            Paragraph("<b>MERCHANT COMPLIANCE NOTE:</b> Razorpay's live merchant onboarding audit requires merchants to publish a clear cancellation and refund policy covering cut-offs, non-returnable categories, damage claim handling, and payout timing. The specific windows and durations below (e.g. 1-hour cancellation, 24-hour damage-claim notice) are Hearth & One's own business policy — they are not figures mandated by Razorpay.", warn_box_style)
         ]
     ]
     t_rz = Table(rz_box, colWidths=[504])
@@ -370,11 +403,19 @@ def build_pdf(filename="Scooby_Kitchen_Legal_and_Compliance_Policy_Framework.pdf
     # POLICY 5: TELEHEALTH & AI DISCLAIMER
     # ==========================================
     story.append(Paragraph("6. Policy 5: Veterinary Telehealth & AI Consultation Disclaimer", h1_style))
+    story.append(Paragraph(
+        "<b>Reviewer note:</b> the clauses in this section — including tele-triage scope, emergency exclusions, and digital "
+        "prescription limits — are drafted from general practice patterns and have not been verified against current "
+        "Veterinary Council of India guidance or state-specific tele-veterinary rules. Confirm with a licensed Indian "
+        "veterinary professional and legal counsel before publishing.",
+        warn_box_style
+    ))
+    story.append(Spacer(1, 4))
 
     # Alert Box for Medical Disclaimer
     med_box = [
         [
-            Paragraph("<b>LEGAL MEDICAL IMMUNITY CLAUSE:</b> Online video consultations are classified strictly as 'Tele-Triage, General Wellness Advisory, and Second Opinions'. Telemedicine DOES NOT and CANNOT replace hands-on physical clinical examinations in life-threatening emergency situations.", alert_box_style)
+            Paragraph("<b>TELEHEALTH SCOPE & LIMITATIONS NOTICE:</b> Online video consultations are classified strictly as 'Tele-Triage, General Wellness Advisory, and Second Opinions'. Telemedicine does not replace hands-on physical clinical examinations and is not appropriate for life-threatening emergency situations.", alert_box_style)
         ]
     ]
     t_med = Table(med_box, colWidths=[504])
@@ -393,13 +434,13 @@ def build_pdf(filename="Scooby_Kitchen_Legal_and_Compliance_Policy_Framework.pdf
     story.append(Paragraph("If a pet exhibits critical symptoms—including but not limited to acute respiratory distress, severe hemorrhage, suspected gastric torsion (bloat), toxic ingestion, unconsciousness, severe seizure clusters, or polytrauma—the pet parent must bypass remote telemedicine and transport the patient to an open 24/7 physical animal hospital immediately.", body_style))
 
     story.append(Paragraph("<b>Clause 5.2: Veterinarian Licensure & Professional Independence</b>", h2_style))
-    story.append(Paragraph("All veterinarians conducting video consultations on Scooby's Kitchen hold recognized Bachelor of Veterinary Science & Animal Husbandry (B.V.Sc & A.H.) degrees and maintain active registrations with the Veterinary Council of India (VCI) and respective State Veterinary Councils. Doctors exercise independent professional clinical judgment.", body_style))
+    story.append(Paragraph("All veterinarians conducting video consultations on Hearth & One hold recognized Bachelor of Veterinary Science & Animal Husbandry (B.V.Sc & A.H.) degrees and maintain active registrations with the Veterinary Council of India (VCI) and respective State Veterinary Councils. Doctors exercise independent professional clinical judgment.", body_style))
 
     story.append(Paragraph("<b>Clause 5.3: Digital Prescriptions & Limitations</b>", h2_style))
     story.append(Paragraph("Digital prescriptions issued through the platform comply with prevailing tele-veterinary ethics. Veterinarians will not prescribe Schedule X, high-risk narcotics, or controlled substances via digital teleconsultations.", body_style))
 
     story.append(Paragraph("<b>Clause 5.4: Algorithmic AI Nutritionist & Vision Scanner Disclaimer</b>", h2_style))
-    story.append(Paragraph("The Scooby AI Nutritional Chatbot and Breed/Skin Vision tools utilize computer vision and probabilistic machine learning models. <b>Their outputs are strictly educational, informational, and advisory in nature.</b> They do not constitute official clinical diagnoses. Pet parents must never alter medical regimens without consulting a qualified veterinarian.", body_style))
+    story.append(Paragraph("The Hearth & One AI Nutritional Chatbot and Breed/Skin Vision tools utilize computer vision and probabilistic machine learning models. <b>Their outputs are strictly educational, informational, and advisory in nature.</b> They do not constitute official clinical diagnoses. Pet parents must never alter medical regimens without consulting a qualified veterinarian.", body_style))
     story.append(Spacer(1, 8))
 
     # ==========================================
@@ -480,7 +521,7 @@ def build_pdf(filename="Scooby_Kitchen_Legal_and_Compliance_Policy_Framework.pdf
     ))
 
     gov_data = [
-        [Paragraph("<b>Corporate Legal Entity:</b>", table_cell_bold), Paragraph("Scooby's Kitchen Private Limited", table_cell)],
+        [Paragraph("<b>Corporate Legal Entity:</b>", table_cell_bold), Paragraph("Hearth & One Private Limited", table_cell)],
         [Paragraph("<b>Registered Corporate Address:</b>", table_cell_bold), Paragraph("[Insert Registered Office Address, City, State, Pincode, India]", table_cell)],
         [Paragraph("<b>Corporate Identification Number (CIN):</b>", table_cell_bold), Paragraph("[Insert CIN Number / GSTIN Registration Number]", table_cell)],
         [Paragraph("<b>Designated Grievance Officer:</b>", table_cell_bold), Paragraph("[Insert Name of Grievance Redressal Officer]", table_cell)],
