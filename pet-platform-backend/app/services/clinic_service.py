@@ -5,6 +5,7 @@ from app.core.pagination import paginate_query
 
 from app.models.clinic import Clinic
 from app.schemas.clinic import ClinicCreate, ClinicUpdate
+from app.core.search import like_pattern
 
 
 def create_clinic(db: Session, clinic_data: ClinicCreate) -> Clinic:
@@ -41,13 +42,13 @@ def get_clinics_paginated(
         query = query.where(func.lower(Clinic.city) == city.strip().lower())
 
     if search and search.strip():
-        search_pattern = f"%{search.strip()}%"
+        search_pattern = like_pattern(search)
         query = query.where(
             or_(
-                Clinic.name.ilike(search_pattern),
-                Clinic.address.ilike(search_pattern),
-                Clinic.city.ilike(search_pattern),
-                Clinic.description.ilike(search_pattern),
+                Clinic.name.ilike(search_pattern, escape="\\"),
+                Clinic.address.ilike(search_pattern, escape="\\"),
+                Clinic.city.ilike(search_pattern, escape="\\"),
+                Clinic.description.ilike(search_pattern, escape="\\"),
             )
         )
 

@@ -10,6 +10,7 @@ from app.models.clinic import Clinic
 from app.models.user import User
 from app.models.enums import UserRole
 from app.schemas.doctor import DoctorCreate, DoctorUpdateAdmin, DoctorUpdateSelf
+from app.core.search import clean_search, like_pattern
 
 
 def create_doctor(db: Session, doctor_data: DoctorCreate) -> Doctor:
@@ -111,14 +112,14 @@ def get_doctors_paginated(
         query = query.where(Doctor.clinic_id == clinic_id)
 
     if specialization and specialization.strip():
-        query = query.where(Doctor.specialization.ilike(f"%{specialization.strip()}%"))
+        query = query.where(Doctor.specialization.ilike(like_pattern(specialization), escape="\\"))
 
     if city and city.strip():
         query = query.where(func.lower(Clinic.city) == city.strip().lower())
 
     if search and search.strip():
-        search_str = search.strip()
-        search_pattern = f"%{search_str}%"
+        search_str = clean_search(search)
+        search_pattern = like_pattern(search)
         doc_tsvector = func.to_tsvector(
             "english",
             func.coalesce(Doctor.specialization, "")
@@ -132,13 +133,13 @@ def get_doctors_paginated(
         query = query.where(
             or_(
                 doc_tsvector.op("@@")(doc_tsquery),
-                User.first_name.ilike(search_pattern),
-                User.last_name.ilike(search_pattern),
-                Doctor.specialization.ilike(search_pattern),
-                Doctor.qualification.ilike(search_pattern),
-                Doctor.bio.ilike(search_pattern),
-                Clinic.name.ilike(search_pattern),
-                Clinic.city.ilike(search_pattern),
+                User.first_name.ilike(search_pattern, escape="\\"),
+                User.last_name.ilike(search_pattern, escape="\\"),
+                Doctor.specialization.ilike(search_pattern, escape="\\"),
+                Doctor.qualification.ilike(search_pattern, escape="\\"),
+                Doctor.bio.ilike(search_pattern, escape="\\"),
+                Clinic.name.ilike(search_pattern, escape="\\"),
+                Clinic.city.ilike(search_pattern, escape="\\"),
             )
         )
 

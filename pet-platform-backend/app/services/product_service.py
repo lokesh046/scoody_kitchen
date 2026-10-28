@@ -51,6 +51,7 @@ def create_product(
 
 
 from app.core.pagination import paginate_query
+from app.core.search import clean_search, like_pattern
 
 
 def get_products_paginated(
@@ -91,7 +92,8 @@ def get_products_paginated(
         statement = statement.where(Product.is_active.is_(True))
 
     if search and search.strip():
-        search_str = search.strip()
+        search_str = clean_search(search)
+        search_like = like_pattern(search)
         ts_vector = func.to_tsvector(
             "english",
             func.coalesce(Product.name, "") + " " + func.coalesce(Product.description, "")
@@ -100,8 +102,8 @@ def get_products_paginated(
         statement = statement.where(
             or_(
                 ts_vector.op("@@")(ts_query),
-                Product.name.ilike(f"%{search_str}%"),
-                Product.description.ilike(f"%{search_str}%"),
+                Product.name.ilike(search_like, escape="\\"),
+                Product.description.ilike(search_like, escape="\\"),
             )
         )
 
