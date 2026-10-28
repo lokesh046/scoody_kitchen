@@ -8,12 +8,13 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  Animated,
+  Easing,
   RefreshControl,
   Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import SafeAreaView from '../components/FeatureSafeArea';
 import {
   Stethoscope,
   Video,
@@ -26,7 +27,6 @@ import {
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
 import { FONT_BODY_BOLD } from '../theme/typography';
-import { BrandMedallion } from '../components/BrandLogo';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Doctor } from '../types';
 import { useResponsive } from '../hooks/useResponsive';
@@ -64,6 +64,7 @@ import { ReviewModal } from './vet/ReviewModal';
 import { NearbyVetsView } from './vet/NearbyVetsView';
 import { ConsultationCardItem, DoctorDirectoryCard } from './vet/VetCards';
 
+import { useFocusRefresh } from '../hooks/useFocusRefresh';
 type ActiveTab = 'QUEUE' | 'DOCTORS';
 type ConsultationFilter = 'ALL' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
 
@@ -78,6 +79,14 @@ export default function VetScreen({ navigation, route }: any) {
   // "Consult Vet" lands on nearby clinics/pharmacies by default, with a
   // header toggle to switch into the video-call booking flow below.
   const [viewMode, setViewMode] = useState<'nearby' | 'consult'>('nearby');
+  const [nearbyCompact, setNearbyCompact] = useState(false);
+  const nearbyChrome = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const animation = Animated.timing(nearbyChrome, { toValue: viewMode === 'nearby' && nearbyCompact ? 0 : 1, duration: 300, easing: Easing.inOut(Easing.cubic), useNativeDriver: false });
+    animation.start();
+    if (viewMode !== 'nearby') setNearbyCompact(false);
+    return () => animation.stop();
+  }, [nearbyCompact, viewMode, nearbyChrome]);
   const [activeTab, setActiveTab] = useState<ActiveTab>('QUEUE');
   const [consultationFilter, setConsultationFilter] = useState<ConsultationFilter>('ALL');
 
@@ -416,13 +425,11 @@ export default function VetScreen({ navigation, route }: any) {
   }, [loadConsultations, loadDoctorsAndPets]);
 
   // Automatically sync consultations ledger when screen gains focus
-  useFocusEffect(
-    useCallback(() => {
-      if (user && !isGuest) {
-        loadConsultations();
-      }
-    }, [user, isGuest, loadConsultations])
-  );
+  useFocusRefresh(() => {
+    if (user && !isGuest) {
+      loadConsultations();
+    }
+  }, `${user?.id ?? ''}-${isGuest}`);
 
   // Check if a slot is already past for today in local time
   const isSlotInPast = useCallback((time24: string, dateStr: string) => {
@@ -1016,39 +1023,33 @@ export default function VetScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* 1. Header — a presence ring on the brand mark signals "the
-          practice is staffed" directly, instead of a separate eyebrow
-          line; the right-side chip shows the real specialist count
-          instead of a decorative "Available" claim. */}
+      {/* Compact toolbar with the clinic / video consultation switch. */}
       <ScreenHeader
-        title="Vet Consultations"
-        leadingElement={
-          <View style={styles.medallionPresenceWrap}>
-            <BrandMedallion size="sm" />
-            <View style={styles.presenceRing} />
-          </View>
-        }
+        title="Vet care"
         rightContent={
           <TouchableOpacity
             style={{
               flexDirection: 'row',
               alignItems: 'center',
               gap: 6,
-              backgroundColor: COLORS.forestGreen,
+              backgroundColor: '#251E16',
+              borderWidth: 1,
+              borderColor: '#51402B',
               paddingHorizontal: 12,
+              minHeight: 44,
               paddingVertical: 8,
-              borderRadius: 20,
+              borderRadius: 14,
             }}
             onPress={() => setViewMode(viewMode === 'nearby' ? 'consult' : 'nearby')}
             accessibilityRole="button"
             accessibilityLabel={viewMode === 'nearby' ? 'Switch to video consultation' : 'Switch to nearby vets'}
           >
             {viewMode === 'nearby' ? (
-              <Video size={14} color="#FFFFFF" />
+              <Video size={14} color="#D7AF76" />
             ) : (
-              <MapPin size={14} color="#FFFFFF" />
+              <MapPin size={14} color="#D7AF76" />
             )}
-            <Text style={{ fontSize: 11, fontFamily: FONT_BODY_BOLD, color: '#FFFFFF' }}>
+            <Text style={{ fontSize: 11, fontFamily: FONT_BODY_BOLD, color: '#FAF4E8' }}>
               {viewMode === 'nearby' ? 'Consult' : 'Near Me'}
             </Text>
           </TouchableOpacity>
@@ -1057,6 +1058,9 @@ export default function VetScreen({ navigation, route }: any) {
 
       {viewMode === 'nearby' ? (
         <NearbyVetsView
+          compact={nearbyCompact}
+          chromeProgress={nearbyChrome}
+          onCompactChange={setNearbyCompact}
           onSelectDoctor={setSelectedDoctor}
           onSwitchToConsult={() => setViewMode('consult')}
         />

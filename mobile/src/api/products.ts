@@ -11,6 +11,19 @@ export const fetchCategories = async (): Promise<Category[]> => {
   });
 };
 
+export interface CategoryTreeNode extends Category {
+  children: CategoryTreeNode[];
+}
+
+// Main categories with their sub-categories nested — the same /categories/tree
+// the website's shop uses for its "Browse by Category" row.
+export const fetchCategoryTree = async (): Promise<CategoryTreeNode[]> => {
+  return withTtlCache('products:categoryTree', 5 * 60 * 1000, async () => {
+    const response = await apiClient.get('/categories/tree');
+    return response.data;
+  });
+};
+
 export const fetchProducts = async (params?: {
   category_id?: number;
   search?: string;

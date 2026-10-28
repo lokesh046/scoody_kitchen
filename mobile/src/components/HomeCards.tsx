@@ -14,7 +14,8 @@ import {
   CheckCircle2,
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
-import { FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
+import { FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO, FONT_SCRIPT } from '../theme/typography';
+import { HERO_TITLE_IMAGES, heroTitleKey } from '../constants/heroTitleImages';
 import { Product } from '../types';
 import { UnifiedReview } from '../api/reviews';
 
@@ -93,6 +94,9 @@ export const BannerSlideItem = memo(function BannerSlideItem({
     setImgUri(item.bgImage);
   }, [item.bgImage]);
 
+  const titleImage = HERO_TITLE_IMAGES[heroTitleKey(item.title)];
+  const titleWidth = Math.min(190, (cardWidth ?? BANNER_WIDTH) - 36);
+
   return (
     <View style={[homeCardStyles.bannerSlideWrapper, slideWidth ? { width: slideWidth } : null]}>
       <View style={[homeCardStyles.bannerSlide, cardWidth ? { width: cardWidth } : null]}>
@@ -100,6 +104,9 @@ export const BannerSlideItem = memo(function BannerSlideItem({
           source={{ uri: imgUri }}
           style={homeCardStyles.bannerImage}
           contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={0}
+          recyclingKey={item.bgImage}
           onError={() => {
             if (imgUri !== HERO_BANNERS[0].bgImage) {
               setImgUri(HERO_BANNERS[0].bgImage);
@@ -107,23 +114,30 @@ export const BannerSlideItem = memo(function BannerSlideItem({
           }}
         />
         <LinearGradient
-          colors={['transparent', 'rgba(20,14,8,0.12)', 'rgba(20,14,8,0.72)']}
-          locations={[0, 0.45, 1]}
+          colors={['rgba(14,11,8,0.35)', 'rgba(14,11,8,0.1)', 'rgba(14,11,8,0.55)', 'rgba(14,11,8,0.94)']}
+          locations={[0, 0.3, 0.65, 1]}
           style={StyleSheet.absoluteFill}
         />
 
         <View style={homeCardStyles.bannerContent}>
-          {/* Headline — capped at 2 lines: banner copy can come from the
-              admin-managed banners API, and an uncapped title would silently
-              overflow this card's fixed height with no ellipsis. */}
-          <Text style={homeCardStyles.bannerTitle} numberOfLines={2}>{item.title}</Text>
+          {/* Headline: a picture for the known titles, otherwise script text.
+              Banner copy comes from the admin panel, so the text fallback is
+              capped at 3 lines rather than overflowing the slide. */}
+          {titleImage ? (
+            <Image
+              source={titleImage.source}
+              style={{ width: titleWidth, height: (titleWidth * titleImage.height) / titleImage.width }}
+              contentFit="contain"
+              accessibilityLabel={item.title}
+            />
+          ) : (
+            <Text style={homeCardStyles.bannerTitle} numberOfLines={2}>{item.title}</Text>
+          )}
 
-          {/* Subtitle */}
           <Text style={homeCardStyles.bannerSub} numberOfLines={2}>
             {item.subtitle}
           </Text>
 
-          {/* CTA Button */}
           <TouchableOpacity
             style={homeCardStyles.bannerCtaBtn}
             onPress={() => onNavigate(item.targetScreen)}
@@ -315,6 +329,7 @@ interface ReviewCardItemProps {
   index: number;
   onOpenModal: (review: UnifiedReview) => void;
   onNavigateTarget: (review: UnifiedReview) => void;
+  width?: number;
 }
 
 export const ReviewCardItem = memo(function ReviewCardItem({
@@ -322,107 +337,80 @@ export const ReviewCardItem = memo(function ReviewCardItem({
   index,
   onOpenModal,
   onNavigateTarget,
+  width = 224,
 }: ReviewCardItemProps) {
   const displayImage =
     review.image_url || DEFAULT_DOG_IMAGES[index % DEFAULT_DOG_IMAGES.length];
 
   return (
     <TouchableOpacity
-      style={homeCardStyles.reviewCard}
+      style={[homeCardStyles.reviewCard, { width }]}
       onPress={() => onOpenModal(review)}
-      activeOpacity={0.88}
+      activeOpacity={0.9}
       accessibilityRole="button"
-      accessibilityLabel={`View review by ${review.author_name}, ${review.rating} out of 5 stars`}
+      accessibilityLabel={`Read ${review.author_name}'s ${review.rating}-star review`}
     >
-      {/* Review Picture with Badge */}
+      {/* Photo with a dark type pill, as on the web card */}
       <View style={homeCardStyles.reviewImageWrap}>
         <Image
           source={{ uri: displayImage }}
           style={homeCardStyles.reviewCardImg as any}
           contentFit="cover"
+          cachePolicy="memory-disk"
         />
-        <View
-          style={[
-            homeCardStyles.reviewTypeBadge,
-            review.type === 'doctor' ? homeCardStyles.doctorTypeBadge : homeCardStyles.productTypeBadge,
-          ]}
-        >
+        <View style={homeCardStyles.reviewTypeBadge}>
           {review.type === 'doctor' ? (
-            <Stethoscope size={9} color={COLORS.navy} strokeWidth={2.4} />
+            <Stethoscope size={11} color="#D09E6B" strokeWidth={2.2} />
           ) : (
-            <UtensilsCrossed size={9} color={COLORS.sageTintText} strokeWidth={2.4} />
+            <UtensilsCrossed size={11} color="#D09E6B" strokeWidth={2.2} />
           )}
-          <Text
-            style={[
-              homeCardStyles.reviewTypeBadgeText,
-              review.type === 'doctor' ? homeCardStyles.doctorTypeText : homeCardStyles.productTypeText,
-            ]}
-          >
-            {review.type === 'doctor' ? 'Vet Consult' : 'Fresh Meal'}
+          <Text style={homeCardStyles.reviewTypeBadgeText}>
+            {review.type === 'doctor' ? 'VET CONSULT' : 'FRESH MEAL'}
           </Text>
         </View>
       </View>
 
-      {/* Star rating (accentGold — same token as ProductFavoriteCard's stars) */}
-      <View style={homeCardStyles.reviewStarRow}>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            size={13}
-            color={COLORS.accentGold}
-            fill={star <= review.rating ? COLORS.accentGold : COLORS.kraftBorder}
-          />
-        ))}
-      </View>
-
-      {/* Review Comment Snippet */}
-      <Text style={homeCardStyles.reviewCommentSnippet} numberOfLines={3}>
-        "{review.comment || 'Outstanding quality and nutrition for our companion.'}"
-      </Text>
-
-      {/* Review Footer with Author, Verified Check, and Actionable Item Link */}
-      <View style={homeCardStyles.reviewFooter}>
-        <View style={homeCardStyles.reviewAuthorRow}>
-          <Text style={homeCardStyles.reviewAuthorName} numberOfLines={1}>
-            {review.author_name}
-          </Text>
-          {review.is_verified_buyer && (
-            <CheckCircle2 size={13} color={COLORS.sageIcon} />
-          )}
+      {/* White card overlapping the photo */}
+      <View style={homeCardStyles.reviewBody}>
+        <View style={homeCardStyles.reviewStarRow} accessibilityLabel={`${review.rating} out of 5 stars`}>
+          {[1, 2, 3, 4, 5].map((star) => (
+            <Star
+              key={star}
+              size={14}
+              color={star <= review.rating ? '#D09E6B' : COLORS.kraftBorder}
+              fill={star <= review.rating ? '#D09E6B' : 'transparent'}
+            />
+          ))}
+          <Text style={homeCardStyles.reviewRatingNumber}>{review.rating.toFixed(1)}</Text>
         </View>
 
-        <TouchableOpacity
-          style={homeCardStyles.reviewCardTargetLink}
-          onPress={(e) => {
-            e.stopPropagation?.();
-            onNavigateTarget(review);
-          }}
-          activeOpacity={0.75}
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          accessibilityRole="button"
-          accessibilityLabel={review.type === 'doctor' ? 'View consultation details' : 'View product details'}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
-            {review.type === 'doctor' ? (
-              <Stethoscope size={11} color={COLORS.navy} />
-            ) : (
-              <UtensilsCrossed size={11} color="#C27835" />
-            )}
-            <Text
-              style={[
-                homeCardStyles.reviewTargetItem,
-                review.type === 'doctor' && { color: COLORS.navy },
-              ]}
-              numberOfLines={1}
-            >
+        <Text style={homeCardStyles.reviewCommentSnippet} numberOfLines={4}>
+          “{review.comment || 'No comment provided.'}”
+        </Text>
+
+        <View style={homeCardStyles.reviewFooter}>
+          <View style={homeCardStyles.reviewAvatar}>
+            <Text style={homeCardStyles.reviewAvatarText}>
+              {(review.author_name || '?').trim().charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={homeCardStyles.reviewAuthorRow}>
+              <Text style={homeCardStyles.reviewAuthorName} numberOfLines={1}>
+                {review.author_name}
+              </Text>
+              {review.is_verified_buyer && <CheckCircle2 size={13} color="#D09E6B" />}
+            </View>
+            <Text style={homeCardStyles.reviewTargetItem} numberOfLines={1}>
               {review.reviewed_item_name}
             </Text>
           </View>
-          <ChevronRight
-            size={12}
-            color={review.type === 'doctor' ? COLORS.navy : '#C27835'}
-          />
-        </TouchableOpacity>
+        </View>
+
+        <View style={homeCardStyles.reviewReadMore}>
+          <Text style={homeCardStyles.reviewReadMoreText}>READ THEIR STORY</Text>
+          <ChevronRight size={13} color="#D09E6B" />
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -436,38 +424,36 @@ export const homeCardStyles = StyleSheet.create({
   },
   bannerSlide: {
     width: BANNER_WIDTH,
-    height: 220,
+    height: 240,
     borderRadius: 20,
     overflow: 'hidden',
     position: 'relative',
     justifyContent: 'flex-end',
-    padding: 18,
-    backgroundColor: COLORS.textCoffee,
+    backgroundColor: '#0E0B08',
   },
   bannerImage: {
     ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
   },
+  // Padding lives here, not on bannerSlide: a padded parent shrinks the
+  // image's 100% width and leaves a dark strip down one side.
   bannerContent: {
     gap: 8,
-    maxWidth: '90%',
+    padding: 18,
   },
   bannerTitle: {
-    fontSize: 18,
-    fontFamily: FONT_DISPLAY,
+    fontSize: 28,
+    fontFamily: FONT_SCRIPT,
     color: '#F5F1EA',
-    lineHeight: 23,
-    // Same 18px/FONT_DISPLAY tier as telehealthTitle in HomeScreen — both are
-    // prominent headlines set over a dark/image surface, so they share one
-    // tracking value instead of one having it and the other not.
-    letterSpacing: -0.3,
+    lineHeight: 32,
   },
   bannerSub: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontFamily: FONT_BODY,
-    color: COLORS.kraftBorder,
-    lineHeight: 15,
+    color: 'rgba(245,241,234,0.85)',
+    lineHeight: 16,
+    maxWidth: '92%',
   },
   bannerCtaBtn: {
     flexDirection: 'row',
@@ -649,26 +635,15 @@ export const homeCardStyles = StyleSheet.create({
     textAlign: 'center',
   },
   reviewCard: {
-    width: 250,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1.2,
-    borderColor: '#EBE0D0',
-    padding: 12,
-    gap: 8,
-    shadowColor: COLORS.textCoffee,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    width: 224,
   },
   reviewImageWrap: {
     width: '100%',
     height: 140,
-    borderRadius: 10,
+    borderRadius: 18,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#F5EFE6',
+    backgroundColor: '#F1E8DA',
   },
   reviewCardImg: {
     width: '100%',
@@ -676,16 +651,25 @@ export const homeCardStyles = StyleSheet.create({
   },
   reviewTypeBadge: {
     position: 'absolute',
-    top: 6,
-    left: 6,
+    top: 12,
+    left: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
     borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(14,11,8,0.85)',
   },
+  reviewTypeBadgeText: {
+    fontSize: 9,
+    letterSpacing: 0.8,
+    fontFamily: LEDGER_MONO,
+    color: '#F9F6F0',
+  },
+  // Used by the review detail popup in HomeScreen.
   productTypeBadge: {
     backgroundColor: COLORS.sageTintBadgeBg,
     borderColor: COLORS.sageLight,
@@ -694,55 +678,94 @@ export const homeCardStyles = StyleSheet.create({
     backgroundColor: COLORS.navyTintBg,
     borderColor: COLORS.navyTintBorder,
   },
-  reviewTypeBadgeText: {
-    fontSize: 8.5,
-    fontFamily: LEDGER_MONO,
-  },
   productTypeText: {
     color: COLORS.sageTintText,
   },
   doctorTypeText: {
     color: COLORS.navy,
   },
+  reviewBody: {
+    marginHorizontal: 9,
+    marginTop: -22,
+    padding: 14,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(235,224,208,0.6)',
+    shadowColor: COLORS.textCoffee,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
   reviewStarRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 3,
+    marginBottom: 10,
+  },
+  reviewRatingNumber: {
+    marginLeft: 6,
+    fontSize: 11,
+    fontFamily: LEDGER_MONO,
+    color: 'rgba(54,40,32,0.6)',
   },
   reviewCommentSnippet: {
-    fontSize: 11,
+    minHeight: 68,
+    fontSize: 12,
     fontFamily: FONT_BODY,
-    color: COLORS.textCoffee,
-    fontStyle: 'italic',
-    lineHeight: 15,
+    color: 'rgba(54,40,32,0.8)',
+    lineHeight: 17,
   },
   reviewFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F3EFE9',
-    paddingTop: 8,
-    gap: 3,
+    borderTopColor: 'rgba(235,224,208,0.7)',
+  },
+  reviewAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#0E0B08',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewAvatarText: {
+    fontSize: 15,
+    fontFamily: FONT_DISPLAY_SEMIBOLD,
+    color: '#D09E6B',
   },
   reviewAuthorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
   },
   reviewAuthorName: {
-    fontSize: 11.5,
+    flexShrink: 1,
+    fontSize: 13,
     fontFamily: FONT_DISPLAY_SEMIBOLD,
     color: COLORS.textCoffee,
   },
   reviewTargetItem: {
-    fontSize: 9.5,
-    fontFamily: LEDGER_MONO,
-    color: '#C27835',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
+    marginTop: 2,
+    fontSize: 11,
+    fontFamily: FONT_BODY,
+    color: 'rgba(54,40,32,0.6)',
   },
-  reviewCardTargetLink: {
+  reviewReadMore: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 2,
-    gap: 4,
+    gap: 3,
+    marginTop: 12,
+  },
+  reviewReadMoreText: {
+    fontSize: 10,
+    letterSpacing: 0.8,
+    fontFamily: LEDGER_MONO,
+    color: 'rgba(54,40,32,0.7)',
   },
 });
