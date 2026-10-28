@@ -69,7 +69,6 @@ import { useResponsive } from '../hooks/useResponsive';
 import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import { ToolIcon } from '../components/ToolIcon';
-import { WhyHearthSection } from '../components/WhyHearthSection';
 import { HearthHoundSection } from '../components/HearthHoundSection';
 
 import { useFocusRefresh } from '../hooks/useFocusRefresh';
@@ -980,9 +979,8 @@ export default function HomeScreen({ navigation }: any) {
           })}
         </View>
 
-        {/* Story sections, in the web home page's order: Why Hearth & One,
-            then the Hearth & Hound teaser, then the recipes. */}
-        <WhyHearthSection />
+        {/* Story section, in the web home page's order: the Hearth & Hound
+            teaser, then the recipes. */}
         <HearthHoundSection />
 
         {/* 6. Kitchen Favorites Section */}
