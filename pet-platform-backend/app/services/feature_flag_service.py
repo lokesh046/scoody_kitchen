@@ -7,7 +7,9 @@ from app.core.cache import cache
 # The public flag map is cached under this key (api/feature_flags.py) and cleared whenever an
 # admin toggles a flag, so reading it here costs no database query unless the cache is empty.
 PUBLIC_FLAGS_CACHE_KEY = "feature_flags:public"
-PUBLIC_FLAGS_TTL_SECONDS = 3600
+# A day: the admin toggle clears this key, so a change still shows at once. A short lifetime
+# made the scheduler job reload the flags from the database every hour, waking the compute.
+PUBLIC_FLAGS_TTL_SECONDS = 86400
 
 DEFAULT_FLAGS = [
     {

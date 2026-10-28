@@ -16,7 +16,7 @@ from app.services.feature_flag_service import (
 
 router = APIRouter(tags=["Feature Flags"])
 
-from app.services.feature_flag_service import PUBLIC_FLAGS_CACHE_KEY as CACHE_KEY_PUBLIC
+from app.services.feature_flag_service import PUBLIC_FLAGS_CACHE_KEY as CACHE_KEY_PUBLIC, PUBLIC_FLAGS_TTL_SECONDS
 
 
 @router.get("/features/public", response_model=Dict[str, PublicFeatureFlagState])
@@ -37,7 +37,7 @@ def get_public_feature_flags(db: Session = Depends(get_db)):
         return cached
 
     flags = get_public_flags(db)
-    cache.set(CACHE_KEY_PUBLIC, flags, ttl_seconds=3600)
+    cache.set(CACHE_KEY_PUBLIC, flags, ttl_seconds=PUBLIC_FLAGS_TTL_SECONDS)
     return flags
 
 @router.get("/admin/features", response_model=List[FeatureFlagResponse])
