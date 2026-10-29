@@ -54,6 +54,19 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // The server serves the prerendered home page for every route without its own prerendered
+      // file (/privacy, /login, ...). Drop prerendered content that isn't for this URL so those
+      // pages don't flash the home page before React starts. See markPrerendered in
+      // scripts/prerender.js.
+      (function () {
+        var root = document.getElementById('root');
+        var made = root && root.getAttribute('data-prerendered-path');
+        if (made === null || made === undefined) return;
+        var norm = function (p) { return p.replace(/\/+$/, '') || '/'; };
+        if (norm(made) !== norm(location.pathname)) root.innerHTML = '';
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

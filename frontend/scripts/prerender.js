@@ -108,6 +108,23 @@ async function renderRoute(browser, baseUrl, routePath) {
   }
 }
 
+// dist/index.html (the prerendered home page) is also what the server falls back to for every
+// route that has no prerendered file of its own (/privacy, /login, /orders, ...). Two things in a
+// browser snapshot must not leak into those pages:
+// - the `dark-landing` class on <html>, which index.html adds at runtime for the dark landing pages
+//   (the snapshot froze it in), so it is stripped and left to the runtime script;
+// - the page content itself, so the root is tagged with its route and index.html drops content
+//   that doesn't belong to the URL being loaded.
+function markPrerendered(html, routePath) {
+  return html
+    .replace(/(<html\b[^>]*?\sclass=")([^"]*)(")/, (_, a, classes, c) => {
+      const kept = classes.split(/\s+/).filter((n) => n && n !== 'dark-landing').join(' ');
+      return `${a}${kept}${c}`;
+    })
+    .replace(/<html\b([^>]*?)\sclass=""/, '<html$1')
+    .replace('<div id="root"', `<div id="root" data-prerendered-path="${routePath}"`);
+}
+
 async function writeRoute(outDir, routePath, html) {
   const outFile = routePath === '/' ? path.join(outDir, 'index.html') : path.join(outDir, routePath, 'index.html');
   await mkdir(path.dirname(outFile), { recursive: true });
@@ -178,8 +195,7 @@ async function main() {
   // files on disk. Every occurrence of the local preview origin is rewritten
   // to the real site URL first — see the SITE_URL comment above.
   for (const [route, html] of rendered) {
-    const rewritten = html.split(baseUrl).join(SITE_URL);
-    await writeRoute(outDir, route, rewritten);
+    await writeRoute(outDir, route, markPrerendered(html.split(baseUrl).join(SITE_URL), route));
   }
 
   console.log(`prerender: done — ${routes.length} route(s) prerendered (${productIds.length} product page(s), ${blogSlugs.length} blog post(s)).`);
