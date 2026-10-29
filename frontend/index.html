@@ -40,10 +40,18 @@
          path list in sync with DARK_LANDING_PATHS in src/App.tsx. -->
     <style>
       html.dark-landing, html.dark-landing body { background-color: #0E0B08; }
+      /* Prerendered content made for a different route (see below) is never shown. */
+      html.not-prerendered #root[data-prerendered-path] { display: none; }
     </style>
     <script>
       (function () {
-        var path = location.pathname.replace(/\/+$/, '') || '/';
+        var norm = function (p) { return p.replace(/\/+$/, '') || '/'; };
+        var path = norm(location.pathname);
+        var made = document.documentElement.getAttribute('data-prerendered-path');
+        // The server serves the prerendered home page for every route without its own prerendered
+        // file (/privacy, /login, ...). Decide here, before the body is parsed, so that page is
+        // never painted. scripts/prerender.js tags <html> and #root with the route they were made for.
+        if (made !== null && norm(made) !== path) document.documentElement.classList.add('not-prerendered');
         if (path === '/' || path === '/shop' || path === '/pets' || path === '/consultations') {
           document.documentElement.classList.add('dark-landing');
         }
@@ -55,16 +63,14 @@
   <body>
     <div id="root"></div>
     <script>
-      // The server serves the prerendered home page for every route without its own prerendered
-      // file (/privacy, /login, ...). Drop prerendered content that isn't for this URL so those
-      // pages don't flash the home page before React starts. See markPrerendered in
-      // scripts/prerender.js.
+      // Remove prerendered content that isn't for this URL (it is already hidden by the <head>
+      // script above), and un-tag the root so React can render into a visible element.
       (function () {
         var root = document.getElementById('root');
-        var made = root && root.getAttribute('data-prerendered-path');
-        if (made === null || made === undefined) return;
-        var norm = function (p) { return p.replace(/\/+$/, '') || '/'; };
-        if (norm(made) !== norm(location.pathname)) root.innerHTML = '';
+        if (root && document.documentElement.classList.contains('not-prerendered')) {
+          root.innerHTML = '';
+          root.removeAttribute('data-prerendered-path');
+        }
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
