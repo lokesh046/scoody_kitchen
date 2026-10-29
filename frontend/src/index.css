@@ -443,3 +443,32 @@
   animation: none;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 0 34px rgb(var(--cta-glow) / 0.7), 0 0 60px rgb(var(--cta-glow) / 0.3);
 }
+
+/* A gold seam between the newsletter and footer, with an occasional light sweep. */
+.newsletter-gold-divider {
+  position: relative;
+  height: 2px;
+  overflow: hidden;
+  background: linear-gradient(90deg, transparent, #9c713c 15%, #e8c58d 50%, #9c713c 85%, transparent);
+  box-shadow: 0 0 12px rgb(208 158 107 / 0.25);
+}
+
+.newsletter-gold-divider::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 25%;
+  background: linear-gradient(90deg, transparent, #fff4d4, transparent);
+  transform: translateX(-110%);
+}
+
+@keyframes newsletter-gold-shine {
+  0%, 15% { transform: translateX(-110%); }
+  65%, 100% { transform: translateX(410%); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .newsletter-gold-divider::after {
+    animation: newsletter-gold-shine 6s ease-in-out infinite;
+  }
+}
