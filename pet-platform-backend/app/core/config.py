@@ -12,6 +12,9 @@ class Setting(BaseSettings):
     ALLOW_PAYMENT_SIMULATION: bool = False
 
     DATABASE_URL: str = ""
+    # Separate database holding the colleges list. Leave empty to derive it from DATABASE_URL
+    # (the old `neondb` -> `college_db` convention).
+    COLLEGE_DATABASE_URL: str = ""
     # Cache only (app/core/cache.py). Split from Celery/rate-limiter storage
     # below so a cache stampede can't starve or evict the task queue or rate
     # limiter — see docker-compose.yml's redis/redis-celery/redis-limiter.
