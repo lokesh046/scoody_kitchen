@@ -9,10 +9,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
+  Image as RNImage,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import SafeAreaView from '../components/FeatureSafeArea';
 import { useFonts, Outfit_700Bold, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
 import { Quicksand_400Regular, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
 import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
@@ -23,8 +23,6 @@ import {
   UtensilsCrossed,
   CheckCircle2,
   XCircle,
-  PackageOpen,
-  ShieldCheck,
   KeyRound,
   WifiOff,
 } from 'lucide-react-native';
@@ -39,6 +37,7 @@ import ResponsiveContainer from '../components/ResponsiveContainer';
 import { isConfirmedAndPaid, isDelivered, isCancelled, getStatusBadgeStyle } from '../utils/orderStatus';
 import { LEDGER_MONO, FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD } from '../theme/typography';
 
+import { useFocusRefresh } from '../hooks/useFocusRefresh';
 type FilterType = 'ALL' | 'CONFIRMED' | 'CANCELLED' | 'DELIVERED';
 
 interface OrderCardItemProps {
@@ -207,13 +206,11 @@ export default function OrdersScreen({ navigation }: any) {
   }, [loadOrders]);
 
   // Synchronize orders automatically when user focuses the tab
-  useFocusEffect(
-    useCallback(() => {
-      if (user && !isGuest) {
-        loadOrders();
-      }
-    }, [user, isGuest, loadOrders])
-  );
+  useFocusRefresh(() => {
+    if (user && !isGuest) {
+      loadOrders();
+    }
+  }, `${user?.id ?? ''}-${isGuest}`);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -267,9 +264,7 @@ export default function OrdersScreen({ navigation }: any) {
     if (!user || isGuest || isAuthError) {
       return (
         <View style={styles.emptyStateContainer}>
-          <View style={styles.emptyIconCircle}>
-            <ShieldCheck size={48} color={COLORS.brandGold} />
-          </View>
+          <RNImage source={require('../../assets/toolkit/privacy.webp')} style={styles.emptyIllustration} resizeMode="contain" />
           <Text style={styles.emptyTitle}>
             {isAuthError ? 'Session Expired' : 'Sign In to View Orders'}
           </Text>
@@ -325,9 +320,7 @@ export default function OrdersScreen({ navigation }: any) {
 
     return (
       <View style={styles.emptyStateContainer}>
-        <View style={styles.emptyIconCircle}>
-          <PackageOpen size={48} color={COLORS.brandGold} />
-        </View>
+        <RNImage source={require('../../assets/toolkit/my-orders.webp')} style={styles.emptyIllustration} resizeMode="contain" />
         <Text style={styles.emptyTitle}>
           {selectedFilter === 'ALL'
             ? 'No Orders Placed Yet'
@@ -356,17 +349,10 @@ export default function OrdersScreen({ navigation }: any) {
       {/* Top Header */}
       <ResponsiveContainer maxWidth={880}>
         <ScreenHeader
-          title="Orders Ledger"
+          title="My orders"
           rightContent={
             <>
-              {/* A ledger tally stamp — a real entry count in a dashed,
-                  ticket-stub frame — instead of a plain rounded count pill,
-                  so this reads as "Orders Ledger" specifically rather than
-                  any generic list-count badge. */}
-              <View style={styles.tallyStamp}>
-                <Text style={styles.tallyStampCount}>{orders.length}</Text>
-                <Text style={styles.tallyStampLabel}>ENTRIES</Text>
-              </View>
+              <Text style={{ fontSize: 12, color: '#D7AF76' }}>{orders.length}</Text>
               <TouchableOpacity
                 style={styles.avatarBtn}
                 onPress={() => navigation.navigate('Profile')}
@@ -483,31 +469,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FAF7F2' },
   // A dashed ticket-stub frame reads as a torn-off tally stamp, not a
   // generic rounded count pill — a shape unique to the ledger concept.
-  tallyStamp: {
-    alignItems: 'center',
-    backgroundColor: '#FAF5EE',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: COLORS.kraftBorder,
-  },
-  tallyStampCount: {
-    fontSize: 15,
-    lineHeight: 17,
-    fontFamily: LEDGER_MONO,
-    fontWeight: '700',
-    color: COLORS.textCoffee,
-  },
-  tallyStampLabel: {
-    fontSize: 7.5,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    color: COLORS.textLight,
-    marginTop: 1,
-  },
-  avatarBtn: { marginLeft: 0 },
+  avatarBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   avatarImg: { width: 36, height: 36, borderRadius: 18 },
   avatarFallback: {
     width: 36,
@@ -576,6 +538,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 12,
   },
+  emptyIllustration: { width: 120, height: 120, marginBottom: 6 },
   emptyIconCircle: {
     width: 80,
     height: 80,

@@ -13,11 +13,11 @@ import {
   RefreshControl,
   Alert,
   Animated,
-  KeyboardAvoidingView,
+  Image as RNImage,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import SafeAreaView from '../components/FeatureSafeArea';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   Search,
@@ -25,7 +25,6 @@ import {
   Check,
   ShoppingBag,
   X,
-  PawPrint,
   AlertCircle,
   Plus,
   Minus,
@@ -34,17 +33,21 @@ import {
   MessageSquarePlus,
   Camera,
   Clock,
+  LayoutGrid,
+  Bone,
+  Soup,
   Package,
+  PawPrint,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useFonts, Outfit_700Bold, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
 import { Quicksand_400Regular, Quicksand_700Bold } from '@expo-google-fonts/quicksand';
 import { COLORS } from '../theme/colors';
-import { BrandMedallion } from '../components/BrandLogo';
-import { Product, Category } from '../types';
+import { ScreenHeader, headerActionStyle, HEADER_GOLD } from '../components/ScreenHeader';
+import { Product } from '../types';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
-import { fetchCategories, fetchProducts } from '../api/products';
+import { fetchCategoryTree, fetchProducts, type CategoryTreeNode } from '../api/products';
 import { tabPrefetchCache } from '../services/tabPrefetch';
 import {
   fetchProductReviews,
@@ -57,6 +60,8 @@ import { useResponsive } from '../hooks/useResponsive';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 
+import { ModalKeyboardAvoider } from '../components/ModalKeyboardAvoider';
+import { useNavBarInset } from '../hooks/useKeyboardHeight';
 const DEFAULT_DOG_IMAGES = [
   'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=600',
   'https://images.unsplash.com/photo-1534361960057-19889db9621e?auto=format&fit=crop&q=80&w=600',
@@ -110,6 +115,7 @@ const FONT_DISPLAY = 'Outfit_700Bold';
 const FONT_DISPLAY_SEMIBOLD = 'Outfit_600SemiBold';
 const FONT_BODY = 'Quicksand_400Regular';
 const FONT_BODY_BOLD = 'Quicksand_700Bold';
+// The web's section-heading script face (Lobster); loaded app-wide in App.tsx.
 
 interface RecipeCardItemProps {
   recipe: Product;
@@ -383,9 +389,28 @@ export default function KitchenScreen({ navigation, route }: any) {
   // of an empty grid + spinner while its own fetch is still in flight. The
   // mount effect below still fires its own fetch regardless, to pick up
   // anything that changed since the prefetch ran.
-  const [categories, setCategories] = useState<Category[]>(() => tabPrefetchCache.shopCategories || []);
+  const [categoryTree, setCategoryTree] = useState<CategoryTreeNode[]>([]);
   const [products, setProducts] = useState<Product[]>(() => tabPrefetchCache.shopProducts || []);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  // Browse-by-category, as on the website: a main category (or "All Items")
+  // opens, and its sub-categories appear as tabs underneath it.
+  const [openKey, setOpenKey] = useState<string>('all');
+  const [subKey, setSubKey] = useState<string>('all');
+  const openEntry = categoryTree.find((c) => String(c.id) === openKey) ?? null;
+  const subTabs = useMemo(() => {
+    if (openKey === 'all') {
+      const leaves = categoryTree.flatMap((c) => (c.children.length > 0 ? c.children : [c]));
+      return [{ key: 'all', label: 'All Items', ids: null as number[] | null }, ...leaves.map((l) => ({ key: String(l.id), label: l.name, ids: [l.id] }))];
+    }
+    if (!openEntry) return [{ key: 'all', label: 'All Items', ids: null as number[] | null }];
+    if (openEntry.children.length === 0) return [{ key: 'all', label: openEntry.name, ids: [openEntry.id] as number[] | null }];
+    return [
+      { key: 'all', label: 'All Items', ids: openEntry.children.map((c) => c.id) as number[] | null },
+      ...openEntry.children.map((c) => ({ key: String(c.id), label: c.name, ids: [c.id] as number[] | null })),
+    ];
+  }, [openKey, openEntry, categoryTree]);
+  const activeSubTab = subTabs.find((t) => t.key === subKey) ?? subTabs[0];
+  const activeCategoryIds = activeSubTab?.ids ?? null;
+  const categoryIdsKey = activeCategoryIds ? activeCategoryIds.join(',') : 'all';
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState<Product | null>(null);
   const [selectedWeight, setSelectedWeight] = useState<string>('500g');
@@ -418,6 +443,7 @@ export default function KitchenScreen({ navigation, route }: any) {
   const searchTimeoutRef = useRef<any>(null);
 
   const { isTablet, productColumns, modalOverlayStyle, modalSheetContainerStyle } = useResponsive();
+  const navInset = useNavBarInset();
 
   // Cart Map for O(1) quantity check per card instead of O(N) .find
   const cartMap = useMemo(() => {
@@ -459,17 +485,32 @@ export default function KitchenScreen({ navigation, route }: any) {
       setErrorMsg('');
       try {
         const activeSearch = typeof customSearch === 'string' ? customSearch : searchQuery;
-        const [catsRes, prodsRes] = await Promise.all([
-          fetchCategories().catch(() => []),
-          fetchProducts({
-            category_id: selectedCategoryId || undefined,
-            search: activeSearch.trim() || undefined,
-            limit: 30,
-          }).catch(() => ({ items: [], total: 0, page: 1, pages: 1 })),
+        // The backend filters by one category per request, so a parent's
+        // "All Items" asks for each sub-category and merges the results.
+        const ids: (number | undefined)[] = activeCategoryIds && activeCategoryIds.length > 0 ? activeCategoryIds : [undefined];
+        const [tree, ...prodResults] = await Promise.all([
+          fetchCategoryTree().catch(() => [] as CategoryTreeNode[]),
+          ...ids.map((id) =>
+            fetchProducts({
+              category_id: id,
+              search: activeSearch.trim() || undefined,
+              limit: 30,
+            }).catch(() => ({ items: [] as Product[], total: 0, page: 1, pages: 1 }))
+          ),
         ]);
 
-        setCategories(catsRes);
-        setProducts(prodsRes.items || []);
+        const seen = new Set<number>();
+        const merged: Product[] = [];
+        for (const r of prodResults) {
+          for (const p of r.items || []) {
+            if (!seen.has(p.id)) {
+              seen.add(p.id);
+              merged.push(p);
+            }
+          }
+        }
+        setCategoryTree(tree);
+        setProducts(merged);
       } catch (err: any) {
         console.log('Error loading products from backend:', err);
         setErrorMsg('Could not load recipes right now. Please try again.');
@@ -478,7 +519,7 @@ export default function KitchenScreen({ navigation, route }: any) {
         setRefreshing(false);
       }
     },
-    [selectedCategoryId, searchQuery]
+    [categoryIdsKey, searchQuery]
   );
 
   useEffect(() => {
@@ -486,7 +527,7 @@ export default function KitchenScreen({ navigation, route }: any) {
     if (user) {
       loadCart();
     }
-  }, [selectedCategoryId, user]);
+  }, [categoryIdsKey, user]);
 
   // Sync cart when screen is focused
   useFocusEffect(
@@ -859,37 +900,31 @@ export default function KitchenScreen({ navigation, route }: any) {
     }
     return (
       <View style={styles.centerContainer}>
-        <PawPrint size={40} color={COLORS.brandGold} />
+        <RNImage source={require('../../assets/toolkit/shop-recipes.webp')} style={styles.emptyIcon} resizeMode="contain" />
         <Text style={styles.emptyTitle}>No Recipes Found</Text>
         <Text style={styles.emptySub}>
-          {selectedCategoryId
+          {activeCategoryIds
             ? 'No recipes found in this category yet.'
             : 'No recipes available right now.'}
         </Text>
       </View>
     );
-  }, [loading, errorMsg, selectedCategoryId, handleSearch]);
+  }, [loading, errorMsg, activeCategoryIds, handleSearch]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeftGroup}>
-          <BrandMedallion size="sm" />
-          <View style={styles.headerTextCol}>
-            <Text style={styles.headerHeadline} numberOfLines={1}>HEARTH & HOUND</Text>
-          </View>
-        </View>
-        <View style={styles.headerActionIcons}>
+      <ScreenHeader title="Shop recipes" rightContent={
+        <>
           <TouchableOpacity
-            style={styles.iconCircleBtn}
+            style={[styles.iconCircleBtn, headerActionStyle]}
             onPress={() => navigation.navigate('Orders')}
             activeOpacity={0.8}
             hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
             accessibilityRole="button"
             accessibilityLabel="View your orders"
           >
-            <Package size={17} color={COLORS.textCoffee} strokeWidth={1.8} />
+            <RNImage source={require('../../assets/toolkit/my-orders.webp')} style={styles.headerOrdersIcon} resizeMode="contain" />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.avatarBtn}
@@ -909,8 +944,8 @@ export default function KitchenScreen({ navigation, route }: any) {
               </View>
             )}
           </TouchableOpacity>
-        </View>
-      </View>
+        </>
+      } />
 
       <ResponsiveContainer style={styles.headerAreaContainer}>
         {/* Search Bar */}
@@ -932,46 +967,79 @@ export default function KitchenScreen({ navigation, route }: any) {
           ) : null}
         </View>
 
-        {/* Category Tab-Spine — a row of ledger-style labeled tabs along one
-            continuous kraft-linen spine, not a generic filter-pill row. */}
+        {/* Browse by Category — round badges for "All Items" and each main
+            category (its image when the admin set one), as on the website. */}
+        <Text style={styles.browseLabel}>BROWSE BY CATEGORY</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categorySpineRow}
+          contentContainerStyle={styles.badgeRow}
           nestedScrollEnabled={true}
         >
-          <TouchableOpacity
-            style={[styles.categoryTab, selectedCategoryId === null && styles.categoryTabActive]}
-            onPress={() => setSelectedCategoryId(null)}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="All Recipes"
-            accessibilityState={{ selected: selectedCategoryId === null }}
-          >
-            <Text style={[styles.categoryTabText, selectedCategoryId === null && styles.categoryTabTextActive]}>
-              All Recipes
-            </Text>
-          </TouchableOpacity>
-
-          {categories.map((cat) => {
-            const isActive = cat.id === selectedCategoryId;
+          {[{ key: 'all', label: 'All Items', image: undefined as string | undefined, icon: LayoutGrid }].concat(
+            categoryTree.map((c) => ({
+              key: String(c.id),
+              label: c.name,
+              image: c.image_url as string | undefined,
+              icon: (/toy/i.test(c.name) ? Package : /gravy|wet/i.test(c.name) ? Soup : /food|dry/i.test(c.name) ? Bone : PawPrint) as typeof LayoutGrid,
+            }))
+          ).map((entry) => {
+            const isOpen = entry.key === openKey;
+            const Icon = entry.icon;
             return (
               <TouchableOpacity
-                key={cat.id}
-                style={[styles.categoryTab, isActive && styles.categoryTabActive]}
-                onPress={() => setSelectedCategoryId(cat.id)}
-                activeOpacity={0.7}
+                key={entry.key}
+                style={styles.badgeItem}
+                onPress={() => {
+                  setOpenKey(entry.key);
+                  setSubKey('all');
+                }}
+                activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel={cat.name}
-                accessibilityState={{ selected: isActive }}
+                accessibilityLabel={entry.label}
+                accessibilityState={{ selected: isOpen }}
               >
-                <Text style={[styles.categoryTabText, isActive && styles.categoryTabTextActive]}>
-                  {cat.name}
+                <View style={[styles.badgeCircle, isOpen && styles.badgeCircleActive, !entry.image && isOpen && styles.badgeCircleActiveFill]}>
+                  {entry.image ? (
+                    <Image source={{ uri: entry.image }} style={styles.badgeImage} contentFit="cover" />
+                  ) : (
+                    <Icon size={24} color={isOpen ? '#FFFFFF' : COLORS.textMuted} strokeWidth={1.8} />
+                  )}
+                </View>
+                <Text style={[styles.badgeLabel, isOpen && styles.badgeLabelActive]} numberOfLines={2}>
+                  {entry.label}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </ScrollView>
+
+        {/* Sub-category tabs for whichever main category is open. */}
+        {subTabs.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categorySpineRow}
+            nestedScrollEnabled={true}
+          >
+            {subTabs.map((tab) => {
+              const isActive = tab.key === activeSubTab?.key;
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  style={[styles.categoryTab, isActive && styles.categoryTabActive]}
+                  onPress={() => setSubKey(tab.key)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={tab.label}
+                  accessibilityState={{ selected: isActive }}
+                >
+                  <Text style={[styles.categoryTabText, isActive && styles.categoryTabTextActive]}>{tab.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
       </ResponsiveContainer>
 
       {/* Virtualized Recipe Grid — the Notebook Grid's two (or on wide
@@ -1327,13 +1395,9 @@ export default function KitchenScreen({ navigation, route }: any) {
         animationType="slide"
         onRequestClose={() => setWriteReviewVisible(false)}
       >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
-        >
+        <ModalKeyboardAvoider style={{ flex: 1 }}>
         <View style={isTablet ? modalOverlayStyle : styles.writeReviewOverlay}>
-          <View style={[styles.writeReviewCard, isTablet && modalSheetContainerStyle]}>
+          <View style={[styles.writeReviewCard, isTablet && modalSheetContainerStyle, { paddingBottom: 20 + navInset }]}>
             <View style={styles.writeReviewHeader}>
               <Text style={styles.writeReviewTitle}>Write a Review</Text>
               <TouchableOpacity
@@ -1452,7 +1516,7 @@ export default function KitchenScreen({ navigation, route }: any) {
             </ScrollView>
           </View>
         </View>
-        </KeyboardAvoidingView>
+        </ModalKeyboardAvoider>
       </Modal>
     </SafeAreaView>
   );
@@ -1460,39 +1524,19 @@ export default function KitchenScreen({ navigation, route }: any) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FAF7F2' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: '#FAF7F2',
-  },
-  headerLeftGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-    minWidth: 0,
-  },
-  headerTextCol: { flex: 1, minWidth: 0 },
-  headerHeadline: { fontSize: 19, fontWeight: '800', color: '#000000', fontFamily: FONT_DISPLAY },
-  headerActionIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
+  headerOrdersIcon: { width: 28, height: 28 },
+  emptyIcon: { width: 96, height: 96 },
   iconCircleBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: COLORS.kraftBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarBtn: { marginLeft: 2 },
+  avatarBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   avatarImg: { width: 36, height: 36, borderRadius: 18 },
   avatarFallback: {
     width: 36,
@@ -1523,6 +1567,38 @@ const styles = StyleSheet.create({
   // The tab-spine: one continuous kraft-linen baseline runs the full width,
   // and each tab's own 2px underline lights up ochre when selected — a
   // labeled ledger spine, not a row of interchangeable filter pills.
+  browseLabel: {
+    marginTop: 14,
+    paddingHorizontal: 16,
+    fontSize: 10.5,
+    letterSpacing: 1,
+    color: COLORS.forestGreen,
+    fontFamily: FONT_BODY_BOLD,
+  },
+  badgeRow: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 14, gap: 18 },
+  badgeItem: { width: 72, alignItems: 'center', gap: 6 },
+  badgeCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: COLORS.kraftBorder,
+    backgroundColor: COLORS.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  badgeCircleActive: { borderColor: COLORS.forestGreen, transform: [{ scale: 1.05 }] },
+  badgeCircleActiveFill: { backgroundColor: COLORS.textCoffee },
+  badgeImage: { width: '100%', height: '100%' },
+  badgeLabel: {
+    fontSize: 10,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    color: COLORS.textMuted,
+    fontFamily: FONT_BODY_BOLD,
+  },
+  badgeLabelActive: { color: COLORS.forestGreen },
   categorySpineRow: {
     flexDirection: 'row',
     paddingHorizontal: 16,

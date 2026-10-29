@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   Platform,
-  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ShieldCheck, Clock, CheckCircle2, AlertCircle } from 'lucide-react-native';
@@ -26,6 +25,7 @@ import { PhoneNumberInput } from './PhoneNumberInput';
 import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
 import { toE164, isValidForCountry, getCountry } from '../utils/phone';
 
+import { ModalKeyboardAvoider } from './ModalKeyboardAvoider';
 // Mandatory, non-dismissible phone verification -- shown app-wide whenever
 // a logged-in user's phone isn't verified yet. Google and email sign-in
 // never collect/confirm a phone number themselves, so this is the one
@@ -194,10 +194,7 @@ export function PhoneVerificationGate() {
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => {}}>
-      <KeyboardAvoidingView
-        style={styles.flexFill}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <ModalKeyboardAvoider style={styles.flexFill}>
         <View style={styles.overlay}>
           <SafeAreaView edges={['bottom']} style={styles.card}>
             <View style={styles.header}>
@@ -334,7 +331,7 @@ export function PhoneVerificationGate() {
             </TouchableOpacity>
           </SafeAreaView>
         </View>
-      </KeyboardAvoidingView>
+      </ModalKeyboardAvoider>
     </Modal>
   );
 }

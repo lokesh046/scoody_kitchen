@@ -242,7 +242,7 @@ export function VetLandingPage() {
       <Header floatingUntilScroll activeTab="consultations" onCartToggle={() => setIsCartOpen(true)} />
 
       {/* Hero */}
-      <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-obsidian">
+      <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-midnight">
         <img
           src={hero.image}
           alt="A veterinarian in a green coat gently examining a Doberman"

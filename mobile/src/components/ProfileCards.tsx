@@ -9,17 +9,15 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  KeyboardAvoidingView,
   Platform,
+  Image as RNImage,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   ShieldCheck,
-  Package,
   ChevronRight,
-  PawPrint,
   FileCheck2,
-  Stethoscope,
   Camera,
   Edit3,
   X,
@@ -30,13 +28,11 @@ import {
   Image as ImageIcon,
   AlertCircle,
   LogIn,
-  Headset,
-  Newspaper,
-  FileText,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { COLORS } from '../theme/colors';
+import { FONT_HEADING_SCRIPT, FONT_DISPLAY } from '../theme/typography';
 import { UserProfile } from '../store/authStore';
 import { updateUserProfile, uploadAvatarImage } from '../api/auth';
 import { useResponsive } from '../hooks/useResponsive';
@@ -44,6 +40,8 @@ import { PhoneNumberInput } from './PhoneNumberInput';
 import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
 import { toE164, isValidForCountry, getCountry } from '../utils/phone';
 
+import { ModalKeyboardAvoider } from './ModalKeyboardAvoider';
+import { useNavBarInset } from '../hooks/useKeyboardHeight';
 // Parses with libphonenumber-js so both the country AND the national
 // number are detected correctly, rather than assuming India and just
 // chopping off the last 10 digits (which broke for any non-Indian number).
@@ -80,7 +78,9 @@ export const ProfileHeroCard = memo(function ProfileHeroCard({
   const avatarInitial = getAvatarInitial(user);
 
   return (
-    <View style={profileCardStyles.profileCard}>
+    <LinearGradient colors={['#0E0B08', '#241B13']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={profileCardStyles.profileCard}>
+      <View style={profileCardStyles.identityRow}>
+      <View style={profileCardStyles.avatarRing}>
       <View style={profileCardStyles.avatarWrapper}>
         {user?.profile_image_url ? (
           <Image
@@ -99,11 +99,14 @@ export const ProfileHeroCard = memo(function ProfileHeroCard({
             style={profileCardStyles.cameraBadge}
             onPress={onEditPress}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            hitSlop={8}
             accessibilityLabel="Change avatar picture"
           >
-            <Camera size={13} color="#FFFFFF" strokeWidth={2.5} />
+            <Camera size={13} color="#2C1810" strokeWidth={2.5} />
           </TouchableOpacity>
         ) : null}
+      </View>
       </View>
 
       <Text style={profileCardStyles.userName}>
@@ -111,78 +114,65 @@ export const ProfileHeroCard = memo(function ProfileHeroCard({
           ? `${user.first_name || 'Pet Parent'} ${user.last_name || ''}`.trim()
           : 'Guest Explorer'}
       </Text>
-      <Text style={profileCardStyles.userEmail}>
-        {user ? user.email : 'Browsing without account'}
-      </Text>
-
+      </View>
       {user ? (
-        user.phone ? (
-          <View style={profileCardStyles.userPhoneRow}>
-            <Phone size={12} color={COLORS.textMuted} />
-            <Text style={profileCardStyles.userPhoneText}>{user.phone}</Text>
-            {user.is_phone_verified ? (
-              <View style={profileCardStyles.verifiedMiniPill}>
-                <Check size={10} color="#047857" />
-                <Text style={profileCardStyles.verifiedMiniPillText}>Verified</Text>
-              </View>
+        <View style={profileCardStyles.detailList}>
+          <View style={profileCardStyles.detailRow}>
+            <ShieldCheck size={16} color="#D09E6B" />
+            <Text style={profileCardStyles.detailLabel}>ROLE</Text>
+            <Text style={profileCardStyles.detailValue}>{user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase()}</Text>
+          </View>
+
+          <View style={profileCardStyles.detailRow}>
+            <FileCheck2 size={16} color="#D09E6B" />
+            <Text style={profileCardStyles.detailLabel}>EMAIL</Text>
+            <Text style={profileCardStyles.detailValue} numberOfLines={1}>{user.email}</Text>
+            {user.is_email_verified ? (
+              <Check size={15} color="#6EE7B7" strokeWidth={2.6} />
+            ) : null}
+          </View>
+
+          <View style={[profileCardStyles.detailRow, profileCardStyles.detailRowLast]}>
+            <Phone size={16} color="#D09E6B" />
+            <Text style={profileCardStyles.detailLabel}>PHONE</Text>
+            {user.phone ? (
+              <>
+                <Text style={profileCardStyles.detailValue} numberOfLines={1}>{user.phone}</Text>
+                {user.is_phone_verified ? (
+                  <Check size={15} color="#6EE7B7" strokeWidth={2.6} />
+                ) : (
+                  <TouchableOpacity
+                    onPress={() => {
+                      const parsedPhone = parsePhoneForState(user.phone);
+                      onVerifyPhonePress(parsedPhone.country, parsedPhone.digits);
+                    }}
+                    activeOpacity={0.8}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={profileCardStyles.detailAction}>Verify</Text>
+                  </TouchableOpacity>
+                )}
+              </>
             ) : (
-              <TouchableOpacity
-                style={profileCardStyles.unverifiedMiniPill}
-                onPress={() => {
-                  const parsedPhone = parsePhoneForState(user.phone);
-                  onVerifyPhonePress(parsedPhone.country, parsedPhone.digits);
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={profileCardStyles.unverifiedMiniPillText}>Verify Phone</Text>
-              </TouchableOpacity>
+              <>
+                <Text style={[profileCardStyles.detailValue, profileCardStyles.detailValueMuted]}>Not added</Text>
+                <TouchableOpacity onPress={onEditPress} activeOpacity={0.8} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={profileCardStyles.detailAction}>Add</Text>
+                </TouchableOpacity>
+              </>
             )}
           </View>
-        ) : (
-          <TouchableOpacity
-            style={profileCardStyles.addPhonePrompt}
-            onPress={onEditPress}
-            activeOpacity={0.8}
-          >
-            <Phone size={12} color="#C2410C" />
-            <Text style={profileCardStyles.addPhonePromptText}>+ Add & Verify Phone</Text>
-          </TouchableOpacity>
-        )
+        </View>
       ) : (
-        <View style={profileCardStyles.guestPromptBox}>
-          <Text style={profileCardStyles.guestPromptText}>
-            Sign in to track live orders, register pets, and book consultations.
-          </Text>
-        </View>
+        <>
+          <Text style={profileCardStyles.userEmail}>Browsing without account</Text>
+          <View style={profileCardStyles.guestPromptBox}>
+            <Text style={profileCardStyles.guestPromptText}>
+              Sign in to track live orders, register pets, and book consultations.
+            </Text>
+          </View>
+        </>
       )}
-
-      {/* Badges Matrix */}
-      <View style={profileCardStyles.badgeRow}>
-        <View style={[profileCardStyles.roleBadge, { backgroundColor: '#EDF5F0' }]}>
-          <ShieldCheck size={12} color={COLORS.forestGreen} />
-          <Text style={[profileCardStyles.roleText, { color: COLORS.forestGreen }]}>
-            {user ? `ROLE: ${user.role.toUpperCase()}` : 'GUEST MODE'}
-          </Text>
-        </View>
-
-        {user?.is_email_verified && (
-          <View style={[profileCardStyles.roleBadge, { backgroundColor: '#FAF4EB' }]}>
-            <FileCheck2 size={12} color={COLORS.brandGold} />
-            <Text style={[profileCardStyles.roleText, { color: COLORS.brandGold }]}>
-              Verified Email
-            </Text>
-          </View>
-        )}
-
-        {user?.is_phone_verified && (
-          <View style={[profileCardStyles.roleBadge, { backgroundColor: '#EBF3FB' }]}>
-            <Phone size={12} color="#2563EB" />
-            <Text style={[profileCardStyles.roleText, { color: '#2563EB' }]}>
-              Phone Verified
-            </Text>
-          </View>
-        )}
-      </View>
 
       {/* Action CTA: Edit Profile or Sign In */}
       {user ? (
@@ -191,8 +181,8 @@ export const ProfileHeroCard = memo(function ProfileHeroCard({
           onPress={onEditPress}
           activeOpacity={0.8}
         >
-          <Edit3 size={14} color={COLORS.forestGreen} strokeWidth={2.2} />
-          <Text style={profileCardStyles.editProfileBtnText}>Edit Profile Ledger</Text>
+          <Edit3 size={14} color="#D09E6B" strokeWidth={2.2} />
+          <Text style={profileCardStyles.editProfileBtnText}>Edit Profile</Text>
         </TouchableOpacity>
       ) : (
         <TouchableOpacity
@@ -204,7 +194,7 @@ export const ProfileHeroCard = memo(function ProfileHeroCard({
           <Text style={profileCardStyles.signInCtaBtnText}>Sign In / Create Account</Text>
         </TouchableOpacity>
       )}
-    </View>
+    </LinearGradient>
   );
 });
 
@@ -220,16 +210,19 @@ export const ProfileStatsMatrix = memo(function ProfileStatsMatrix({
   return (
     <View style={profileCardStyles.statsCard}>
       <View style={profileCardStyles.statBox}>
+        <RNImage source={require('../../assets/toolkit/pet-3d.webp')} style={profileCardStyles.statIcon} resizeMode="contain" />
         <Text style={profileCardStyles.statNumber}>{petsCount}</Text>
         <Text style={profileCardStyles.statLabel}>Registered Pets</Text>
       </View>
       <View style={profileCardStyles.statDivider} />
       <View style={profileCardStyles.statBox}>
+        <RNImage source={require('../../assets/toolkit/my-orders.webp')} style={profileCardStyles.statIcon} resizeMode="contain" />
         <Text style={profileCardStyles.statNumber}>{ordersCount}</Text>
         <Text style={profileCardStyles.statLabel}>Fresh Orders</Text>
       </View>
       <View style={profileCardStyles.statDivider} />
       <View style={profileCardStyles.statBox}>
+        <RNImage source={require('../../assets/toolkit/meal-planner.webp')} style={profileCardStyles.statIcon} resizeMode="contain" />
         <Text style={profileCardStyles.statNumber}>100%</Text>
         <Text style={profileCardStyles.statLabel}>Human-Grade</Text>
       </View>
@@ -277,8 +270,8 @@ export const AccountHubMenu = memo(function AccountHubMenu({
         activeOpacity={0.7}
       >
         <View style={profileCardStyles.menuItemLeft}>
-          <View style={[profileCardStyles.menuIconCircle, { backgroundColor: '#FAF5EE' }]}>
-            <Package size={18} color={COLORS.brandGold} />
+          <View style={profileCardStyles.menuIconTile}>
+            <RNImage source={require('../../assets/toolkit/my-orders.webp')} style={[profileCardStyles.menuIconImg]} resizeMode="contain" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={profileCardStyles.menuItemTitle}>My Orders</Text>
@@ -304,8 +297,8 @@ export const AccountHubMenu = memo(function AccountHubMenu({
         activeOpacity={0.7}
       >
         <View style={profileCardStyles.menuItemLeft}>
-          <View style={[profileCardStyles.menuIconCircle, { backgroundColor: '#EDF5F0' }]}>
-            <PawPrint size={18} color={COLORS.forestGreen} />
+          <View style={profileCardStyles.menuIconTile}>
+            <RNImage source={require('../../assets/toolkit/pet-3d.webp')} style={profileCardStyles.menuIconImg} resizeMode="contain" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={profileCardStyles.menuItemTitle}>Registered Pets</Text>
@@ -322,7 +315,7 @@ export const AccountHubMenu = memo(function AccountHubMenu({
         </View>
       </TouchableOpacity>
 
-      {consultationsFallback !== 'hide' && (
+      {(isConsultationsEnabled || consultationsFallback !== 'hide') && (
         <>
           <View style={profileCardStyles.menuDivider} />
 
@@ -334,9 +327,9 @@ export const AccountHubMenu = memo(function AccountHubMenu({
             activeOpacity={0.7}
           >
             <View style={profileCardStyles.menuItemLeft}>
-              <View style={[profileCardStyles.menuIconCircle, { backgroundColor: isConsultationsEnabled ? '#EBF3FB' : COLORS.kraftBorder }]}>
-                <Stethoscope size={18} color={isConsultationsEnabled ? '#2563EB' : COLORS.textLight} />
-              </View>
+              <View style={profileCardStyles.menuIconTile}>
+            <RNImage source={require('../../assets/toolkit/vet-3d.webp')} style={[profileCardStyles.menuIconImg, !isConsultationsEnabled && { opacity: 0.4 }]} resizeMode="contain" />
+          </View>
               <View style={{ flex: 1 }}>
                 <View style={profileCardStyles.menuItemTitleRow}>
                   <Text style={[profileCardStyles.menuItemTitle, !isConsultationsEnabled && profileCardStyles.menuItemTitleDisabled]}>
@@ -369,8 +362,8 @@ export const AccountHubMenu = memo(function AccountHubMenu({
         activeOpacity={0.7}
       >
         <View style={profileCardStyles.menuItemLeft}>
-          <View style={[profileCardStyles.menuIconCircle, { backgroundColor: '#FBEFEA' }]}>
-            <Headset size={18} color="#C25E48" />
+          <View style={profileCardStyles.menuIconTile}>
+            <RNImage source={require('../../assets/toolkit/ai-assistant.webp')} style={profileCardStyles.menuIconImg} resizeMode="contain" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={profileCardStyles.menuItemTitle}>Support</Text>
@@ -396,8 +389,8 @@ export const AccountHubMenu = memo(function AccountHubMenu({
         activeOpacity={0.7}
       >
         <View style={profileCardStyles.menuItemLeft}>
-          <View style={[profileCardStyles.menuIconCircle, { backgroundColor: '#EDF5F0' }]}>
-            <Newspaper size={18} color={COLORS.forestGreen} />
+          <View style={profileCardStyles.menuIconTile}>
+            <RNImage source={require('../../assets/toolkit/journal.webp')} style={[profileCardStyles.menuIconImg]} resizeMode="contain" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={profileCardStyles.menuItemTitle}>Journal</Text>
@@ -418,8 +411,8 @@ export const AccountHubMenu = memo(function AccountHubMenu({
         activeOpacity={0.7}
       >
         <View style={profileCardStyles.menuItemLeft}>
-          <View style={[profileCardStyles.menuIconCircle, { backgroundColor: '#F1F1F1' }]}>
-            <Lock size={18} color={COLORS.textMuted} />
+          <View style={profileCardStyles.menuIconTile}>
+            <RNImage source={require('../../assets/toolkit/privacy.webp')} style={[profileCardStyles.menuIconImg]} resizeMode="contain" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={profileCardStyles.menuItemTitle}>Privacy Policy</Text>
@@ -440,8 +433,8 @@ export const AccountHubMenu = memo(function AccountHubMenu({
         activeOpacity={0.7}
       >
         <View style={profileCardStyles.menuItemLeft}>
-          <View style={[profileCardStyles.menuIconCircle, { backgroundColor: '#F1F1F1' }]}>
-            <FileText size={18} color={COLORS.textMuted} />
+          <View style={profileCardStyles.menuIconTile}>
+            <RNImage source={require('../../assets/toolkit/terms.webp')} style={[profileCardStyles.menuIconImg]} resizeMode="contain" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={profileCardStyles.menuItemTitle}>Terms & Conditions</Text>
@@ -461,7 +454,7 @@ export const AccountHubMenu = memo(function AccountHubMenu({
 export const NutritionPledgeCard = memo(function NutritionPledgeCard() {
   return (
     <View style={profileCardStyles.infoCard}>
-      <PawPrint size={20} color={COLORS.brandGold} fill={COLORS.brandGold} />
+      <RNImage source={require('../../assets/toolkit/shop-recipes.webp')} style={profileCardStyles.infoIcon} resizeMode="contain" />
       <View style={{ flex: 1 }}>
         <Text style={profileCardStyles.infoTitle}>Canine Nutrition Quality Pledge</Text>
         <Text style={profileCardStyles.infoBody}>
@@ -489,6 +482,7 @@ export const EditProfileModal = memo(function EditProfileModal({
   onRequestPhoneVerification,
 }: EditProfileModalProps) {
   const { isTablet, modalOverlayStyle, modalSheetContainerStyle } = useResponsive();
+  const navInset = useNavBarInset();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [country, setCountry] = useState(DEFAULT_COUNTRY_ISO2);
@@ -622,12 +616,8 @@ export const EditProfileModal = memo(function EditProfileModal({
       transparent={true}
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
-        style={isTablet ? modalOverlayStyle : profileCardStyles.modalOverlay}
-      >
-        <View style={[profileCardStyles.modalContent, isTablet && modalSheetContainerStyle]}>
+      <ModalKeyboardAvoider style={isTablet ? modalOverlayStyle : profileCardStyles.modalOverlay}>
+        <View style={[profileCardStyles.modalContent, isTablet && modalSheetContainerStyle, { paddingBottom: 24 + navInset }]}>
           {/* Modal Header */}
           <View style={profileCardStyles.modalHeader}>
             <View>
@@ -865,137 +855,100 @@ export const EditProfileModal = memo(function EditProfileModal({
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </ModalKeyboardAvoider>
     </Modal>
   );
 });
 
 export const profileCardStyles = StyleSheet.create({
   profileCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: 22,
+    borderRadius: 24,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.kraftBorder,
-    shadowColor: COLORS.textCoffee,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
+    borderColor: 'rgba(208,158,107,0.35)',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 2,
   },
-  avatarWrapper: {
-    position: 'relative',
-    marginBottom: 12,
+  identityRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', gap: 16 },
+  avatarRing: {
+    padding: 4,
+    borderRadius: 54,
+    borderWidth: 1,
+    borderColor: 'rgba(208,158,107,0.5)',
+    marginBottom: 0,
   },
+  avatarWrapper: { position: 'relative' },
   avatarCircle: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
-    backgroundColor: '#FAF4EB',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#2A2018',
     borderWidth: 2,
-    borderColor: COLORS.brandGold,
+    borderColor: '#D09E6B',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarImage: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     borderWidth: 2,
-    borderColor: COLORS.brandGold,
-    backgroundColor: '#F3EFE6',
+    borderColor: '#D09E6B',
+    backgroundColor: '#2A2018',
   },
-  avatarInitial: { fontSize: 28, fontWeight: '800', color: COLORS.brandGold },
+  avatarInitial: { fontSize: 34, color: '#D09E6B', fontFamily: FONT_HEADING_SCRIPT },
   cameraBadge: {
     position: 'absolute',
     bottom: -2,
     right: -2,
-    backgroundColor: COLORS.forestGreen,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    backgroundColor: '#D09E6B',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: COLORS.card,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
+    borderColor: '#14100C',
     elevation: 3,
   },
-  userName: { fontSize: 18, fontWeight: '800', color: COLORS.textCoffee },
-  userEmail: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
-  userPhoneRow: {
+  userName: { flex: 1, fontSize: 26, lineHeight: 34, color: '#F9F6F0', fontFamily: FONT_HEADING_SCRIPT },
+  detailList: {
+    alignSelf: 'stretch',
+    marginTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(208,158,107,0.3)',
+  },
+  detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
+    gap: 8,
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(208,158,107,0.18)',
   },
-  userPhoneText: {
-    fontSize: 11,
-    color: COLORS.textMuted,
+  detailRowLast: { borderBottomWidth: 0 },
+  detailLabel: {
+    width: 44,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    color: 'rgba(249,246,240,0.55)',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
-  verifiedMiniPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#ECFDF5',
-    borderColor: '#A7F3D0',
-    borderWidth: 1,
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-    marginLeft: 4,
-  },
-  verifiedMiniPillText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: '#047857',
-  },
-  unverifiedMiniPill: {
-    backgroundColor: '#FFF7ED',
-    borderColor: '#FED7AA',
-    borderWidth: 1,
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 4,
-    marginLeft: 4,
-  },
-  unverifiedMiniPillText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-    color: '#C2410C',
-  },
-  addPhonePrompt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFF7ED',
-    borderColor: '#FED7AA',
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginTop: 4,
-  },
-  addPhonePromptText: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: '#C2410C',
-  },
+  detailValue: { flex: 1, fontSize: 13.5, color: '#F9F6F0', textAlign: 'right' },
+  detailValueMuted: { color: 'rgba(249,246,240,0.5)' },
+  detailAction: { fontSize: 12.5, fontWeight: '800', color: '#D09E6B', letterSpacing: 0.3, textDecorationLine: 'underline' },
+  userEmail: { fontSize: 13, color: 'rgba(249,246,240,0.7)', marginTop: 2 },
   guestPromptBox: {
     marginTop: 6,
     paddingHorizontal: 12,
   },
-  guestPromptText: {
-    fontSize: 11.5,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    lineHeight: 16,
-  },
+  guestPromptText: { fontSize: 12, color: 'rgba(249,246,240,0.75)', textAlign: 'center', lineHeight: 17 },
   signInCtaBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1097,81 +1050,73 @@ export const profileCardStyles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
   },
-  badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 10,
-  },
-  roleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  roleText: { fontSize: 10, fontWeight: '800' },
   editProfileBtn: {
+    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 14,
-    paddingVertical: 7,
-    paddingHorizontal: 14,
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    minHeight: 44,
+    paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: '#EDF5F0',
+    backgroundColor: 'rgba(208,158,107,0.12)',
     borderWidth: 1,
-    borderColor: '#C6E2D1',
+    borderColor: '#D09E6B',
   },
-  editProfileBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.forestGreen,
-  },
+  editProfileBtnText: { fontSize: 13, fontWeight: '800', color: '#D09E6B', letterSpacing: 0.3 },
   statsCard: {
     flexDirection: 'row',
     backgroundColor: COLORS.card,
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    borderRadius: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: COLORS.kraftBorder,
     alignItems: 'center',
     justifyContent: 'space-around',
+    shadowColor: COLORS.textCoffee,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   statBox: { alignItems: 'center', flex: 1 },
-  statDivider: { width: 1, height: 26, backgroundColor: COLORS.kraftBorder },
-  statNumber: { fontSize: 16, fontWeight: '800', color: COLORS.forestGreen },
-  statLabel: { fontSize: 10, color: COLORS.textMuted, marginTop: 2 },
+  statIcon: { width: 32, height: 32, marginBottom: 2 },
+  statDivider: { width: 1, height: 54, backgroundColor: COLORS.kraftBorder },
+  statNumber: { fontSize: 20, color: COLORS.textCoffee, fontFamily: FONT_DISPLAY },
+  statLabel: { fontSize: 10.5, color: COLORS.textMuted, marginTop: 1 },
   menuCard: {
     backgroundColor: COLORS.card,
-    borderRadius: 18,
-    padding: 16,
+    borderRadius: 22,
+    padding: 18,
     borderWidth: 1,
     borderColor: COLORS.kraftBorder,
+    shadowColor: COLORS.textCoffee,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  menuHeading: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: COLORS.brandGold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 12,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
+  menuHeading: { fontSize: 24, color: COLORS.textCoffee, fontFamily: FONT_HEADING_SCRIPT, marginBottom: 8 },
+  menuItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
   menuItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     flex: 1,
   },
+  menuIconTile: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#FBF7F0',
+    borderWidth: 1,
+    borderColor: COLORS.kraftBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuIconImg: { width: 46, height: 46 },
   menuIconCircle: {
     width: 38,
     height: 38,
@@ -1186,11 +1131,7 @@ export const profileCardStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  menuItemTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.textCoffee,
-  },
+  menuItemTitle: { fontSize: 15, color: COLORS.textCoffee, fontFamily: FONT_DISPLAY },
   menuItemTitleDisabled: {
     color: COLORS.textLight,
   },
@@ -1252,13 +1193,15 @@ export const profileCardStyles = StyleSheet.create({
   },
   infoCard: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
     backgroundColor: '#FAF4EB',
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: COLORS.kraftBorder,
+    borderColor: 'rgba(208,158,107,0.45)',
   },
+  infoIcon: { width: 56, height: 56 },
   infoTitle: { fontSize: 13, fontWeight: '800', color: COLORS.textCoffee },
   infoBody: { fontSize: 11, color: COLORS.textMuted, lineHeight: 16, marginTop: 2 },
 

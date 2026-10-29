@@ -34,7 +34,7 @@ export const styles = StyleSheet.create({
     fontWeight: '700',
   },
   headerTitle: { fontSize: 18, fontWeight: '800', color: COLORS.textCoffee },
-  clearBtn: { padding: 6 },
+  clearBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   scrollBody: { padding: 20, gap: 16, paddingBottom: 40 },
 
   /* 3-Step Checkout Stepper Styles */
@@ -255,6 +255,7 @@ export const styles = StyleSheet.create({
     padding: 30,
     gap: 14,
   },
+  emptyIllustration: { width: 120, height: 120, marginBottom: 6 },
   emptyIconBox: {
     width: 80,
     height: 80,

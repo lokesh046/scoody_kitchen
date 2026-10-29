@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { COLORS } from '../theme/colors';
+import { FONT_DISPLAY } from '../theme/typography';
 
 // Local asset reference for the authentic Scooby Mascot Logo
 const SCOOBY_LOGO_IMG = require('../../assets/scooby-logo-256.png');
@@ -73,9 +74,8 @@ interface BrandHeaderProps {
 }
 
 /**
- * Scooby's Kitchen brand header: the mascot logo (which already carries the
- * wordmark) plus a live status subtitle. No separately-typeset brand name,
- * so the logo isn't duplicated next to itself.
+ * Hearth & One brand header: the mascot logo, the brand name in the display
+ * face (as on the web header) and a live status subtitle.
  */
 export const BrandHeader = memo(function BrandHeader({
   subtitle = 'CANINE NUTRITION LEDGER',
@@ -87,6 +87,7 @@ export const BrandHeader = memo(function BrandHeader({
     <View style={[styles.brandHeaderRow, style]}>
       <BrandMedallion size={medallionSize} />
       <View style={styles.brandTextColumn}>
+        <Text style={styles.wordmark} numberOfLines={1}>Hearth & One</Text>
         <View style={styles.subtitleRow}>
           <View style={styles.livePulseDot} />
           <Text style={styles.subtitleText} numberOfLines={1}>
@@ -116,6 +117,12 @@ const styles = StyleSheet.create({
   },
   brandTextColumn: {
     justifyContent: 'center',
+  },
+  wordmark: {
+    fontSize: 17,
+    fontFamily: FONT_DISPLAY,
+    color: COLORS.textCoffee,
+    letterSpacing: -0.3,
   },
   subtitleRow: {
     flexDirection: 'row',

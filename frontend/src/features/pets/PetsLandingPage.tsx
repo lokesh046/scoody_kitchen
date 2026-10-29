@@ -155,7 +155,7 @@ export function PetsLandingPage() {
       {/* Hero -- same shape as the homepage's hero: full-bleed photo, a
           single legibility gradient (not a left/right split), copy
           anchored bottom-left over it. */}
-      <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-obsidian">
+      <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-midnight">
         <img
           src={hero.image}
           alt="A Doberman resting against its owner, who gently rests a hand on its shoulder"
@@ -205,15 +205,24 @@ export function PetsLandingPage() {
       <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-gradient-to-b from-midnight via-midnightCard to-midnight">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
-            <p className="font-script font-normal text-5xl sm:text-6xl lg:text-7xl tracking-normal leading-tight text-turmeric">A closer look</p>
-            <h2 className="font-body font-normal text-lg sm:text-xl tracking-normal leading-snug text-paper">
-              Get to know them, beyond the basics.
+            <h2 className="font-script font-normal text-[clamp(1.125rem,4.6vw,2.5rem)] whitespace-nowrap tracking-normal leading-snug text-turmeric">
+              <span className="sr-only">Get to know them, beyond the basics.</span>
+              <span aria-hidden="true">
+                {'Get to know them, beyond the basics.'.split(' ').map((word, index) => (
+                  <span key={index}>
+                    {index > 0 ? ' ' : ''}
+                    <span className="pet-profile-heading-word inline-block" style={{ animationDelay: `${index * 160}ms` }}>
+                      {word}
+                    </span>
+                  </span>
+                ))}
+              </span>
             </h2>
             <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
               Every pet has their own traits, background, and needs. Here's what you can discover and keep track of with Know Your Pet.
             </p>
           </div>
-          <ScrollSpyTimeline steps={CLOSER_LOOK} />
+          <ScrollSpyTimeline steps={CLOSER_LOOK} compact />
         </div>
       </section>
 
@@ -221,7 +230,7 @@ export function PetsLandingPage() {
       <section aria-labelledby="pet-profile-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-2xl mx-auto text-center space-y-4 mb-10 md:mb-12">
-            <p className="font-script font-normal text-5xl sm:text-6xl lg:text-7xl tracking-normal leading-tight text-turmeric">Your Pet's Profile</p>
+            <p className="font-script font-normal text-[clamp(1.125rem,4.6vw,2.5rem)] whitespace-nowrap tracking-normal leading-snug text-turmeric">Your Pet's Profile</p>
             <h2 id="pet-profile-heading" className="font-body font-normal text-lg sm:text-xl tracking-normal leading-snug">
               <span className="sr-only">A clearer picture of the companion you know by heart.</span>
               <span aria-hidden="true">
@@ -238,9 +247,6 @@ export function PetsLandingPage() {
                 ))}
               </span>
             </h2>
-            <p className="font-body text-sm text-paper/75 leading-relaxed">
-              Name, species, breed, gender, date of birth, weight, and RFID microchip — the real details that make their profile theirs, kept together and easy to update.
-            </p>
           </div>
 
           <svg width="0" height="0" aria-hidden="true" className="absolute">

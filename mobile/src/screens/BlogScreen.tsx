@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import SafeAreaView from '../components/FeatureSafeArea';
 import { useFocusEffect } from '@react-navigation/native';
 import { BookOpen, Calendar } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
@@ -56,7 +56,7 @@ export default function BlogScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StackHeader title="Journal" eyebrow="HEARTH & ONE" onBack={() => navigation.goBack()} />
+      <StackHeader title="Journal" onBack={() => navigation.goBack()} />
 
       {loading ? (
         <View style={styles.centerFill}>

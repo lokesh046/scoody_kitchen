@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, TextInput, Modal, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, Modal, ActivityIndicator, Platform } from 'react-native';
 import { X, Star } from 'lucide-react-native';
 import { COLORS } from '../../theme/colors';
 import { useResponsive } from '../../hooks/useResponsive';
 import { styles } from './vetStyles';
 
+import { ModalKeyboardAvoider } from '../../components/ModalKeyboardAvoider';
+import { useNavBarInset } from '../../hooks/useKeyboardHeight';
 interface ReviewModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -27,16 +29,13 @@ export function ReviewModal({
   onSubmit,
 }: ReviewModalProps) {
   const { isTablet, modalOverlayStyle, modalSheetContainerStyle } = useResponsive();
+  const navInset = useNavBarInset();
 
   return (
     <Modal visible={isOpen} transparent animationType="slide">
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
-      >
+      <ModalKeyboardAvoider style={{ flex: 1 }}>
       <View style={isTablet ? modalOverlayStyle : styles.modalOverlay}>
-        <View style={[styles.reviewModalSheet, isTablet && modalSheetContainerStyle]}>
+        <View style={[styles.reviewModalSheet, isTablet && modalSheetContainerStyle, { paddingBottom: 16 + navInset }]}>
           <View style={styles.reviewModalHeaderRow}>
             <Text style={styles.reviewModalTitle}>Rate Your Consultation</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
@@ -85,7 +84,7 @@ export function ReviewModal({
           </TouchableOpacity>
         </View>
       </View>
-      </KeyboardAvoidingView>
+      </ModalKeyboardAvoider>
     </Modal>
   );
 }

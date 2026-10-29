@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import SafeAreaView from '../components/FeatureSafeArea';
 import { COLORS } from '../theme/colors';
 import { StackHeader } from '../components/ScreenHeader';
 import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD } from '../theme/typography';
@@ -28,7 +28,7 @@ const Bullet: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 export default function TermsScreen({ navigation }: TermsScreenProps) {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StackHeader title="Terms and Conditions" eyebrow="LEGAL" onBack={() => navigation?.goBack()} />
+      <StackHeader title="Terms and Conditions" onBack={() => navigation?.goBack()} />
 
       <ScrollView contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
         <Text style={styles.subtitle}>

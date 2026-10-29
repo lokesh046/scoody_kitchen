@@ -9,8 +9,9 @@ import {
   ActivityIndicator,
   RefreshControl,
   BackHandler,
+  Image as RNImage,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import SafeAreaView from '../components/FeatureSafeArea';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import {
@@ -23,7 +24,7 @@ import {
   LogIn,
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { ScreenHeader, headerActionStyle, HEADER_GOLD } from '../components/ScreenHeader';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import { useNetworkStore, isNetworkError } from '../store/networkStore';
@@ -628,13 +629,12 @@ export default function CartScreen({ navigation }: any) {
         <ScreenHeader
           title={
             checkoutStep === 'cart'
-              ? `Order Cart (${items.length} ${items.length === 1 ? 'recipe' : 'recipes'})`
+              ? `Cart (${items.length})`
               : checkoutStep === 'address'
               ? 'Delivery Address'
               : 'Review & Payment'
           }
-          eyebrow="YOUR BOWL LEDGER"
-          eyebrowExtra={
+          statusContent={
             isSyncing && (
               <View style={styles.syncPill}>
                 <ActivityIndicator size="small" color={COLORS.forestGreen} />
@@ -642,19 +642,18 @@ export default function CartScreen({ navigation }: any) {
               </View>
             )
           }
-          leadingElement={<ShoppingBag size={20} color={COLORS.brandGold} />}
           rightContent={
             items.length > 0 &&
             checkoutStep === 'cart' && (
               <TouchableOpacity
                 onPress={clearCart}
-                style={styles.clearBtn}
+                style={[styles.clearBtn, headerActionStyle]}
                 disabled={isSyncing}
                 accessibilityRole="button"
                 accessibilityLabel="Clear cart"
                 accessibilityState={{ disabled: isSyncing }}
               >
-                <Trash2 size={16} color={COLORS.textMuted} />
+                <Trash2 size={16} color={HEADER_GOLD} />
               </TouchableOpacity>
             )
           }
@@ -785,9 +784,7 @@ export default function CartScreen({ navigation }: any) {
             <RefreshControl refreshing={isLoading} onRefresh={() => loadCart(true)} colors={[COLORS.forestGreen]} />
           }
         >
-          <View style={styles.emptyIconBox}>
-            <PawPrint size={40} color={COLORS.brandGold} fill={COLORS.brandGold} />
-          </View>
+          <RNImage source={require('../../assets/toolkit/shop-recipes.webp')} style={styles.emptyIllustration} resizeMode="contain" />
           <Text style={styles.emptyTitle}>Your Pet's Bowl is Empty</Text>
           <Text style={styles.emptySub}>
             Browse the catalogue in the Kitchen tab to add freshly simmered recipes, broths, and vacuum pouches.

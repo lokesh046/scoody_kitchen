@@ -8,20 +8,6 @@ export const styles = StyleSheet.create({
   // Presence ring on the brand mark itself — "the practice is staffed
   // right now" reads directly off the logo, like an online-status dot on
   // a profile picture, instead of a separate text line.
-  medallionPresenceWrap: {
-    position: 'relative',
-  },
-  presenceRing: {
-    position: 'absolute',
-    bottom: -1,
-    right: -1,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: COLORS.successGreen,
-    borderWidth: 2,
-    borderColor: '#FAF7F2',
-  },
   specialistStatChip: {
     flexDirection: 'row',
     alignItems: 'center',

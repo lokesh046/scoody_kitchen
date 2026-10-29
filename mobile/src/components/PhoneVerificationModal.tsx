@@ -9,7 +9,6 @@ import {
   StyleSheet,
   Platform,
   Alert,
-  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -30,6 +29,7 @@ import { useResponsive } from '../hooks/useResponsive';
 import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
 import { toE164, getCountry } from '../utils/phone';
 
+import { ModalKeyboardAvoider } from './ModalKeyboardAvoider';
 interface PhoneVerificationModalProps {
   visible: boolean;
   // Defaults to India for callers that don't collect a country yet (e.g.
@@ -253,11 +253,7 @@ export function PhoneVerificationModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoider}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'android' ? 24 : 0}
-      >
+      <ModalKeyboardAvoider style={styles.keyboardAvoider}>
         <View style={isTablet ? modalOverlayStyle : styles.overlay}>
           <TouchableOpacity
             style={isTablet ? StyleSheet.absoluteFill : styles.backdrop}
@@ -423,7 +419,7 @@ export function PhoneVerificationModal({
             </View>
           </SafeAreaView>
         </View>
-      </KeyboardAvoidingView>
+      </ModalKeyboardAvoider>
     </Modal>
   );
 }
