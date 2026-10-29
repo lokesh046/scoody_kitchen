@@ -23,7 +23,7 @@ export function FAQSection({ dark = false }: { dark?: boolean }) {
     <section className={`w-full ${dark ? 'bg-obsidian' : ''}`}>
       <div className="max-w-4xl mx-auto px-4 md:px-8 py-16">
       <div className="text-center mb-10">
-        <h2 className={`text-3xl md:text-4xl tracking-tight text-ink ${dark ? 'font-script font-normal' : 'font-display font-bold'}`}>
+        <h2 className={`text-4xl sm:text-5xl lg:text-6xl leading-tight tracking-tight text-ink ${dark ? 'font-script font-normal' : 'font-display font-bold'}`}>
           Frequently Asked Questions
         </h2>
       </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './store/auth';
 import { refreshToken } from './api/client';
 import { Loader2 } from 'lucide-react';
@@ -40,12 +40,33 @@ const PrivacyPolicyPage = lazy(() => import('./features/legal/PrivacyPolicyPage'
 const TermsPage = lazy(() => import('./features/legal/TermsPage').then((m) => ({ default: m.TermsPage })));
 const NotFoundPage = lazy(() => import('./components/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
 
+// The dark landing pages. Their loading screens must be dark too, or every visit flashes a
+// cream screen before the dark hero. Keep this list in sync with the inline script in index.html.
+const DARK_LANDING_PATHS = new Set(['/', '/shop', '/pets', '/consultations']);
+const isDarkLandingPath = () =>
+  typeof window !== 'undefined' &&
+  DARK_LANDING_PATHS.has(window.location.pathname.replace(/\/+$/, '') || '/');
+
+// index.html marks the page `dark-landing` on first load so the body is dark before React draws
+// anything; this keeps that mark correct as the visitor navigates between dark and light pages.
+function DarkLandingBackground() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    document.documentElement.classList.toggle(
+      'dark-landing',
+      DARK_LANDING_PATHS.has(pathname.replace(/\/+$/, '') || '/'),
+    );
+  }, [pathname]);
+  return null;
+}
+
 function RouteLoadingFallback() {
+  const dark = isDarkLandingPath();
   return (
-    <div className="min-h-[60vh] bg-paper flex items-center justify-center">
+    <div className={`${dark ? 'min-h-screen bg-midnight' : 'min-h-[60vh] bg-paper'} flex items-center justify-center`}>
       <div className="text-center space-y-3">
         <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
-        <p className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold">
+        <p className={`font-mono text-[9px] uppercase tracking-wider font-bold ${dark ? 'text-turmeric' : 'text-herb'}`}>
           Loading Hearth & One... 🐾
         </p>
       </div>
@@ -116,11 +137,12 @@ function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [setAuth, clearAuth]);
 
   if (isInitializing) {
+    const dark = isDarkLandingPath();
     return (
-      <div className="min-h-screen bg-paper flex items-center justify-center">
+      <div className={`min-h-screen ${dark ? 'bg-midnight' : 'bg-paper'} flex items-center justify-center`}>
         <div className="text-center space-y-4">
           <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
-          <p className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold">
+          <p className={`font-mono text-[10px] uppercase tracking-wider font-bold ${dark ? 'text-turmeric' : 'text-herb'}`}>
             Verifying secure session ledger...
           </p>
         </div>
@@ -153,6 +175,7 @@ export default function App() {
         <ScrollToTop />
         <SessionProvider>
           <AuthEventListener />
+          <DarkLandingBackground />
           <WebSocketNotificationListener />
           <PhoneVerificationGate />
           <Suspense fallback={<RouteLoadingFallback />}>

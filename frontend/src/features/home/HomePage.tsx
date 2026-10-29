@@ -22,11 +22,8 @@ import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useFeatureFlag, useFeatureFlagFallback, useFeatureFlags } from '../../hooks/useFeatureFlag';
 import { FeaturePlaceholderCard } from '../../components/FeaturePlaceholderCard';
-import { FAQSection, FAQ_QUERY_KEY } from '../../components/FAQSection';
 import { JournalPreviewSection } from '../../components/JournalPreviewSection';
 import { useToolkitOverrides } from '../../hooks/useAdminContent';
-import { fetchActiveFaqs } from '../../api/faqs';
-import type { FAQResponse } from '../../types/faq';
 
 interface QuickPreset {
   label: string;
@@ -45,7 +42,7 @@ export default function HomePage() {
   const { hash } = useLocation();
   useEffect(() => {
     const id = hash.slice(1);
-    if (!['fit-calculator', 'hearth-hound', 'faq'].includes(id)) return;
+    if (!['fit-calculator', 'hearth-hound'].includes(id)) return;
     const frame = requestAnimationFrame(() => {
       document.getElementById(id)?.scrollIntoView({
         behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
@@ -59,18 +56,6 @@ export default function HomePage() {
     "Human-grade, small-batch pet food cooked under veterinary supervision. Transparent recipes for pet parents who care."
   );
 
-  // Shares react-query's cache with FAQSection's own useQuery call (same
-  // key) so this doesn't fire a second network request just to build the
-  // FAQPage structured-data block below.
-  const { data: faqsForSchema = [] } = useQuery<FAQResponse[]>({
-    queryKey: FAQ_QUERY_KEY,
-    queryFn: () => fetchActiveFaqs(),
-    staleTime: 1000 * 60 * 10,
-  });
-
-  // useStructuredData only supports one JSON-LD block per page (fixed
-  // script id), so Organization and FAQPage are combined into a single
-  // @graph instead of each feature calling the hook independently.
   useStructuredData({
     '@context': 'https://schema.org',
     '@graph': [
@@ -80,19 +65,6 @@ export default function HomePage() {
         url: 'https://hearthandone.com/',
         logo: 'https://hearthandone.com/images/scooby_logo.png',
       },
-      ...(faqsForSchema.length > 0
-        ? [{
-            '@type': 'FAQPage',
-            mainEntity: faqsForSchema.map((faq) => ({
-              '@type': 'Question',
-              name: faq.question,
-              acceptedAnswer: {
-                '@type': 'Answer',
-                text: faq.answer,
-              },
-            })),
-          }]
-        : []),
     ],
   });
 
@@ -106,7 +78,10 @@ export default function HomePage() {
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
-  const isFullscreenHeroEnabled = useFeatureFlag('home_fullscreen_hero', false);
+  // Defaults to ON: this is the shipped landing page, and the prerendered HTML and the
+  // first paint (before /features/public answers) must already be the dark layout.
+  // Defaulting to off drew the light cream layout first, then flashed to dark.
+  const isFullscreenHeroEnabled = useFeatureFlag('home_fullscreen_hero', true);
   const toolkitOverrides = useToolkitOverrides();
   // This teaser must be explicitly enabled in Admin, even in beta builds
   // that force the platform's other features on.
@@ -255,12 +230,22 @@ export default function HomePage() {
                 <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-10 lg:gap-16 items-center">
                   <div className="space-y-6">
                     <div className="space-y-3">
-                      <h2 className="font-script font-normal text-4xl sm:text-5xl lg:text-6xl tracking-normal text-turmeric leading-snug">
+                      <p className="font-script font-normal text-2xl sm:text-3xl lg:text-4xl tracking-normal text-turmeric leading-snug">
                         Why Hearth &amp; One
-                      </h2>
-                      <p className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl text-paper leading-snug max-w-lg">
-                        Bringing the pieces of pet care together.
                       </p>
+                      <h2 className="font-script font-normal text-4xl sm:text-5xl lg:text-6xl text-paper leading-snug max-w-xl">
+                        <span className="sr-only">Bringing the pieces of pet care together.</span>
+                        <span aria-hidden="true">
+                          {['Bringing', 'the', 'pieces', 'of', 'pet care', 'together.'].map((phrase, index) => (
+                            <span key={phrase}>
+                              {index > 0 ? ' ' : ''}
+                              <span className="pet-profile-heading-word inline-block whitespace-nowrap" style={{ animationDelay: `${index * 160}ms` }}>
+                                {phrase}
+                              </span>
+                            </span>
+                          ))}
+                        </span>
+                      </h2>
                     </div>
                     <p className="font-body text-base text-paper opacity-70 leading-relaxed max-w-md">
                       Everything works better when it's <span className="text-turmeric italic">connected.</span>
@@ -286,8 +271,8 @@ export default function HomePage() {
                       <div className="w-32 h-32 flex items-center justify-center">
                         <img src={img} alt="" width={256} height={256} loading="lazy" decoding="async" className="w-full h-full object-contain" />
                       </div>
-                      <h3 className="font-display font-bold text-lg text-paper">{title}</h3>
-                      <p className="font-body text-sm text-paper opacity-65 leading-relaxed max-w-xs">{text}</p>
+                      <h3 className="font-script font-normal text-[44px] sm:text-[52px] md:text-[44px] xl:text-[52px] leading-tight text-turmeric">{title}</h3>
+                      <p className="font-body text-base text-paper leading-relaxed max-w-xs">{text}</p>
                     </div>
                   ))}
                 </div>
@@ -1091,10 +1076,6 @@ export default function HomePage() {
 
         <JournalPreviewSection dark={isFullscreenHeroEnabled} />
 
-        <div id="faq">
-          <FAQSection dark={isFullscreenHeroEnabled} />
-        </div>
-
         {/* Polished Footer with Navigation Ledger -- default homepage only */}
         {!isFullscreenHeroEnabled && (
           <footer className="py-14 bg-ink text-paper px-4 sm:px-6 md:px-8 border-t border-cardboard border-opacity-20 text-center">
@@ -1210,6 +1191,8 @@ export default function HomePage() {
               </form>
             </div>
           </section>
+
+          <div aria-hidden="true" className="newsletter-gold-divider mx-auto w-[calc(100%_-_2rem)] max-w-7xl sm:w-[calc(100%_-_3rem)] md:w-[calc(100%_-_4rem)]" />
 
           <SiteFooter className="" />
         </div>

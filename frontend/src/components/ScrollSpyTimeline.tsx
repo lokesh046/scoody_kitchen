@@ -80,7 +80,7 @@ function StepIcon({
 // its step is the active one, then handing off to the next marker.
 // Desktop only gets the zigzag + sticky treatment; mobile falls back to a
 // simple top-to-bottom list since there's no room to alternate sides.
-export function ScrollSpyTimeline({ steps }: { steps: TimelineStep[] }) {
+export function ScrollSpyTimeline({ steps, compact = false }: { steps: TimelineStep[]; compact?: boolean }) {
   const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -113,11 +113,13 @@ export function ScrollSpyTimeline({ steps }: { steps: TimelineStep[] }) {
               ref={(el) => {
                 rowRefs.current[index] = el;
               }}
-              className={`relative grid grid-cols-[1fr_88px_1fr] gap-x-10 min-h-[680px] ${
-                index === steps.length - 1 ? 'min-h-[480px]' : ''
+              className={`relative grid grid-cols-[1fr_88px_1fr] gap-x-10 ${
+                compact
+                  ? (index === steps.length - 1 ? 'min-h-[440px]' : 'min-h-[580px]')
+                  : (index === steps.length - 1 ? 'min-h-[480px]' : 'min-h-[680px]')
               }`}
             >
-              <div className={reversed ? '' : 'flex justify-end items-start pt-20'}>
+              <div className={reversed ? '' : `flex justify-end items-start ${compact ? 'pt-16' : 'pt-20'}`}>
                 {!reversed && (
                   <div className="w-full max-w-md bg-ink border border-paper border-opacity-15 rounded-[28px] p-6 shadow-[0_24px_48px_-20px_rgba(0,0,0,0.7)] text-right">
                     <h3 className="font-display font-bold text-lg text-paper">{title}</h3>
@@ -138,7 +140,7 @@ export function ScrollSpyTimeline({ steps }: { steps: TimelineStep[] }) {
                   <StepIcon icon={icon} iconSrc={iconSrc} iconTone={iconTone} active={isActive} size="md" />
                 </div>
               </div>
-              <div className={reversed ? 'flex justify-start items-start pt-20' : ''}>
+              <div className={reversed ? `flex justify-start items-start ${compact ? 'pt-16' : 'pt-20'}` : ''}>
                 {reversed && (
                   <div className="w-full max-w-md bg-ink border border-paper border-opacity-15 rounded-[28px] p-6 shadow-[0_24px_48px_-20px_rgba(0,0,0,0.7)] text-left">
                     <h3 className="font-display font-bold text-lg text-paper">{title}</h3>
@@ -153,7 +155,7 @@ export function ScrollSpyTimeline({ steps }: { steps: TimelineStep[] }) {
       </div>
 
       {/* Mobile: simple top-to-bottom list, no zigzag, no scroll-spy */}
-      <div className="md:hidden space-y-8">
+      <div className={`md:hidden ${compact ? 'space-y-6' : 'space-y-8'}`}>
         {steps.map(({ icon, iconSrc, iconTone, title, text, image, imageAlt }) => (
           <div key={title} className="flex gap-4 items-start">
             <div

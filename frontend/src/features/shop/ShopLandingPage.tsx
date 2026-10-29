@@ -171,7 +171,7 @@ export function ShopLandingPage() {
 
       {/* Hero -- same shape as the homepage: full-bleed photo, legibility
           gradients, copy anchored bottom-left. */}
-      <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-obsidian">
+      <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-midnight">
         <img
           src={hero.image}
           alt="A Hearth &amp; Hound recipe bag beside the fire"
