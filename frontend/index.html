@@ -33,6 +33,23 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Quicksand:wght@300;400;500;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Lobster&family=Parisienne&display=swap" />
 
+    <!-- The dark landing pages (home, shop, pets, consultations) otherwise flash a blank
+         white page, then a cream one (the stylesheet's body background), before the dark
+         hero appears. Mark them from the very first paint; App.tsx keeps the mark correct
+         on navigation. Keep the colour in sync with `midnight` in tailwind.config and the
+         path list in sync with DARK_LANDING_PATHS in src/App.tsx. -->
+    <style>
+      html.dark-landing, html.dark-landing body { background-color: #0E0B08; }
+    </style>
+    <script>
+      (function () {
+        var path = location.pathname.replace(/\/+$/, '') || '/';
+        if (path === '/' || path === '/shop' || path === '/pets' || path === '/consultations') {
+          document.documentElement.classList.add('dark-landing');
+        }
+      })();
+    </script>
+
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>

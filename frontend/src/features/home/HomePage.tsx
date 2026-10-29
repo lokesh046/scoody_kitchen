@@ -78,7 +78,10 @@ export default function HomePage() {
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
-  const isFullscreenHeroEnabled = useFeatureFlag('home_fullscreen_hero', false);
+  // Defaults to ON: this is the shipped landing page, and the prerendered HTML and the
+  // first paint (before /features/public answers) must already be the dark layout.
+  // Defaulting to off drew the light cream layout first, then flashed to dark.
+  const isFullscreenHeroEnabled = useFeatureFlag('home_fullscreen_hero', true);
   const toolkitOverrides = useToolkitOverrides();
   // This teaser must be explicitly enabled in Admin, even in beta builds
   // that force the platform's other features on.

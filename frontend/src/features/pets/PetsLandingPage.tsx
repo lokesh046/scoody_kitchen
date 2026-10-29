@@ -155,7 +155,7 @@ export function PetsLandingPage() {
       {/* Hero -- same shape as the homepage's hero: full-bleed photo, a
           single legibility gradient (not a left/right split), copy
           anchored bottom-left over it. */}
-      <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-obsidian">
+      <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-midnight">
         <img
           src={hero.image}
           alt="A Doberman resting against its owner, who gently rests a hand on its shoulder"
