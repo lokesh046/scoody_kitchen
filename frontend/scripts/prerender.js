@@ -113,8 +113,9 @@ async function renderRoute(browser, baseUrl, routePath) {
 // browser snapshot must not leak into those pages:
 // - the `dark-landing` class on <html>, which index.html adds at runtime for the dark landing pages
 //   (the snapshot froze it in), so it is stripped and left to the runtime script;
-// - the page content itself, so the root is tagged with its route and index.html drops content
-//   that doesn't belong to the URL being loaded.
+// - the page content itself: <html> and the root are tagged with the route, and index.html hides
+//   (from the <head>, before the body is parsed) and then drops content that doesn't belong to the
+//   URL being loaded.
 function markPrerendered(html, routePath) {
   return html
     .replace(/(<html\b[^>]*?\sclass=")([^"]*)(")/, (_, a, classes, c) => {
@@ -122,6 +123,7 @@ function markPrerendered(html, routePath) {
       return `${a}${kept}${c}`;
     })
     .replace(/<html\b([^>]*?)\sclass=""/, '<html$1')
+    .replace(/<html\b/, `<html data-prerendered-path="${routePath}"`)
     .replace('<div id="root"', `<div id="root" data-prerendered-path="${routePath}"`);
 }
 
