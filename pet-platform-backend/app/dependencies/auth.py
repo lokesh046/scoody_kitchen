@@ -81,6 +81,12 @@ def get_current_user(request: Request, db: Session = Depends(get_db)):
             detail = "User account is inactive"
         )
 
+    if user.deletion_scheduled_for is not None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This account is scheduled for deletion. Sign in again to cancel the deletion.",
+        )
+
 
     return user     
     
@@ -231,7 +237,7 @@ def get_current_user_optional(request: Request, db: Session = Depends(get_db)) -
         return None
 
     user = db.get(User, int(user_id))
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or user.deletion_scheduled_for is not None:
         return None
 
     return user

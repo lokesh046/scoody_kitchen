@@ -30,6 +30,7 @@ from app.models.doctor_review import DoctorReview
 from app.models.product_review import ProductReview
 from app.models.coupon import Coupon, DiscountType
 from app.models.feature_flag import FeatureFlag
+from app.models.deleted_account_archive import DeletedAccountArchive
 
 
 __all__ = [

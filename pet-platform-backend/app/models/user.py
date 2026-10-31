@@ -95,6 +95,23 @@ class User(Base):
         default=True,
     )
 
+    # Account deletion: requested -> grace period (signing in cancels) -> purged and anonymized.
+    deletion_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    deletion_scheduled_for: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

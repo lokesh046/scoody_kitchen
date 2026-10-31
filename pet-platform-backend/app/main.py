@@ -108,6 +108,10 @@ app = FastAPI(
     version="1.0.0",
     description="Backend API for a pet commerce and pet-care platform",
     lifespan=lifespan,
+    # The interactive docs list every route and field, so they are only served in local development.
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+    openapi_url="/openapi.json" if settings.DEBUG else None,
 )
 
 # GZip response compression middleware (compresses responses > 1KB)

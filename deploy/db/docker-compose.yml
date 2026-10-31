@@ -1,7 +1,8 @@
 # Hearth & One database + monitoring. Lives on the server at /opt/hearth-db (see deploy.sh).
 #
 # - hearth_pg: Postgres 18 with pgBackRest (continuous WAL archiving, backups, point-in-time recovery)
-# - prometheus, alertmanager, grafana, postgres_exporter, node_exporter: monitoring and email alerts
+# - prometheus, alertmanager, grafana, postgres_exporter, node_exporter, cadvisor, blackbox_exporter:
+#   monitoring of the database, the whole VPS, every container and the public site, with email alerts
 #
 # Nothing here is published to the internet. Every port is bound to 127.0.0.1; reach Grafana and the
 # database from your Mac through an SSH tunnel (docs in docs/DB_RECOVERY.md).
@@ -74,6 +75,30 @@ services:
       - ${DATA_DIR:-/var/lib/hearth-db}/textfile:/textfile:ro
     networks: [internal]
 
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    container_name: ${ENV_NAME:-hearth}_cadvisor
+    restart: unless-stopped
+    mem_limit: 192m
+    command: ["--docker_only=true", "--housekeeping_interval=30s", "--store_container_labels=false",
+              "--disable_metrics=disk,percpu,sched,tcp,udp,advtcp,hugetlb,referenced_memory,cpu_topology,resctrl,process"]
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks: [internal]
+
+  blackbox_exporter:
+    image: prom/blackbox-exporter:v0.27.0
+    container_name: ${ENV_NAME:-hearth}_blackbox
+    restart: unless-stopped
+    mem_limit: 48m
+    command: ["--config.file=/etc/blackbox/blackbox.yml"]
+    volumes:
+      - ./monitoring/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    networks: [internal]
+
   prometheus:
     image: prom/prometheus:v3.5.0
     container_name: ${ENV_NAME:-hearth}_prometheus
@@ -116,7 +141,7 @@ services:
     mem_limit: 320m
     user: "472:472"
     environment:
-      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_USER: lokeshdeveloper
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"

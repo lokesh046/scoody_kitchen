@@ -64,8 +64,8 @@ groups:
         for: 10m
         labels: { severity: critical }
         annotations:
-          summary: "pgBackRest reports a problem with the backup repository"
-          description: "Run `docker exec -u postgres hearth_pg pgbackrest --stanza=hearth info` to see the status message."
+          summary: "pgBackRest reports a problem with a backup repository"
+          description: "repo1 is the copy on this server, repo2 is the Backblaze bucket (see hearth_pgbackrest_repo_status_ok in Grafana/Prometheus for which one). If only repo2 is affected the usual cause is the bucket being unreachable (network, Backblaze outage, or a changed key); local backups keep working and it often clears by itself. On the server run: docker exec -u postgres <database container> pgbackrest --stanza=hearth info"
 
       - alert: BackupTooOld
         expr: time() - max(hearth_pgbackrest_last_backup_timestamp_seconds) > 93600
@@ -147,3 +147,42 @@ groups:
         annotations:
           summary: "Monitoring cannot reach '{{ $labels.job }}'"
           description: "Metrics for {{ $labels.job }} are missing, so alerts based on them cannot fire."
+
+      - alert: HighCpu
+        expr: 100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 85
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "The server CPU has been above 85% for 15 minutes"
+          description: "See the Server dashboard, 'CPU by container', to find which container is busy."
+
+      - alert: SiteDown
+        expr: probe_success{job="website"} == 0
+        for: 3m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.instance }} is not answering"
+          description: "The public address has not returned a normal response for 3 minutes. Check `docker ps` and nginx on the server."
+
+      - alert: SslCertificateExpiring
+        expr: (probe_ssl_earliest_cert_expiry{job="website"} - time()) < 14 * 86400
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "The HTTPS certificate for {{ $labels.instance }} expires in under 14 days"
+          description: "Renew it (certbot renew) before visitors see a security warning."
+
+      - alert: ContainerGone
+        expr: time() - container_last_seen{name=~"pet_platform_.*|hearth_pg.*"} > 180
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Container {{ $labels.name }} is not running"
+          description: "Start it with `docker start {{ $labels.name }}` and read `docker logs --tail 50 {{ $labels.name }}`."
+
+      - alert: ContainerRestartingOften
+        expr: changes(container_start_time_seconds{name=~"pet_platform_.*|hearth_pg.*"}[30m]) > 2
+        labels: { severity: warning }
+        annotations:
+          summary: "Container {{ $labels.name }} restarted more than twice in 30 minutes"
+          description: "It is crashing and being restarted. Read `docker logs --tail 100 {{ $labels.name }}`."

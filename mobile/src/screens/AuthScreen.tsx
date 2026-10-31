@@ -12,6 +12,8 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import {
   GoogleSignin,
   isSuccessResponse,
@@ -69,6 +71,14 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
   // UI States
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+
+  // "Sign in with Apple" exists on iOS 13+ only. Apple requires it next to other third-party sign-ins.
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    AppleAuthentication.isAvailableAsync().then(setAppleAvailable).catch(() => setAppleAvailable(false));
+  }, []);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -174,6 +184,57 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
     }
   };
 
+  const handleAppleSignIn = async () => {
+    setAppleLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      // A fresh random value per attempt, sent to Apple hashed and to our server raw, so the
+      // server can check the token really belongs to this sign-in.
+      const bytes = await Crypto.getRandomBytesAsync(16);
+      const rawNonce = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+      const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+        nonce: hashedNonce,
+      });
+      if (!credential.identityToken) {
+        setErrorMsg('Apple sign-in did not return a token. Please try again.');
+        return;
+      }
+
+      const res = await apiClient.post('/auth/apple', {
+        identity_token: credential.identityToken,
+        // Apple only shares the name the first time; the server keeps it from then on.
+        first_name: credential.fullName?.givenName ?? null,
+        last_name: credential.fullName?.familyName ?? null,
+        nonce: rawNonce,
+      });
+      const { access_token, refresh_token } = res.data;
+      const userRes = await apiClient.get('/auth/me', {
+        headers: { Authorization: `Bearer ${access_token}` },
+      });
+      setAuth(userRes.data, access_token, refresh_token);
+      setSuccessMsg('Signed in successfully with Apple!');
+      if (onSuccess) {
+        setTimeout(onSuccess, 400);
+      }
+    } catch (err: any) {
+      if (err?.code === 'ERR_REQUEST_CANCELED') {
+        // The person closed the Apple sheet: not an error.
+      } else {
+        captureApiError(err, 'auth.appleSignIn');
+        setErrorMsg(err?.response?.data?.detail || 'Apple Sign-In failed. Please try again.');
+      }
+    } finally {
+      setAppleLoading(false);
+    }
+  };
+
   // Step 1: Send Magic Link / Code
   const handleSendCode = async () => {
     const cleanEmail = email.trim().toLowerCase();
@@ -244,7 +305,7 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
     }
   };
 
-  const isBusy = loading || googleLoading;
+  const isBusy = loading || googleLoading || appleLoading;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -415,7 +476,23 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
                   <View style={styles.dividerLine} />
                 </View>
 
-                {/* 3. BOTTOM SECTION: Google Sign-In Button */}
+                {/* 3. BOTTOM SECTION: third-party sign-in. Apple's own button, as Apple's design rules require. */}
+                {appleAvailable && (
+                  <View style={[styles.appleBtnWrap, isBusy && styles.disabledBtn]} pointerEvents={isBusy ? 'none' : 'auto'}>
+                    {appleLoading ? (
+                      <ActivityIndicator size="small" color={COLORS.textCoffee} />
+                    ) : (
+                      <AppleAuthentication.AppleAuthenticationButton
+                        buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                        buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                        cornerRadius={12}
+                        style={styles.appleBtn}
+                        onPress={handleAppleSignIn}
+                      />
+                    )}
+                  </View>
+                )}
+
                 <TouchableOpacity
                   style={[styles.googleBtn, isBusy && styles.disabledBtn]}
                   onPress={handleGoogleSignIn}
@@ -651,6 +728,15 @@ const styles = StyleSheet.create({
   },
   disabledBtn: {
     opacity: 0.6,
+  },
+  appleBtnWrap: {
+    marginBottom: 10,
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  appleBtn: {
+    width: '100%',
+    height: 48,
   },
   googleIconBox: {
     width: 24,

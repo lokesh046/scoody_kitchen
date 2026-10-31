@@ -36,7 +36,8 @@ import {
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { captureRef } from 'react-native-view-shot';
-import * as MediaLibrary from 'expo-media-library';
+// expo-media-library 57 made the classic functions throw; the legacy entry keeps the same API.
+import * as MediaLibrary from 'expo-media-library/legacy';
 import * as Sharing from 'expo-sharing';
 import { useNavigation } from '@react-navigation/native';
 import { Sentry, isSentryEnabled } from '../services/sentry';
@@ -225,10 +226,16 @@ export default function PetVisionModal({
         throw captureErr ?? new Error('Passport capture produced no image after retries');
       }
 
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Needed', 'Photo library access is required to save the passport.');
-        return;
+      // Saving needs no permission on Android 13+; elsewhere only add-to-library access is asked
+      // for (never read access to the user's photos).
+      const needsSavePermission =
+        Platform.OS === 'ios' || (Platform.OS === 'android' && Number(Platform.Version) < 33);
+      if (needsSavePermission) {
+        const { status } = await MediaLibrary.requestPermissionsAsync(true);
+        if (status !== 'granted') {
+          Alert.alert('Permission Needed', 'Photo library access is required to save the passport.');
+          return;
+        }
       }
       await MediaLibrary.saveToLibraryAsync(uri);
 

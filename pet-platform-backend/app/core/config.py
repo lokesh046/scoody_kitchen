@@ -15,6 +15,16 @@ class Setting(BaseSettings):
     # Separate database holding the colleges list. Leave empty to derive it from DATABASE_URL
     # (the old `neondb` -> `college_db` convention).
     COLLEGE_DATABASE_URL: str = ""
+    # Account deletion: a user who deletes their account keeps a way back for this many days
+    # (signing in again cancels it); after that their personal data is removed for good.
+    ACCOUNT_DELETION_GRACE_DAYS: int = 15
+    # At the purge, a copy of what was removed goes into an encrypted archive. Only the newest
+    # ACCOUNT_ARCHIVE_KEEP_LAST archives are kept, and none older than ACCOUNT_ARCHIVE_MAX_DAYS.
+    ACCOUNT_ARCHIVE_KEEP_LAST: int = 5
+    ACCOUNT_ARCHIVE_MAX_DAYS: int = 30
+    # Fernet key (python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())").
+    # Without it nothing is purged: data is never deleted without the archive being written first.
+    ACCOUNT_ARCHIVE_KEY: str = ""
     # Cache only (app/core/cache.py). Split from Celery/rate-limiter storage
     # below so a cache stampede can't starve or evict the task queue or rate
     # limiter — see docker-compose.yml's redis/redis-celery/redis-limiter.
@@ -71,6 +81,8 @@ class Setting(BaseSettings):
     # Google OAuth 2.0 / OIDC
     GOOGLE_CLIENT_ID: str | None = None
     GOOGLE_CLIENT_IDS: list[str] = []
+    # Sign in with Apple: the identity token's audience is the iOS app's bundle id, or the Services ID for the website.
+    APPLE_CLIENT_IDS: list[str] = ["com.scooby.kitchen", "com.scooby.kitchen.web"]
 
     # SMTP & Email Settings
     SMTP_HOST: str | None = None

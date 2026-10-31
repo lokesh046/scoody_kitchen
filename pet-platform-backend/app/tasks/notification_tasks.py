@@ -157,6 +157,34 @@ def cleanup_unverified_users_task() -> int:
         db.close()
 
 
+@celery_app.task(name="app.tasks.notification_tasks.purge_deleted_accounts_task")
+def purge_deleted_accounts_task() -> int:
+    """Daily: permanently remove accounts whose deletion grace period is over (archive written first)."""
+    from app.services.account_deletion_service import purge_due_accounts
+    db = SessionLocal()
+    try:
+        return int(purge_due_accounts(db) or 0)
+    except Exception as e:
+        logger.error(f"Error in purge_deleted_accounts_task: {e}", exc_info=True)
+        return 0
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.notification_tasks.prune_deletion_archives_task")
+def prune_deletion_archives_task() -> int:
+    """Daily: keep only the newest few deleted-account archives, none past their expiry date."""
+    from app.services.account_deletion_service import prune_archives
+    db = SessionLocal()
+    try:
+        return int(prune_archives(db) or 0)
+    except Exception as e:
+        logger.error(f"Error in prune_deletion_archives_task: {e}", exc_info=True)
+        return 0
+    finally:
+        db.close()
+
+
 @celery_app.task(name="app.tasks.notification_tasks.check_and_complete_expired_consultations_task")
 def check_and_complete_expired_consultations_task() -> int:
     """

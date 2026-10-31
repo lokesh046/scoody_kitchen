@@ -50,6 +50,7 @@ export interface PetProfile {
   allergies?: string[];
   dietary_goals?: string[];
   profile_image_url?: string | null;
+  microchip_number?: string | null;
 }
 
 export interface DoctorUser {

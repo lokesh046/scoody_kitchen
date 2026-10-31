@@ -31,11 +31,13 @@ How good is the protection?
 Nothing is open to the internet. Everything listens on the server's `127.0.0.1`. From your Mac:
 
 ```bash
-# Grafana (dashboard) at http://localhost:3001 , login admin / <GRAFANA_PASSWORD>
+# Grafana (dashboard) at http://localhost:3001 , login lokeshdeveloper / <GRAFANA_PASSWORD>
 ssh -N -L 3001:127.0.0.1:3001 root@187.53.133.231
 # Database tools such as DBeaver: host localhost, port 55432, database hearth, user hearth_ro
 ssh -N -L 55432:127.0.0.1:55432 root@187.53.133.231
 ```
+
+Grafana has two dashboards (Dashboards menu): **Hearth & One database** (Postgres, backups, restore tests) and **Hearth & One server and site** (is the website and API answering, HTTPS certificate days left, CPU, memory, disk, network, and CPU/memory/restarts of every container). Alerts from both arrive in the same email.
 
 Passwords are in `/opt/hearth-db-beta/.env` on the server (root only): `GRAFANA_PASSWORD`, `RO_PW` (read-only user for looking around). Never paste them into chat or commit them.
 
@@ -144,6 +146,18 @@ docker exec -i -u postgres hearth_pg_beta pg_restore -d hearth --clean --if-exis
 5. Prove it works: `./scripts/restore-drill.sh --repo 2`.
 
 From then on every backup and every WAL segment goes to both places, and the daily email says "off-server copy: yes".
+
+## Account deletion and restores
+
+Users can delete their account in the app (Profile, Delete account) or at hearthandone.com/delete-account.
+
+- **Day 0:** the account is flagged (`user.deletion_scheduled_for`), the user is signed out everywhere. Signing in again cancels it.
+- **Day 15:** the daily job `purge_deleted_accounts_task` writes an **encrypted archive** (table `deleted_account_archive`, key `ACCOUNT_ARCHIVE_KEY` in the backend `.env`), then deletes the profile, pets, health records, reviews, tickets and photos. Orders and payments stay with the name, phone and address removed; the user row stays, anonymized.
+- **Archive limits:** the newest 5 archives, none older than 30 days (`prune_deletion_archives_task`). Keep a copy of `ACCOUNT_ARCHIVE_KEY` in the password manager: without it the archives cannot be read, and the purge refuses to run without it.
+- **Undo a mistaken deletion (within the archive window):** `read_archive()` in `app/services/account_deletion_service.py` decrypts one archive; re-create the rows by hand from it.
+- **After restoring an old backup:** people deleted since that backup come back. Every purge writes a log line `ACCOUNT_PURGED user_id=N` in the backend log. After a restore, collect those ids and run `reapply_deletions(db, [ids])` (same file) so nobody deleted comes back to life.
+- **Backups still contain deleted data** until they rotate out (about 30 days). The Privacy Policy says so.
+- Beta has no Celery worker, so the daily jobs do not run there on their own. Run them by hand to test: `purge_due_accounts(db)` and `prune_archives(db)`.
 
 ## Everyday jobs
 

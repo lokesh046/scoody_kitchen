@@ -1,10 +1,21 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Compass } from 'lucide-react';
 import { Header } from './Header';
 
 export const NotFoundPage: React.FC = () => {
   const navigate = useNavigate();
+
+  // The server answers 200 for any path (single-page app), so tell search engines this one is not a real page.
+  useEffect(() => {
+    const meta = document.createElement('meta');
+    meta.name = 'robots';
+    meta.content = 'noindex';
+    document.head.appendChild(meta);
+    return () => {
+      meta.remove();
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">

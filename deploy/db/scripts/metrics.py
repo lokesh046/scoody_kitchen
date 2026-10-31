@@ -20,6 +20,8 @@ st = info[0] if info else {}
 lines = []
 code = st.get("status", {}).get("code", 99)
 lines.append(f"hearth_pgbackrest_status_ok {1 if code == 0 else 0}")
+for r in st.get("repo", []):
+    lines.append(f'hearth_pgbackrest_repo_status_ok{{repo="{r.get("key", 0)}"}} {1 if r.get("status", {}).get("code") == 0 else 0}')
 last = {}
 for b in st.get("backup", []):
     t = b.get("type", "unknown")

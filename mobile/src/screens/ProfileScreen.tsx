@@ -25,6 +25,7 @@ import { fetchMyOrders, Order } from '../api/orders';
 import { fetchMyPets } from '../api/pets';
 import { fetchMySupportUnreadCount } from '../api/support';
 import { PhoneVerificationModal } from '../components/PhoneVerificationModal';
+import { DeleteAccountModal } from '../components/DeleteAccountModal';
 import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
 import { useResponsive } from '../hooks/useResponsive';
 import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
@@ -56,6 +57,7 @@ export default function ProfileScreen({ navigation }: any) {
 
   // Edit Profile Modal State
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
 
   // Phone Verification Modal State
   const [targetVerificationCountry, setTargetVerificationCountry] = useState(DEFAULT_COUNTRY_ISO2);
@@ -324,8 +326,30 @@ export default function ProfileScreen({ navigation }: any) {
               {user ? 'Sign Out of Account' : 'Exit Guest Mode'}
             </Text>
           </TouchableOpacity>
+
+          {/* Required by Google Play and the App Store: delete the account from inside the app. */}
+          {user && (
+            <TouchableOpacity
+              style={styles.deleteAccountBtn}
+              onPress={() => setIsDeleteModalVisible(true)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Delete account"
+            >
+              <Text style={styles.deleteAccountText}>Delete account</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </ResponsiveContainer>
+
+      <DeleteAccountModal
+        visible={isDeleteModalVisible}
+        onClose={() => setIsDeleteModalVisible(false)}
+        onSignOut={() => {
+          setIsDeleteModalVisible(false);
+          logout();
+        }}
+      />
 
       {/* Edit Profile Modal (Self-contained draft state) */}
       <EditProfileModal
@@ -378,6 +402,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   logoutText: { fontSize: 13.5, fontWeight: '800', color: '#B4472F', letterSpacing: 0.3 },
+  deleteAccountBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 6 },
+  deleteAccountText: { fontSize: 12.5, fontWeight: '700', color: COLORS.textMuted, textDecorationLine: 'underline' },
   devTestBtn: {
     flexDirection: 'row',
     alignItems: 'center',

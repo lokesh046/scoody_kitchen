@@ -32,6 +32,7 @@ import {
   Clock,
   Award,
   Cake,
+  Cpu,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../theme/colors';
@@ -282,12 +283,23 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
           </View>
 
           {/* Birthday */}
-          <View style={[petCardStyles.ledgerRow, petCardStyles.ledgerRowLast]}>
+          <View style={petCardStyles.ledgerRow}>
             <View style={petCardStyles.ledgerKeyGroup}>
               <RNImage source={require('../../assets/pet/date-of-birth.webp')} style={petCardStyles.rowIcon} resizeMode="contain" />
               <Text style={petCardStyles.ledgerKeyText}>BIRTHDAY</Text>
             </View>
             <Text style={petCardStyles.ledgerValText}>{birthdayDisplay}</Text>
+          </View>
+
+          {/* Microchip */}
+          <View style={[petCardStyles.ledgerRow, petCardStyles.ledgerRowLast]}>
+            <View style={petCardStyles.ledgerKeyGroup}>
+              <View style={petCardStyles.rowIcon}>
+                <Cpu size={26} color={COLORS.textLight} strokeWidth={1.75} />
+              </View>
+              <Text style={petCardStyles.ledgerKeyText}>MICROCHIP</Text>
+            </View>
+            <Text style={petCardStyles.ledgerValText}>{pet.microchip_number || 'NOT RECORDED'}</Text>
           </View>
         </View>
 
@@ -432,6 +444,7 @@ interface PetDossierModalProps {
     weight: number;
     date_of_birth?: string;
     profile_image_url?: string;
+    microchip_number?: string | null;
   }) => Promise<void>;
   onOpenVision: () => void;
 }
@@ -471,6 +484,7 @@ export const PetDossierModal = memo(function PetDossierModal({
   const [name, setName] = useState('');
   const [species, setSpecies] = useState('Dog');
   const [breed, setBreed] = useState('');
+  const [microchip, setMicrochip] = useState('');
   const [weight, setWeight] = useState('15');
   const [gender, setGender] = useState('Male');
   const [dob, setDob] = useState('');
@@ -499,6 +513,7 @@ export const PetDossierModal = memo(function PetDossierModal({
       );
       setGender(initialPet.gender || 'Male');
       setDob(initialPet.date_of_birth ? initialPet.date_of_birth.split('T')[0] : '');
+      setMicrochip(initialPet.microchip_number || '');
       setImageUri(initialPet.profile_image_url || null);
     } else {
       // Add mode
@@ -508,6 +523,7 @@ export const PetDossierModal = memo(function PetDossierModal({
       setWeight('15');
       setGender('Male');
       setDob('');
+      setMicrochip('');
       setImageUri(initialVisionDetails?.imageUrl || null);
     }
     // sessionId is the deliberate trigger; mode/initialPet/initialVisionDetails
@@ -592,9 +608,27 @@ export const PetDossierModal = memo(function PetDossierModal({
       return;
     }
 
+    const microchipDigits = microchip.replace(/[\s-]/g, '');
+    if (microchipDigits && !/^\d{9,15}$/.test(microchipDigits)) {
+      setError('Microchip number must be 9 to 15 digits (the number printed on the chip card).');
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
+      // A photo that came from the AI scan is still a file on this phone; upload it so the pet
+      // keeps a real URL instead of a path that no other device can open.
+      let photoUrl = imageUri || undefined;
+      if (photoUrl && !/^https?:\/\//i.test(photoUrl)) {
+        try {
+          photoUrl = (await uploadAvatarImage(photoUrl)).url;
+          setImageUri(photoUrl);
+        } catch {
+          setError('Could not upload the pet photo. Check your connection and try again.');
+          return;
+        }
+      }
       await onSave({
         name: name.trim(),
         species: species.trim() || 'Dog',
@@ -602,7 +636,9 @@ export const PetDossierModal = memo(function PetDossierModal({
         gender,
         weight: parsedWeight,
         date_of_birth: dob.trim() || undefined,
-        profile_image_url: imageUri || undefined,
+        profile_image_url: photoUrl,
+        // Blank clears the number when editing; omitted when adding.
+        microchip_number: microchipDigits || (mode === 'edit' ? null : undefined),
       });
     } catch (err: any) {
       const detail = err?.response?.data?.detail || 'Failed to save pet to backend.';
@@ -848,6 +884,27 @@ export const PetDossierModal = memo(function PetDossierModal({
                   onChangeText={setDob}
                 />
               </View>
+            </View>
+
+            <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.microchip = e.nativeEvent.layout.y; }}>
+              <Text style={petCardStyles.fieldLabel}>MICROCHIP NUMBER (OPTIONAL)</Text>
+              <View style={petCardStyles.inputContainer}>
+                <Cpu size={15} color={COLORS.textLight} />
+                <TextInput
+                  onFocus={() => onFieldFocus('microchip')}
+                  style={petCardStyles.textInput}
+                  placeholder="985112345678901"
+                  placeholderTextColor={COLORS.textLight}
+                  value={microchip}
+                  onChangeText={setMicrochip}
+                  keyboardType="number-pad"
+                  maxLength={19}
+                  accessibilityLabel="Microchip number, optional"
+                />
+              </View>
+              <Text style={petCardStyles.fieldHelper}>
+                The 15-digit number on your pet's chip card, if they have one
+              </Text>
             </View>
 
             <View style={petCardStyles.formDivider} />

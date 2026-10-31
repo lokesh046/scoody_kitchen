@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.models.enums import UserRole
@@ -29,6 +30,15 @@ class GoogleOAuthRequest(BaseModel):
     id_token: str
 
 
+class AppleOAuthRequest(BaseModel):
+    identity_token: str
+    # Apple only returns the name the first time a person signs in, so the app sends it along.
+    first_name: str | None = Field(default=None, max_length=100)
+    last_name: str | None = Field(default=None, max_length=100)
+    # The raw nonce the app generated; Apple puts its SHA-256 (or the value itself) in the token.
+    nonce: str | None = Field(default=None, max_length=200)
+
+
 class UserUpdate(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
@@ -48,6 +58,7 @@ class UserResponse(BaseModel):
     is_phone_verified: bool
     role: UserRole
     is_active: bool
+    deletion_scheduled_for: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -97,3 +108,12 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     user: UserResponse | None = None
+
+
+class AccountDeletionRequest(BaseModel):
+    confirm: str  # must be the word DELETE, typed by the user
+
+
+class AccountDeletionResponse(BaseModel):
+    scheduled_for: datetime
+    grace_days: int

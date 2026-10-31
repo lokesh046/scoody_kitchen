@@ -86,3 +86,48 @@ dash = {"uid": "hearth-database", "title": "Hearth & One database", "tags": ["he
 out = pathlib.Path(__file__).parent / "dashboards" / "hearth-database.json"
 out.write_text(json.dumps(dash, indent=1) + "\n")
 print("wrote", out, "-", len([p for p in panels if p["type"] != "row"]), "panels")
+
+
+# ---------------------------------------------------------------------------------------------
+# Second dashboard: the whole VPS, every container and the public site (same Grafana).
+panels.clear(); pid = 0
+C = 'name=~"pet_platform_.*|hearth_pg.*|.*_(prometheus|grafana|alertmanager|cadvisor|blackbox|node_exporter|postgres_exporter)"'
+UP = [{"type": "value", "options": {"1": {"text": "UP", "color": "green"}, "0": {"text": "DOWN", "color": "red"}}}]
+
+row("Is everything fine right now?", 0)
+stat("Website", 'probe_success{instance="https://hearthandone.com/"}', 0, 1, 3, mappings=UP, thresholds=th((0, "red"), (1, "green")), desc="hearthandone.com answering, checked every 30 s from this server.")
+stat("API", 'probe_success{instance="https://api.hearthandone.com/health"}', 3, 1, 3, mappings=UP, thresholds=th((0, "red"), (1, "green")))
+stat("Beta API", 'probe_success{instance="https://api-beta.hearthandone.com/health"}', 6, 1, 3, mappings=UP, thresholds=th((0, "red"), (1, "green")))
+stat("HTTPS certificate", 'min((probe_ssl_earliest_cert_expiry{job="website"} - time()) / 86400)', 9, 1, 3, unit="d", decimals=0,
+     thresholds=th((0, "red"), (14, "yellow"), (30, "green")), desc="Days until the soonest certificate expires.")
+stat("CPU used", '100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[2m])))', 12, 1, 3, unit="percent", decimals=0, thresholds=th((0, "green"), (70, "yellow"), (85, "red")))
+stat("Memory used", '100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)', 15, 1, 3, unit="percent", decimals=0, thresholds=th((0, "green"), (75, "yellow"), (90, "red")))
+stat("Disk free", '100 * node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}', 18, 1, 3, unit="percent", decimals=0, thresholds=th((0, "red"), (15, "yellow"), (30, "green")))
+stat("Containers running", 'count(time() - container_last_seen{' + C + '} < 120)', 21, 1, 3, decimals=0, desc="Containers seen in the last 2 minutes.")
+
+row("Public site", 5)
+ts("Response time", [('probe_duration_seconds{job="website"}', "{{instance}}")], 0, 6, 12, unit="s", desc="Time for a full request from this server to the public address.")
+ts("Database connections", [("sum(pg_stat_activity_count)", "database connections"), ("max(pg_settings_max_connections)", "limit")], 12, 6, 12)
+
+row("Containers", 13)
+ts("CPU by container", [('sum by (name) (rate(container_cpu_usage_seconds_total{' + C + '}[2m]))', "{{name}}")], 0, 14, 12, unit="short", desc="1.0 means one full CPU core. This server has 2.")
+ts("Memory by container", [('container_memory_working_set_bytes{' + C + '}', "{{name}}")], 12, 14, 12, unit="bytes", stack=True)
+ts("Restarts (last hour)", [('changes(container_start_time_seconds{' + C + '}[1h])', "{{name}}")], 0, 21, 12, desc="Should be flat at 0. A climbing line means a container is crashing.")
+ts("Network by container", [('sum by (name) (rate(container_network_receive_bytes_total{' + C + '}[2m]))', "{{name}} in"),
+                            ('sum by (name) (rate(container_network_transmit_bytes_total{' + C + '}[2m]))', "{{name}} out")], 12, 21, 12, unit="Bps")
+
+row("The VPS itself", 28)
+ts("CPU", [('100 * avg(rate(node_cpu_seconds_total{mode="user"}[2m]))', "user"), ('100 * avg(rate(node_cpu_seconds_total{mode="system"}[2m]))', "system"),
+           ('100 * avg(rate(node_cpu_seconds_total{mode="iowait"}[2m]))', "waiting for disk")], 0, 29, 8, unit="percent", stack=True, minv=0, maxv=100)
+ts("Memory", [("node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes", "used"), ("node_memory_MemTotal_bytes", "total"), ("node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes", "swap used")], 8, 29, 8, unit="bytes")
+ts("Load average", [("node_load1", "1 min"), ("node_load5", "5 min"), ("node_load15", "15 min"), ("count(node_cpu_seconds_total{mode=\"idle\"})", "CPU cores")], 16, 29, 8, desc="Sustained load above the number of cores means the server is overloaded.")
+ts("Disk space", [('node_filesystem_size_bytes{mountpoint="/"} - node_filesystem_avail_bytes{mountpoint="/"}', "used"), ('node_filesystem_size_bytes{mountpoint="/"}', "size")], 0, 36, 8, unit="bytes")
+ts("Disk speed", [('sum(rate(node_disk_read_bytes_total{device=~"sd.*|vd.*|nvme.*"}[2m]))', "read"), ('sum(rate(node_disk_written_bytes_total{device=~"sd.*|vd.*|nvme.*"}[2m]))', "write")], 8, 36, 8, unit="Bps")
+ts("Network", [('sum(rate(node_network_receive_bytes_total{device!~"lo|veth.*|docker.*|br-.*"}[2m]))', "in"), ('sum(rate(node_network_transmit_bytes_total{device!~"lo|veth.*|docker.*|br-.*"}[2m]))', "out")], 16, 36, 8, unit="Bps")
+
+dash = {"uid": "hearth-server", "title": "Hearth & One server and site", "tags": ["hearth", "vps"], "timezone": "browser",
+        "schemaVersion": 39, "version": 1, "refresh": "30s", "time": {"from": "now-6h", "to": "now"},
+        "panels": panels, "templating": {"list": []}, "annotations": {"list": []}}
+out = pathlib.Path(__file__).parent / "dashboards" / "hearth-server.json"
+out.write_text(json.dumps(dash, indent=1) + "\n")
+print("wrote", out, "-", len([p for p in panels if p["type"] != "row"]), "panels")

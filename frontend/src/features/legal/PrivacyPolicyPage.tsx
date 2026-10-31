@@ -84,7 +84,7 @@ export const PrivacyPolicyPage: React.FC = () => {
             <UL>
               <li><strong>Account & identity data:</strong> first name, last name, email address, phone number, and profile photo.</li>
               <li><strong>Authentication data:</strong> if you sign in with Google, we receive your name, email address, and profile photo from Google. We do not receive or store your Google password.</li>
-              <li><strong>Pet profile data ("Pet Heritage Passport"):</strong> your pet's name, species, breed, gender, date of birth, weight, and any photos you upload.</li>
+              <li><strong>Pet profile data ("Pet Heritage Passport"):</strong> your pet's name, species, breed, gender, date of birth, weight, microchip number (optional), and any photos you upload.</li>
               <li><strong>Health records:</strong> if your pet has a veterinary consultation or clinical visit logged on the platform, we store the resulting medical record — symptoms, clinical findings, diagnosis, treatment, prescribed medications, a follow-up date where relevant, and any clinical notes. This is the most sensitive category of data we hold and is accessible only to you, the treating veterinarian, and authorized platform staff who need it to operate the service.</li>
               <li><strong>AI Pet Vision:</strong> if you use the pet photo scanner, the photo is analyzed to identify your pet's breed. Breed classification runs on our own model; the resulting breed label (not the raw photo) may be sent to our AI provider to generate plain-language breed care insights.</li>
               <li><strong>Meal planning data:</strong> if you use the meal planner, the recipe and portion choices you make, built from your pet's profile.</li>
@@ -195,10 +195,7 @@ export const PrivacyPolicyPage: React.FC = () => {
               fulfil the purposes described in this policy, and meet our legal, tax, and accounting
               recordkeeping obligations. Pet health records, prescriptions, and consultation data are
               retained for the duration of your account's active use, plus any further period required by
-              applicable law, after which they are deleted or anonymized. When you delete your account, we
-              delete or anonymize your personal data within a reasonable period, except where we are required
-              or permitted to retain it — for example, completed transaction records for tax purposes, or
-              data relevant to an open fraud investigation or legal claim.
+              applicable law, after which they are deleted or anonymized. When you delete your account, you are signed out everywhere and, for 15 days, nothing is deleted: signing in again cancels the deletion. After 15 days we permanently delete your profile, pets, health records, reviews, support history and uploaded photos. Records of completed orders and payments are kept without your name, phone or address, because tax law requires it, as is data relevant to an open fraud investigation or legal claim. For up to 30 days after deletion an encrypted copy of the deleted data is kept so that a mistaken deletion can be recovered; it is then destroyed, and routine backups are overwritten within about 30 days.
             </P>
 
             <H2>9. Data Security</H2>
@@ -221,7 +218,7 @@ export const PrivacyPolicyPage: React.FC = () => {
               <li><strong>Access:</strong> you can view your profile, pet profiles, health records, and order history directly in the app or website at any time.</li>
               <li><strong>Correction:</strong> you can update your profile, pet details, and delivery addresses yourself, or ask us to correct them.</li>
               <li><strong>Consent withdrawal:</strong> you may withdraw consent for optional processing (for example, marketing emails, website analytics, or location access) at any time; this does not affect processing already carried out, or processing we're required to continue for legal reasons.</li>
-              <li><strong>Erasure / account deletion:</strong> you can request deletion of your account and associated personal data. We will action this within the timeline required under applicable law, subject to the retention exceptions described in Section 8.</li>
+              <li><strong>Erasure / account deletion:</strong> you can delete your account yourself in the app (Profile, then Delete account) or at <a href="/delete-account" className="text-herb font-bold hover:underline">hearthandone.com/delete-account</a>. Your data is permanently deleted 15 days after the request unless you sign in again to cancel. We will action this within the timeline required under applicable law, subject to the retention exceptions described in Section 8.</li>
               <li><strong>Grievance redressal:</strong> you can raise a complaint about how we've handled your data with our Grievance Officer (Section 16). We acknowledge grievances within 24 hours and aim to resolve them within 7 days, consistent with Indian intermediary-guideline timelines.</li>
             </UL>
             <P>

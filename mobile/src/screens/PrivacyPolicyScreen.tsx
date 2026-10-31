@@ -73,7 +73,7 @@ export default function PrivacyPolicyScreen({ navigation }: PrivacyPolicyScreenP
         <H3>3.1 Information You Provide Directly</H3>
         <Bullet><Text style={styles.bulletBold}>Account & identity data: </Text>first name, last name, email address, phone number, and profile photo.</Bullet>
         <Bullet><Text style={styles.bulletBold}>Authentication data: </Text>if you sign in with Google, we receive your name, email address, and profile photo from Google. We do not receive or store your Google password.</Bullet>
-        <Bullet><Text style={styles.bulletBold}>Pet profile data ("Pet Heritage Passport"): </Text>your pet's name, species, breed, gender, date of birth, weight, and any photos you upload.</Bullet>
+        <Bullet><Text style={styles.bulletBold}>Pet profile data ("Pet Heritage Passport"): </Text>your pet's name, species, breed, gender, date of birth, weight, microchip number (optional), and any photos you upload.</Bullet>
         <Bullet><Text style={styles.bulletBold}>Health records: </Text>if your pet has a veterinary consultation or clinical visit logged on the platform, we store the resulting medical record — symptoms, clinical findings, diagnosis, treatment, prescribed medications, a follow-up date where relevant, and any clinical notes. This is accessible only to you, the treating veterinarian, and authorized staff who need it to operate the service.</Bullet>
         <Bullet><Text style={styles.bulletBold}>AI Pet Vision: </Text>if you use the pet photo scanner, the photo is analyzed to identify your pet's breed. Breed classification runs on our own model; only the resulting breed label (not the raw photo) may be sent to our AI provider to generate care insights.</Bullet>
         <Bullet><Text style={styles.bulletBold}>Meal planning data: </Text>if you use the meal planner, the recipe and portion choices you make, built from your pet's profile.</Bullet>
@@ -148,10 +148,7 @@ export default function PrivacyPolicyScreen({ navigation }: PrivacyPolicyScreenP
         <P>
           We retain personal data only as long as reasonably necessary to provide the service and meet
           legal, tax, and accounting obligations. Pet health records and consultation data are retained for
-          the duration of your account's active use, plus any further period required by law. When you
-          delete your account, we delete or anonymize your data within a reasonable period, except where we
-          are required or permitted to retain it (e.g. completed transaction records, open fraud
-          investigations).
+          the duration of your account's active use, plus any further period required by law. When you delete your account, you are signed out everywhere and, for 15 days, nothing is deleted: signing in again cancels the deletion. After 15 days we permanently delete your profile, pets, health records, reviews, support history and uploaded photos. Records of completed orders and payments are kept without your name, phone or address, because tax law requires it, as is data relevant to an open fraud investigation or legal claim. For up to 30 days after deletion an encrypted copy of the deleted data is kept so that a mistaken deletion can be recovered; it is then destroyed, and routine backups are overwritten within about 30 days.
         </P>
 
         <H2>9. Data Security</H2>
