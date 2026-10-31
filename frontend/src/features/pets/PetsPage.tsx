@@ -17,7 +17,7 @@ import {
   ArrowLeft, PawPrint, 
   Trash2, Scale, Loader2, AlertCircle,
   Heart, Award, Cake, Save, FileText, X, Activity,
-  Plus, Camera, Scan, CheckCircle2, RefreshCw, Database, ArrowRight
+  Plus, Camera, Scan, CheckCircle2, RefreshCw, Database, ArrowRight, Cpu
 } from 'lucide-react';
 import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
 import { PetHeritagePassport } from '../../components/PetHeritagePassport';
@@ -38,6 +38,15 @@ const mapRecordType = (type: string | undefined | null): string => {
   return 'general';
 };
 
+// Microchip numbers are 15 digits (older chips 9 or 10); spaces and dashes are allowed when typing.
+const cleanMicrochip = (value: string) => value.replace(/[\s-]/g, '');
+const microchipProblem = (value: string): string | null => {
+  const digits = cleanMicrochip(value);
+  return digits && !/^\d{9,15}$/.test(digits)
+    ? 'Microchip number must be 9 to 15 digits (the number printed on the chip card).'
+    : null;
+};
+
 export const PetsPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -55,6 +64,7 @@ export const PetsPage: React.FC = () => {
   const [gender, setGender] = useState('Male');
   const [dob, setDob] = useState('');
   const [weight, setWeight] = useState('');
+  const [microchip, setMicrochip] = useState('');
 
   // Pet Profile Image states
   const isPhotoUploadEnabled = useFeatureFlag('pets_photo_upload', true);
@@ -235,6 +245,7 @@ export const PetsPage: React.FC = () => {
   const [editGender, setEditGender] = useState('');
   const [editDob, setEditDob] = useState('');
   const [editWeight, setEditWeight] = useState('');
+  const [editMicrochip, setEditMicrochip] = useState('');
   const [editSpecies, setEditSpecies] = useState('');
   const [isUpdatingPet, setIsUpdatingPet] = useState(false);
   const [updateError, setUpdateError] = useState('');
@@ -324,6 +335,7 @@ export const PetsPage: React.FC = () => {
       setGender('Male');
       setDob('');
       setWeight('');
+      setMicrochip('');
       setPetImageUrl('');
       setPreviewScanUrl(null);
       setVisionResult(null);
@@ -371,6 +383,7 @@ export const PetsPage: React.FC = () => {
         setEditGender(petData.gender || 'Male');
         setEditDob(petData.date_of_birth || '');
         setEditWeight(petData.weight ? petData.weight.toString() : '');
+        setEditMicrochip(petData.microchip_number || '');
         setEditSpecies(petData.species);
         setEditPetImageUrl(petData.profile_image_url || '');
       } catch (err) {
@@ -414,6 +427,12 @@ export const PetsPage: React.FC = () => {
     e.preventDefault();
     if (!inspectingPetId) return;
 
+    const editChipProblem = microchipProblem(editMicrochip);
+    if (editChipProblem) {
+      setUpdateError(editChipProblem);
+      return;
+    }
+
     setIsUpdatingPet(true);
     setUpdateError('');
 
@@ -424,7 +443,8 @@ export const PetsPage: React.FC = () => {
       date_of_birth: editDob || null,
       weight: editWeight ? parseFloat(editWeight) : null,
       species: editSpecies,
-      profile_image_url: editPetImageUrl || null
+      profile_image_url: editPetImageUrl || null,
+      microchip_number: cleanMicrochip(editMicrochip) || null
     };
 
     try {
@@ -447,6 +467,12 @@ export const PetsPage: React.FC = () => {
       return;
     }
 
+    const chipProblem = microchipProblem(microchip);
+    if (chipProblem) {
+      setFormError(chipProblem);
+      return;
+    }
+
     setIsSubmitting(true);
     setFormError('');
 
@@ -457,7 +483,8 @@ export const PetsPage: React.FC = () => {
       gender: gender || null,
       date_of_birth: dob || null,
       weight: weight ? parseFloat(weight) : null,
-      profile_image_url: petImageUrl || null
+      profile_image_url: petImageUrl || null,
+      microchip_number: cleanMicrochip(microchip) || null
     };
 
     createMutation.mutate(petPayload, {
@@ -690,12 +717,19 @@ export const PetsPage: React.FC = () => {
                           </span>
                           <span className="font-bold text-ink">{pet.weight ? `${pet.weight} KG` : 'N/A'}</span>
                         </div>
-                        <div className="flex justify-between items-center py-1">
+                        <div className="flex justify-between items-center py-1 border-b border-cardboard border-dashed border-opacity-30">
                           <span className="text-herb font-bold flex items-center">
                             <Cake className="w-3.5 h-3.5 text-paprika mr-2" />
                             <span>BIRTHDAY</span>
                           </span>
                           <span className="font-bold text-ink">{pet.date_of_birth ? new Date(pet.date_of_birth).toLocaleDateString() : 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-1">
+                          <span className="text-herb font-bold flex items-center">
+                            <Cpu className="w-3.5 h-3.5 text-herb mr-2" />
+                            <span>MICROCHIP</span>
+                          </span>
+                          <span className="font-bold text-ink">{pet.microchip_number || 'NOT RECORDED'}</span>
                         </div>
                       </div>
 
@@ -1147,6 +1181,21 @@ export const PetsPage: React.FC = () => {
                               </div>
                             </div>
 
+                            <div className="space-y-1">
+                              <label className="font-mono text-[11px] uppercase font-bold text-ink/70 block">
+                                Microchip number (optional):
+                              </label>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={19}
+                                value={microchip}
+                                onChange={(e) => setMicrochip(e.target.value)}
+                                placeholder="e.g. 985112345678901"
+                                className="w-full h-10 px-3 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                              />
+                            </div>
+
                             {/* Scooby's Recipe Nutrition Preview */}
                             {visionResult?.care_insights && (
                               <div className="p-3 bg-paperLight border border-cardboard rounded-[10px] space-y-1">
@@ -1381,6 +1430,23 @@ export const PetsPage: React.FC = () => {
                           />
                         </div>
                       </div>
+
+                      <div className="space-y-1 text-left">
+                        <label htmlFor="microchip" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider flex items-center space-x-1">
+                          <Cpu className="w-3.5 h-3.5" />
+                          <span>Microchip number (optional):</span>
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={19}
+                          id="microchip"
+                          value={microchip}
+                          onChange={(e) => setMicrochip(e.target.value)}
+                          placeholder="e.g. 985112345678901"
+                          className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
+                        />
+                      </div>
                     </div>
                   )}
 
@@ -1488,6 +1554,13 @@ export const PetsPage: React.FC = () => {
                               <span>WEIGHT</span>
                             </span>
                             <span className="font-bold text-ink">{weight ? `${weight} KG` : 'NOT SET'}</span>
+                          </div>
+                          <div className="flex justify-between items-center py-1">
+                            <span className="text-herb font-bold flex items-center">
+                              <Cpu className="w-3.5 h-3.5 text-herb mr-2" />
+                              <span>MICROCHIP</span>
+                            </span>
+                            <span className="font-bold text-ink">{cleanMicrochip(microchip) || 'NOT SET'}</span>
                           </div>
                         </div>
                       </div>
@@ -1787,6 +1860,19 @@ export const PetsPage: React.FC = () => {
                         value={editDob}
                         onChange={(e) => setEditDob(e.target.value)}
                         className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Microchip number (optional)</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={19}
+                        value={editMicrochip}
+                        onChange={(e) => setEditMicrochip(e.target.value)}
+                        placeholder="e.g. 985112345678901"
+                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
                       />
                     </div>
 

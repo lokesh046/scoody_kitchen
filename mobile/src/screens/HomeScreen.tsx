@@ -421,7 +421,7 @@ export default function HomeScreen({ navigation }: any) {
         navigation?.navigate('Consult', { doctorId: review.reviewed_item_id });
       } else {
         // Land directly on this recipe's own review list, not the top of its detail page
-        navigation?.navigate('Shop', { productId: review.reviewed_item_id, scrollToReviews: true });
+        navigation?.navigate('Shop', { productId: review.reviewed_item_id, scrollToReviews: true, returnTo: 'Home' });
       }
     },
     [navigation]
@@ -429,7 +429,8 @@ export default function HomeScreen({ navigation }: any) {
 
   const handleSelectProduct = useCallback(
     (productId: number) => {
-      navigation?.navigate('Shop', { productId });
+      // Opens that product's own detail view and returns here when it is closed, like the website.
+      navigation?.navigate('Shop', { productId, returnTo: 'Home' });
     },
     [navigation]
   );

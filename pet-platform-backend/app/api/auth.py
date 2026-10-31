@@ -15,6 +15,7 @@ from app.dependencies.auth import get_current_user
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.schemas.auth import (
+    AppleOAuthRequest,
     GoogleOAuthRequest,
     MagicLinkRequest,
     MagicLinkVerifyCode,
@@ -24,11 +25,14 @@ from app.schemas.auth import (
     UserRegister,
     UserResponse,
     UserUpdate,
+    AccountDeletionRequest,
+    AccountDeletionResponse,
     FirebaseVerifyPhonePayload,
     OTPRequest,
     WhatsAppVerifyOTP,
 )
 from app.services.auth_service import (
+    authenticate_apple_user,
     authenticate_google_user,
     create_tokens,
     create_user,
@@ -198,6 +202,33 @@ def authenticate_with_google(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
+@router.post(
+    "/apple",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+)
+@limiter.limit("10/minute")
+def authenticate_with_apple(
+    request: Request,
+    response: Response,
+    apple_data: AppleOAuthRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        user = authenticate_apple_user(
+            db,
+            apple_data.identity_token,
+            first_name=apple_data.first_name,
+            last_name=apple_data.last_name,
+            nonce=apple_data.nonce,
+        )
+        tokens = create_tokens(db, user)
+        _set_auth_cookies(response, tokens)
+        return tokens
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
 @router.post("/logout")
 def logout(
     response: Response,
@@ -339,7 +370,7 @@ def refresh_token_endpoint(
         )
 
     stored_token.revoked = True
-    tokens = create_tokens(db, user)
+    tokens = create_tokens(db, user, cancels_deletion=False)
     _set_auth_cookies(response, tokens)
     return TokenResponse(
         **tokens,
@@ -361,6 +392,56 @@ def update_me(
     current_user: User = Depends(get_current_user),
 ):
     return update_user_profile(db, current_user, update_data)
+
+
+_RECENT_SIGN_IN_SECONDS = 600
+
+
+def _require_recent_sign_in(request: Request) -> None:
+    """Deleting an account needs a sign-in from the last 10 minutes, so a stolen or forgotten
+    session cannot do it. The access token's issue time is the sign-in time."""
+    token = request.cookies.get("access_token")
+    if not token:
+        header = request.headers.get("Authorization", "")
+        token = header.split(" ", 1)[1] if header.startswith("Bearer ") else None
+    try:
+        payload = jwt.decode(token or "", settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        issued = int(payload.get("iat", 0))
+    except Exception:
+        issued = 0
+    if datetime.now(timezone.utc).timestamp() - issued > _RECENT_SIGN_IN_SECONDS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="For your security, please sign in again, then delete your account.",
+        )
+
+
+@router.post("/me/delete", response_model=AccountDeletionResponse)
+@limiter.limit("5/hour")
+def delete_my_account(
+    request: Request,
+    response: Response,
+    body: AccountDeletionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Schedules deletion of the signed-in account. Everything is removed after the grace period
+    unless the user signs in again before then."""
+    from app.services.account_deletion_service import DeletionNotAllowed, request_deletion
+    from app.services.email_service import send_account_deletion_email
+
+    if body.confirm.strip().upper() != "DELETE":
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Type DELETE to confirm.")
+    _require_recent_sign_in(request)
+    try:
+        scheduled_for = request_deletion(db, current_user)
+    except DeletionNotAllowed as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+
+    send_account_deletion_email(current_user.email, current_user.first_name, scheduled_for)
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/")
+    return AccountDeletionResponse(scheduled_for=scheduled_for, grace_days=settings.ACCOUNT_DELETION_GRACE_DAYS)
 
 
 @router.post("/upload-avatar")

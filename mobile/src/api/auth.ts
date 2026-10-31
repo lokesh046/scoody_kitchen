@@ -77,3 +77,14 @@ export const verifyWhatsAppOtp = async (phoneNumber: string, code: string): Prom
   });
   return response.data;
 };
+
+export interface AccountDeletionResult {
+  scheduled_for: string;
+  grace_days: number;
+}
+
+// Schedules deletion of the signed-in account. Needs a sign-in from the last 10 minutes (403 otherwise).
+export const requestAccountDeletion = async (confirm: string): Promise<AccountDeletionResult> => {
+  const response = await apiClient.post<AccountDeletionResult>('/auth/me/delete', { confirm });
+  return response.data;
+};

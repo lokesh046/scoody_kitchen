@@ -481,3 +481,70 @@ def send_consultation_invoice_email(
     except Exception as exc:
         logger.error(f"Failed to send consultation invoice to {to_email}: {exc}")
         return False
+
+
+def send_account_deletion_email(to_email: str, first_name: str | None, scheduled_for) -> bool:
+    """Tells the user their account is scheduled for deletion and how to cancel it."""
+    subject = "Your Hearth & One account will be deleted"
+    when = scheduled_for.strftime("%d %B %Y")
+    greeting = f"Hi {first_name}," if first_name else "Hi,"
+
+    content = f"""
+        <h2 style="color: #362820; font-size: 18px; font-weight: 800; margin: 0 0 12px 0;">
+            Your account is scheduled for deletion
+        </h2>
+        <p style="font-size: 13px; line-height: 1.6; color: #4A3B32; margin: 0 0 12px 0;">{greeting}</p>
+        <p style="font-size: 13px; line-height: 1.6; color: #4A3B32; margin: 0 0 12px 0;">
+            We received your request to delete your Hearth &amp; One account. Your account has been signed out
+            everywhere and will be permanently deleted on <strong>{when}</strong>.
+        </p>
+        <p style="font-size: 13px; line-height: 1.6; color: #4A3B32; margin: 0 0 12px 0;">
+            <strong>Changed your mind?</strong> Sign in again before that date and the deletion is cancelled
+            automatically. Nothing else is needed.
+        </p>
+        <p style="font-size: 13px; line-height: 1.6; color: #4A3B32; margin: 0 0 12px 0;">
+            After that date your profile, pets, health records, reviews and support history are removed. Records of
+            completed orders and payments are kept without your name, phone or address, because tax law requires it.
+        </p>
+        <p style="font-size: 11px; color: #888888; line-height: 1.5; margin: 0;">
+            Didn't request this? Sign in now to cancel it, then contact support@hearthandone.com.
+        </p>
+    """
+    html_content = _get_base_email_template("Account deletion", content)
+    text_content = (
+        f"{greeting}\n\nYour Hearth & One account is scheduled for deletion on {when}. "
+        "Sign in again before then to cancel it. Completed order and payment records are kept without "
+        "personal details, as tax law requires.\n\nDidn't request this? Sign in now and contact support@hearthandone.com."
+    )
+
+    if not settings.SMTP_HOST or not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        logger.warning("SMTP settings not configured. Account deletion email for %s not sent.", to_email)
+        return False
+
+    try:
+        sender_email = settings.EMAILS_FROM or settings.SMTP_USER
+        from_header = f"Hearth & One <{sender_email}>" if "<" not in (sender_email or "") else sender_email
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = from_header
+        msg["To"] = to_email
+        msg["Reply-To"] = sender_email
+        msg.attach(MIMEText(text_content, "plain"))
+        msg.attach(MIMEText(html_content, "html"))
+
+        def _send():
+            try:
+                with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+                    server.starttls()
+                    server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                    server.send_message(msg)
+                logger.info("Account deletion email sent to %s", to_email)
+            except Exception as exc:
+                logger.error("Failed to send account deletion email to %s: %s", to_email, exc)
+
+        import threading
+        threading.Thread(target=_send, daemon=True).start()
+        return True
+    except Exception as exc:
+        logger.error("Failed to prepare account deletion email for %s: %s", to_email, exc)
+        return False

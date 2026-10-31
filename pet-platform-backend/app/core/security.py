@@ -41,7 +41,8 @@ def create_access_token(
     role: str = "customer",
 )-> str:
 
-    expire = datetime.now(timezone.utc) + timedelta(
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
@@ -49,8 +50,9 @@ def create_access_token(
         "sub": str(user_id),
         "role": role,
         "type": "access",
+        "iat": now,   # lets sensitive actions (account deletion) require a recent sign-in
         "exp": expire
-    }       
+    }
 
     return jwt.encode(
         payload,

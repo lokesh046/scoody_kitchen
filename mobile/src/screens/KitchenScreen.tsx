@@ -768,6 +768,17 @@ export default function KitchenScreen({ navigation, route }: any) {
     setSelectedRecipe(recipe);
   }, []);
 
+  // Closing a recipe that was opened from another screen (Home) goes back there, like the website's
+  // Back button, and clears the deep-link params so it does not pop open again on the next visit.
+  const closeRecipe = useCallback(() => {
+    setSelectedRecipe(null);
+    const returnTo = route?.params?.returnTo;
+    if (route?.params?.productId || returnTo) {
+      navigation?.setParams?.({ productId: undefined, scrollToReviews: undefined, returnTo: undefined });
+    }
+    if (returnTo) navigation?.navigate(returnTo);
+  }, [route?.params?.productId, route?.params?.returnTo, navigation]);
+
   const handleInspectReview = useCallback((review: ProductReview) => {
     setInspectReviewModal(review);
   }, []);
@@ -1073,7 +1084,7 @@ export default function KitchenScreen({ navigation, route }: any) {
         visible={!!selectedRecipe}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setSelectedRecipe(null)}
+        onRequestClose={closeRecipe}
       >
         <View style={isTablet ? modalOverlayStyle : styles.modalBackdrop}>
           <View style={[styles.modalContent, isTablet && modalSheetContainerStyle]}>
@@ -1083,7 +1094,7 @@ export default function KitchenScreen({ navigation, route }: any) {
                   <Text style={styles.modalHeaderTitle}>Recipe Details</Text>
                   <TouchableOpacity
                     style={styles.closeBtn}
-                    onPress={() => setSelectedRecipe(null)}
+                    onPress={closeRecipe}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     accessibilityRole="button"
                     accessibilityLabel="Close recipe details"
@@ -1283,7 +1294,7 @@ export default function KitchenScreen({ navigation, route }: any) {
                     style={styles.modalAddBtn}
                     onPress={() => {
                       handleAddToCart(selectedRecipe);
-                      setSelectedRecipe(null);
+                      closeRecipe();
                     }}
                   >
                     <ShoppingBag size={18} color="#FFFFFF" />

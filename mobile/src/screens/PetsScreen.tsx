@@ -251,7 +251,10 @@ export default function PetsScreen({ navigation }: any) {
       breed: details.breed,
       imageUrl: details.imageUrl,
     });
-    setIsModalVisible(true);
+    // Android drops a Modal that opens while another one is still closing, so close the scanner
+    // first and open the form once it is gone (same pause as handleOpenVisionFromModal).
+    setIsVisionModalVisible(false);
+    setTimeout(() => setIsModalVisible(true), 350);
   }, []);
 
   const saveDirectPhoto = useCallback(async (pet: PetProfile, uri: string) => {
@@ -316,6 +319,7 @@ export default function PetsScreen({ navigation }: any) {
     weight: number;
     date_of_birth?: string;
     profile_image_url?: string;
+    microchip_number?: string | null;
   }) => {
     if (modalMode === 'add') {
       const newPet = await createPet(data);

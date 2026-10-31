@@ -73,6 +73,21 @@ export const authenticateGoogle = async (idToken: string): Promise<TokenResponse
   return response.data;
 };
 
+export const authenticateApple = async (
+  identityToken: string,
+  nonce: string,
+  firstName?: string,
+  lastName?: string,
+): Promise<TokenResponse> => {
+  const response = await apiClient.post('/auth/apple', {
+    identity_token: identityToken,
+    nonce,
+    first_name: firstName,
+    last_name: lastName,
+  });
+  return response.data;
+};
+
 export interface UpdateProfileParams {
   first_name?: string;
   last_name?: string;
@@ -125,5 +140,16 @@ export const verifyWhatsAppOtp = async (phoneNumber: string, code: string): Prom
     phone_number: phoneNumber,
     code,
   });
+  return response.data;
+};
+
+export interface AccountDeletionResult {
+  scheduled_for: string;
+  grace_days: number;
+}
+
+// Schedules deletion of the signed-in account. Needs a sign-in from the last 10 minutes (403 otherwise).
+export const requestAccountDeletion = async (confirm: string): Promise<AccountDeletionResult> => {
+  const response = await apiClient.post<AccountDeletionResult>('/auth/me/delete', { confirm });
   return response.data;
 };

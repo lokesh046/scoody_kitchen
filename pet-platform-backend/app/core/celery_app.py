@@ -30,5 +30,14 @@ celery_app.conf.update(
             "task": "app.tasks.notification_tasks.cleanup_unverified_users_task",
             "schedule": 86400.0,
         },
+        # Account deletion: purge accounts past their 15-day grace period, then trim the archive.
+        "purge-deleted-accounts-daily": {
+            "task": "app.tasks.notification_tasks.purge_deleted_accounts_task",
+            "schedule": 86400.0,
+        },
+        "prune-deletion-archives-daily": {
+            "task": "app.tasks.notification_tasks.prune_deletion_archives_task",
+            "schedule": 86400.0,
+        },
     },
 )

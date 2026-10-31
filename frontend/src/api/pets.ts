@@ -8,6 +8,7 @@ export interface PetCreate {
   date_of_birth?: string | null; // ISO Date YYYY-MM-DD
   weight?: number | null;
   profile_image_url?: string | null;
+  microchip_number?: string | null; // 9-15 digits; null clears it
 }
 
 export interface PetResponse {
@@ -20,6 +21,7 @@ export interface PetResponse {
   date_of_birth: string | null;
   weight: number | null;
   profile_image_url: string | null;
+  microchip_number: string | null;
   created_at: string;
 }
 

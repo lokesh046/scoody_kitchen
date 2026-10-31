@@ -1,0 +1,9 @@
+apiVersion: 1
+providers:
+  - name: hearth
+    folder: Hearth & One
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards

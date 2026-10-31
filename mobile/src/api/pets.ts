@@ -9,6 +9,7 @@ export interface PetCreatePayload {
   weight?: number;
   date_of_birth?: string;
   profile_image_url?: string;
+  microchip_number?: string | null;
 }
 
 export interface PetUpdatePayload {
@@ -19,6 +20,8 @@ export interface PetUpdatePayload {
   weight?: number;
   date_of_birth?: string;
   profile_image_url?: string;
+  // null clears the number.
+  microchip_number?: string | null;
 }
 
 export interface HealthRecord {
