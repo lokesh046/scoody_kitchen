@@ -16,7 +16,7 @@ import {
   Image as RNImage,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { FlameIcon, DrumstickIcon, PouchIcon } from './PetStatIcons';
+import { FlameIcon, DrumstickIcon } from './PetStatIcons';
 import {
   PawPrint,
   Scale,
@@ -35,6 +35,7 @@ import {
   Cpu,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { COLORS } from '../theme/colors';
 import { LEDGER_MONO } from '../theme/typography';
 import { PetProfile } from '../types';
@@ -66,6 +67,19 @@ const calculateCalories = (weight?: number | null): number => {
   const rer = 70 * Math.pow(w, 0.75);
   return Math.round(rer * 1.6);
 };
+
+// Birthdays are stored as plain YYYY-MM-DD, built from the local date parts so a time zone never shifts the day.
+const toIsoDate = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+const parseIsoDate = (value: string): Date | null => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const EARLIEST_BIRTHDAY = new Date(1995, 0, 1);
 
 const formatBirthday = (dateStr?: string | null): string => {
   if (!dateStr) return 'N/A';
@@ -343,12 +357,6 @@ export const CompanionTargetGrid = memo(function CompanionTargetGrid({ weight }:
         <Text style={petCardStyles.targetValue}>{protein}g</Text>
         <Text style={petCardStyles.targetLabel}>Daily Protein</Text>
       </View>
-      <View style={petCardStyles.targetDivider} />
-      <View style={petCardStyles.targetBox}>
-        <PouchIcon size={36} />
-        <Text style={petCardStyles.targetValue}>500g</Text>
-        <Text style={petCardStyles.targetLabel}>Portion Pouch</Text>
-      </View>
     </View>
   );
 });
@@ -434,7 +442,7 @@ interface PetDossierModalProps {
   // reset below never re-fires and wipes what the user already typed.
   sessionId: number;
   initialPet?: PetProfile | null;
-  initialVisionDetails?: { species?: string; breed?: string; imageUrl?: string } | null;
+  initialVisionDetails?: { species?: string; breed?: string; imageUrl?: string; weight?: number } | null;
   onClose: () => void;
   onSave: (data: {
     name: string;
@@ -485,6 +493,9 @@ export const PetDossierModal = memo(function PetDossierModal({
   const [species, setSpecies] = useState('Dog');
   const [breed, setBreed] = useState('');
   const [microchip, setMicrochip] = useState('');
+  const [showIosDatePicker, setShowIosDatePicker] = useState(false);
+  // True while the weight is only the scan's estimate for a typical adult of the breed.
+  const [weightIsEstimate, setWeightIsEstimate] = useState(false);
   const [weight, setWeight] = useState('15');
   const [gender, setGender] = useState('Male');
   const [dob, setDob] = useState('');
@@ -497,8 +508,13 @@ export const PetDossierModal = memo(function PetDossierModal({
   // Add, or switching which pet is being edited) — never merely because the
   // modal's visible prop flipped, since that also happens when returning
   // from a mid-session AI Vision scan and must NOT wipe what's typed.
+  // The form can open a moment after the session id changes (the scanner closes first), so the reset
+  // also runs when it becomes visible, once per session.
+  const resetSessionRef = useRef<number | null>(null);
   useEffect(() => {
     if (!visible) return;
+    if (resetSessionRef.current === sessionId) return;
+    resetSessionRef.current = sessionId;
     setError(null);
     if (mode === 'edit' && initialPet) {
       setName(initialPet.name || '');
@@ -511,6 +527,7 @@ export const PetDossierModal = memo(function PetDossierModal({
           ? String(initialPet.weight_kg)
           : '15'
       );
+      setWeightIsEstimate(false);
       setGender(initialPet.gender || 'Male');
       setDob(initialPet.date_of_birth ? initialPet.date_of_birth.split('T')[0] : '');
       setMicrochip(initialPet.microchip_number || '');
@@ -520,7 +537,8 @@ export const PetDossierModal = memo(function PetDossierModal({
       setName('');
       setSpecies(initialVisionDetails?.species || 'Dog');
       setBreed(initialVisionDetails?.breed || '');
-      setWeight('15');
+      setWeight(initialVisionDetails?.weight ? String(initialVisionDetails.weight) : '15');
+      setWeightIsEstimate(!!initialVisionDetails?.weight);
       setGender('Male');
       setDob('');
       setMicrochip('');
@@ -531,7 +549,7 @@ export const PetDossierModal = memo(function PetDossierModal({
     // not re-trigger this reset on their own — that's what the merge effect
     // below is for.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+  }, [sessionId, visible]);
 
   // Merge in an AI Vision Scan result without disturbing anything else the
   // user already typed in this session (name, weight, gender, birthday).
@@ -543,6 +561,17 @@ export const PetDossierModal = memo(function PetDossierModal({
     setSpecies(initialVisionDetails.species || 'Dog');
     setBreed(initialVisionDetails.breed || '');
     if (initialVisionDetails.imageUrl) setImageUri(initialVisionDetails.imageUrl);
+    // Only replace the weight while it is still the untouched default, never one the person typed.
+    const estimate = initialVisionDetails.weight;
+    if (estimate) {
+      setWeight((current) => {
+        if (current === '' || current === '15') {
+          setWeightIsEstimate(true);
+          return String(estimate);
+        }
+        return current;
+      });
+    }
   }, [visible, initialVisionDetails]);
 
   const uploadPhoto = async (localUri: string) => {
@@ -594,6 +623,23 @@ export const PetDossierModal = memo(function PetDossierModal({
     } catch (err) {
       console.log('Camera error:', err);
       setError('Could not access camera.');
+    }
+  };
+
+  const openDobPicker = () => {
+    const current = parseIsoDate(dob) || new Date();
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: current,
+        mode: 'date',
+        maximumDate: new Date(),
+        minimumDate: EARLIEST_BIRTHDAY,
+        onChange: (event, selected) => {
+          if (event.type === 'set' && selected) setDob(toIsoDate(selected));
+        },
+      });
+    } else {
+      setShowIosDatePicker(true);
     }
   };
 
@@ -768,6 +814,33 @@ export const PetDossierModal = memo(function PetDossierModal({
               </View>
             </View>
 
+            {Platform.OS === 'ios' && showIosDatePicker && (
+              <Modal visible transparent animationType="slide" onRequestClose={() => setShowIosDatePicker(false)}>
+                <View style={petCardStyles.datePickerBackdrop}>
+                  <View style={petCardStyles.datePickerSheet}>
+                    <DateTimePicker
+                      value={parseIsoDate(dob) || new Date()}
+                      mode="date"
+                      display="inline"
+                      maximumDate={new Date()}
+                      minimumDate={EARLIEST_BIRTHDAY}
+                      onChange={(_event, selected) => {
+                        if (selected) setDob(toIsoDate(selected));
+                      }}
+                    />
+                    <TouchableOpacity
+                      style={petCardStyles.datePickerDone}
+                      onPress={() => setShowIosDatePicker(false)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Done choosing date"
+                    >
+                      <Text style={petCardStyles.datePickerDoneText}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Modal>
+            )}
+
             {error && (
               <View style={petCardStyles.modalErrorBox}>
                 <AlertCircle size={15} color="#B91C1C" />
@@ -818,7 +891,21 @@ export const PetDossierModal = memo(function PetDossierModal({
                   value={breed}
                   onChangeText={setBreed}
                 />
+                <TouchableOpacity
+                  style={petCardStyles.breedScanBtn}
+                  onPress={onOpenVision}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Scan your pet to find the breed"
+                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                >
+                  <Sparkles size={12} color="#FFFFFF" />
+                  <Text style={petCardStyles.breedScanText}>Scan</Text>
+                </TouchableOpacity>
               </View>
+              <Text style={petCardStyles.fieldHelper}>
+                Not sure of the breed? Tap Scan and take a photo of your pet.
+              </Text>
             </View>
 
             {/* Gender Selector Chips */}
@@ -861,29 +948,46 @@ export const PetDossierModal = memo(function PetDossierModal({
                   placeholder="33"
                   placeholderTextColor={COLORS.textLight}
                   value={weight}
-                  onChangeText={setWeight}
+                  onChangeText={(text) => {
+                    setWeight(text);
+                    setWeightIsEstimate(false);
+                  }}
                   keyboardType="numeric"
                 />
                 <Text style={petCardStyles.unitText}>KG</Text>
               </View>
               <Text style={petCardStyles.fieldHelper}>
-                Used directly to calculate daily kCal & protein quotas
+                {weightIsEstimate
+                  ? "Estimated from the breed's typical adult size. Please enter your pet's actual weight."
+                  : 'Used directly to calculate daily kCal & protein quotas'}
               </Text>
             </View>
 
             <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.dob = e.nativeEvent.layout.y; }}>
-              <Text style={petCardStyles.fieldLabel}>DATE OF BIRTH (YYYY-MM-DD)</Text>
-              <View style={petCardStyles.inputContainer}>
+              <Text style={petCardStyles.fieldLabel}>DATE OF BIRTH</Text>
+              <TouchableOpacity
+                style={petCardStyles.inputContainer}
+                onPress={openDobPicker}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={dob ? `Date of birth ${formatBirthday(dob)}. Tap to change` : 'Choose date of birth'}
+              >
                 <Cake size={15} color={COLORS.textLight} />
-                <TextInput
-                  onFocus={() => onFieldFocus('dob')}
-                  style={petCardStyles.textInput}
-                  placeholder="2026-03-05"
-                  placeholderTextColor={COLORS.textLight}
-                  value={dob}
-                  onChangeText={setDob}
-                />
-              </View>
+                <Text style={[petCardStyles.dobValueText, !dob && petCardStyles.dobPlaceholderText]}>
+                  {dob ? formatBirthday(dob) : 'Select date of birth'}
+                </Text>
+                {!!dob && (
+                  <TouchableOpacity
+                    onPress={() => setDob('')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear date of birth"
+                  >
+                    <X size={15} color={COLORS.textLight} />
+                  </TouchableOpacity>
+                )}
+                <CalendarIcon size={16} color={COLORS.forestGreen} />
+              </TouchableOpacity>
             </View>
 
             <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.microchip = e.nativeEvent.layout.y; }}>
@@ -1514,6 +1618,29 @@ export const petCardStyles = StyleSheet.create({
   },
   textInput: { flex: 1, fontSize: 13, color: COLORS.textCoffee, fontWeight: '600', height: '100%', fontFamily: FONT_BODY_BOLD },
   unitText: { fontSize: 11, fontWeight: '800', color: COLORS.textMuted, fontFamily: FONT_BODY_BOLD },
+  breedScanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.forestGreen,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  breedScanText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF', fontFamily: FONT_BODY_BOLD },
+  dobValueText: { flex: 1, fontSize: 13, color: COLORS.textCoffee, fontWeight: '600', fontFamily: FONT_BODY_BOLD },
+  dobPlaceholderText: { color: COLORS.textLight, fontWeight: '400', fontFamily: FONT_BODY },
+  datePickerBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
+  datePickerSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 16 },
+  datePickerDone: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 46,
+    borderRadius: 10,
+    backgroundColor: COLORS.forestGreen,
+    marginTop: 8,
+  },
+  datePickerDoneText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF', fontFamily: FONT_BODY_BOLD },
   fieldHelper: { fontSize: 10, color: COLORS.textLight, marginTop: 2, paddingLeft: 2, fontFamily: FONT_BODY },
   genderRow: { flexDirection: 'row', gap: 10 },
   genderChip: {

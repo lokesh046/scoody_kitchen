@@ -220,12 +220,6 @@ export const ProfileStatsMatrix = memo(function ProfileStatsMatrix({
         <Text style={profileCardStyles.statNumber}>{ordersCount}</Text>
         <Text style={profileCardStyles.statLabel}>Fresh Orders</Text>
       </View>
-      <View style={profileCardStyles.statDivider} />
-      <View style={profileCardStyles.statBox}>
-        <RNImage source={require('../../assets/toolkit/meal-planner.webp')} style={profileCardStyles.statIcon} resizeMode="contain" />
-        <Text style={profileCardStyles.statNumber}>100%</Text>
-        <Text style={profileCardStyles.statLabel}>Human-Grade</Text>
-      </View>
     </View>
   );
 });
@@ -238,7 +232,6 @@ interface AccountHubMenuProps {
   onNavigatePets: () => void;
   onNavigateConsult: () => void;
   onNavigateSupport: () => void;
-  onNavigateBlog: () => void;
   onNavigatePrivacy: () => void;
   onNavigateTerms: () => void;
   isConsultationsEnabled: boolean;
@@ -253,7 +246,6 @@ export const AccountHubMenu = memo(function AccountHubMenu({
   onNavigatePets,
   onNavigateConsult,
   onNavigateSupport,
-  onNavigateBlog,
   onNavigatePrivacy,
   onNavigateTerms,
   isConsultationsEnabled,
@@ -378,28 +370,6 @@ export const AccountHubMenu = memo(function AccountHubMenu({
               <Text style={profileCardStyles.menuUnreadBadgeText}>{supportUnreadCount > 9 ? '9+' : supportUnreadCount}</Text>
             </View>
           )}
-          <ChevronRight size={18} color={COLORS.textLight} />
-        </View>
-      </TouchableOpacity>
-
-      {/* Blog / Journal Item */}
-      <TouchableOpacity
-        style={profileCardStyles.menuItem}
-        onPress={onNavigateBlog}
-        activeOpacity={0.7}
-      >
-        <View style={profileCardStyles.menuItemLeft}>
-          <View style={profileCardStyles.menuIconTile}>
-            <RNImage source={require('../../assets/toolkit/journal.webp')} style={[profileCardStyles.menuIconImg]} resizeMode="contain" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={profileCardStyles.menuItemTitle}>Journal</Text>
-            <Text style={profileCardStyles.menuItemSub}>
-              Guidance on feeding, nutrition, and dog care
-            </Text>
-          </View>
-        </View>
-        <View style={profileCardStyles.menuItemRight}>
           <ChevronRight size={18} color={COLORS.textLight} />
         </View>
       </TouchableOpacity>

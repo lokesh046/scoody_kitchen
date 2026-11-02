@@ -48,7 +48,8 @@ import { ScreenHeader, headerActionStyle, HEADER_GOLD } from '../components/Scre
 import PetVisionModal from '../components/PetVisionModal';
 import { useResponsive } from '../hooks/useResponsive';
 import ResponsiveContainer from '../components/ResponsiveContainer';
-import { useFeatureFlag } from '../hooks/useFeatureFlag';
+import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
+import { estimateWeightKg } from '../utils/estimateWeight';
 import { useFocusRefresh } from '../hooks/useFocusRefresh';
 import {
   CompanionSelectorTab,
@@ -78,6 +79,10 @@ export default function PetsScreen({ navigation }: any) {
   const { pets, setPets, addPet, updatePet: storeUpdatePet, removePet } = usePetStore();
   const { isTablet } = useResponsive();
   const isPhotoUploadEnabled = useFeatureFlag('pets_photo_upload', true);
+  // "Book Vet Consultation" follows the same flag as the Vet tab; the hidden Telemedicine alias route
+  // skips the tab's own gate, so the check has to happen here.
+  const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  const consultationsFallback = useFeatureFlagFallback('consultations_booking');
 
   const [selectedPetId, setSelectedPetId] = useState<number | null>(null);
   // If the app-boot prefetch already wrote pets into the shared store before
@@ -100,6 +105,7 @@ export default function PetsScreen({ navigation }: any) {
     species?: string;
     breed?: string;
     imageUrl?: string;
+    weight?: number;
   } | null>(null);
   // Bumped only on a genuinely new dossier session (see PetDossierModal's
   // sessionId prop) — returning from an AI Vision scan mid-session must not
@@ -250,6 +256,7 @@ export default function PetsScreen({ navigation }: any) {
       species: details.species,
       breed: details.breed,
       imageUrl: details.imageUrl,
+      weight: estimateWeightKg(details.careInsights?.adult_size_category),
     });
     // Android drops a Modal that opens while another one is still closing, so close the scanner
     // first and open the form once it is gone (same pause as handleOpenVisionFromModal).
@@ -514,13 +521,13 @@ export default function PetsScreen({ navigation }: any) {
               }}
               activeOpacity={0.88}
               accessibilityRole="button"
-              accessibilityLabel="Scan breed and nutrition blueprint with AI Pet Vision"
+              accessibilityLabel="Identify your pet with AI Pet Vision"
             >
               <RNImage source={require('../../assets/toolkit/scan-diagnose.webp')} style={styles.visionBannerIcon} resizeMode="contain" />
               <View style={styles.visionBannerContent}>
-                <Text style={styles.visionBannerTitle}>Scan Breed & Nutrition Blueprint</Text>
+                <Text style={styles.visionBannerTitle}>Identify Your Pet</Text>
                 <Text style={styles.visionBannerDesc}>
-                  Snap a photo to identify the breed and build the nutrition targets below.
+                  Discover your pet's breed, characteristics, and care needs
                 </Text>
               </View>
               <View style={styles.visionScanArrow}>
@@ -566,19 +573,19 @@ export default function PetsScreen({ navigation }: any) {
                   onPress={handleOpenAIConsult}
                   activeOpacity={0.88}
                   accessibilityRole="button"
-                  accessibilityLabel={`Ask Hearth & One AI Nutritionist about ${currentPet.name}`}
+                  accessibilityLabel="Talk to Bravo, the AI assistant"
                 >
                   <View style={styles.aiConsultInner}>
                     <AIDogIcon size={46} />
                     <View style={{ flex: 1 }}>
                       <View style={styles.aiConsultTitleRow}>
-                        <Text style={styles.aiConsultTitle}>Ask Hearth & One AI Nutritionist</Text>
+                        <Text style={styles.aiConsultTitle}>Bravo</Text>
                         <View style={styles.aiLiveBadge}>
                           <Text style={styles.aiLiveBadgeText}>AI EXPERT</Text>
                         </View>
                       </View>
                       <Text style={styles.aiConsultSubtitle}>
-                        Personalized dietary transition & allergy advice for {currentPet.name}
+                        Talk to Bravo and get answers to your pet care questions.
                       </Text>
                     </View>
                   </View>
@@ -623,16 +630,25 @@ export default function PetsScreen({ navigation }: any) {
                       <Text style={styles.emptyRecordsSub}>
                         Veterinary consultation notes, diagnosis summaries, and vaccination logs from certified doctors will automatically synchronize into this ledger.
                       </Text>
-                      <TouchableOpacity
-                        style={styles.bookConsultBtn}
-                        onPress={() => navigation?.navigate('Telemedicine')}
-                        activeOpacity={0.85}
-                        accessibilityRole="button"
-                        accessibilityLabel="Book vet consultation"
-                      >
-                        <Stethoscope size={14} color="#FFFFFF" strokeWidth={2.2} />
-                        <Text style={styles.bookConsultBtnText}>Book Vet Consultation</Text>
-                      </TouchableOpacity>
+                      {isConsultationsEnabled ? (
+                        <TouchableOpacity
+                          style={styles.bookConsultBtn}
+                          onPress={() => navigation?.navigate('Consult')}
+                          activeOpacity={0.85}
+                          accessibilityRole="button"
+                          accessibilityLabel="Book vet consultation"
+                        >
+                          <Stethoscope size={14} color="#FFFFFF" strokeWidth={2.2} />
+                          <Text style={styles.bookConsultBtnText}>Book Vet Consultation</Text>
+                        </TouchableOpacity>
+                      ) : consultationsFallback !== 'hide' ? (
+                        <View style={[styles.bookConsultBtn, { opacity: 0.55 }]} accessibilityRole="text">
+                          <Stethoscope size={14} color="#FFFFFF" strokeWidth={2.2} />
+                          <Text style={styles.bookConsultBtnText}>
+                            {consultationsFallback === 'coming_soon' ? 'Vet Consultations Coming Soon' : 'Vet Consultations Unavailable'}
+                          </Text>
+                        </View>
+                      ) : null}
                     </View>
                   ) : (
                     <View style={styles.recordsList}>

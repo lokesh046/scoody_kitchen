@@ -33,6 +33,7 @@ import { useAuthStore } from '../store/authStore';
 import { tabPrefetchCache } from '../services/tabPrefetch';
 import { isNetworkError } from '../store/networkStore';
 import { useResponsive } from '../hooks/useResponsive';
+import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import { isConfirmedAndPaid, isDelivered, isCancelled, getStatusBadgeStyle } from '../utils/orderStatus';
 import { LEDGER_MONO, FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD } from '../theme/typography';
@@ -145,6 +146,9 @@ const OrderCardItem = memo(function OrderCardItem({ order, onSelect, cardWidth }
 });
 
 export default function OrdersScreen({ navigation }: any) {
+  // The Shop tab is hidden or disabled when ordering is off, so this screen must not offer a way into it.
+  const isShopEnabled = useFeatureFlag('shop_checkout', true);
+  const shopFallback = useFeatureFlagFallback('shop_checkout');
   // Loads the brand faces once; Text using FONT_DISPLAY/FONT_BODY renders in
   // the system font until this resolves, then re-renders automatically.
   useFonts({ Outfit_700Bold, Outfit_600SemiBold, Quicksand_400Regular, Quicksand_700Bold });
@@ -329,20 +333,31 @@ export default function OrdersScreen({ navigation }: any) {
             : 'No Past Delivered Orders'}
         </Text>
         <Text style={styles.emptySub}>
-          Fresh, veterinarian-designed canine recipes prepared in small batches are ready in the kitchen.
+          {isShopEnabled
+            ? 'Fresh, veterinarian-designed canine recipes prepared in small batches are ready in the kitchen.'
+            : 'Your orders will show up here as soon as ordering opens.'}
         </Text>
-        <TouchableOpacity
-          style={styles.exploreBtn}
-          onPress={() => navigation.navigate('Kitchen')}
-          accessibilityRole="button"
-          accessibilityLabel="Explore fresh recipes"
-        >
-          <UtensilsCrossed size={16} color="#FFFFFF" />
-          <Text style={styles.exploreBtnText}>Explore Fresh Recipes</Text>
-        </TouchableOpacity>
+        {isShopEnabled ? (
+          <TouchableOpacity
+            style={styles.exploreBtn}
+            onPress={() => navigation.navigate('Shop')}
+            accessibilityRole="button"
+            accessibilityLabel="Explore fresh recipes"
+          >
+            <UtensilsCrossed size={16} color="#FFFFFF" />
+            <Text style={styles.exploreBtnText}>Explore Fresh Recipes</Text>
+          </TouchableOpacity>
+        ) : shopFallback !== 'hide' ? (
+          <View style={[styles.exploreBtn, { opacity: 0.55 }]} accessibilityRole="text">
+            <UtensilsCrossed size={16} color="#FFFFFF" />
+            <Text style={styles.exploreBtnText}>
+              {shopFallback === 'coming_soon' ? 'Shop Coming Soon' : 'Shop Unavailable'}
+            </Text>
+          </View>
+        ) : null}
       </View>
     );
-  }, [user, isGuest, isAuthError, isNetworkFailure, loading, selectedFilter, logout, navigation, loadOrders]);
+  }, [user, isGuest, isAuthError, isNetworkFailure, loading, selectedFilter, logout, navigation, loadOrders, isShopEnabled, shopFallback]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>

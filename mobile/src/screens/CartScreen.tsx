@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import {
   View,
@@ -57,6 +58,9 @@ const parsePhoneForState = (rawPhone?: string | null): { country: string; digits
 };
 
 export default function CartScreen({ navigation }: any) {
+  // The Shop tab is hidden or disabled when ordering is off, so the empty bowl must not link into it.
+  const isShopEnabled = useFeatureFlag('shop_checkout', true);
+  const shopFallback = useFeatureFlagFallback('shop_checkout');
   const {
     items,
     updateQuantity,
@@ -787,17 +791,28 @@ export default function CartScreen({ navigation }: any) {
           <RNImage source={require('../../assets/toolkit/shop-recipes.webp')} style={styles.emptyIllustration} resizeMode="contain" />
           <Text style={styles.emptyTitle}>Your Pet's Bowl is Empty</Text>
           <Text style={styles.emptySub}>
-            Browse the catalogue in the Kitchen tab to add freshly simmered recipes, broths, and vacuum pouches.
+            {isShopEnabled
+              ? 'Browse the catalogue in the Shop tab to add freshly simmered recipes, broths, and vacuum pouches.'
+              : 'Ordering is not open yet. Check back soon.'}
           </Text>
-          <TouchableOpacity
-            style={styles.exploreBtn}
-            onPress={() => navigation?.navigate('Kitchen')}
-            accessibilityRole="button"
-            accessibilityLabel="Explore kitchen menu"
-          >
-            <PawPrint size={16} color="#FFFFFF" fill="#FFFFFF" />
-            <Text style={styles.exploreBtnText}>Explore Kitchen Menu</Text>
-          </TouchableOpacity>
+          {isShopEnabled ? (
+            <TouchableOpacity
+              style={styles.exploreBtn}
+              onPress={() => navigation?.navigate('Shop')}
+              accessibilityRole="button"
+              accessibilityLabel="Explore kitchen menu"
+            >
+              <PawPrint size={16} color="#FFFFFF" fill="#FFFFFF" />
+              <Text style={styles.exploreBtnText}>Explore Kitchen Menu</Text>
+            </TouchableOpacity>
+          ) : shopFallback !== 'hide' ? (
+            <View style={[styles.exploreBtn, { opacity: 0.55 }]} accessibilityRole="text">
+              <PawPrint size={16} color="#FFFFFF" fill="#FFFFFF" />
+              <Text style={styles.exploreBtnText}>
+                {shopFallback === 'coming_soon' ? 'Shop Coming Soon' : 'Shop Unavailable'}
+              </Text>
+            </View>
+          ) : null}
         </ScrollView>
       ) : (
         <ScrollView

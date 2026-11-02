@@ -67,7 +67,8 @@ export const BrandMedallion = memo(function BrandMedallion({
 });
 
 interface BrandHeaderProps {
-  subtitle?: string;
+  // null hides the status line under the wordmark.
+  subtitle?: string | null;
   medallionSize?: MedallionSize;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -88,12 +89,14 @@ export const BrandHeader = memo(function BrandHeader({
       <BrandMedallion size={medallionSize} />
       <View style={styles.brandTextColumn}>
         <Text style={styles.wordmark} numberOfLines={1}>Hearth & One</Text>
-        <View style={styles.subtitleRow}>
-          <View style={styles.livePulseDot} />
-          <Text style={styles.subtitleText} numberOfLines={1}>
-            {subtitle}
-          </Text>
-        </View>
+        {subtitle !== null && (
+          <View style={styles.subtitleRow}>
+            <View style={styles.livePulseDot} />
+            <Text style={styles.subtitleText} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          </View>
+        )}
       </View>
     </View>
   );

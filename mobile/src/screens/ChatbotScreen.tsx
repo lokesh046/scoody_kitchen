@@ -310,7 +310,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
             {
               id: 'welcome_1',
               role: 'assistant',
-              content: `Woof! I'm **Hearth & One AI**, your certified canine nutrition and veterinary health companion. 🐾${petGreeting}\n\nAsk me anything about fresh cooked recipes, canine allergies, safe foods, or symptoms!`,
+              content: `Woof! I'm **Bravo AI**. 🐾${petGreeting}\n\nGet answers to your pet care questions.`,
               timestamp: new Date().toISOString(),
             },
           ]);
@@ -321,7 +321,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
           {
             id: 'welcome_fallback',
             role: 'assistant',
-            content: `Woof! I'm **Hearth & One AI**, your veterinary diet & wellness assistant. 🐾\n\nHow can I help your pup today?`,
+            content: `Woof! I'm **Bravo AI**. 🐾\n\nGet answers to your pet care questions.`,
             timestamp: new Date().toISOString(),
           },
         ]);
@@ -520,7 +520,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
                   ...msg,
                   content:
                     accumulatedContent ||
-                    `⚠️ ${errorDetail || 'Hearth & One AI service temporarily unreachable. Please check your connection.'}`,
+                    `⚠️ ${errorDetail || 'Bravo is temporarily unreachable. Please check your connection.'}`,
                   isStreaming: false,
                   statusText: undefined,
                 }
@@ -598,7 +598,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
           {/* Assistant Sender Name Pill */}
           {!isUser && (
             <View style={styles.assistantHeaderRow}>
-              <Text style={styles.assistantSenderName}>Hearth & One AI</Text>
+              <Text style={styles.assistantSenderName}>Bravo AI</Text>
               <View style={styles.verifiedPill}>
                 <ShieldCheck size={11} color={COLORS.forestGreen} />
                 <Text style={styles.verifiedText}>Vet Verified</Text>
@@ -665,7 +665,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
             {/* Title & Subtitle Info */}
             <View style={styles.headerInfo}>
               <View style={styles.headerTitleRow}>
-                <Text accessibilityRole="header" style={styles.headerTitle} numberOfLines={1}>AI Assistant</Text>
+                <Text accessibilityRole="header" style={styles.headerTitle} numberOfLines={1}>Talk to Bravo</Text>
               </View>
               <Text style={styles.headerSubtitle} numberOfLines={1}>
                 {isSending
@@ -722,7 +722,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
                 <View style={styles.authLockIcon}>
                   <Lock size={32} color={COLORS.forestGreen} strokeWidth={2.2} />
                 </View>
-                <Text style={styles.authGateTitle}>Sign In to Consult Hearth & One AI</Text>
+                <Text style={styles.authGateTitle}>Sign In to Talk to Bravo</Text>
                 <Text style={styles.authGateSubtitle}>
                   Certified canine nutrition and veterinary health advice is strictly personalized to registered pet parents to protect your account and ensure certified recommendations.
                 </Text>
