@@ -24,7 +24,6 @@ import {
   PawPrint,
   Mail,
   User,
-  ShieldCheck,
   CheckCircle2,
   ArrowRight,
   ArrowLeft,
@@ -357,9 +356,6 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
           {/* Hero Branding Section */}
           <View style={styles.heroSection}>
             <BrandMedallion size="xl" style={{ marginBottom: 14 }} />
-            <Text style={styles.heroSub}>
-              Fresh human-grade canine nutrition & veterinary telemedicine platform.
-            </Text>
           </View>
 
           {/* Main Auth Container */}
@@ -603,13 +599,6 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
             </TouchableOpacity>
           </View>
 
-          {/* Trust Footnote */}
-          <View style={styles.trustRow}>
-            <ShieldCheck size={14} color={COLORS.forestGreen} />
-            <Text style={styles.trustText}>
-              Veterinary Supervised • 100% Human-Grade • 4°C Fresh Delivery
-            </Text>
-          </View>
           </ResponsiveContainer>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -647,7 +636,6 @@ const styles = StyleSheet.create({
   },
   brandPillText: { fontSize: 11, fontFamily: FONT_BODY_BOLD, color: COLORS.brandGold },
   heroSection: { alignItems: 'center', marginBottom: 20 },
-  heroSub: { fontSize: 12, fontFamily: FONT_BODY, color: COLORS.textMuted, textAlign: 'center', lineHeight: 18, maxWidth: 300 },
   authCard: {
     backgroundColor: COLORS.card,
     borderRadius: 20,
@@ -785,12 +773,4 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   successText: { fontSize: 11, color: COLORS.forestGreen, fontFamily: FONT_BODY_BOLD },
-  trustRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 24,
-  },
-  trustText: { fontSize: 10, fontFamily: FONT_BODY, color: COLORS.textMuted },
 });

@@ -40,8 +40,6 @@ import {
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
 import { FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_BODY, FONT_BODY_BOLD, FONT_HEADING_SCRIPT, LEDGER_MONO } from '../theme/typography';
-import FAQSection from '../components/FAQSection';
-import BlogPreviewSection from '../components/BlogPreviewSection';
 import {
   BannerSlideItem,
   ProductFavoriteCard,
@@ -67,6 +65,7 @@ import { fetchUnreadCount } from '../api/notifications';
 import { BASE_URL } from '../api/client';
 import { useResponsive } from '../hooks/useResponsive';
 import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
+import { useFeatureFlagStore } from '../store/featureFlagStore';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import { ToolIcon } from '../components/ToolIcon';
 import { HearthHoundSection } from '../components/HearthHoundSection';
@@ -75,7 +74,7 @@ import { useFocusRefresh } from '../hooks/useFocusRefresh';
 interface CoreService {
   id: string;
   title: string;
-  desc: string;
+  desc?: string;
   image: any;
   actionType: 'navigate' | 'vision' | 'chatbot';
   target?: string;
@@ -85,15 +84,14 @@ const CORE_SERVICES: CoreService[] = [
   {
     id: 'kitchen',
     title: 'Shop Recipes',
-    desc: 'Small-batch, human-grade recipes, blast-frozen for freshness.',
     image: require('../../assets/toolkit/shop-recipes.webp'),
     actionType: 'navigate',
     target: 'Shop',
   },
   {
     id: 'telehealth',
-    title: 'Vet Consults',
-    desc: 'Certified holistic doctors online for video diet consultations.',
+    title: 'Locate Your Vet',
+    desc: 'Find nearby veterinary clinics and connect with the right care for your pet.',
     image: require('../../assets/toolkit/vet-3d.webp'),
     actionType: 'navigate',
     target: 'Consult',
@@ -125,6 +123,11 @@ export default function HomeScreen({ navigation }: any) {
   // matching check — letting someone add to cart or book a vet consult here
   // even while both were flagged off everywhere else in the app.
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
+  // Read straight from the store, like the website: the teaser has to be switched on explicitly in
+  // Admin, so a beta build that forces every other flag on cannot turn it on by itself.
+  const isRecipeComingSoon = useFeatureFlagStore(
+    (state) => state.isLoaded && state.flags.home_recipe_coming_soon?.enabled === true,
+  );
   const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
   const shopFallback = useFeatureFlagFallback('shop_checkout');
   const consultationsFallback = useFeatureFlagFallback('consultations_booking');
@@ -290,7 +293,6 @@ export default function HomeScreen({ navigation }: any) {
   }, [banners]);
 
   const totalCartCount = getTotalItems();
-  const primaryPet = pets.length > 0 ? pets[0] : null;
 
   const { width: windowWidth, isTablet, contentWidth } = useResponsive();
   // ResponsiveContainer adds 24px of padding on each side on tablet, so the
@@ -744,10 +746,7 @@ export default function HomeScreen({ navigation }: any) {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* 1. Header with Logo & Notification Controls */}
       <View style={styles.header}>
-        <BrandHeader
-          subtitle={primaryPet ? `Feeding ${primaryPet.name}` : 'CANINE NUTRITION LEDGER'}
-          medallionSize="sm"
-        />
+        <BrandHeader subtitle={null} medallionSize="sm" />
 
         <View style={styles.headerActionIcons}>
           <TouchableOpacity
@@ -761,6 +760,7 @@ export default function HomeScreen({ navigation }: any) {
             <Search size={18} color={COLORS.textCoffee} />
           </TouchableOpacity>
 
+          {isShopEnabled && (
           <TouchableOpacity
             style={styles.iconCircleBtn}
             onPress={() => handleNavigateScreen('Cart')}
@@ -776,6 +776,7 @@ export default function HomeScreen({ navigation }: any) {
               </View>
             )}
           </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={styles.iconCircleBtn}
@@ -892,7 +893,7 @@ export default function HomeScreen({ navigation }: any) {
             "AI ECOSYSTEM" chip and a restating subtitle were saying the
             same thing twice. */}
         <View style={styles.sectionHeaderRowPlain}>
-          <Text style={styles.sectionTitleLarge}>Hearth & One Care & Services</Text>
+          <Text style={styles.sectionTitleLarge}>Explore Hearth & One</Text>
         </View>
 
         {/* Feature Spotlight: AI Pet Vision Scanner. Reads through a
@@ -905,14 +906,14 @@ export default function HomeScreen({ navigation }: any) {
           onPress={() => setPetVisionVisible(true)}
           activeOpacity={0.88}
           accessibilityRole="button"
-          accessibilityLabel="Scan & Diagnose: open the AI pet vision scanner"
+          accessibilityLabel="Identify Your Pet: open the AI pet vision scanner"
         >
           <View style={styles.visionScanFrame}>
             <ToolIcon source={require('../../assets/toolkit/scan-diagnose.webp')} size={64} />
           </View>
 
           <View style={styles.visionSpotlightCenter}>
-            <Text style={styles.visionSpotlightTitle}>Scan & Diagnose</Text>
+            <Text style={styles.visionSpotlightTitle}>Identify Your Pet</Text>
           </View>
 
           <View style={styles.visionScanArrowBtn}>
@@ -927,9 +928,13 @@ export default function HomeScreen({ navigation }: any) {
           {CORE_SERVICES.filter(
             (srv) =>
               (srv.id !== 'pets' || isKnowYourPetEnabled) &&
-              (srv.id !== 'telehealth' || isConsultationsEnabled || consultationsFallback !== 'hide')
+              (srv.id !== 'telehealth' || isConsultationsEnabled || consultationsFallback !== 'hide') &&
+              (srv.id !== 'kitchen' || isShopEnabled || shopFallback !== 'hide')
           ).map((srv, i, arr) => {
             const isDisabledConsult = srv.target === 'Consult' && !isConsultationsEnabled;
+            const isDisabledShop = srv.target === 'Shop' && !isShopEnabled;
+            const isDisabledRow = isDisabledConsult || isDisabledShop;
+            const rowFallback = isDisabledShop ? shopFallback : consultationsFallback;
             return (
               <TouchableOpacity
                 key={srv.id}
@@ -938,7 +943,14 @@ export default function HomeScreen({ navigation }: any) {
                   i === arr.length - 1 && styles.serviceRowLast,
                 ]}
                 onPress={() => {
-                  if (srv.target === 'Consult') {
+                  if (isDisabledShop) {
+                    Alert.alert(
+                      shopFallback === 'coming_soon' ? 'Coming Soon' : 'Temporarily Unavailable',
+                      shopFallback === 'coming_soon'
+                        ? "Ordering isn't available yet — check back soon!"
+                        : 'Ordering is temporarily unavailable. Please check back later.'
+                    );
+                  } else if (srv.target === 'Consult') {
                     handleFindVetPress();
                   } else if (srv.actionType === 'navigate' && srv.target) {
                     handleNavigateScreen(srv.target);
@@ -951,27 +963,27 @@ export default function HomeScreen({ navigation }: any) {
                 activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityLabel={
-                  isDisabledConsult
-                    ? `${srv.title}: ${consultationsFallback === 'coming_soon' ? 'Coming soon' : 'Temporarily unavailable'}`
-                    : `${srv.title}: ${srv.desc}`
+                  isDisabledRow
+                    ? `${srv.title}: ${rowFallback === 'coming_soon' ? 'Coming soon' : 'Temporarily unavailable'}`
+                    : srv.desc ? `${srv.title}: ${srv.desc}` : srv.title
                 }
               >
-                <ToolIcon source={srv.image} delay={i * 500} dimmed={isDisabledConsult} />
+                <ToolIcon source={srv.image} delay={i * 500} dimmed={isDisabledRow} />
 
                 <View style={styles.serviceRowBody}>
                   <View style={styles.serviceRowTitleRow}>
-                    <Text style={[styles.serviceRowTitle, isDisabledConsult && styles.serviceRowTitleDisabled]}>
+                    <Text style={[styles.serviceRowTitle, isDisabledRow && styles.serviceRowTitleDisabled]}>
                       {srv.title}
                     </Text>
-                    {isDisabledConsult && (
+                    {isDisabledRow && (
                       <View style={styles.serviceRowSoonPill}>
                         <Text style={styles.serviceRowSoonPillText}>
-                          {consultationsFallback === 'coming_soon' ? 'SOON' : 'PAUSED'}
+                          {rowFallback === 'coming_soon' ? 'SOON' : 'PAUSED'}
                         </Text>
                       </View>
                     )}
                   </View>
-                  <Text style={styles.serviceRowDesc} numberOfLines={2}>{srv.desc}</Text>
+                  {!!srv.desc && <Text style={styles.serviceRowDesc} numberOfLines={2}>{srv.desc}</Text>}
                 </View>
 
                 <ChevronRight size={18} color={COLORS.textMuted} />
@@ -980,8 +992,6 @@ export default function HomeScreen({ navigation }: any) {
           })}
         </View>
 
-        {/* Story section, in the web home page's order: the Hearth & Hound
-            teaser, then the recipes. */}
         <HearthHoundSection />
 
         {/* 6. Kitchen Favorites Section */}
@@ -1029,18 +1039,31 @@ export default function HomeScreen({ navigation }: any) {
             nestedScrollEnabled={true}
           >
             {products.map((product) => (
-              <ProductFavoriteCard
-                key={product.id}
-                product={product}
-                inCartItem={cartMap.get(product.id)}
-                isFav={favoriteHearts[product.id] ?? false}
-                onToggleFavorite={toggleFavorite}
-                onAddItem={handleAddToCart}
-                onUpdateQuantity={handleUpdateQuantity}
-                onRemoveItem={handleRemoveCartItem}
-                onSelectProduct={handleSelectProduct}
-                orderingDisabledLabel={shopDisabledLabel}
-              />
+              <View key={product.id}>
+                <View
+                  pointerEvents={isRecipeComingSoon ? 'none' : 'auto'}
+                  style={isRecipeComingSoon ? styles.comingSoonDimmed : undefined}
+                >
+                  <ProductFavoriteCard
+                    product={product}
+                    inCartItem={cartMap.get(product.id)}
+                    isFav={favoriteHearts[product.id] ?? false}
+                    onToggleFavorite={toggleFavorite}
+                    onAddItem={handleAddToCart}
+                    onUpdateQuantity={handleUpdateQuantity}
+                    onRemoveItem={handleRemoveCartItem}
+                    onSelectProduct={handleSelectProduct}
+                    orderingDisabledLabel={isRecipeComingSoon ? 'Coming Soon' : shopDisabledLabel}
+                  />
+                </View>
+                {isRecipeComingSoon && (
+                  <View pointerEvents="none" style={styles.comingSoonOverlay} accessibilityLabel={`${product.name}: Coming soon`}>
+                    <View style={styles.comingSoonBand}>
+                      <Text style={styles.comingSoonText}>Coming soon</Text>
+                    </View>
+                  </View>
+                )}
+              </View>
             ))}
           </ScrollView>
         )}
@@ -1241,28 +1264,12 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* 9. 100% Human-Grade Standard Badge */}
-        <View style={styles.humanGradeBanner}>
-          <View style={styles.shieldCircle}>
-            <ShieldCheck size={20} color={COLORS.forestGreen} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.humanGradeTitle}>100% Human-Grade Standard</Text>
-            <Text style={styles.humanGradeSub}>
-              No fillers, by-products, or artificial preservatives ever.
-            </Text>
-          </View>
-        </View>
-
         {/* Quick Links grid removed — it routed to the exact same four
             screens (Orders/Pets/Consult/Shop) as the Core Services ledger
             shown earlier in this same scroll, under different icons and
             copy, forcing a re-evaluation of choices already made above with
             zero new information. See critique 2026-09-10. */}
 
-        <BlogPreviewSection navigation={navigation} />
-
-        <FAQSection />
         </>
         )}
         </ResponsiveContainer>
@@ -1530,6 +1537,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+  },
+  comingSoonDimmed: {
+    opacity: 0.7,
+  },
+  comingSoonOverlay: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  comingSoonBand: {
+    width: '100%',
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: '#17120E',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(224, 168, 102, 0.45)',
+  },
+  comingSoonText: {
+    fontFamily: FONT_HEADING_SCRIPT,
+    fontSize: 28,
+    color: '#E0A866',
   },
   cartBadge: {
     position: 'absolute',
@@ -2206,37 +2235,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  /* 9. 100% Human-Grade Standard */
-  humanGradeBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#F7EBE4',
-    marginHorizontal: 16,
-    padding: 14,
-    borderRadius: 16,
-    marginBottom: 14,
-  },
-  shieldCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  humanGradeTitle: {
-    fontSize: 13,
-    fontFamily: FONT_DISPLAY_SEMIBOLD,
-    color: COLORS.textCoffee,
-  },
-  humanGradeSub: {
-    fontSize: 11,
-    fontFamily: FONT_BODY,
-    color: COLORS.textMuted,
-    marginTop: 2,
   },
 
 });

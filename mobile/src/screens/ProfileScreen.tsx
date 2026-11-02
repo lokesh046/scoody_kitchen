@@ -221,10 +221,6 @@ export default function ProfileScreen({ navigation }: any) {
     navigation?.navigate('Support');
   }, [navigation]);
 
-  const handleNavigateBlog = useCallback(() => {
-    navigation?.navigate('Blog');
-  }, [navigation]);
-
   const handleNavigatePrivacy = useCallback(() => {
     navigation?.navigate('PrivacyPolicy');
   }, [navigation]);
@@ -289,7 +285,6 @@ export default function ProfileScreen({ navigation }: any) {
             onNavigatePets={handleNavigatePets}
             onNavigateConsult={handleNavigateConsult}
             onNavigateSupport={handleNavigateSupport}
-            onNavigateBlog={handleNavigateBlog}
             onNavigatePrivacy={handleNavigatePrivacy}
             onNavigateTerms={handleNavigateTerms}
             isConsultationsEnabled={isConsultationsEnabled}

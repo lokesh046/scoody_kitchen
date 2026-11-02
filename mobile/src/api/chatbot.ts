@@ -181,11 +181,11 @@ export const streamChatMessage = (
       // message genuinely never got a response, always worth knowing about.
       captureApiError(err, 'chat.fallbackFailed', { alwaysCapture: true });
       if (err.response?.status === 401) {
-        onError('Authentication required or expired. Please log in to chat with Hearth & One AI.');
+        onError('Authentication required or expired. Please log in to chat with Bravo.');
       } else if (isNetworkError(err)) {
         onError('You appear to be offline. Check your connection and try sending your message again.');
       } else {
-        onError(err.response?.data?.detail || 'Could not connect to Hearth & One AI service.');
+        onError(err.response?.data?.detail || 'Could not connect to Bravo.');
       }
       onDone();
     }

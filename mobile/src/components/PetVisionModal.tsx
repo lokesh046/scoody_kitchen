@@ -272,7 +272,6 @@ export default function PetVisionModal({
             </View>
             <View>
               <Text style={styles.headerTitle}>AI Pet Vision Scanner</Text>
-              <Text style={styles.headerSub}>Instant Breed & Nutrition Blueprint</Text>
             </View>
           </View>
           <TouchableOpacity
@@ -330,10 +329,10 @@ export default function PetVisionModal({
                     <Compass size={36} color={COLORS.forestGreen} />
                   </View>
                   <Text style={styles.viewfinderInstruction}>
-                    Snap or upload a photo of your companion
+                    Snap or upload a photo of your pet.
                   </Text>
                   <Text style={styles.viewfinderHint}>
-                    Instant breed identification, superpower radar & custom meal plan
+                    Discover your pet's breed, characteristics, and care needs.
                   </Text>
                 </View>
               </View>
@@ -668,25 +667,20 @@ export default function PetVisionModal({
           {/* Quick Feature Points when no results */}
           {!result && !isScanning && (
             <View style={styles.infoSection}>
-              <Text style={styles.infoSectionHeading}>What Pet Vision Gives You</Text>
-              <View style={styles.infoPoint}>
-                <View style={styles.infoDot} />
-                <Text style={styles.infoPointText}>
-                  Instant breed identification — know exactly what your companion is, in seconds.
-                </Text>
-              </View>
-              <View style={styles.infoPoint}>
-                <View style={styles.infoDot} />
-                <Text style={styles.infoPointText}>
-                  Recognizes Indian native breeds (Indie, Mudhol Hound, Chippiparai) and all international breeds.
-                </Text>
-              </View>
-              <View style={styles.infoPoint}>
-                <View style={styles.infoDot} />
-                <Text style={styles.infoPointText}>
-                  A personalized nutrition blueprint tailored to your dog's breed, metabolism, and coat health — ready immediately.
-                </Text>
-              </View>
+              <Text style={styles.infoSectionHeading}>Learn more about your pet</Text>
+              {[
+                ['Breed & Characteristics', "Identify your pet's breed, type, and key characteristics."],
+                ['Nutrition & Feeding', "Understand your pet's food requirements and nutritional needs."],
+                ['Activity & Care', "Discover your pet's activity requirements and essential care needs."],
+              ].map(([label, text]) => (
+                <View key={label} style={styles.infoPoint}>
+                  <View style={styles.infoDot} />
+                  <Text style={styles.infoPointText}>
+                    <Text style={styles.infoPointLabel}>{label}: </Text>
+                    {text}
+                  </Text>
+                </View>
+              ))}
             </View>
           )}
         </ScrollView>
@@ -1297,5 +1291,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textMuted,
     lineHeight: 17,
+  },
+  infoPointLabel: {
+    fontWeight: '700',
+    color: COLORS.textCoffee,
   },
 });

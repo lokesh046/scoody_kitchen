@@ -183,11 +183,11 @@ export function ScoobyAIFAB({
 
   if (inline) {
     return (
-      <TouchableOpacity style={styles.inlineCard} onPress={openChat} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Open AI assistant">
+      <TouchableOpacity style={styles.inlineCard} onPress={openChat} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Talk to Bravo">
         <AIDogIcon size={40} animated={false} />
         <View style={styles.inlineText}>
-          <Text style={styles.inlineTitle}>Ask your AI assistant</Text>
-          <Text style={styles.inlineSubtitle}>{disabledFallback === 'coming_soon' ? 'Coming soon' : disabledFallback === 'unavailable' ? 'Temporarily unavailable' : 'Nutrition and everyday pet care'}</Text>
+          <Text style={styles.inlineTitle}>Talk to Bravo</Text>
+          <Text style={styles.inlineSubtitle}>{disabledFallback === 'coming_soon' ? 'Coming soon' : disabledFallback === 'unavailable' ? 'Temporarily unavailable' : 'Get answers to your pet care questions.'}</Text>
         </View>
         <Text style={styles.inlineArrow} accessibilityElementsHidden importantForAccessibility="no">→</Text>
       </TouchableOpacity>
@@ -206,8 +206,8 @@ export function ScoobyAIFAB({
           accessibilityHint="Drag to move this button"
           accessibilityLabel={
             disabledFallback
-              ? `Hearth & One AI chat assistant — ${disabledFallback === 'coming_soon' ? 'coming soon' : 'temporarily unavailable'}`
-              : 'Open Hearth & One AI chat assistant'
+              ? `Talk to Bravo — ${disabledFallback === 'coming_soon' ? 'coming soon' : 'temporarily unavailable'}`
+              : 'Talk to Bravo'
           }
           onAccessibilityTap={openChat}
         >
