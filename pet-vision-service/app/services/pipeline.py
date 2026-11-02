@@ -20,6 +20,14 @@ MODEL_PATH = os.path.join(BASE_DIR, "models", "pet_classifier.onnx")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
 
+# Hostinger AI Router: OpenAI-compatible gateway tried first for the photo scan. Google's own API stays
+# as the second route, so one provider timing out no longer fails the scan.
+HOSTINGER_AI_ROUTER_API_KEY = os.getenv("HOSTINGER_AI_ROUTER_API_KEY")
+HOSTINGER_AI_ROUTER_BASE_URL = os.getenv("HOSTINGER_AI_ROUTER_BASE_URL", "https://router.hostinger.com/v1")
+HOSTINGER_AI_ROUTER_VISION_MODEL = os.getenv("HOSTINGER_AI_ROUTER_VISION_MODEL", "gemini-3.1-flash-lite")
+ROUTER_TIMEOUT_SECONDS = float(os.getenv("VISION_ROUTER_TIMEOUT", "10"))
+GOOGLE_TIMEOUT_SECONDS = float(os.getenv("VISION_GOOGLE_TIMEOUT", "12"))
+
 
 class PetVisionPipeline:
     def __init__(self, model_path: str = MODEL_PATH):
@@ -53,14 +61,8 @@ class PetVisionPipeline:
         arr = arr.transpose(2, 0, 1)
         return np.expand_dims(arr, axis=0).astype(np.float32)
 
-    def _predict_with_gemini(self, image_bytes: bytes, mime_type: str = "image/jpeg") -> ClassificationResponse | None:
-        """Query Gemini Vision API with tailored Indian & Western breed understanding."""
-        if not GEMINI_API_KEY:
-            return None
-
-        start_time = time.perf_counter()
-        b64_img = base64.b64encode(image_bytes).decode("utf-8")
-
+    def _build_prompt(self) -> str:
+        """The breed-identification prompt, tuned for Indian and Western breeds."""
         prompt = (
             "You are an expert veterinary companion animal specialist for Hearth & One, an honest small-batch pet wellness and fresh meal company in India.\n\n"
             "Analyze the uploaded image and determine:\n"
@@ -104,76 +106,135 @@ class PetVisionPipeline:
             '  "error_message": null\n'
             "}"
         )
+        return prompt
 
+    @staticmethod
+    def _extract_json(raw_text: str) -> dict:
+        """Parses the model's reply, tolerating a ```json fence around it."""
+        text = (raw_text or "").strip()
+        if text.startswith("```"):
+            text = text.strip("`")
+            if text.lower().startswith("json"):
+                text = text[4:]
+        return json.loads(text.strip())
+
+    def _call_router(self, prompt: str, b64_img: str, mime_type: str) -> str:
+        """One scan through the Hostinger AI Router (OpenAI-compatible chat completions)."""
+        payload = {
+            "model": HOSTINGER_AI_ROUTER_VISION_MODEL,
+            "messages": [{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64_img}"}},
+                ],
+            }],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.2,
+            "max_tokens": 1500,
+        }
+        headers = {
+            "Authorization": f"Bearer {HOSTINGER_AI_ROUTER_API_KEY}",
+            # The router's firewall rejects clients that send no recognisable user agent.
+            "User-Agent": "HearthOneVision/1.0",
+        }
+        started = time.perf_counter()
+        with httpx.Client(timeout=ROUTER_TIMEOUT_SECONDS) as client:
+            resp = client.post(f"{HOSTINGER_AI_ROUTER_BASE_URL}/chat/completions", json=payload, headers=headers)
+        resp.raise_for_status()
+        body = resp.json()
+        usage = body.get("usage") or {}
+        # Counts only, never the photo or the answer: lets the real cost per scan be tracked from the logs.
+        print(
+            f"🐾 Vision via Hostinger router ({HOSTINGER_AI_ROUTER_VISION_MODEL}): "
+            f"prompt_tokens={usage.get('prompt_tokens')} completion_tokens={usage.get('completion_tokens')} "
+            f"total_tokens={usage.get('total_tokens')} latency_ms={round((time.perf_counter() - started) * 1000)}"
+        )
+        return body["choices"][0]["message"]["content"]
+
+    def _call_google(self, prompt: str, b64_img: str, mime_type: str) -> str:
+        """One scan through Google's Gemini API directly (the second route)."""
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
         payload = {
             "contents": [{
                 "parts": [
                     {"text": prompt},
-                    {"inline_data": {"mime_type": mime_type, "data": b64_img}}
+                    {"inline_data": {"mime_type": mime_type, "data": b64_img}},
                 ]
             }],
-            "generationConfig": {
-                "response_mime_type": "application/json"
-            }
+            "generationConfig": {"response_mime_type": "application/json"},
         }
+        with httpx.Client(timeout=GOOGLE_TIMEOUT_SECONDS) as client:
+            resp = client.post(url, json=payload)
+        resp.raise_for_status()
+        return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
 
-        try:
-            with httpx.Client(timeout=12.0) as client:
-                resp = client.post(url, json=payload)
-                if resp.status_code == 200:
-                    raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
-                    data = json.loads(raw_text)
+    def _build_response(self, data: dict, start_time: float) -> ClassificationResponse:
+        elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
-                    elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+        if not data.get("is_pet", False):
+            return ClassificationResponse(
+                success=True,
+                is_pet=False,
+                error_message="No companion dog or cat detected. Please take a clear photo of your pet.",
+                processing_time_ms=elapsed_ms,
+            )
 
-                    if not data.get("is_pet", False):
-                        return ClassificationResponse(
-                            success=True,
-                            is_pet=False,
-                            error_message="No companion dog or cat detected. Please take a clear photo of your pet.",
-                            processing_time_ms=elapsed_ms,
-                        )
+        # Parse top matches
+        matches = []
+        for m in data.get("top_matches", []):
+            matches.append(
+                BreedMatch(
+                    breed=m.get("breed", data.get("primary_breed", "Companion")),
+                    confidence=float(m.get("confidence", 0.9)),
+                    species=m.get("species", data.get("species", "Dog")),
+                )
+            )
 
-                    # Parse top matches
-                    matches = []
-                    for m in data.get("top_matches", []):
-                        matches.append(
-                            BreedMatch(
-                                breed=m.get("breed", data.get("primary_breed", "Companion")),
-                                confidence=float(m.get("confidence", 0.9)),
-                                species=m.get("species", data.get("species", "Dog")),
-                            )
-                        )
+        care_data = data.get("care_insights", {})
+        care = CareInsights(
+            temperament=care_data.get("temperament", "Loving, loyal companion"),
+            adult_size_category=care_data.get("adult_size_category", "Medium (12 - 22 kg)"),
+            nutritional_focus=care_data.get("nutritional_focus", "Complete balanced fresh meals"),
+            recommended_recipe=care_data.get("recommended_recipe", "Slow-Simmered Chicken & Garden Vegetables Medley"),
+            health_watch=care_data.get("health_watch", ["Coat shine", "Joint agility"]),
+        )
 
-                    care_data = data.get("care_insights", {})
-                    care = CareInsights(
-                        temperament=care_data.get("temperament", "Loving, loyal companion"),
-                        adult_size_category=care_data.get("adult_size_category", "Medium (12 - 22 kg)"),
-                        nutritional_focus=care_data.get("nutritional_focus", "Complete balanced fresh meals"),
-                        recommended_recipe=care_data.get("recommended_recipe", "Slow-Simmered Chicken & Garden Vegetables Medley"),
-                        health_watch=care_data.get("health_watch", ["Coat shine", "Joint agility"]),
-                    )
+        primary_breed = data.get("primary_breed", "Companion")
+        species = data.get("species", "Dog")
+        heritage = get_breed_heritage(primary_breed, species)
 
-                    primary_breed = data.get("primary_breed", "Companion")
-                    species = data.get("species", "Dog")
-                    heritage = get_breed_heritage(primary_breed, species)
+        return ClassificationResponse(
+            success=True,
+            is_pet=True,
+            species=species,
+            primary_breed=primary_breed,
+            confidence=float(data.get("confidence", 0.95)),
+            top_matches=matches,
+            care_insights=care,
+            heritage=heritage,
+            processing_time_ms=elapsed_ms,
+        )
 
-                    return ClassificationResponse(
-                        success=True,
-                        is_pet=True,
-                        species=species,
-                        primary_breed=primary_breed,
-                        confidence=float(data.get("confidence", 0.95)),
-                        top_matches=matches,
-                        care_insights=care,
-                        heritage=heritage,
-                        processing_time_ms=elapsed_ms,
-                    )
-        except Exception as e:
-            print(f"⚠️ Gemini Vision request failed, falling back to local ONNX: {e}")
+    def _predict_with_vision_models(self, image_bytes: bytes, mime_type: str = "image/jpeg") -> ClassificationResponse | None:
+        """Tries the Hostinger router first, then Google directly. None means both routes failed."""
+        tiers = []
+        if HOSTINGER_AI_ROUTER_API_KEY:
+            tiers.append(("Hostinger router", self._call_router))
+        if GEMINI_API_KEY:
+            tiers.append(("Google Gemini", self._call_google))
+        if not tiers:
             return None
 
+        start_time = time.perf_counter()
+        b64_img = base64.b64encode(image_bytes).decode("utf-8")
+        prompt = self._build_prompt()
+        for name, call in tiers:
+            try:
+                data = self._extract_json(call(prompt, b64_img, mime_type))
+                return self._build_response(data, start_time)
+            except Exception as e:
+                print(f"⚠️ Vision request via {name} failed, trying the next route: {type(e).__name__}: {e}")
         return None
 
     def _predict_with_onnx(self, image_bytes: bytes) -> ClassificationResponse:
@@ -257,8 +318,8 @@ class PetVisionPipeline:
 
     def predict_from_bytes(self, image_bytes: bytes, mime_type: str = "image/jpeg") -> ClassificationResponse:
         """Hybrid prediction: Gemini Flash for Indian & Western accuracy, ONNX for offline fallback."""
-        # 1. Try Gemini Vision First (Highest accuracy on Indian & Western breeds)
-        res = self._predict_with_gemini(image_bytes, mime_type)
+        # 1. Try the vision models first (Hostinger router, then Google directly)
+        res = self._predict_with_vision_models(image_bytes, mime_type)
         if res is not None:
             return res
 
