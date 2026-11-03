@@ -725,7 +725,7 @@ export const PetDossierModal = memo(function PetDossierModal({
           <View style={petCardStyles.modalHeader}>
             <View>
               <Text style={petCardStyles.modalTitle}>
-                {mode === 'add' ? 'Register Companion Dossier' : 'Edit Pet Profile'}
+                {mode === 'add' ? 'Register Companion' : 'Edit Pet Profile'}
               </Text>
               <Text style={petCardStyles.modalSubtitle}>
                 {mode === 'add'

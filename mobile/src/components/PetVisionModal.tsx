@@ -278,7 +278,7 @@ export default function PetVisionModal({
               <Sparkles size={18} color={COLORS.brandGold} />
             </View>
             <View>
-              <Text style={styles.headerTitle}>AI Pet Vision Scanner</Text>
+              <Text style={styles.headerTitle}>Know Your Pet</Text>
             </View>
           </View>
           <TouchableOpacity
