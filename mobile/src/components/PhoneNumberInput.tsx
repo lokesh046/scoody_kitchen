@@ -27,6 +27,9 @@ interface PhoneNumberInputProps {
 // Country-code-aware phone entry: a searchable flag/dial-code picker next
 // to a plain digits field, instead of a single input with a hardcoded "+91"
 // label. Used anywhere a user enters a phone number for verification.
+// A phone number has at most 15 digits (E.164). Longer text, e.g. a pasted block of numbers, is cut to 15.
+const MAX_PHONE_DIGITS = 15;
+
 export function PhoneNumberInput({
   country,
   onCountryChange,
@@ -83,7 +86,7 @@ export function PhoneNumberInput({
       <TextInput
         style={styles.input}
         value={nationalNumber}
-        onChangeText={(val) => onNationalNumberChange(val.replace(/\D/g, ''))}
+        onChangeText={(val) => onNationalNumberChange(val.replace(/\D/g, '').slice(0, MAX_PHONE_DIGITS))}
         placeholder={placeholder}
         placeholderTextColor="#A8998C"
         keyboardType="number-pad"
