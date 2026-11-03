@@ -64,7 +64,7 @@ import { BrandHeader } from '../components/BrandLogo';
 import { fetchUnreadCount } from '../api/notifications';
 import { BASE_URL } from '../api/client';
 import { useResponsive } from '../hooks/useResponsive';
-import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
+import { useFeatureFlag, useFeatureFlagFallback, useVetEntryEnabled, useVetEntryFallback } from '../hooks/useFeatureFlag';
 import { useFeatureFlagStore } from '../store/featureFlagStore';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import { ToolIcon } from '../components/ToolIcon';
@@ -134,9 +134,9 @@ export default function HomeScreen({ navigation }: any) {
   const isReviewsHidden = useFeatureFlagStore(
     (state) => state.isLoaded && state.flags.home_reviews?.enabled === false,
   );
-  const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  const isConsultationsEnabled = useVetEntryEnabled();
   const shopFallback = useFeatureFlagFallback('shop_checkout');
-  const consultationsFallback = useFeatureFlagFallback('consultations_booking');
+  const consultationsFallback = useVetEntryFallback();
   // The Add button itself always shows a disabled state when ordering is
   // off, whatever the fallback — 'hide' only applies to secondary elements
   // like the "View Full Product Ledger" link below, never to leaving the

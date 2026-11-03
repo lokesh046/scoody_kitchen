@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchActiveBanners } from '../api/banners';
-import { useFeatureFlag } from '../hooks/useFeatureFlag';
+import { useFeatureFlag, useVetEntryEnabled } from '../hooks/useFeatureFlag';
 
 // Default fallback banners matching the user's custom designs with 4K ultra-high resolution
 const fallbackBanners: any[] = [
@@ -63,7 +63,7 @@ export const HomeBannerCarousel: React.FC = () => {
   const autoPlayTimerRef = useRef<any>(null);
 
   // Feature Flags
-  const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  const isConsultationsEnabled = useVetEntryEnabled();
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);

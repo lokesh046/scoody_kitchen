@@ -116,3 +116,12 @@ export const useVetAccess = (): VetAccess => {
   const f = isError ? undefined : (flags as any);
   return computeVetAccess(sideState(f, 'consultations_booking'), sideState(f, 'consultations_gps_locator'));
 };
+
+// For pages that only SHOW a link or card to the vet area (home, landing pages, footer): it counts as
+// available when either side is on, and carries the "off" kind otherwise. Booking-specific places
+// (doctor dashboard, "book a consultation" buttons) keep reading consultations_booking directly.
+export const useVetEntryEnabled = (): boolean => !useVetAccess().blocked;
+export const useVetEntryFallback = (): FeatureFallbackBehavior => {
+  const v = useVetAccess();
+  return v.blocked && v.navVisible ? v.blockedVariant : 'hide';
+};

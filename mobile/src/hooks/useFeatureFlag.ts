@@ -46,3 +46,11 @@ export const useVetAccess = (): VetAccess => {
   };
   return computeVetAccess(side('consultations_booking'), side('consultations_gps_locator'));
 };
+
+// For screens that only SHOW a card or link to the vet area (home): available when either side is on,
+// and carries the "off" kind otherwise. Booking-specific places keep reading consultations_booking.
+export const useVetEntryEnabled = (): boolean => !useVetAccess().blocked;
+export const useVetEntryFallback = (): FeatureFallbackBehavior => {
+  const v = useVetAccess();
+  return v.blocked && v.navVisible ? v.blockedVariant : 'hide';
+};
