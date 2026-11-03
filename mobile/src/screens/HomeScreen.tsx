@@ -224,9 +224,9 @@ export default function HomeScreen({ navigation }: any) {
       {
         targetRef: vetCardRef,
         icon: Stethoscope,
-        title: 'Vet-backed, always',
+        title: 'Made with care',
         description:
-          'Every recipe is formulated with veterinary guidance, and certified vets are a tap away whenever you need advice.',
+          'Thoughtfully made recipes for your dog, with care at every step.',
       },
       {
         icon: PawPrint,
@@ -328,11 +328,11 @@ export default function HomeScreen({ navigation }: any) {
           const isConsultation = (b.link_url || '').includes('consult');
           return {
             id: String(b.id),
-            title: b.title || 'Hand-crafted fresh meals & herbal supplements',
+            title: b.title || 'Wholesome meals for your dog',
             subtitle:
               b.subtitle ||
-              'Steamed small-batch holistic nutrition crafted daily by clinical pet nutritionists and herbalists.',
-            ctaText: isConsultation ? 'Book Consultation' : 'Explore Spring Menu',
+              'Small-batch recipes made with care for your dog.',
+            ctaText: isConsultation ? 'Book Consultation' : 'Explore Recipes',
             targetScreen: isConsultation ? 'Consult' : 'Shop',
             bgImage: b.image_url || HERO_BANNERS[0].bgImage,
           };
@@ -1001,7 +1001,7 @@ export default function HomeScreen({ navigation }: any) {
           </View>
           <View style={styles.vetFormulatedBadge}>
             <Heart size={12} color={COLORS.forestGreen} />
-            <Text style={styles.vetFormulatedText}>VET FORMULATED</Text>
+            <Text style={styles.vetFormulatedText}>MADE WITH CARE</Text>
           </View>
         </View>
 
@@ -1127,7 +1127,7 @@ export default function HomeScreen({ navigation }: any) {
 
             <Text style={styles.telehealthSubtitle}>
               {isConsultationsEnabled
-                ? 'Certified vets, ready in minutes.'
+                ? 'Talk to a vet, ready in minutes.'
                 : consultationsFallback === 'coming_soon'
                 ? "Online booking isn't open yet — check back soon."
                 : 'Online booking is temporarily unavailable.'}
@@ -1393,7 +1393,7 @@ export default function HomeScreen({ navigation }: any) {
                           : homeCardStyles.productTypeText,
                       ]}
                     >
-                      {selectedReviewModal.type === 'doctor' ? 'Vet Consult' : 'Fresh Meal'}
+                      {selectedReviewModal.type === 'doctor' ? 'Vet Consult' : 'Recipe'}
                     </Text>
                   </View>
                 </View>

@@ -53,7 +53,7 @@ import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 
 const QUICK_PROMPTS = [
   'Can dogs eat blueberries?',
-  'Transition to fresh cooked food?',
+  "How do I switch my dog's food?",
   'Best recipe for skin allergies?',
   'Daily calorie needs for my dog',
   'Safe vegetables & toxic foods list',
@@ -121,7 +121,7 @@ function TypingIndicator({ statusText }: { statusText?: string }) {
           <Animated.View style={[styles.dot, { opacity: dot3, transform: [{ scale: dot3 }] }]} />
         </View>
         <Text style={styles.typingText}>
-          {statusText || 'Hearth & One is consulting veterinary ledger...'}
+          {statusText || 'Bravo is thinking...'}
         </Text>
       </View>
     </View>
@@ -428,7 +428,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
       content: '',
       timestamp: new Date().toISOString(),
       isStreaming: true,
-      statusText: 'Hearth & One is consulting veterinary ledger...',
+      statusText: 'Bravo is thinking...',
     };
 
     setMessages((prev) => [...prev, userMessage, assistantMessage]);
@@ -601,7 +601,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
               <Text style={styles.assistantSenderName}>Bravo AI</Text>
               <View style={styles.verifiedPill}>
                 <ShieldCheck size={11} color={COLORS.forestGreen} />
-                <Text style={styles.verifiedText}>Vet Verified</Text>
+                <Text style={styles.verifiedText}>AI Assistant</Text>
               </View>
             </View>
           )}
@@ -724,7 +724,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
                 </View>
                 <Text style={styles.authGateTitle}>Sign In to Talk to Bravo</Text>
                 <Text style={styles.authGateSubtitle}>
-                  Certified canine nutrition and veterinary health advice is strictly personalized to registered pet parents to protect your account and ensure certified recommendations.
+                  Answers are personalized to your pet, so please sign in to talk to Bravo.
                 </Text>
                 <TouchableOpacity
                   style={styles.authGateBtn}
@@ -832,7 +832,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
                   </View>
                   <TextInput
                     style={styles.textInput}
-                    placeholder="Ask Hearth & One about diet, symptoms, recipes..."
+                    placeholder="Ask Bravo about your pet's care..."
                     placeholderTextColor="#8696A0"
                     value={inputText}
                     onChangeText={setInputText}

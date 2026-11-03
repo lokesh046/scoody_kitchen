@@ -218,7 +218,7 @@ export const ProfileStatsMatrix = memo(function ProfileStatsMatrix({
       <View style={profileCardStyles.statBox}>
         <RNImage source={require('../../assets/toolkit/my-orders.webp')} style={profileCardStyles.statIcon} resizeMode="contain" />
         <Text style={profileCardStyles.statNumber}>{ordersCount}</Text>
-        <Text style={profileCardStyles.statLabel}>Fresh Orders</Text>
+        <Text style={profileCardStyles.statLabel}>Orders</Text>
       </View>
     </View>
   );
@@ -426,10 +426,10 @@ export const NutritionPledgeCard = memo(function NutritionPledgeCard() {
     <View style={profileCardStyles.infoCard}>
       <RNImage source={require('../../assets/toolkit/shop-recipes.webp')} style={profileCardStyles.infoIcon} resizeMode="contain" />
       <View style={{ flex: 1 }}>
-        <Text style={profileCardStyles.infoTitle}>Canine Nutrition Quality Pledge</Text>
+        <Text style={profileCardStyles.infoTitle}>Our Pledge</Text>
         <Text style={profileCardStyles.infoBody}>
-          Every ingredient percentage is transparently stamped in the database
-          ledger. Zero starch fillers, zero meal powders, cooked below 85°C.
+          We are open about what goes into every recipe, so you always know
+          what your dog is eating.
         </Text>
       </View>
     </View>

@@ -306,7 +306,7 @@ export default function MealPlannerScreen({ navigation }: any) {
               <View style={styles.welcomeIconCircle}>
                 <AIDogIcon size={52} />
               </View>
-              <Text style={styles.welcomeEyebrow}>Hearth & One Nutritionist</Text>
+              <Text style={styles.welcomeEyebrow}>Hearth & One Meal Planner</Text>
               <Text style={styles.welcomeTitle}>Tailor the Perfect Recipe</Text>
               <Text style={styles.welcomeSub}>
                 Enter your dog's diagnostics to calculate customized daily caloric demands and discover the optimal nutritional formula suited to their body condition.

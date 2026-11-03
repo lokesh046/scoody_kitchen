@@ -113,7 +113,7 @@ const OrderCardItem = memo(function OrderCardItem({ order, onSelect, cardWidth }
             </View>
           ))
         ) : (
-          <Text style={styles.emptyItemsText}>Fresh Canine Recipe Order</Text>
+          <Text style={styles.emptyItemsText}>Recipe Order</Text>
         )}
         {order.items && order.items.length > 3 && (
           <Text style={styles.moreItemsText}>
@@ -334,7 +334,7 @@ export default function OrdersScreen({ navigation }: any) {
         </Text>
         <Text style={styles.emptySub}>
           {isShopEnabled
-            ? 'Fresh, veterinarian-designed canine recipes prepared in small batches are ready in the kitchen.'
+            ? 'Browse our recipes to place your first order.'
             : 'Your orders will show up here as soon as ordering opens.'}
         </Text>
         {isShopEnabled ? (
@@ -342,10 +342,10 @@ export default function OrdersScreen({ navigation }: any) {
             style={styles.exploreBtn}
             onPress={() => navigation.navigate('Shop')}
             accessibilityRole="button"
-            accessibilityLabel="Explore fresh recipes"
+            accessibilityLabel="Explore recipes"
           >
             <UtensilsCrossed size={16} color="#FFFFFF" />
-            <Text style={styles.exploreBtnText}>Explore Fresh Recipes</Text>
+            <Text style={styles.exploreBtnText}>Explore Recipes</Text>
           </TouchableOpacity>
         ) : shopFallback !== 'hide' ? (
           <View style={[styles.exploreBtn, { opacity: 0.55 }]} accessibilityRole="text">
