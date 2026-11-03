@@ -119,7 +119,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       const tempItem: CartItemResponse = {
         id: Date.now(), // Temporary unique id
         product_id: productId,
-        name: productMeta?.name || 'Fresh Canine Recipe',
+        name: productMeta?.name || 'Canine Recipe',
         description: productMeta?.description || null,
         price: itemPrice,
         quantity,

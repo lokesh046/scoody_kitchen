@@ -4,6 +4,7 @@ import { refreshAuthTokenSilently } from './client';
 import { resolveHost } from './resolveHost';
 import { captureApiError } from '../services/sentry';
 import { isNetworkError } from '../store/networkStore';
+import { optionalDetail } from '../utils/errorDetail';
 
 export const getChatbotBaseUrl = (): string => resolveHost(8002, process.env.EXPO_PUBLIC_CHATBOT_URL);
 
@@ -118,7 +119,7 @@ export const streamChatMessage = (
           } else if (data.type === 'products') {
             onProducts?.(data.products || []);
           } else if (data.type === 'error') {
-            onError(data.detail || 'Streaming error');
+            onError(optionalDetail(data.detail) || 'Streaming error');
           } else if (data.type === 'done') {
             isDone = true;
             onDone();
@@ -185,7 +186,7 @@ export const streamChatMessage = (
       } else if (isNetworkError(err)) {
         onError('You appear to be offline. Check your connection and try sending your message again.');
       } else {
-        onError(err.response?.data?.detail || 'Could not connect to Bravo.');
+        onError(optionalDetail(err.response?.data?.detail) || 'Could not connect to Bravo.');
       }
       onDone();
     }

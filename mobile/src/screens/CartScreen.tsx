@@ -395,7 +395,7 @@ export default function CartScreen({ navigation }: any) {
     }
 
     if (items.length === 0) {
-      Alert.alert('Bowl is Empty', 'Please add fresh recipes to your bowl before proceeding.');
+      Alert.alert('Bowl is Empty', 'Please add recipes to your bowl before proceeding.');
       return;
     }
 
@@ -458,7 +458,7 @@ export default function CartScreen({ navigation }: any) {
     if (!user) {
       Alert.alert(
         'Sign In Required',
-        'Please sign in to your Pet Parent account to complete your fresh food order.',
+        'Please sign in to your Pet Parent account to complete your order.',
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Sign In', onPress: () => navigation?.navigate('Profile') },
@@ -907,7 +907,7 @@ export default function CartScreen({ navigation }: any) {
       {createdOrder && createdOrder.razorpay_order_id && createdOrder.razorpay_key_id && (
         <RazorpayModal
           visible={showRazorpayModal}
-          description={`Fresh Canine Meal Order #${createdOrder.id}`}
+          description={`Canine Meal Order #${createdOrder.id}`}
           razorpayOrderId={createdOrder.razorpay_order_id}
           razorpayKeyId={createdOrder.razorpay_key_id}
           amount={Number(createdOrder.total_amount) || total}

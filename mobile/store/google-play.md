@@ -68,7 +68,7 @@ Based on the in-app privacy policy. Where the policy and the form disagree, the 
 | Purchase history (Financial info) | Yes | No | No | App functionality |
 | Approximate location | Yes | No | Yes | App functionality (nearby vets) |
 | Precise location | Yes | No | Yes | App functionality (address autofill, nearby vets) |
-| Photos | Yes | No | Yes | App functionality (pet photos, profile photo, review photo) |
+| Photos | Yes | With AI service providers (Hostinger AI router, Google Gemini) for the pet scan; they act as service providers, so Google treats this as processing on our behalf | Yes | App functionality (pet photos, profile photo, review photo, pet breed scan) |
 | Videos | Yes | Video-call provider (service provider) | Yes | App functionality (vet consultation) |
 | Voice or sound recordings | Yes | Video-call provider (service provider) | Yes | App functionality (vet consultation) |
 | Other in-app messages | Yes | No | Yes | App functionality (support tickets, AI assistant) |

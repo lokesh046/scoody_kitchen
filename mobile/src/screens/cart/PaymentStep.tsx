@@ -132,7 +132,7 @@ export const PaymentStep = memo(function PaymentStep({
             </Text>
           </View>
           <Text style={styles.scheduleDetailsText}>
-            Fresh batches are cooked daily and packed at 4°C with food-grade dry ice pouches. Dispatched via Shiprocket Refrigerated Courier directly to your doorstep.
+            Meals are packed for safe delivery and dispatched via Shiprocket directly to your doorstep.
           </Text>
         </View>
       </View>
@@ -141,7 +141,7 @@ export const PaymentStep = memo(function PaymentStep({
       <View style={styles.billCard}>
         <Text style={styles.billHeading}>Pricing Ledger</Text>
         <View style={styles.billRow}>
-          <Text style={styles.billLabel}>Fresh Meals Subtotal</Text>
+          <Text style={styles.billLabel}>Subtotal</Text>
           <Text style={styles.billVal}>₹{subtotal.toFixed(2)}</Text>
         </View>
 
@@ -195,7 +195,7 @@ export const PaymentStep = memo(function PaymentStep({
           <View style={styles.prepaidNoticeRow}>
             <Info size={13} color={COLORS.textMuted} />
             <Text style={styles.prepaidNoticeText}>
-              Prepaid Only: Cold-chain fresh food is prepared on-demand and dispatched at 4°C with dry ice; Cash on Delivery (COD) is not supported for perishable safety.
+              Prepaid Only: Cash on Delivery (COD) is not supported for perishable food.
             </Text>
           </View>
 

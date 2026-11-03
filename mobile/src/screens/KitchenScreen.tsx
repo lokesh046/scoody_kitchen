@@ -652,7 +652,7 @@ export default function KitchenScreen({ navigation, route }: any) {
   };
 
   const handlePickReviewImage = async () => {
-    Alert.alert('Attach Photo', 'Share a photo of your companion or fresh recipe bowl', [
+    Alert.alert('Attach Photo', 'Share a photo of your companion or recipe bowl', [
       {
         text: 'Take Photo',
         onPress: async () => {
@@ -894,7 +894,7 @@ export default function KitchenScreen({ navigation, route }: any) {
       return (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={COLORS.forestGreen} />
-          <Text style={styles.loadingText}>Fetching fresh recipes...</Text>
+          <Text style={styles.loadingText}>Loading recipes...</Text>
         </View>
       );
     }
@@ -1127,7 +1127,7 @@ export default function KitchenScreen({ navigation, route }: any) {
                       <Text style={styles.modalCategoryBadge}>{selectedRecipe.category.name}</Text>
                     )}
                     <Text style={styles.modalDescription}>
-                      {selectedRecipe.description || 'Veterinary formulated complete canine fresh meal.'}
+                      {selectedRecipe.description || 'A complete meal for your dog.'}
                     </Text>
 
                     {/* Pack Size Selector */}
@@ -1468,7 +1468,7 @@ export default function KitchenScreen({ navigation, route }: any) {
               <Text style={styles.inputLabel}>Title (Optional)</Text>
               <TextInput
                 style={styles.formInput}
-                placeholder="e.g. Loved the fresh ingredients!"
+                placeholder="e.g. My dog loved it!"
                 placeholderTextColor={COLORS.textLight}
                 value={newReviewTitle}
                 onChangeText={setNewReviewTitle}

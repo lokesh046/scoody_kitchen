@@ -95,7 +95,7 @@ export const ConsultationCardItem = memo(function ConsultationCardItem({
           <Text style={styles.doctorName}>
             {doc?.user?.first_name
               ? `Dr. ${doc.user.first_name} ${doc.user.last_name || ''}`.trim()
-              : 'Certified Veterinary Specialist'}
+              : 'Veterinary Specialist'}
           </Text>
           <Text style={styles.doctorSpec}>
             {doc?.specialization || 'Clinical Nutritionist'}

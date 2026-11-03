@@ -10,9 +10,10 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import {
   Sparkles,
   Camera,
@@ -45,6 +46,7 @@ import { COLORS } from '../theme/colors';
 import { classifyPetPhoto, ClassificationResponse, BreedHeritage } from '../api/vision';
 import PassportContent, { PassportFormat } from './PassportContent';
 import { FeaturePrivacyNote } from './FeaturePrivacyNote';
+import { optionalDetail } from '../utils/errorDetail';
 
 interface PetVisionModalProps {
   visible: boolean;
@@ -169,7 +171,7 @@ export default function PetVisionModal({
     } catch (err: any) {
       console.warn('Classification error:', err);
       setScanError(
-        err.response?.data?.detail ||
+        optionalDetail(err.response?.data?.detail) ||
           err.message ||
           'Failed to connect to Pet Vision AI. Ensure the service is running.'
       );
@@ -263,6 +265,11 @@ export default function PetVisionModal({
       transparent={false}
       onRequestClose={onClose}
     >
+      {/* A Modal renders outside the app's layout, so on iPhone the notch/Dynamic Island
+          inset is lost unless the modal carries its own SafeAreaProvider. */}
+      <SafeAreaProvider>
+      {/* The screen behind has a dark header, which leaves the clock/battery white; this popup is light. */}
+      <StatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
@@ -271,7 +278,7 @@ export default function PetVisionModal({
               <Sparkles size={18} color={COLORS.brandGold} />
             </View>
             <View>
-              <Text style={styles.headerTitle}>AI Pet Vision Scanner</Text>
+              <Text style={styles.headerTitle}>Know Your Pet</Text>
             </View>
           </View>
           <TouchableOpacity
@@ -371,7 +378,7 @@ export default function PetVisionModal({
           {!result && !isScanning && (
             <View style={{ marginTop: 14 }}>
               <FeaturePrivacyNote
-                text="Your photo is analyzed by our own on-device breed model — only the resulting breed label, not the photo, is sent to Gemini to generate care insights."
+                text="To identify your pet, your photo is sent securely to our AI partners (Hostinger's AI router, which uses Google's Gemini). We don't keep the photo after the scan unless you save it to your pet's profile."
                 onPressFullPolicy={() => navigation.navigate('PrivacyPolicy' as never)}
               />
             </View>
@@ -704,6 +711,7 @@ export default function PetVisionModal({
           </View>
         )}
       </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }

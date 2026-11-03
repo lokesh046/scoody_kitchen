@@ -154,7 +154,7 @@ export const CartStep = memo(function CartStep({
       <View style={styles.billCard}>
         <Text style={styles.billHeading}>Pricing Ledger</Text>
         <View style={styles.billRow}>
-          <Text style={styles.billLabel}>Fresh Meals Subtotal</Text>
+          <Text style={styles.billLabel}>Subtotal</Text>
           <Text style={styles.billVal}>₹{subtotal.toFixed(2)}</Text>
         </View>
 
@@ -195,7 +195,7 @@ export const CartStep = memo(function CartStep({
         <View style={styles.stockWarningCard}>
           <AlertCircle size={16} color="#C0392B" />
           <Text style={styles.stockWarningText}>
-            Some fresh recipes in your bowl exceed the available kitchen stock. Please adjust quantities to proceed.
+            Some recipes in your bowl exceed the available kitchen stock. Please adjust quantities to proceed.
           </Text>
         </View>
       )}

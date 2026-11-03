@@ -127,7 +127,7 @@ export function DoctorProfileModal({
                           <Text style={styles.profileInfoValue}>
                             {doctorDetail?.qualification ||
                               doctor.qualification ||
-                              'Certified Veterinary Professional'}
+                              'Veterinary Professional'}
                           </Text>
                         </View>
                       </View>

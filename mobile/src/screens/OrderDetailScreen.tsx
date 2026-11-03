@@ -174,7 +174,7 @@ function buildReceiptHtml(order: Order, formattedDate: string, logoDataUri: stri
           ${logoImg}
           <div>
             <div class="brand-name">Hearth &amp; One</div>
-            <div class="brand-tag">Fresh, Human-Grade Canine Nutrition</div>
+            <div class="brand-tag">Wholesome Canine Nutrition</div>
           </div>
         </div>
         <div class="invoice-meta">
@@ -207,7 +207,7 @@ function buildReceiptHtml(order: Order, formattedDate: string, logoDataUri: stri
       </table>
 
       <table class="totals">
-        <tr><td class="label">Fresh Meals Subtotal</td><td></td><td class="value num">₹${subtotal.toFixed(2)}</td></tr>
+        <tr><td class="label">Subtotal</td><td></td><td class="value num">₹${subtotal.toFixed(2)}</td></tr>
         ${discountRow}
         <tr><td class="label">Delivery Fee</td><td></td><td class="value num discount">FREE</td></tr>
         <tr class="grand-row"><td>Total Paid</td><td></td><td class="num">₹${Number(order.total_amount).toFixed(2)}</td></tr>
@@ -324,7 +324,7 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
       `Items:\n${itemsList}\n\n` +
       `Total Paid: ₹${order.total_amount}\n` +
       `Delivery To: ${order.shipping_address}\n\n` +
-      `Fresh, Human-Grade Canine Nutrition.`;
+      `Wholesome Canine Nutrition.`;
 
     await Share.share({ message, title: `Hearth & One Order #${order.id}` });
   };
@@ -528,7 +528,7 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
               </View>
               <View style={styles.stepContent}>
                 <Text style={styles.stepLabel}>Kitchen Preparing Order</Text>
-                <Text style={styles.stepSub}>Fresh, human-grade canine meals being prepared</Text>
+                <Text style={styles.stepSub}>Your meals are being prepared</Text>
               </View>
             </View>
 
@@ -572,7 +572,7 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
               </View>
               <View style={styles.stepContent}>
                 <Text style={styles.stepLabel}>Delivered</Text>
-                <Text style={styles.stepSub}>Fresh meal safely delivered to your doorstep</Text>
+                <Text style={styles.stepSub}>Your order delivered to your doorstep</Text>
               </View>
             </View>
           </View>
@@ -682,7 +682,7 @@ export default function OrderDetailScreen({ route, navigation }: OrderDetailScre
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Payment Breakdown</Text>
           <View style={styles.billRow}>
-            <Text style={styles.billLabel}>Fresh Meals Subtotal</Text>
+            <Text style={styles.billLabel}>Subtotal</Text>
             <Text style={styles.billValue}>
               ₹{Number(order.total_amount + (order.discount_amount || 0)).toFixed(2)}
             </Text>

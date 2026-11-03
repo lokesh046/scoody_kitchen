@@ -2,6 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resolveHost } from './resolveHost';
 import { bumpFocusRefresh } from '../services/focusRefresh';
+import { readableDetail } from '../utils/errorDetail';
 import { getRefreshToken, setAccessToken, setRefreshToken, clearTokens } from '../services/secureTokenStorage';
 
 export const BASE_URL = resolveHost(8000, process.env.EXPO_PUBLIC_API_URL);
@@ -88,6 +89,17 @@ apiClient.interceptors.response.use(
       error.response.data = {
         ...(error.response.data || {}),
         detail: "You're doing that a little too fast — please wait a moment and try again.",
+      };
+    }
+
+    // FastAPI's validation errors (422) put a LIST of objects in `detail`. Screens
+    // render `detail` straight into <Text>, which crashes on an object, so flatten
+    // it to a plain sentence here for every call site at once.
+    if (error.response?.data && error.response.data.detail !== undefined &&
+        typeof error.response.data.detail !== 'string') {
+      error.response.data = {
+        ...error.response.data,
+        detail: readableDetail(error.response.data.detail),
       };
     }
 

@@ -54,7 +54,7 @@ export const getVisionBaseUrl = (): string => resolveHost(8003, process.env.EXPO
 export async function classifyPetPhoto(imageUri: string): Promise<ClassificationResponse> {
   const token = useAuthStore.getState().accessToken || (await getAccessToken());
   if (!token) {
-    throw new Error('Please log in to your account to use the AI Pet Vision Scanner.');
+    throw new Error('Please log in to your account to use Know Your Pet.');
   }
 
   const filename = imageUri.split('/').pop() || 'pet_scan.jpg';

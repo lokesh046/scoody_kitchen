@@ -397,7 +397,7 @@ export default function PetsScreen({ navigation }: any) {
     if (!currentPet) return;
     const weightVal = currentPet.weight || currentPet.weight_kg || 15;
     navigation.navigate('Chatbot', {
-      initialQuery: `What is the best fresh food diet and transition plan for my dog ${currentPet.name} (${currentPet.breed || 'Dog'}, ${weightVal}kg)?`,
+      initialQuery: `What is the best diet and feeding plan for my dog ${currentPet.name} (${currentPet.breed || 'Dog'}, ${weightVal}kg)?`,
     });
   }, [currentPet, navigation]);
 
@@ -581,7 +581,7 @@ export default function PetsScreen({ navigation }: any) {
                       <View style={styles.aiConsultTitleRow}>
                         <Text style={styles.aiConsultTitle}>Bravo</Text>
                         <View style={styles.aiLiveBadge}>
-                          <Text style={styles.aiLiveBadgeText}>AI EXPERT</Text>
+                          <Text style={styles.aiLiveBadgeText}>AI</Text>
                         </View>
                       </View>
                       <Text style={styles.aiConsultSubtitle}>
@@ -628,7 +628,7 @@ export default function PetsScreen({ navigation }: any) {
                       <FileText size={26} color={COLORS.brandGold} />
                       <Text style={styles.emptyRecordsTitle}>No Clinical Records Stamped</Text>
                       <Text style={styles.emptyRecordsSub}>
-                        Veterinary consultation notes, diagnosis summaries, and vaccination logs from certified doctors will automatically synchronize into this ledger.
+                        Veterinary consultation notes, diagnosis summaries, and vaccination logs from veterinarians will automatically synchronize into this ledger.
                       </Text>
                       {isConsultationsEnabled ? (
                         <TouchableOpacity

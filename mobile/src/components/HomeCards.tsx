@@ -44,7 +44,7 @@ export const HERO_BANNERS: HeroBanner[] = [
   {
     id: '1',
     title: 'Hearth & Hound: Small-Batch Nutrition',
-    subtitle: 'Wholesome Chicken & Sweet Potato recipes hand-crafted with human-grade ingredients.',
+    subtitle: 'Wholesome Chicken & Sweet Potato recipes, made in small batches for your dog.',
     ctaText: 'Explore Kitchen',
     targetScreen: 'Shop',
     bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521361/scooby_kitchen/zfmzprttuoojru2qleeh.jpg',
@@ -52,7 +52,7 @@ export const HERO_BANNERS: HeroBanner[] = [
   {
     id: '2',
     title: 'Honest Ingredients. Zero Filler.',
-    subtitle: 'Every batch contains zero corn, wheat, soy, or synthetic preservatives. Tested by nutritionists.',
+    subtitle: 'Simple, wholesome recipes made with ingredients you can recognise.',
     ctaText: 'Explore Recipes',
     targetScreen: 'Shop',
     bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg',
@@ -60,7 +60,7 @@ export const HERO_BANNERS: HeroBanner[] = [
   {
     id: '3',
     title: 'Farm-To-Freezer Holistic Meals',
-    subtitle: 'Real whole-food chicken and sweet potatoes, cooked once and flash-frozen to lock in nutrition — no preservatives needed.',
+    subtitle: 'Real whole-food chicken and sweet potatoes, cooked once and flash-frozen.',
     ctaText: 'Explore Menu',
     targetScreen: 'Shop',
     bgImage: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521315/scooby_kitchen/nji85annhntaovsycm9q.jpg',
@@ -365,7 +365,7 @@ export const ReviewCardItem = memo(function ReviewCardItem({
             <UtensilsCrossed size={11} color="#D09E6B" strokeWidth={2.2} />
           )}
           <Text style={homeCardStyles.reviewTypeBadgeText}>
-            {review.type === 'doctor' ? 'VET CONSULT' : 'FRESH MEAL'}
+            {review.type === 'doctor' ? 'VET CONSULT' : 'RECIPE'}
           </Text>
         </View>
       </View>
