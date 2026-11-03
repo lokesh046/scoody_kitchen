@@ -806,7 +806,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
               </View>
 
               {/* Accuracy disclaimer and privacy note, kept right above the text box so it is always in view. */}
-              <View style={{ paddingHorizontal: 12, paddingTop: 6 }}>
+              <View style={{ paddingHorizontal: 12, paddingTop: 6, paddingBottom: 4, backgroundColor: '#F0F2F5' }}>
                 <FeaturePrivacyNote
                   text="Bravo is an AI assistant. Its answers may not be accurate or complete and are not a substitute for advice from a qualified veterinarian. Your messages and your pet's profile are sent to Google's Gemini to generate replies and aren't used to train the AI on your personal data."
                   onPressFullPolicy={() => navigation.navigate('PrivacyPolicy')}
