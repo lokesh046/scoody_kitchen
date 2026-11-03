@@ -212,26 +212,26 @@ export default function HomeScreen({ navigation }: any) {
         icon: PawPrint,
         title: 'Welcome to Hearth & One',
         description:
-          'A 20-second look at what makes us different: total ingredient transparency, backed by real veterinary guidance.',
+          'A quick look around: build a profile for your pet, identify their breed, and find help with pet care.',
       },
       {
         targetRef: recipesSectionRef,
         icon: ShieldCheck,
-        title: 'See exactly what’s inside',
+        title: 'Our recipes',
         description:
-          'Every recipe lists precise ingredient percentages — real meat, real vegetables, zero mystery fillers.',
+          'Take a look at the recipes we are making for your dog.',
       },
       {
         targetRef: vetCardRef,
         icon: Stethoscope,
-        title: 'Made with care',
+        title: 'Find a vet',
         description:
-          'Thoughtfully made recipes for your dog, with care at every step.',
+          'Find veterinary clinics near you for your pet.',
       },
       {
         icon: PawPrint,
         title: 'You’re all set!',
-        description: 'Explore recipes, meet our vets, and give your pup the transparency they deserve.',
+        description: 'Add your pet and explore everything Hearth & One has to offer.',
       },
     ],
     []
