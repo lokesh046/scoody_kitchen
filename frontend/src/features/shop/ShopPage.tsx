@@ -15,7 +15,8 @@ import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
 
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
-import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
+import { useFeatureFlag, useFeatureFlagFallback, useFlagEntry } from '../../hooks/useFeatureFlag';
+import { RouteUnavailable } from '../../components/RouteUnavailable';
 
 // Round category badges get a simple line icon keyed off the category
 // name, matching the bone/soup/box set from the original drill-down
@@ -258,6 +259,7 @@ export default function ShopPage() {
   const { user } = useAuthStore();
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
   const shopFallback = useFeatureFlagFallback('shop_checkout');
+  const shopEntry = useFlagEntry('shop_checkout');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -295,6 +297,19 @@ export default function ShopPage() {
 
   const explorerEntries = buildExplorerEntries(categoryTree);
   const activeEntry = explorerEntries.find((e) => e.key === openKey) ?? explorerEntries[0];
+
+  // Shop flag off: show only which kind of "off" it is, none of the recipes or page content.
+  if (shopEntry.blocked) {
+    return (
+      <RouteUnavailable
+        variant={shopEntry.variant}
+        activeTab="shop"
+        title={shopEntry.variant === 'coming_soon' ? 'Coming Soon' : 'Unavailable'}
+        actionLabel="Back to Home"
+        actionPath="/"
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">

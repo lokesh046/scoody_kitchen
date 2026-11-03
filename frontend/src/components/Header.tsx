@@ -13,7 +13,7 @@ import {
   X, 
   LogOut 
 } from 'lucide-react';
-import { useFeatureFlag, useFeatureFlags, useVetAccess } from '../hooks/useFeatureFlag';
+import { useFeatureFlag, useFeatureFlags, useFlagEntry, useVetAccess } from '../hooks/useFeatureFlag';
 
 interface HeaderProps {
   activeTab?: 'shop' | 'pets' | 'consultations' | 'orders' | 'assistant' | 'profile' | 'admin' | 'doctor' | 'apply-doctor' | 'support' | 'blog';
@@ -110,14 +110,15 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
   // The Vet link shows when either the online-consultation or the nearby-clinics side is on, coming
   // soon or unavailable; the tag says which when neither side is on. See useVetAccess.
   const vetAccess = useVetAccess();
-  const isShopEnabled = useFeatureFlag('shop_checkout', true);
+  const shopEntry = useFlagEntry('shop_checkout');
+  const isShopEnabled = shopEntry.state === 'on'; // the cart icon is only for a working shop
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
 
   const navLinks: { id: string; label: string; path: string; badge?: string | null }[] = [
     ...(isKnowYourPetEnabled ? [{ id: 'pets', label: 'Know Your Pet', path: '/pets' }] : []),
     ...(vetAccess.navVisible ? [{ id: 'consultations', label: 'Vet Consult', path: '/consultations', badge: vetAccess.navLabel }] : []),
-    ...(isShopEnabled ? [{ id: 'shop', label: 'Shop', path: '/shop' }] : []),
+    ...(shopEntry.visible ? [{ id: 'shop', label: 'Shop', path: '/shop', badge: shopEntry.label }] : []),
     { id: 'orders', label: 'My Orders', path: '/orders' },
     ...(isMealPlannerEnabled ? [{ id: 'onboarding', label: 'Meal Planner', path: '/onboarding' }] : []),
     ...(isChatbotEnabled ? [{ id: 'assistant', label: 'AI Assistant', path: '/assistant' }] : []),

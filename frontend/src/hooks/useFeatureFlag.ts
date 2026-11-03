@@ -125,3 +125,27 @@ export const useVetEntryFallback = (): FeatureFallbackBehavior => {
   const v = useVetAccess();
   return v.blocked && v.navVisible ? v.blockedVariant : 'hide';
 };
+
+// One flag that controls a whole area (the Shop): the same idea as the vet area, with a single flag.
+//   - The header link shows when the flag is on, coming soon or unavailable (hidden only for "hide"),
+//     and carries a "Coming soon" / "Unavailable" tag when it is off.
+//   - The page behind it shows only the status when the flag is off.
+export interface FlagEntry {
+  state: VetSideState;
+  visible: boolean;
+  label: 'Coming soon' | 'Unavailable' | null;
+  blocked: boolean;
+  variant: 'coming_soon' | 'unavailable';
+}
+
+export const useFlagEntry = (key: string): FlagEntry => {
+  const { data: flags, isError } = useFeatureFlags();
+  const state = sideState(isError ? undefined : (flags as any), key);
+  return {
+    state,
+    visible: state !== 'hide',
+    label: state === 'on' || state === 'hide' ? null : state === 'coming_soon' ? 'Coming soon' : 'Unavailable',
+    blocked: state !== 'on',
+    variant: state === 'coming_soon' ? 'coming_soon' : 'unavailable',
+  };
+};

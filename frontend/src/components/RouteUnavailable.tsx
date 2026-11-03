@@ -9,12 +9,15 @@ interface RouteUnavailableProps {
   title: string;
   // Optional: pass nothing to show only the status (title) and no explanatory text.
   description?: string;
+  // Defaults keep the old behaviour ("Return to Shop"). The Shop and Vet status pages use Home instead.
+  actionLabel?: string;
+  actionPath?: string;
 }
 
 // Full-page sibling of FeaturePlaceholderCard's visual language (same
 // icon/badge treatment), for routes that are entirely one flagged feature
 // rather than a page with a few optional sections -- see useRouteFeatureGate.
-export const RouteUnavailable: React.FC<RouteUnavailableProps> = ({ variant, activeTab, title, description }) => {
+export const RouteUnavailable: React.FC<RouteUnavailableProps> = ({ variant, activeTab, title, description, actionLabel = 'Return to Shop', actionPath = '/shop/app' }) => {
   const navigate = useNavigate();
   const isComingSoon = variant === 'coming_soon';
   const Icon = isComingSoon ? Clock : AlertCircle;
@@ -31,10 +34,10 @@ export const RouteUnavailable: React.FC<RouteUnavailableProps> = ({ variant, act
           <p className="font-body text-sm text-ink opacity-60 max-w-md mx-auto leading-relaxed">{description}</p>
         )}
         <button
-          onClick={() => navigate('/shop/app')}
+          onClick={() => navigate(actionPath)}
           className="font-mono text-xs uppercase tracking-wider font-bold text-paper bg-ink px-5 py-2.5 rounded-sm hover:bg-opacity-90 transition-colors"
         >
-          Return to Shop
+          {actionLabel}
         </button>
       </main>
     </div>
