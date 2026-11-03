@@ -1,5 +1,6 @@
 import { useFeatureFlagStore } from '../store/featureFlagStore';
 import type { FeatureFallbackBehavior } from '../api/features';
+import { computeVetAccess, type VetAccess, type VetSideState } from '../utils/vetAccess';
 
 // Build-time only, set via EXPO_PUBLIC_FORCE_FLAGS_ENABLED=true in
 // scripts/build-beta.sh -- never read from a runtime value (a user action,
@@ -31,4 +32,17 @@ export const useFeatureFlagFallback = (key: string): FeatureFallbackBehavior => 
     return 'hide';
   }
   return flags[key].fallback_behavior;
+};
+
+// Vet area: two flags decide what shows (see utils/vetAccess.ts for the rule).
+// While flags are loading everything counts as on, so nothing flashes.
+export type { VetAccess, VetSideState } from '../utils/vetAccess';
+export const useVetAccess = (): VetAccess => {
+  const flags = useFeatureFlagStore((state) => state.flags);
+  const isLoaded = useFeatureFlagStore((state) => state.isLoaded);
+  const side = (key: string): VetSideState => {
+    if (FORCE_FLAGS_ENABLED || !isLoaded || flags[key] === undefined || flags[key].enabled) return 'on';
+    return flags[key].fallback_behavior;
+  };
+  return computeVetAccess(side('consultations_booking'), side('consultations_gps_locator'));
 };
