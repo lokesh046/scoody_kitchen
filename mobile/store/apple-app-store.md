@@ -57,7 +57,7 @@ Apple's version of the Data safety form. Based on the in-app privacy policy.
 | Contact info: name, email, phone number, physical address | Yes | Yes | App functionality, account management |
 | Purchases: purchase history | Yes | Yes | App functionality |
 | Location: precise and coarse | Yes | Yes | App functionality (address autofill, nearby vets) |
-| User content: photos or videos | Yes | Yes | App functionality |
+| User content: photos or videos | Yes (the pet-scan photo is sent to Hostinger's AI router and Google Gemini, not kept after the scan) | Yes | App functionality |
 | User content: audio data | Yes | Yes | App functionality (vet video call) |
 | User content: customer support, other user content (pet profile and records, meal plans) | Yes | Yes | App functionality |
 | Identifiers: user ID, device ID (push token) | Yes | Yes | App functionality |

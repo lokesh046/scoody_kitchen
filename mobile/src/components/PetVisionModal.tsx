@@ -45,6 +45,7 @@ import { COLORS } from '../theme/colors';
 import { classifyPetPhoto, ClassificationResponse, BreedHeritage } from '../api/vision';
 import PassportContent, { PassportFormat } from './PassportContent';
 import { FeaturePrivacyNote } from './FeaturePrivacyNote';
+import { optionalDetail } from '../utils/errorDetail';
 
 interface PetVisionModalProps {
   visible: boolean;
@@ -169,7 +170,7 @@ export default function PetVisionModal({
     } catch (err: any) {
       console.warn('Classification error:', err);
       setScanError(
-        err.response?.data?.detail ||
+        optionalDetail(err.response?.data?.detail) ||
           err.message ||
           'Failed to connect to Pet Vision AI. Ensure the service is running.'
       );
@@ -371,7 +372,7 @@ export default function PetVisionModal({
           {!result && !isScanning && (
             <View style={{ marginTop: 14 }}>
               <FeaturePrivacyNote
-                text="Your photo is analyzed by our own on-device breed model — only the resulting breed label, not the photo, is sent to Gemini to generate care insights."
+                text="To identify your pet, your photo is sent securely to our AI partners (Hostinger's AI router, which uses Google's Gemini). We don't keep the photo after the scan unless you save it to your pet's profile."
                 onPressFullPolicy={() => navigation.navigate('PrivacyPolicy' as never)}
               />
             </View>

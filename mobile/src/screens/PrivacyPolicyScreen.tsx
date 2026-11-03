@@ -75,7 +75,7 @@ export default function PrivacyPolicyScreen({ navigation }: PrivacyPolicyScreenP
         <Bullet><Text style={styles.bulletBold}>Authentication data: </Text>if you sign in with Google, we receive your name, email address, and profile photo from Google. We do not receive or store your Google password.</Bullet>
         <Bullet><Text style={styles.bulletBold}>Pet profile data ("Pet Heritage Passport"): </Text>your pet's name, species, breed, gender, date of birth, weight, microchip number (optional), and any photos you upload.</Bullet>
         <Bullet><Text style={styles.bulletBold}>Health records: </Text>if your pet has a veterinary consultation or clinical visit logged on the platform, we store the resulting medical record — symptoms, clinical findings, diagnosis, treatment, prescribed medications, a follow-up date where relevant, and any clinical notes. This is accessible only to you, the treating veterinarian, and authorized staff who need it to operate the service.</Bullet>
-        <Bullet><Text style={styles.bulletBold}>AI Pet Vision: </Text>if you use the pet photo scanner, the photo is analyzed to identify your pet's breed. Breed classification runs on our own model; only the resulting breed label (not the raw photo) may be sent to our AI provider to generate care insights.</Bullet>
+        <Bullet><Text style={styles.bulletBold}>AI Pet Vision: </Text>if you use the pet photo scanner, the photo is sent to our AI providers (a Hostinger-hosted AI router, which uses Google's Gemini models, and Google directly as a backup) to identify your pet's breed and generate care insights. If those providers are unavailable, the photo is analyzed by a model on our own servers instead. We do not keep the photo after the scan unless you choose to save it to your pet's profile.</Bullet>
         <Bullet><Text style={styles.bulletBold}>Meal planning data: </Text>if you use the meal planner, the recipe and portion choices you make, built from your pet's profile.</Bullet>
         <Bullet><Text style={styles.bulletBold}>Delivery & order data: </Text>shipping address (including GPS coordinates when you use location-based address autofill), order history, cart contents, applied coupons, reviews (which may include a photo you attach), and recurring food delivery/subscription details.</Bullet>
         <Bullet><Text style={styles.bulletBold}>Payment data: </Text>processed directly by our payment gateway, Razorpay. We store the order/transaction reference, not your card, UPI, or bank account details.</Bullet>
@@ -126,7 +126,7 @@ export default function PrivacyPolicyScreen({ navigation }: PrivacyPolicyScreenP
         <Bullet><Text style={styles.bulletBold}>Firebase / Google Cloud Platform </Text>— phone verification, push notifications, and Google Places/geocoding.</Bullet>
         <Bullet><Text style={styles.bulletBold}>Meta Platforms (WhatsApp Cloud API) </Text>— delivery of one-time passcodes.</Bullet>
         <Bullet><Text style={styles.bulletBold}>Cloudinary Inc. </Text>— hosting for photos and uploaded documents.</Bullet>
-        <Bullet><Text style={styles.bulletBold}>Google (Gemini API), with OpenRouter and a Hostinger-hosted AI router as reliability fallbacks </Text>— AI nutrition assistant and AI Pet Vision care-insight generation.</Bullet>
+        <Bullet><Text style={styles.bulletBold}>Google (Gemini API), with OpenRouter and a Hostinger-hosted AI router as reliability fallbacks </Text>— AI nutrition assistant, and AI Pet Vision (the photo you submit is processed by these providers to identify breed and generate care insights).</Bullet>
         <Bullet><Text style={styles.bulletBold}>8x8 / Jitsi video infrastructure </Text>— hosts live video and audio for veterinary consultations.</Bullet>
         <Bullet><Text style={styles.bulletBold}>Sentry </Text>— crash and error diagnostics only.</Bullet>
         <Bullet><Text style={styles.bulletBold}>The veterinarian or doctor you book with </Text>— the information needed for that consultation.</Bullet>
@@ -137,9 +137,11 @@ export default function PrivacyPolicyScreen({ navigation }: PrivacyPolicyScreenP
           Our AI nutrition assistant is built on Google's Gemini models, with OpenRouter and a
           Hostinger-hosted AI router available purely as fallback providers for reliability. Your messages
           and pet-profile context are processed to generate a reply and are not used to train the underlying
-          model on your personal data. AI Pet Vision runs breed classification on our own locally hosted
-          model; only the resulting breed label — not the raw photo — is sent to Gemini for care-insight
-          text. AI-generated guidance is informational only and does not replace advice from a licensed
+          model on your personal data. For AI Pet Vision, the photo you submit is sent to a Hostinger-hosted
+          AI router that uses Google's Gemini models (with Google directly as a backup) to identify breed
+          and write care-insight text; if both are unavailable, a model on our own servers analyzes it
+          instead. We do not keep the photo after the scan unless you save it to your pet's profile.
+          AI-generated guidance is informational only and does not replace advice from a licensed
           veterinarian. We do not use AI to make any automated decision with a legal or similarly significant
           effect on you without a human able to review it on request.
         </P>
