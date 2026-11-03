@@ -16,7 +16,7 @@ import FloatingCartBadge from '../components/FloatingCartBadge';
 import { useCartStore } from '../store/cartStore';
 
 import { useResponsive } from '../hooks/useResponsive';
-import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
+import { useFeatureFlag, useFeatureFlagFallback, useVetAccess } from '../hooks/useFeatureFlag';
 import { TAB_BAR_CONTENT_HEIGHT, TAB_BAR_TOP_PADDING } from '../constants/layout';
 
 const Tab = createBottomTabNavigator();
@@ -29,10 +29,10 @@ export default function TabNavigator() {
   const insets = useSafeAreaInsets();
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
-  const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  // The VET tab depends on two flags (online consultations and nearby clinics): see utils/vetAccess.ts.
+  const vet = useVetAccess();
   const chatbotFallback = useFeatureFlagFallback('ai_chatbot');
   const shopFallback = useFeatureFlagFallback('shop_checkout');
-  const consultationsFallback = useFeatureFlagFallback('consultations_booking');
 
   // Split into `options` additions and `listeners` since Tab.Screen takes
   // those as separate sibling props, not one merged object.
@@ -114,15 +114,15 @@ export default function TabNavigator() {
           options={{
             tabBarLabel: 'VET',
             tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/vet-3d.webp')} focused={focused} />,
-            ...(isConsultationsEnabled
-              ? {}
-              : consultationsFallback !== 'hide'
-              ? disabledTabOptions(consultationsFallback)
-              : { tabBarButton: () => null }),
+            ...(!vet.navVisible
+              ? { tabBarButton: () => null }
+              : vet.navFallback
+              ? disabledTabOptions(vet.navFallback)
+              : {}),
           }}
           listeners={
-            !isConsultationsEnabled && consultationsFallback !== 'hide'
-              ? disabledTabListeners(consultationsFallback, 'Vet Consultations')
+            vet.navVisible && vet.navFallback
+              ? disabledTabListeners(vet.navFallback, 'Vet Consult')
               : undefined
           }
         />

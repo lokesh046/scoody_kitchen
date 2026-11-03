@@ -16,7 +16,7 @@ import { Header } from '../../components/Header';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Eyebrow } from '../../components/Eyebrow';
 import { ScrollSpyTimeline } from '../../components/ScrollSpyTimeline';
-import { useFeatureFlag } from '../../hooks/useFeatureFlag';
+import { useFeatureFlag, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingFaqs, useLandingHero } from '../../hooks/useAdminContent';
@@ -101,7 +101,7 @@ const STEPS = [
 ];
 
 function OtherToolsSection() {
-  const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  const isConsultationsEnabled = useVetEntryEnabled();
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);

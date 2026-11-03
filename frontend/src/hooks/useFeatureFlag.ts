@@ -64,3 +64,64 @@ export const useRouteFeatureGate = (key: string): RouteGateResult => {
   }
   return { blocked: true, fallback: flags[key].fallback_behavior };
 };
+
+// ---------------------------------------------------------------------------------------------
+// Vet area: two flags decide what shows, not one.
+//   consultations_booking     = online video consultations (the "Consult" side of the page)
+//   consultations_gps_locator = nearby clinics (the "Near Me" side of the page)
+// Each is on, or off with a fallback: coming_soon, unavailable or hide.
+//   - The header link / tab shows when EITHER side is on, coming soon or unavailable (and only
+//     disappears when both are set to hide). When neither side is on it carries a
+//     "Coming soon" / "Unavailable" tag.
+//   - The page opens when EITHER side is on. When both are off it shows only the status.
+//   - The Near Me / Consult switch shows the other side disabled with its tag, or hides it.
+// While flags are loading, or on an error, everything counts as on, so nothing flashes.
+// ---------------------------------------------------------------------------------------------
+export type VetSideState = 'on' | FeatureFallbackBehavior;
+
+export interface VetAccess {
+  booking: VetSideState;
+  gps: VetSideState;
+  navVisible: boolean;
+  navLabel: 'Coming soon' | 'Unavailable' | null;
+  blocked: boolean;
+  blockedVariant: 'coming_soon' | 'unavailable';
+}
+
+const sideState = (
+  flags: Record<string, { enabled: boolean; fallback_behavior: FeatureFallbackBehavior }> | undefined,
+  key: string,
+): VetSideState => {
+  if (FORCE_FLAGS_ENABLED || !flags || flags[key] === undefined || flags[key].enabled) return 'on';
+  return flags[key].fallback_behavior;
+};
+
+export const computeVetAccess = (booking: VetSideState, gps: VetSideState): VetAccess => {
+  const visible = (s: VetSideState) => s !== 'hide';
+  const anyOn = booking === 'on' || gps === 'on';
+  const anyVisible = visible(booking) || visible(gps);
+  const soon = booking === 'coming_soon' || gps === 'coming_soon';
+  return {
+    booking,
+    gps,
+    navVisible: anyVisible,
+    navLabel: anyOn ? null : soon ? 'Coming soon' : 'Unavailable',
+    blocked: !anyOn,
+    blockedVariant: soon ? 'coming_soon' : 'unavailable',
+  };
+};
+
+export const useVetAccess = (): VetAccess => {
+  const { data: flags, isError } = useFeatureFlags();
+  const f = isError ? undefined : (flags as any);
+  return computeVetAccess(sideState(f, 'consultations_booking'), sideState(f, 'consultations_gps_locator'));
+};
+
+// For pages that only SHOW a link or card to the vet area (home, landing pages, footer): it counts as
+// available when either side is on, and carries the "off" kind otherwise. Booking-specific places
+// (doctor dashboard, "book a consultation" buttons) keep reading consultations_booking directly.
+export const useVetEntryEnabled = (): boolean => !useVetAccess().blocked;
+export const useVetEntryFallback = (): FeatureFallbackBehavior => {
+  const v = useVetAccess();
+  return v.blocked && v.navVisible ? v.blockedVariant : 'hide';
+};

@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { submitDoctorReview } from '../../api/reviews';
 import { loadRazorpaySDK } from '../../utils/razorpay';
-import { useFeatureFlag, useRouteFeatureGate } from '../../hooks/useFeatureFlag';
+import { useFeatureFlag, useVetAccess } from '../../hooks/useFeatureFlag';
 import { RouteUnavailable } from '../../components/RouteUnavailable';
 import {
   DoctorAvatar,
@@ -58,14 +58,12 @@ export const ConsultationsPage: React.FC = () => {
   
   // Platform Feature Flags
   const isAltDoctorsEnabled = useFeatureFlag('consultations_suggest_alternative_doctors', true);
-  const isBookingEnabled = useFeatureFlag('consultations_booking', true);
-  const isGpsEnabled = useFeatureFlag('consultations_gps_locator', true);
   const isReviewsEnabled = useFeatureFlag('consultations_reviews', true);
-  // Whole-page gate: consultations_booking is the same flag that controls
-  // the "Vet Consults" nav link's visibility (see Header.tsx), so a direct
-  // URL visit is blocked consistently with the nav link being hidden,
-  // rather than only hiding the nav link while the route stays reachable.
-  const pageGate = useRouteFeatureGate('consultations_booking');
+  // Two sides, two flags: online consultations (booking) and nearby clinics (GPS locator). The page
+  // opens when either side is on; when both are off it shows only the status (see useVetAccess).
+  const vet = useVetAccess();
+  const isBookingEnabled = vet.booking === 'on';
+  const isGpsEnabled = vet.gps === 'on';
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewSubmitError, setReviewSubmitError] = useState<string | null>(null);
   const [reviewSubmitSuccess, setReviewSubmitSuccess] = useState(false);
@@ -112,6 +110,11 @@ export const ConsultationsPage: React.FC = () => {
   // unless the GPS-locator feature flag is off, in which case there's no
   // nearby section to land on at all.
   const [pageMode, setPageMode] = useState<'nearby' | 'consult'>(isGpsEnabled ? 'nearby' : 'consult');
+  // Never sit on a side that is switched off (flags can finish loading after the first render).
+  useEffect(() => {
+    if (pageMode === 'nearby' && !isGpsEnabled && isBookingEnabled) setPageMode('consult');
+    if (pageMode === 'consult' && !isBookingEnabled && isGpsEnabled) setPageMode('nearby');
+  }, [pageMode, isGpsEnabled, isBookingEnabled]);
 
   // Tab & Booking Stepper States
   const [activeSection, setActiveSection] = useState<'directory' | 'sessions' | 'book'>('directory');
@@ -1061,13 +1064,13 @@ export const ConsultationsPage: React.FC = () => {
     </div>
   );
 
-  if (pageGate.blocked) {
+  if (vet.blocked) {
+    // Both sides are off: show only which kind of "off" it is, none of the page's content.
     return (
       <RouteUnavailable
-        variant={pageGate.fallback === 'coming_soon' ? 'coming_soon' : 'unavailable'}
+        variant={vet.blockedVariant}
         activeTab="consultations"
-        title="Vet Consultations Temporarily Unavailable"
-        description="We've paused veterinary consultations for now. Check back soon, or explore the shop in the meantime."
+        title={vet.blockedVariant === 'coming_soon' ? 'Coming Soon' : 'Unavailable'}
       />
     );
   }
@@ -1109,25 +1112,40 @@ export const ConsultationsPage: React.FC = () => {
                 <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
                 <span>100% Board Certified Vets</span>
               </span>
-              {isGpsEnabled && (
-                <button
-                  type="button"
-                  onClick={() => setPageMode(pageMode === 'nearby' ? 'consult' : 'nearby')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-mono font-bold bg-herb text-white cursor-pointer hover:bg-opacity-90 transition-colors"
-                >
-                  {pageMode === 'nearby' ? (
-                    <>
-                      <Video className="w-3.5 h-3.5" />
-                      <span>Consult</span>
-                    </>
-                  ) : (
-                    <>
-                      <Compass className="w-3.5 h-3.5" />
-                      <span>Near Me</span>
-                    </>
-                  )}
-                </button>
-              )}
+              {(() => {
+                // The switch points at the OTHER side. If that side is off, show it disabled with
+                // its tag ("Coming soon" / "Unavailable"), or hide it when its fallback is "hide".
+                const otherSide = pageMode === 'nearby' ? vet.booking : vet.gps;
+                if (otherSide === 'hide') return null;
+                const otherOff = otherSide !== 'on';
+                const tag = otherSide === 'coming_soon' ? 'Coming soon' : 'Unavailable';
+                return (
+                  <button
+                    type="button"
+                    disabled={otherOff}
+                    aria-disabled={otherOff}
+                    onClick={() => !otherOff && setPageMode(pageMode === 'nearby' ? 'consult' : 'nearby')}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-mono font-bold transition-colors ${
+                      otherOff
+                        ? 'bg-cardboard/40 text-ink opacity-70 cursor-not-allowed'
+                        : 'bg-herb text-white cursor-pointer hover:bg-opacity-90'
+                    }`}
+                  >
+                    {pageMode === 'nearby' ? (
+                      <>
+                        <Video className="w-3.5 h-3.5" />
+                        <span>Consult</span>
+                      </>
+                    ) : (
+                      <>
+                        <Compass className="w-3.5 h-3.5" />
+                        <span>Near Me</span>
+                      </>
+                    )}
+                    {otherOff && <span className="text-[9px] uppercase tracking-wider">· {tag}</span>}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>

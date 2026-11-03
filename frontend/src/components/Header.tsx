@@ -13,7 +13,7 @@ import {
   X, 
   LogOut 
 } from 'lucide-react';
-import { useFeatureFlag, useFeatureFlags } from '../hooks/useFeatureFlag';
+import { useFeatureFlag, useFeatureFlags, useVetAccess } from '../hooks/useFeatureFlag';
 
 interface HeaderProps {
   activeTab?: 'shop' | 'pets' | 'consultations' | 'orders' | 'assistant' | 'profile' | 'admin' | 'doctor' | 'apply-doctor' | 'support' | 'blog';
@@ -107,14 +107,16 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
   }, [flagsLoading]);
 
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
-  const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  // The Vet link shows when either the online-consultation or the nearby-clinics side is on, coming
+  // soon or unavailable; the tag says which when neither side is on. See useVetAccess.
+  const vetAccess = useVetAccess();
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
 
-  const navLinks = [
+  const navLinks: { id: string; label: string; path: string; badge?: string | null }[] = [
     ...(isKnowYourPetEnabled ? [{ id: 'pets', label: 'Know Your Pet', path: '/pets' }] : []),
-    ...(isConsultationsEnabled ? [{ id: 'consultations', label: 'Vet Consult', path: '/consultations' }] : []),
+    ...(vetAccess.navVisible ? [{ id: 'consultations', label: 'Vet Consult', path: '/consultations', badge: vetAccess.navLabel }] : []),
     ...(isShopEnabled ? [{ id: 'shop', label: 'Shop', path: '/shop' }] : []),
     { id: 'orders', label: 'My Orders', path: '/orders' },
     ...(isMealPlannerEnabled ? [{ id: 'onboarding', label: 'Meal Planner', path: '/onboarding' }] : []),
@@ -177,6 +179,11 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
                 }`}
               >
                 {link.label}
+                {link.badge && (
+                  <span className="ml-1.5 align-middle text-[9px] font-mono uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-sm border border-current opacity-70">
+                    {link.badge}
+                  </span>
+                )}
               </button>
             ))}
             {user?.role === 'admin' && (
@@ -352,6 +359,11 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
                   }`}
                 >
                   {link.label}
+                  {link.badge && (
+                    <span className="ml-2 align-middle text-[9px] font-mono uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-sm border border-current opacity-70">
+                      {link.badge}
+                    </span>
+                  )}
                 </button>
               ))}
 

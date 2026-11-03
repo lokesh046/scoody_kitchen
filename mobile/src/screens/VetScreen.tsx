@@ -31,7 +31,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Doctor } from '../types';
 import { useResponsive } from '../hooks/useResponsive';
 import ResponsiveContainer from '../components/ResponsiveContainer';
-import { useFeatureFlag } from '../hooks/useFeatureFlag';
+import { useFeatureFlag, useVetAccess } from '../hooks/useFeatureFlag';
 import { usePetStore } from '../store/petStore';
 import { useAuthStore } from '../store/authStore';
 import { tabPrefetchCache } from '../services/tabPrefetch';
@@ -73,12 +73,23 @@ export default function VetScreen({ navigation, route }: any) {
   const { pets, setPets, activePetId } = usePetStore();
   const { isTablet, contentWidth, cardColumns } = useResponsive();
   const vetCardWidth = isTablet ? (Math.min(contentWidth, 1040) - 40 - 14) / 2 : '100%';
-  const isBookingEnabled = useFeatureFlag('consultations_booking', true);
+  // Two sides, two flags: online consultations (booking) and nearby clinics (GPS locator). The screen
+  // opens when either side is on; with both off it shows only the status (utils/vetAccess.ts).
+  const vet = useVetAccess();
+  const isBookingEnabled = vet.booking === 'on';
+  const isGpsEnabled = vet.gps === 'on';
   const isReviewsEnabled = useFeatureFlag('consultations_reviews', true);
 
   // "Consult Vet" lands on nearby clinics/pharmacies by default, with a
   // header toggle to switch into the video-call booking flow below.
-  const [viewMode, setViewMode] = useState<'nearby' | 'consult'>('nearby');
+  const [viewMode, setViewMode] = useState<'nearby' | 'consult'>(
+    vet.gps !== 'on' && vet.booking === 'on' ? 'consult' : 'nearby',
+  );
+  // Never sit on a side that is switched off (flags can finish loading after the first render).
+  useEffect(() => {
+    if (viewMode === 'nearby' && !isGpsEnabled && isBookingEnabled) setViewMode('consult');
+    if (viewMode === 'consult' && !isBookingEnabled && isGpsEnabled) setViewMode('nearby');
+  }, [viewMode, isGpsEnabled, isBookingEnabled]);
   const [nearbyCompact, setNearbyCompact] = useState(false);
   const nearbyChrome = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -1021,12 +1032,33 @@ export default function VetScreen({ navigation, route }: any) {
   }, [loadingDoctors, searchQuery, activeFilterCount, selectedCity, maxPriceLimit, dynamicCities, resetAllFilters]);
 
 
+  // Both sides are off: show only which kind of "off" it is, none of the screen's content.
+  if (vet.blocked) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <ScreenHeader title="Vet care" />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Text style={{ fontSize: 24, fontFamily: FONT_BODY_BOLD, color: COLORS.textCoffee, textAlign: 'center' }}>
+            {vet.blockedVariant === 'coming_soon' ? 'Coming Soon' : 'Unavailable'}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // The switch points at the OTHER side. If that side is off, show it disabled with its tag
+  // ("Coming soon" / "Unavailable"), or hide it when its fallback is "hide".
+  const otherSide = viewMode === 'nearby' ? vet.booking : vet.gps;
+  const otherOff = otherSide !== 'on';
+  const otherTag = otherSide === 'coming_soon' ? 'Coming soon' : 'Unavailable';
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Compact toolbar with the clinic / video consultation switch. */}
       <ScreenHeader
         title="Vet care"
         rightContent={
+          otherSide === 'hide' ? undefined : (
           <TouchableOpacity
             style={{
               flexDirection: 'row',
@@ -1039,10 +1071,19 @@ export default function VetScreen({ navigation, route }: any) {
               minHeight: 44,
               paddingVertical: 8,
               borderRadius: 14,
+              opacity: otherOff ? 0.55 : 1,
             }}
+            disabled={otherOff}
             onPress={() => setViewMode(viewMode === 'nearby' ? 'consult' : 'nearby')}
             accessibilityRole="button"
-            accessibilityLabel={viewMode === 'nearby' ? 'Switch to video consultation' : 'Switch to nearby vets'}
+            accessibilityState={{ disabled: otherOff }}
+            accessibilityLabel={
+              otherOff
+                ? `${viewMode === 'nearby' ? 'Video consultation' : 'Nearby vets'}: ${otherTag}`
+                : viewMode === 'nearby'
+                ? 'Switch to video consultation'
+                : 'Switch to nearby vets'
+            }
           >
             {viewMode === 'nearby' ? (
               <Video size={14} color="#D7AF76" />
@@ -1051,8 +1092,10 @@ export default function VetScreen({ navigation, route }: any) {
             )}
             <Text style={{ fontSize: 11, fontFamily: FONT_BODY_BOLD, color: '#FAF4E8' }}>
               {viewMode === 'nearby' ? 'Consult' : 'Near Me'}
+              {otherOff ? ` · ${otherTag}` : ''}
             </Text>
           </TouchableOpacity>
+          )
         }
       />
 
@@ -1062,7 +1105,9 @@ export default function VetScreen({ navigation, route }: any) {
           chromeProgress={nearbyChrome}
           onCompactChange={setNearbyCompact}
           onSelectDoctor={setSelectedDoctor}
-          onSwitchToConsult={() => setViewMode('consult')}
+          onSwitchToConsult={() => {
+            if (isBookingEnabled) setViewMode('consult');
+          }}
         />
       ) : (
       <>

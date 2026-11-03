@@ -20,7 +20,7 @@ import { HoundPortalReveal } from '../../components/HoundPortalReveal';
 import { ReviewsCarousel } from '../../components/ReviewsCarousel';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
-import { useFeatureFlag, useFeatureFlagFallback, useFeatureFlags } from '../../hooks/useFeatureFlag';
+import { useFeatureFlag, useFeatureFlagFallback, useFeatureFlags, useVetEntryEnabled, useVetEntryFallback } from '../../hooks/useFeatureFlag';
 import { FeaturePlaceholderCard } from '../../components/FeaturePlaceholderCard';
 import { JournalPreviewSection } from '../../components/JournalPreviewSection';
 import { useToolkitOverrides } from '../../hooks/useAdminContent';
@@ -73,7 +73,7 @@ export default function HomePage() {
   const addItem = useCartStore((state) => state.addItem);
 
   // Feature Flags
-  const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  const isConsultationsEnabled = useVetEntryEnabled();
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
@@ -89,7 +89,7 @@ export default function HomePage() {
   const isRecipeComingSoonEnabled = !featureFlagsError && adminFeatureFlags?.home_recipe_coming_soon?.enabled === true;
   // Hidden only when "Homepage Customer Reviews" is switched off in Admin; stays on while the flag is missing.
   const isReviewsHidden = !featureFlagsError && adminFeatureFlags?.home_reviews?.enabled === false;
-  const consultationsFallback = useFeatureFlagFallback('consultations_booking');
+  const consultationsFallback = useVetEntryFallback();
   const chatbotFallback = useFeatureFlagFallback('ai_chatbot');
   const shopFallback = useFeatureFlagFallback('shop_checkout');
   const mealPlannerFallback = useFeatureFlagFallback('shop_meal_planner');

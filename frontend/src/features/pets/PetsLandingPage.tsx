@@ -17,7 +17,7 @@ import { ToolCarousel } from '../../components/ToolCarousel';
 import { Header } from '../../components/Header';
 import { CartDrawer } from '../../components/CartDrawer';
 import { ScrollSpyTimeline } from '../../components/ScrollSpyTimeline';
-import { useFeatureFlag } from '../../hooks/useFeatureFlag';
+import { useFeatureFlag, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingFaqs, useLandingHero } from '../../hooks/useAdminContent';
@@ -73,7 +73,7 @@ const DEFAULT_FAQS = [
 
 function OtherToolsSection() {
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
-  const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  const isConsultationsEnabled = useVetEntryEnabled();
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
 

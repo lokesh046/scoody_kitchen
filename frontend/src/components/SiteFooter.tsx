@@ -1,10 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useFeatureFlag } from '../hooks/useFeatureFlag';
+import { useFeatureFlag, useVetEntryEnabled } from '../hooks/useFeatureFlag';
 
 export function SiteFooter({ className = 'bg-midnight' }: { className?: string }) {
   const navigate = useNavigate();
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
-  const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  const isConsultationsEnabled = useVetEntryEnabled();
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
 

@@ -32,13 +32,12 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAccessToken } from '../services/secureTokenStorage';
 import { COLORS } from '../theme/colors';
-import { FONT_DISPLAY, FONT_BODY, FONT_HEADING_SCRIPT } from '../theme/typography';
+import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD, FONT_HEADING_SCRIPT } from '../theme/typography';
 import { useAuthStore } from '../store/authStore';
 import { usePetStore } from '../store/petStore';
 import { useCartStore } from '../store/cartStore';
 import { BrandMedallion } from '../components/BrandLogo';
 import AIDogIcon from '../components/AIDogIcon';
-import { FeaturePrivacyNote } from '../components/FeaturePrivacyNote';
 import { useResponsive } from '../hooks/useResponsive';
 import { refreshAuthTokenSilently } from '../api/client';
 import {
@@ -51,13 +50,6 @@ import {
 import { Image } from 'expo-image';
 import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 
-const QUICK_PROMPTS = [
-  'Can dogs eat blueberries?',
-  "How do I switch my dog's food?",
-  'Best recipe for skin allergies?',
-  'Daily calorie needs for my dog',
-  'Safe vegetables & toxic foods list',
-];
 
 // Helper to format timestamp like WhatsApp ("05:42 PM")
 const formatTime = (isoOrDate?: string): string => {
@@ -757,20 +749,6 @@ export default function ChatbotScreen({ navigation, route }: any) {
 
               {/* WhatsApp Chat Canvas */}
               <View style={styles.chatCanvas}>
-                {/* Center Date Separator */}
-                <View style={styles.dateSeparator}>
-                  <Text style={styles.dateSeparatorText}>
-                    CANINE HEALTH & NUTRITION ASSISTANT • AI POWERED
-                  </Text>
-                </View>
-
-                <View style={{ paddingHorizontal: 14, marginBottom: 10 }}>
-                  <FeaturePrivacyNote
-                    text="Your messages and your pet's profile are sent to Gemini to generate a reply, and aren't used to train the AI on your personal data."
-                    onPressFullPolicy={() => navigation.navigate('PrivacyPolicy')}
-                  />
-                </View>
-
                 {/* Messages FlatList */}
                 {isLoadingHistory ? (
                   <View style={styles.historyLoadingBox}>
@@ -795,35 +773,11 @@ export default function ChatbotScreen({ navigation, route }: any) {
                 )}
               </View>
 
-              {/* Quick Suggestion Chips Carousel */}
-              <View style={styles.chipsWrapper}>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.chipsScroll}
-                >
-                  {QUICK_PROMPTS.map((prompt, idx) => (
-                    <TouchableOpacity
-                      key={`prompt-${idx}`}
-                      style={styles.chipPill}
-                      onPress={() => handleSendMessage(prompt)}
-                      disabled={isSending}
-                      activeOpacity={0.7}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Ask: ${prompt}`}
-                      accessibilityState={{ disabled: isSending }}
-                    >
-                      <Text style={styles.chipText}>{prompt}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-
               {/* WhatsApp Input Bar */}
               <View
                 style={[
                   styles.inputBar,
-                  { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 10) },
+                  { paddingBottom: 2 },
                 ]}
               >
                 <View style={styles.inputPillContainer}>
@@ -869,6 +823,25 @@ export default function ChatbotScreen({ navigation, route }: any) {
                     <Send size={18} color="#FFFFFF" style={{ marginLeft: 2 }} />
                   )}
                 </TouchableOpacity>
+              </View>
+
+              {/* One-line footer: accuracy disclaimer plus the privacy policy link. */}
+              <View
+                style={[
+                  styles.disclaimerFooter,
+                  { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 8) },
+                ]}
+              >
+                <Text style={styles.disclaimerText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                  Answers may be inaccurate and are not veterinary advice.{' '}
+                  <Text
+                    style={styles.disclaimerLink}
+                    onPress={() => navigation.navigate('PrivacyPolicy')}
+                    accessibilityRole="link"
+                  >
+                    Privacy Policy
+                  </Text>
+                </Text>
               </View>
             </View>
           )}
@@ -1312,6 +1285,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: COLORS.forestGreen,
+  },
+  disclaimerFooter: {
+    backgroundColor: '#F0F2F5',
+    paddingHorizontal: 12,
+    paddingTop: 2,
+    alignItems: 'center',
+  },
+  disclaimerText: {
+    fontSize: 11,
+    fontFamily: FONT_BODY,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+  },
+  disclaimerLink: {
+    fontFamily: FONT_BODY_BOLD,
+    color: COLORS.textCoffee,
+    textDecorationLine: 'underline',
   },
   // WhatsApp Input Bar
   inputBar: {

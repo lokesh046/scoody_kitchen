@@ -46,9 +46,18 @@ echo
 
 in_list() { local x="$1"; shift; for i in "$@"; do [ "$i" = "$x" ] && return 0; done; return 1; }
 
+# Old website copies kept for rollback by release_server.sh (frontend/dist.old-<time>, dist.bad-*, dist.new-*).
+# They are leftovers of a release, not work to keep or to compare with GitHub: leave them exactly as they are.
+is_release_leftover() {
+  case "$1" in
+    frontend/dist.old-*|frontend/dist.bad*|frontend/dist.new-*|frontend/dist.realflags*) return 0 ;;
+  esac
+  return 1
+}
+
 # ---- 1. back up every changed / new file -------------------------------------------------------
 LIST=$(mktemp)
-git status --porcelain -uall | cut -c4- > "$LIST"
+git status --porcelain -uall | cut -c4- | grep -v -E "^frontend/dist\.(old-|bad|new-|realflags)" > "$LIST" || true
 COUNT=$(wc -l < "$LIST" | tr -d ' ')
 if [ "$COUNT" -gt 0 ]; then
   BK="$BACKUP_DIR/${TAG}-pre-sync-$STAMP.tgz"
@@ -69,6 +78,7 @@ echo "2. Fetched GitHub. $TARGET is at $(git rev-parse --short "$TARGET")"
 MODIFIED=(); UNTRACKED=()
 while IFS= read -r line; do
   st="${line:0:2}"; f="${line:3}"
+  is_release_leftover "$f" && continue
   if [ "$st" = "??" ]; then UNTRACKED+=("$f"); else MODIFIED+=("$f"); fi
 done < <(git status --porcelain -uall)
 
