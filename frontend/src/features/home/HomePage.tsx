@@ -87,6 +87,8 @@ export default function HomePage() {
   // that force the platform's other features on.
   const { data: adminFeatureFlags, isError: featureFlagsError } = useFeatureFlags();
   const isRecipeComingSoonEnabled = !featureFlagsError && adminFeatureFlags?.home_recipe_coming_soon?.enabled === true;
+  // Hidden only when "Homepage Customer Reviews" is switched off in Admin; stays on while the flag is missing.
+  const isReviewsHidden = !featureFlagsError && adminFeatureFlags?.home_reviews?.enabled === false;
   const consultationsFallback = useFeatureFlagFallback('consultations_booking');
   const chatbotFallback = useFeatureFlagFallback('ai_chatbot');
   const shopFallback = useFeatureFlagFallback('shop_checkout');
@@ -1072,7 +1074,7 @@ export default function HomePage() {
         )}
 
         {/* Let our #Scoobysfam speak for us Carousel */}
-        <ReviewsCarousel dark={isFullscreenHeroEnabled} />
+        {!isReviewsHidden && <ReviewsCarousel dark={isFullscreenHeroEnabled} />}
 
         <JournalPreviewSection dark={isFullscreenHeroEnabled} />
 

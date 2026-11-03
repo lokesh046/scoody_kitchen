@@ -20,6 +20,13 @@ DEFAULT_FLAGS = [
         "is_enabled": False,
     },
     {
+        "key": "home_reviews",
+        "name": "Homepage Customer Reviews",
+        "description": "Shows the customer reviews section on the home page (website and app). Turn it off to hide the whole section.",
+        "category": "home",
+        "is_enabled": True,
+    },
+    {
         "key": "consultations_suggest_alternative_doctors",
         "name": "Alternative Doctor Recommendations",
         "description": "Automatically recommends alternative verified specialists in the area when the selected doctor has no available time slots on the chosen date.",

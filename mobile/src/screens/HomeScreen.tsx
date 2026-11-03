@@ -128,6 +128,12 @@ export default function HomeScreen({ navigation }: any) {
   const isRecipeComingSoon = useFeatureFlagStore(
     (state) => state.isLoaded && state.flags.home_recipe_coming_soon?.enabled === true,
   );
+  // Hidden only when an admin switches "Homepage Customer Reviews" off. Read straight from the store
+  // (not useFeatureFlag), so it stays on while the flag is missing and a beta build that forces every
+  // other flag on can still be turned off from Admin.
+  const isReviewsHidden = useFeatureFlagStore(
+    (state) => state.isLoaded && state.flags.home_reviews?.enabled === false,
+  );
   const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
   const shopFallback = useFeatureFlagFallback('shop_checkout');
   const consultationsFallback = useFeatureFlagFallback('consultations_booking');
@@ -1149,7 +1155,7 @@ export default function HomeScreen({ navigation }: any) {
         )}
 
         {/* 8. Community Feedback Ledger (Dynamic Reviews Carousel) — only shown once real reviews exist */}
-        {reviews.length > 0 && (
+        {!isReviewsHidden && reviews.length > 0 && (
           <View
             onLayout={(e) => {
               reviewsSectionYRef.current = e.nativeEvent.layout.y;
