@@ -81,7 +81,7 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  const { setAuth, continueAsGuest } = useAuthStore();
+  const { setAuth } = useAuthStore();
 
   // Native Google Sign-In SDK setup — replaces the previous expo-auth-session
   // browser-redirect flow, which Google now rejects outright for native apps
@@ -583,20 +583,6 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
                 </TouchableOpacity>
               </View>
             )}
-
-            {/* Continue as Guest Button */}
-            <TouchableOpacity
-              style={styles.guestLinkBtn}
-              onPress={() => {
-                continueAsGuest();
-                if (onSuccess) onSuccess();
-              }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityRole="button"
-              accessibilityLabel="Skip sign-in and explore the menu as a guest"
-            >
-              <Text style={styles.guestLinkText}>Skip & Explore Menu as Guest ➔</Text>
-            </TouchableOpacity>
           </View>
 
           </ResponsiveContainer>
@@ -748,8 +734,6 @@ const styles = StyleSheet.create({
   verifySub: { fontSize: 12, fontFamily: FONT_BODY, color: COLORS.textMuted, marginTop: 2 },
   resendBtn: { alignItems: 'center', paddingVertical: 8 },
   resendBtnText: { fontSize: 11, fontFamily: FONT_BODY_BOLD, color: COLORS.brandGold },
-  guestLinkBtn: { alignItems: 'center', marginTop: 18, paddingVertical: 6 },
-  guestLinkText: { fontSize: 12, fontFamily: FONT_BODY_BOLD, color: COLORS.forestGreen },
   // DESIGN.md: "Don't use standard red/green/yellow warning colors" —
   // these were raw Tailwind hex; now the app's own accentRed/sage tints.
   errorBox: {
