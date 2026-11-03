@@ -17,6 +17,7 @@
 #   HEALTH_URL       e.g. https://api.hearthandone.com/health
 #   SITE_URL         e.g. https://hearthandone.com
 #   FORCE_FLAGS      "true" for beta only (beta forces every flag on, see scripts/deploy-beta.sh)
+#   SKIP_BACKEND     "1" = website only, do not touch the backend
 #   MARKER           text that must appear in the new website bundle to prove it is the new build
 set -euo pipefail
 
@@ -41,6 +42,9 @@ command -v node >/dev/null && command -v npm >/dev/null || { echo "STOP: node/np
 echo "   ok"
 
 # ---- 2. backend --------------------------------------------------------------------------------
+if [ "${SKIP_BACKEND:-}" = "1" ]; then
+  echo; echo "2. Backend skipped (website-only run)"
+else
 echo; echo "2. Backend ($BACKEND_SERVICE)"
 OLD_IMG=$(docker inspect -f '{{.Image}}' "$BACKEND_CONTAINER" 2>/dev/null || true)
 if [ -n "$OLD_IMG" ]; then
@@ -57,6 +61,7 @@ done
 echo
 [ $OK -eq 1 ] || { echo "STOP: the backend did not become healthy (last status $CODE)."; echo "Roll back: docker tag rollback/$BACKEND_CONTAINER:$TS <image used by $BACKEND_SERVICE>, or see the header of the wrapper script."; exit 1; }
 echo "   backend healthy (200)"
+fi
 
 # ---- 3. website --------------------------------------------------------------------------------
 echo; echo "3. Website (built in a separate copy, then swapped in)"
