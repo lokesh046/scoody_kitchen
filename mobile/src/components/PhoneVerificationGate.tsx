@@ -225,7 +225,7 @@ export function PhoneVerificationGate() {
                     onCountryChange={setCountry}
                     nationalNumber={phoneDigits}
                     onNationalNumberChange={setPhoneDigits}
-                    placeholder="9876543210"
+                    placeholder="0000000000"
                     autoFocus
                   />
                 </View>

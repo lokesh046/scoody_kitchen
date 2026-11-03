@@ -212,7 +212,7 @@ export const PhoneVerificationGate: React.FC = () => {
                 onCountryChange={setCountry}
                 nationalNumber={phone}
                 onNationalNumberChange={setPhone}
-                placeholder="9876543210"
+                placeholder="0000000000"
               />
             </div>
             <button

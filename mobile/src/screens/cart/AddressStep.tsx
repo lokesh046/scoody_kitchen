@@ -179,7 +179,7 @@ export const AddressStep = memo(function AddressStep({
               onCountryChange={onChangeCountry}
               nationalNumber={phone}
               onNationalNumberChange={onChangePhone}
-              placeholder="9876543210"
+              placeholder="0000000000"
             />
           </View>
           {!user?.is_phone_verified && (

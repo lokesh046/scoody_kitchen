@@ -1219,7 +1219,7 @@ export const CheckoutPage: React.FC = () => {
                           nationalNumber={phone}
                           onNationalNumberChange={setPhone}
                           disabled={!!(isSubmitting || user?.is_phone_verified)}
-                          placeholder="9876543210"
+                          placeholder="0000000000"
                         />
                       </div>
                       {!user?.is_phone_verified && (

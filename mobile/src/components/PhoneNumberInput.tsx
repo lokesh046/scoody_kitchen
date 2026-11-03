@@ -33,7 +33,7 @@ export function PhoneNumberInput({
   nationalNumber,
   onNationalNumberChange,
   disabled,
-  placeholder = '9876543210',
+  placeholder = '0000000000',
   autoFocus,
 }: PhoneNumberInputProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
