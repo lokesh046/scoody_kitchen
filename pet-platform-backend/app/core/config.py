@@ -81,6 +81,11 @@ class Setting(BaseSettings):
     # Google OAuth 2.0 / OIDC
     GOOGLE_CLIENT_ID: str | None = None
     GOOGLE_CLIENT_IDS: list[str] = []
+    # App-store review account: this one email accepts a fixed 6-digit login code and is sent no email, so
+    # Apple's and Google's reviewers (who cannot read an inbox) can sign in. Off unless BOTH are set; the
+    # code belongs in the server's .env only, and should be changed or cleared once the app is approved.
+    REVIEW_ACCOUNT_EMAIL: str = ""
+    REVIEW_ACCOUNT_CODE: str = ""
     # Sign in with Apple: the identity token's audience is the iOS app's bundle id, or the Services ID for the website.
     APPLE_CLIENT_IDS: list[str] = ["com.scooby.kitchen", "com.scooby.kitchen.web"]
 

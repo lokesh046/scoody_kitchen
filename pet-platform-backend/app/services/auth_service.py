@@ -65,6 +65,13 @@ def create_tokens(db: Session, user: User, *, cancels_deletion: bool = True) -> 
     }
 
 
+def _is_review_account(email: str) -> bool:
+    """True for the app-store review account, and only when it is fully configured (email + 6-digit code)."""
+    review_email = (settings.REVIEW_ACCOUNT_EMAIL or "").strip().lower()
+    review_code = settings.REVIEW_ACCOUNT_CODE or ""
+    return bool(review_email) and review_code.isdigit() and len(review_code) == 6 and email == review_email
+
+
 def request_magic_link(
     db: Session,
     email: str,
@@ -91,8 +98,9 @@ def request_magic_link(
     if not user.is_active:
         raise ValueError("User account is inactive")
 
+    is_review_account = _is_review_account(clean_email)
     raw_token = secrets.token_urlsafe(32)
-    otp_code = f"{random.randint(100000, 999999)}"
+    otp_code = settings.REVIEW_ACCOUNT_CODE if is_review_account else f"{random.randint(100000, 999999)}"
 
     magic_token = MagicLinkToken(
         user_id=user.id,
@@ -102,6 +110,10 @@ def request_magic_link(
     )
     db.add(magic_token)
     db.commit()
+
+    if is_review_account:
+        # The reviewer types the fixed code; nothing is emailed.
+        return True
 
     return send_magic_link_email(
         to_email=clean_email,
@@ -169,6 +181,10 @@ def verify_magic_link_code(db: Session, email: str, code: str) -> User:
 
     token_record.used = True
     user.is_email_verified = True
+    if _is_review_account(user.email.strip().lower()):
+        # The app blocks every signed-in user behind a phone-verification screen. Store
+        # reviewers have no phone number to verify, so the review account skips it.
+        user.is_phone_verified = True
     db.commit()
     db.refresh(user)
     return user
