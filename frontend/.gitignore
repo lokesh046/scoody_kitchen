@@ -65,3 +65,9 @@ plugins/impeccable-live.client.ts
 app/plugins/impeccable-live.client.ts
 src/plugins/impeccable-live.client.ts
 # impeccable-live-ignore-end
+
+# Old website copies kept for rollback by deploy/release_server.sh
+dist.old-*
+dist.bad*
+dist.new-*
+dist.realflags*
