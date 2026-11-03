@@ -115,7 +115,7 @@ export default function TabNavigator() {
             tabBarLabel: 'VET',
             tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/vet-3d.webp')} focused={focused} />,
             ...(!vet.navVisible
-              ? { tabBarButton: () => null }
+              ? { tabBarItemStyle: { display: 'none' } }
               : vet.navFallback
               ? disabledTabOptions(vet.navFallback)
               : {}),
@@ -137,7 +137,7 @@ export default function TabNavigator() {
               ? {}
               : shopFallback !== 'hide'
               ? disabledTabOptions(shopFallback)
-              : { tabBarButton: () => null }),
+              : { tabBarItemStyle: { display: 'none' } }),
           }}
           listeners={!isShopEnabled && shopFallback !== 'hide' ? disabledTabListeners(shopFallback, 'Shop') : undefined}
         />
