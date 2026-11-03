@@ -757,20 +757,6 @@ export default function ChatbotScreen({ navigation, route }: any) {
 
               {/* WhatsApp Chat Canvas */}
               <View style={styles.chatCanvas}>
-                {/* Center Date Separator */}
-                <View style={styles.dateSeparator}>
-                  <Text style={styles.dateSeparatorText}>
-                    CANINE HEALTH & NUTRITION ASSISTANT • AI POWERED
-                  </Text>
-                </View>
-
-                <View style={{ paddingHorizontal: 14, marginBottom: 10 }}>
-                  <FeaturePrivacyNote
-                    text="Your messages and your pet's profile are sent to Gemini to generate a reply, and aren't used to train the AI on your personal data."
-                    onPressFullPolicy={() => navigation.navigate('PrivacyPolicy')}
-                  />
-                </View>
-
                 {/* Messages FlatList */}
                 {isLoadingHistory ? (
                   <View style={styles.historyLoadingBox}>
@@ -817,6 +803,14 @@ export default function ChatbotScreen({ navigation, route }: any) {
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
+              </View>
+
+              {/* Accuracy disclaimer and privacy note, kept right above the text box so it is always in view. */}
+              <View style={{ paddingHorizontal: 12, paddingTop: 6 }}>
+                <FeaturePrivacyNote
+                  text="Bravo is an AI assistant. Its answers may not be accurate or complete and are not a substitute for advice from a qualified veterinarian. Your messages and your pet's profile are sent to Google's Gemini to generate replies and aren't used to train the AI on your personal data."
+                  onPressFullPolicy={() => navigation.navigate('PrivacyPolicy')}
+                />
               </View>
 
               {/* WhatsApp Input Bar */}
