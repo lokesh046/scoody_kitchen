@@ -1071,6 +1071,8 @@ export const ConsultationsPage: React.FC = () => {
         variant={vet.blockedVariant}
         activeTab="consultations"
         title={vet.blockedVariant === 'coming_soon' ? 'Coming Soon' : 'Unavailable'}
+        actionLabel="Back to Home"
+        actionPath="/"
       />
     );
   }
