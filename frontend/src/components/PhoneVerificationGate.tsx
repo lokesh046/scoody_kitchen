@@ -38,6 +38,29 @@ export const PhoneVerificationGate: React.FC = () => {
   const [cooldownCountdown, setCooldownCountdown] = useState(0);
   const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
 
+  // This component stays mounted for the whole session and only hides itself, so without a reset its
+  // state (code screen, previous number, typed code, errors) survives a logout and the NEXT account
+  // opens on the code screen showing the previous person's number. Start clean for every account.
+  const accountKey = `${user?.id ?? 'none'}:${user?.is_phone_verified ? 'verified' : 'pending'}`;
+  useEffect(() => {
+    setStep('phone');
+    setCountry(DEFAULT_COUNTRY_ISO2);
+    setPhone('');
+    setVerificationChannel('whatsapp');
+    setVerificationCode('');
+    setConfirmResult(null);
+    setIsLoading(false);
+    setError(null);
+    setCooldownCountdown(0);
+    setAttemptsRemaining(null);
+    setRecaptchaVerifier((current: any) => {
+      try {
+        current?.clear();
+      } catch {}
+      return null;
+    });
+  }, [accountKey]);
+
   // Pre-fill from the user's existing profile phone, if any (e.g. a
   // previous unverified attempt) -- otherwise start blank. Parses with
   // libphonenumber-js so both the country AND the national number are
@@ -57,7 +80,7 @@ export const PhoneVerificationGate: React.FC = () => {
       const digitsOnly = user.phone.replace(/\D/g, '');
       setPhone(digitsOnly.slice(-10));
     }
-  }, [user?.phone]);
+  }, [user?.phone, accountKey]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setInterval>;
@@ -171,6 +194,21 @@ export const PhoneVerificationGate: React.FC = () => {
     }
   };
 
+  // Back from the code screen to the number box, so a wrong number can be corrected.
+  const handleChangeNumber = () => {
+    setStep('phone');
+    setVerificationCode('');
+    setError(null);
+    setCooldownCountdown(0);
+    setAttemptsRemaining(null);
+    setConfirmResult(null);
+    if (recaptchaVerifier) {
+      try {
+        recaptchaVerifier.clear();
+      } catch {}
+    }
+  };
+
   const handleSignOutInstead = async () => {
     try {
       await logoutUser();
@@ -235,7 +273,15 @@ export const PhoneVerificationGate: React.FC = () => {
           <div className="space-y-4">
             <p className="font-body text-xs text-ink opacity-80">
               Code sent via {verificationChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to{' '}
-              <strong className="font-mono text-ink">+{getCountry(country).dialCode} {phone}</strong>.
+              <strong className="font-mono text-ink">+{getCountry(country).dialCode} {phone}</strong>.{' '}
+              <button
+                type="button"
+                onClick={handleChangeNumber}
+                disabled={isLoading}
+                className="font-mono text-[10px] uppercase tracking-wider font-bold text-herb underline underline-offset-2 hover:opacity-80 cursor-pointer disabled:opacity-50"
+              >
+                Change number
+              </button>
             </p>
             <div className="space-y-1">
               <label className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold block">

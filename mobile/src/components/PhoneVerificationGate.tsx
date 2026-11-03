@@ -51,6 +51,35 @@ export function PhoneVerificationGate() {
 
   const shouldShow = !!user && user.is_phone_verified === false;
 
+  // This component stays mounted for the whole session and only hides itself, so without a reset its
+  // state (code screen, previous number, typed code, errors) survives a logout and the NEXT account
+  // opens on the code screen showing the previous person's number. Start clean for every account.
+  const accountKey = `${user?.id ?? 'none'}:${user?.is_phone_verified ? 'verified' : 'pending'}`;
+  useEffect(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setStep('phone');
+    setCountry(DEFAULT_COUNTRY_ISO2);
+    setPhoneDigits('');
+    setVerificationCode('');
+    setIsLoading(false);
+    setErrorMsg(null);
+    setAttemptsRemaining(null);
+    setCooldownCountdown(0);
+    setSessionInfo(null);
+    setVerificationChannel('whatsapp');
+  }, [accountKey]);
+
+  // Back from the code screen to the number box, so a wrong number can be corrected.
+  const handleChangeNumber = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setStep('phone');
+    setVerificationCode('');
+    setErrorMsg(null);
+    setAttemptsRemaining(null);
+    setCooldownCountdown(0);
+    setSessionInfo(null);
+  };
+
   useEffect(() => {
     // Parses with libphonenumber-js so both the country AND the national
     // number are detected correctly, rather than assuming India and just
@@ -67,7 +96,7 @@ export function PhoneVerificationGate() {
       setPhoneDigits(digitsOnly.slice(-10));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shouldShow]);
+  }, [shouldShow, accountKey]);
 
   useEffect(() => {
     if (cooldownCountdown > 0) {
@@ -252,6 +281,17 @@ export function PhoneVerificationGate() {
                   Code sent via {verificationChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to{' '}
                   <Text style={styles.phoneHighlight}>+{getCountry(country).dialCode} {phoneDigits}</Text>.
                 </Text>
+
+                <TouchableOpacity
+                  style={styles.sandboxBtn}
+                  onPress={handleChangeNumber}
+                  disabled={isLoading}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Change the phone number"
+                >
+                  <Text style={styles.sandboxBtnText}>Wrong number? Change number</Text>
+                </TouchableOpacity>
 
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>ENTER 6-DIGIT OTP CODE</Text>
