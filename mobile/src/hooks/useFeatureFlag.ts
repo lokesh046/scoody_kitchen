@@ -1,6 +1,6 @@
 import { useFeatureFlagStore } from '../store/featureFlagStore';
 import type { FeatureFallbackBehavior } from '../api/features';
-import { computeVetAccess, type VetAccess, type VetSideState } from '../utils/vetAccess';
+import { computeVetAccess, computeFlagEntry, type FlagEntry, type VetAccess, type VetSideState } from '../utils/vetAccess';
 
 // Build-time only, set via EXPO_PUBLIC_FORCE_FLAGS_ENABLED=true in
 // scripts/build-beta.sh -- never read from a runtime value (a user action,
@@ -53,4 +53,12 @@ export const useVetEntryEnabled = (): boolean => !useVetAccess().blocked;
 export const useVetEntryFallback = (): FeatureFallbackBehavior => {
   const v = useVetAccess();
   return v.blocked && v.navVisible ? v.blockedVariant : 'hide';
+};
+
+// One flag controlling a whole screen (the Shop). While flags are loading it counts as on.
+export const useFlagEntry = (key: string): FlagEntry => {
+  const flags = useFeatureFlagStore((state) => state.flags);
+  const isLoaded = useFeatureFlagStore((state) => state.isLoaded);
+  const on = FORCE_FLAGS_ENABLED || !isLoaded || flags[key] === undefined || flags[key].enabled;
+  return computeFlagEntry(on ? 'on' : flags[key].fallback_behavior);
 };

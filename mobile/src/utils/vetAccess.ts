@@ -34,3 +34,22 @@ export const computeVetAccess = (booking: VetSideState, gps: VetSideState): VetA
     blockedVariant: variant,
   };
 };
+
+// One flag that controls a whole area (the Shop): the same idea as the vet area with a single flag.
+// The tab and the screen follow the flag; the screen shows only the status when the flag is off.
+export interface FlagEntry {
+  state: VetSideState;
+  visible: boolean;
+  /** Tab tag kind when the flag is off and not hidden; null otherwise. */
+  tag: 'coming_soon' | 'unavailable' | null;
+  blocked: boolean;
+  variant: 'coming_soon' | 'unavailable';
+}
+
+export const computeFlagEntry = (state: VetSideState): FlagEntry => ({
+  state,
+  visible: state !== 'hide',
+  tag: state === 'coming_soon' || state === 'unavailable' ? state : null,
+  blocked: state !== 'on',
+  variant: state === 'coming_soon' ? 'coming_soon' : 'unavailable',
+});

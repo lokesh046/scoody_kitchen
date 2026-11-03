@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { computeVetAccess } from '../vetAccess';
+import { computeVetAccess, computeFlagEntry } from '../vetAccess';
 
 describe('computeVetAccess (the vet tab, page and switch rules)', () => {
   it('both sides on: tab shows with no tag, page open', () => {
@@ -34,5 +34,20 @@ describe('computeVetAccess (the vet tab, page and switch rules)', () => {
   it('both set to hide: the tab is hidden, and a direct visit shows Unavailable', () => {
     const a = computeVetAccess('hide', 'hide');
     expect(a).toMatchObject({ navVisible: false, blocked: true, blockedVariant: 'unavailable' });
+  });
+});
+
+describe('computeFlagEntry (a single flag, e.g. the Shop)', () => {
+  it('on: visible, no tag, not blocked', () => {
+    expect(computeFlagEntry('on')).toMatchObject({ visible: true, tag: null, blocked: false });
+  });
+  it('coming soon: visible with the coming-soon tag, page blocked as coming soon', () => {
+    expect(computeFlagEntry('coming_soon')).toMatchObject({ visible: true, tag: 'coming_soon', blocked: true, variant: 'coming_soon' });
+  });
+  it('unavailable: visible with the unavailable tag, page blocked as unavailable', () => {
+    expect(computeFlagEntry('unavailable')).toMatchObject({ visible: true, tag: 'unavailable', blocked: true, variant: 'unavailable' });
+  });
+  it('hide: not visible, a direct visit shows Unavailable', () => {
+    expect(computeFlagEntry('hide')).toMatchObject({ visible: false, tag: null, blocked: true, variant: 'unavailable' });
   });
 });

@@ -57,6 +57,7 @@ import {
   ReviewEligibilityResponse,
 } from '../api/reviews';
 import { useResponsive } from '../hooks/useResponsive';
+import { useFlagEntry } from '../hooks/useFeatureFlag';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 
@@ -921,6 +922,22 @@ export default function KitchenScreen({ navigation, route }: any) {
       </View>
     );
   }, [loading, errorMsg, activeCategoryIds, handleSearch]);
+
+  // Shop flag off: show only which kind of "off" it is, none of the recipes or page content. The tab already
+  // blocks taps, but the cart, orders, chat and meal planner reach this screen directly.
+  const shopEntry = useFlagEntry('shop_checkout');
+  if (shopEntry.blocked) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <ScreenHeader title="Shop recipes" />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Text style={{ fontSize: 24, fontFamily: FONT_BODY_BOLD, color: COLORS.textCoffee, textAlign: 'center' }}>
+            {shopEntry.variant === 'coming_soon' ? 'Coming Soon' : 'Unavailable'}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
