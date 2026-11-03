@@ -10,9 +10,10 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import {
   Sparkles,
   Camera,
@@ -264,6 +265,11 @@ export default function PetVisionModal({
       transparent={false}
       onRequestClose={onClose}
     >
+      {/* A Modal renders outside the app's layout, so on iPhone the notch/Dynamic Island
+          inset is lost unless the modal carries its own SafeAreaProvider. */}
+      <SafeAreaProvider>
+      {/* The screen behind has a dark header, which leaves the clock/battery white; this popup is light. */}
+      <StatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
@@ -705,6 +711,7 @@ export default function PetVisionModal({
           </View>
         )}
       </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }
