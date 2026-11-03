@@ -128,6 +128,12 @@ export default function HomeScreen({ navigation }: any) {
   const isRecipeComingSoon = useFeatureFlagStore(
     (state) => state.isLoaded && state.flags.home_recipe_coming_soon?.enabled === true,
   );
+  // Hidden only when an admin switches "Homepage Customer Reviews" off. Read straight from the store
+  // (not useFeatureFlag), so it stays on while the flag is missing and a beta build that forces every
+  // other flag on can still be turned off from Admin.
+  const isReviewsHidden = useFeatureFlagStore(
+    (state) => state.isLoaded && state.flags.home_reviews?.enabled === false,
+  );
   const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
   const shopFallback = useFeatureFlagFallback('shop_checkout');
   const consultationsFallback = useFeatureFlagFallback('consultations_booking');
@@ -212,26 +218,26 @@ export default function HomeScreen({ navigation }: any) {
         icon: PawPrint,
         title: 'Welcome to Hearth & One',
         description:
-          'A 20-second look at what makes us different: total ingredient transparency, backed by real veterinary guidance.',
+          'A quick look around: build a profile for your pet, identify their breed, and find help with pet care.',
       },
       {
         targetRef: recipesSectionRef,
         icon: ShieldCheck,
-        title: 'See exactly what’s inside',
+        title: 'Our recipes',
         description:
-          'Every recipe lists precise ingredient percentages — real meat, real vegetables, zero mystery fillers.',
+          'Take a look at the recipes we are making for your dog.',
       },
       {
         targetRef: vetCardRef,
         icon: Stethoscope,
-        title: 'Made with care',
+        title: 'Find a vet',
         description:
-          'Thoughtfully made recipes for your dog, with care at every step.',
+          'Find veterinary clinics near you for your pet.',
       },
       {
         icon: PawPrint,
         title: 'You’re all set!',
-        description: 'Explore recipes, meet our vets, and give your pup the transparency they deserve.',
+        description: 'Add your pet and explore everything Hearth & One has to offer.',
       },
     ],
     []
@@ -1149,7 +1155,7 @@ export default function HomeScreen({ navigation }: any) {
         )}
 
         {/* 8. Community Feedback Ledger (Dynamic Reviews Carousel) — only shown once real reviews exist */}
-        {reviews.length > 0 && (
+        {!isReviewsHidden && reviews.length > 0 && (
           <View
             onLayout={(e) => {
               reviewsSectionYRef.current = e.nativeEvent.layout.y;
