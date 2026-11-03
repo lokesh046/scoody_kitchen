@@ -732,7 +732,7 @@ export const EditProfileModal = memo(function EditProfileModal({
                     nationalNumber={phone}
                     onNationalNumberChange={setPhone}
                     disabled={!!(user?.is_phone_verified && !isEditingPhone)}
-                    placeholder="9876543210"
+                    placeholder="0000000000"
                   />
                 </View>
 

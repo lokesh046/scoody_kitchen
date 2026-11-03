@@ -549,7 +549,7 @@ export const ProfilePage: React.FC = () => {
                       nationalNumber={phone}
                       onNationalNumberChange={setPhone}
                       disabled={!!(user?.is_phone_verified && !isEditingPhone)}
-                      placeholder="9876543210"
+                      placeholder="0000000000"
                     />
                   </div>
                   {user?.is_phone_verified && !isEditingPhone ? (
