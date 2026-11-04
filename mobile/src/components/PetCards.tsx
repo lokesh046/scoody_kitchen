@@ -228,8 +228,10 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
 
             {/* Title Block */}
             <View style={petCardStyles.nameBlock}>
-              <Text style={petCardStyles.profileIdLabel}>PROFILE #{pet.id}</Text>
               <Text style={petCardStyles.petDisplayName}>{pet.name.toLowerCase()}</Text>
+              <Text style={petCardStyles.profileIdLabel} numberOfLines={1}>
+                {pet.microchip_number ? pet.microchip_number : 'MICROCHIP NOT RECORDED'}
+              </Text>
             </View>
           </View>
 
@@ -297,23 +299,12 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
           </View>
 
           {/* Birthday */}
-          <View style={petCardStyles.ledgerRow}>
+          <View style={[petCardStyles.ledgerRow, petCardStyles.ledgerRowLast]}>
             <View style={petCardStyles.ledgerKeyGroup}>
               <RNImage source={require('../../assets/pet/date-of-birth.webp')} style={petCardStyles.rowIcon} resizeMode="contain" />
               <Text style={petCardStyles.ledgerKeyText}>BIRTHDAY</Text>
             </View>
             <Text style={petCardStyles.ledgerValText}>{birthdayDisplay}</Text>
-          </View>
-
-          {/* Microchip */}
-          <View style={[petCardStyles.ledgerRow, petCardStyles.ledgerRowLast]}>
-            <View style={petCardStyles.ledgerKeyGroup}>
-              <View style={petCardStyles.rowIcon}>
-                <Cpu size={26} color={COLORS.textLight} strokeWidth={1.75} />
-              </View>
-              <Text style={petCardStyles.ledgerKeyText}>MICROCHIP</Text>
-            </View>
-            <Text style={petCardStyles.ledgerValText}>{pet.microchip_number || 'NOT RECORDED'}</Text>
           </View>
         </View>
 

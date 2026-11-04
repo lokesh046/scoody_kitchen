@@ -669,8 +669,11 @@ export const PetsPage: React.FC = () => {
                             )}
                           </div>
                           <div>
-                            <span className="font-mono text-[9px] uppercase font-bold text-paprika block">PROFILE #{pet.id}</span>
                             <h3 className="font-display font-black text-xl text-ink">{pet.name}</h3>
+                            <span className="font-mono text-[10px] uppercase font-bold text-herb block tracking-wide flex items-center">
+                              <Cpu className="w-3 h-3 mr-1 shrink-0" />
+                              <span>{pet.microchip_number || 'Microchip not recorded'}</span>
+                            </span>
                           </div>
                         </div>
                         <button
@@ -717,19 +720,12 @@ export const PetsPage: React.FC = () => {
                           </span>
                           <span className="font-bold text-ink">{pet.weight ? `${pet.weight} KG` : 'N/A'}</span>
                         </div>
-                        <div className="flex justify-between items-center py-1 border-b border-cardboard border-dashed border-opacity-30">
+                        <div className="flex justify-between items-center py-1">
                           <span className="text-herb font-bold flex items-center">
                             <Cake className="w-3.5 h-3.5 text-paprika mr-2" />
                             <span>BIRTHDAY</span>
                           </span>
                           <span className="font-bold text-ink">{pet.date_of_birth ? new Date(pet.date_of_birth).toLocaleDateString() : 'N/A'}</span>
-                        </div>
-                        <div className="flex justify-between items-center py-1">
-                          <span className="text-herb font-bold flex items-center">
-                            <Cpu className="w-3.5 h-3.5 text-herb mr-2" />
-                            <span>MICROCHIP</span>
-                          </span>
-                          <span className="font-bold text-ink">{pet.microchip_number || 'NOT RECORDED'}</span>
                         </div>
                       </div>
 
