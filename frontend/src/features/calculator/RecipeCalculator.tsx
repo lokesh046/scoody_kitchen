@@ -92,18 +92,19 @@ export function RecipeCalculator() {
 
   return (
     <section
-      className="bg-paper pt-10 pb-20 md:pt-12 md:pb-28 px-4 sm:px-6 md:px-8 relative"
+      className="bg-paper pt-10 pb-20 md:pt-12 md:pb-28 px-4 sm:px-6 md:px-8 relative scroll-mt-20 md:scroll-mt-24"
       id="fit-calculator"
       style={{
         backgroundImage: 'radial-gradient(rgba(208,158,107,0.18) 1.2px, transparent 1.2px)',
         backgroundSize: '16px 16px',
       }}
     >
-      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center text-left relative z-10">
+      <div className="max-w-6xl mx-auto text-left relative z-10">
+      <h2 className="mb-8 md:mb-10 font-script font-normal text-4xl sm:text-6xl lg:text-7xl tracking-normal text-ink leading-tight whitespace-nowrap">
+        Count The Calories
+      </h2>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
         <div className="lg:col-span-5 space-y-5">
-          <h2 className="font-script font-normal text-5xl sm:text-6xl lg:text-7xl tracking-normal text-ink leading-tight">
-            Count The Calories
-          </h2>
           <p className="font-body text-base lg:text-lg text-ink opacity-80 leading-relaxed">
             Pet nutrition is directly proportional to body mass and daily energy output. Pick your dog's size or enter their exact weight to calculate targeted caloric requirements in real time.
           </p>
@@ -266,6 +267,7 @@ export function RecipeCalculator() {
             </div>
           )}
         </div>
+      </div>
       </div>
     </section>
   );

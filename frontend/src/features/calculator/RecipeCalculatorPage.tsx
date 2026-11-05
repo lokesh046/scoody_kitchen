@@ -106,6 +106,8 @@ export function RecipeCalculatorPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
   const isVetEnabled = useVetEntryEnabled();
+  const isShopEnabled = useFeatureFlag('shop_checkout', true);
+  const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
 
   // The calculator follows the same switch as the rest of the meal planner. While it is off, a
   // direct visit shows only its status (Coming soon / Unavailable), like the Shop and Vet pages.
@@ -168,6 +170,22 @@ export function RecipeCalculatorPage() {
           text: 'Find veterinary clinics in your area and take the next step towards their care.',
           path: '/consultations',
           cta: 'Explore Locate Your Vet',
+        }]
+      : []),
+    ...(isShopEnabled
+      ? [{
+          label: 'Shop Recipes',
+          image: '/images/toolkit/shop-recipes.webp',
+          text: 'Recipes made in small batches, with each ingredient listed so you can check what goes into the bowl.',
+          path: '/shop',
+        }]
+      : []),
+    ...(isChatbotEnabled
+      ? [{
+          label: 'AI Assistant',
+          image: '/images/toolkit/ai-assistant.webp',
+          text: 'Ask questions about nutrition and everyday pet care.',
+          path: '/assistant',
         }]
       : []),
   ];
@@ -292,7 +310,17 @@ export function RecipeCalculatorPage() {
           <div className="max-w-7xl mx-auto">
             <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
               <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
-                One companion. Different aspects of their care.
+                <span className="sr-only">One companion. Different aspects of their care.</span>
+                <span aria-hidden="true">
+                  {'One companion. Different aspects of their care.'.split(' ').map((word, index) => (
+                    <span key={index}>
+                      {index > 0 ? ' ' : ''}
+                      <span className="pet-profile-heading-word inline-block" style={{ animationDelay: `${index * 160}ms` }}>
+                        {word}
+                      </span>
+                    </span>
+                  ))}
+                </span>
               </h2>
               <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
                 Explore the tools designed to support different parts of the pet-parent journey.
