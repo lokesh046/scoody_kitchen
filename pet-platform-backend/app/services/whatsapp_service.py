@@ -47,8 +47,9 @@ def verify_webhook_signature(payload_bytes: bytes, signature_header: str | None)
     over IP allowlisting.
     """
     if not settings.WHATSAPP_APP_SECRET:
-        logger.warning("WHATSAPP_APP_SECRET not configured — skipping webhook signature check")
-        return True
+        # Fail closed: without the app secret there is no way to tell Meta's calls from anyone else's.
+        logger.error("WHATSAPP_APP_SECRET not configured — rejecting WhatsApp webhook POST")
+        return False
     if not signature_header or not signature_header.startswith("sha256="):
         return False
 
