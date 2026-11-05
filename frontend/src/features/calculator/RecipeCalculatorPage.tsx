@@ -9,6 +9,8 @@ import { CartDrawer } from '../../components/CartDrawer';
 import { ToolCarousel } from '../../components/ToolCarousel';
 import { RouteUnavailable } from '../../components/RouteUnavailable';
 import { CalculatorGettingStarted } from './CalculatorGettingStarted';
+import { BottomFade } from './SectionFade';
+import { TONE } from './tones';
 import { useAuthStore } from '../../store/auth';
 import { useFeatureFlag, useFlagEntry, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
@@ -211,12 +213,13 @@ export function RecipeCalculatorPage() {
             </div>
           </div>
         </div>
+        <BottomFade to={TONE.midnight} />
         <HeroScrollHint />
       </section>
 
       {/* Every pet has their own energy needs */}
-      <section aria-labelledby="calc-needs-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
-        <div className="max-w-7xl mx-auto">
+      <section aria-labelledby="calc-needs-heading" className="relative px-4 sm:px-6 md:px-8 pt-20 pb-36 md:pt-24 md:pb-44 text-paper" style={{ background: `linear-gradient(to bottom, ${TONE.midnight}, ${TONE.espresso})` }}>
+        <div className="relative max-w-7xl mx-auto">
           <div className="max-w-5xl mx-auto text-center space-y-3 mb-12">
             <h2 id="calc-needs-heading" className="font-script font-normal text-3xl sm:text-4xl xl:text-5xl tracking-normal leading-snug lg:whitespace-nowrap">
               Every pet has their own energy needs.
@@ -264,15 +267,16 @@ export function RecipeCalculatorPage() {
             ))}
           </motion.ol>
         </div>
+        <BottomFade to={TONE.cream} />
       </section>
 
       {/* How it works -- the same staged animation as Know Your Pet's "Getting started" */}
-      <CalculatorGettingStarted />
+      <CalculatorGettingStarted fadeTo={ecosystem.length > 0 ? TONE.forest : TONE.sand} />
 
       {/* Hearth & One ecosystem -- the animated tool cards the other landing pages use */}
       {ecosystem.length > 0 && (
-        <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
-          <div className="max-w-7xl mx-auto">
+        <section aria-labelledby="calc-ecosystem-heading" className="relative px-4 sm:px-6 md:px-8 pt-20 pb-36 md:pt-24 md:pb-44 text-paper" style={{ background: `linear-gradient(to bottom, ${TONE.forest}, ${TONE.forestDeep})` }}>
+          <div className="relative max-w-7xl mx-auto">
             <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
               <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
                 One companion. Different aspects of their care.
@@ -283,12 +287,13 @@ export function RecipeCalculatorPage() {
             </div>
             <ToolCarousel items={ecosystem} />
           </div>
+          <BottomFade to={TONE.sand} />
         </section>
       )}
 
       {/* FAQ */}
-      <section aria-labelledby="calc-faq-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20">
-        <div className="max-w-4xl mx-auto">
+      <section aria-labelledby="calc-faq-heading" className="relative px-4 sm:px-6 md:px-8 pt-20 pb-36 md:pt-24 md:pb-44" style={{ background: TONE.sand }}>
+        <div className="relative max-w-4xl mx-auto">
           <div className="text-center mb-10 space-y-3">
             <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl tracking-normal leading-snug text-ink">
               Frequently asked questions.
@@ -315,6 +320,7 @@ export function RecipeCalculatorPage() {
             })}
           </div>
         </div>
+        <BottomFade to={TONE.ctaTop} />
       </section>
 
       {/* Closing CTA */}

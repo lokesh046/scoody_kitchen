@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Check, Flame, SlidersHorizontal } from 'lucide-react';
+import { BottomFade } from './SectionFade';
+import { TONE } from './tones';
 
 // The same staged "Getting started" animation as the Know Your Pet page: each step fades in, and its
 // numbered circle fills in turn (one after another on desktop, as each step scrolls into view on phones).
@@ -61,7 +63,7 @@ function StepPreview({ step }: { step: number }) {
   );
 }
 
-export function CalculatorGettingStarted() {
+export function CalculatorGettingStarted({ fadeTo }: { fadeTo: string }) {
   const reduceMotion = useReducedMotion();
   const [activeStep, setActiveStep] = useState(0);
   const [hasEntered, setHasEntered] = useState(false);
@@ -76,8 +78,8 @@ export function CalculatorGettingStarted() {
   }, []);
 
   return (
-    <section aria-labelledby="calc-getting-started-heading" className="bg-paper px-4 py-16 sm:px-6 md:px-8 md:py-20">
-      <div className="mx-auto max-w-6xl">
+    <section aria-labelledby="calc-getting-started-heading" className="relative px-4 pt-20 pb-36 sm:px-6 md:px-8 md:pt-24 md:pb-44" style={{ background: TONE.cream }}>
+      <div className="relative mx-auto max-w-6xl">
         <div className="mx-auto mb-12 max-w-5xl text-center md:mb-16">
           <h2 id="calc-getting-started-heading" className="font-script text-3xl font-normal tracking-normal leading-snug text-ink sm:text-4xl xl:text-5xl lg:whitespace-nowrap">
             A clearer starting point, in a few simple steps.
@@ -130,8 +132,8 @@ export function CalculatorGettingStarted() {
             </motion.li>
           ))}
         </motion.ol>
-        <p className="mx-auto mt-8 max-w-6xl font-mono text-[10px] uppercase tracking-wider text-ink/50">Illustrative previews · Sample figures</p>
       </div>
+      <BottomFade to={fadeTo} />
     </section>
   );
 }
