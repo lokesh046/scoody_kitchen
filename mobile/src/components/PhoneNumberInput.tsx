@@ -44,11 +44,14 @@ export function PhoneNumberInput({
 
   const selected = getCountry(country);
 
-  const filtered = query.trim()
+  // Match by country name, or by dial code only when the user typed digits. Without that guard a
+  // letters-only search ("fgsf") leaves an empty digit string, and every dial code "includes" an empty
+  // string, so every country matched.
+  const trimmed = query.trim().toLowerCase();
+  const queryDigits = trimmed.replace(/\D/g, '');
+  const filtered = trimmed
     ? COUNTRIES.filter(
-        (c) =>
-          c.name.toLowerCase().includes(query.toLowerCase()) ||
-          c.dialCode.includes(query.replace(/\D/g, ''))
+        (c) => c.name.toLowerCase().includes(trimmed) || (queryDigits !== '' && c.dialCode.includes(queryDigits))
       )
     : COUNTRIES;
 
