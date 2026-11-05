@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Activity, ArrowRight, Check } from 'lucide-react';
+import { Activity, Check } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { fetchProducts } from '../../api/products';
@@ -137,16 +137,6 @@ export function RecipeCalculator() {
           <div className="border border-dashed border-ink border-opacity-20 p-3 space-y-1 font-mono text-xs sm:text-sm text-ink opacity-75 rounded-xl">
             <p>Formula base: RER = 70 × (weight_kg)⁰·⁷⁵</p>
             <p>Output MER = RER × activity_multiplier</p>
-          </div>
-
-          <div className="pt-2">
-            <button
-              onClick={() => navigate('/onboarding')}
-              className="min-h-[44px] inline-flex items-center space-x-2 bg-turmeric text-ink hover:bg-opacity-95 font-mono text-xs sm:text-sm uppercase font-bold px-6 py-3.5 rounded-[10px] tracking-wider transition-all hover-bounce cursor-pointer shadow-xs active:scale-98"
-            >
-              <span>Step-by-Step Diet Planner</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
           </div>
         </div>
 
