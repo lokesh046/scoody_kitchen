@@ -361,7 +361,7 @@ export default function HomePage() {
                     {featuredProducts.map((product) => (
                       <div key={product.id} className="relative">
                         <div
-                          className={`h-full [&>div]:h-full ${isRecipeComingSoonEnabled ? 'pointer-events-none opacity-70' : ''}`}
+                          className={`h-full [&>div]:h-full ${isRecipeComingSoonEnabled ? 'pointer-events-none select-none opacity-70 blur-[3px]' : ''}`}
                         >
                           <RecipeCard
                             product={product}
