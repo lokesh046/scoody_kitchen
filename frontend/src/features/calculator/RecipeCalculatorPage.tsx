@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, ArrowUpRight, Plus, Minus, Flame, SlidersHorizontal, Compass } from 'lucide-react';
 import { Header } from '../../components/Header';
@@ -10,7 +10,6 @@ import { ToolCarousel } from '../../components/ToolCarousel';
 import { RouteUnavailable } from '../../components/RouteUnavailable';
 import { CalculatorGettingStarted } from './CalculatorGettingStarted';
 import { RecipeCalculator } from './RecipeCalculator';
-import { useAuthStore } from '../../store/auth';
 import { useFeatureFlag, useFlagEntry, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
@@ -98,10 +97,8 @@ const FAQS = [
 ];
 
 export function RecipeCalculatorPage() {
-  const navigate = useNavigate();
   const { hash } = useLocation();
   const reduceMotion = useReducedMotion();
-  const user = useAuthStore((state) => state.user);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
@@ -146,11 +143,11 @@ export function RecipeCalculatorPage() {
     })),
   });
 
-  // Signed-in visitors go straight to the meal planner; everyone else signs in or signs up first
-  // and is then brought to the planner.
+  // Both "Calculate" buttons take the visitor to the calculator on this same page.
   const startCalculating = () => {
-    if (user) navigate('/onboarding');
-    else navigate('/login?redirect=onboarding');
+    document.getElementById('fit-calculator')?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    });
   };
 
   const ecosystem = [
