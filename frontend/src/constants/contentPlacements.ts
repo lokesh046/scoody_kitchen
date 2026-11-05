@@ -17,7 +17,7 @@ export const BANNER_PLACEMENTS: { value: BannerPlacement; label: string; hint: s
   { value: 'shop_hero', label: 'Shop Recipes page - top image', hint: 'Landscape, e.g. 1920x1080. Only the first active one is used. Title and subtitle become the headline and text.' },
   { value: 'pets_hero', label: 'Know Your Pet page - top image', hint: 'Landscape, e.g. 1920x1080. Only the first active one is used. Title and subtitle become the headline and text.' },
   { value: 'vet_hero', label: 'Locate Your Vet page - top image', hint: 'Landscape, e.g. 1920x1080. Only the first active one is used. Title and subtitle become the headline and text.' },
-  { value: 'calculator_hero', label: 'Recipe Calculator page - top image', hint: 'Landscape, e.g. 1920x1080. Only the first active one is used. Title and subtitle become the headline and text.' },
+  { value: 'calculator_hero', label: 'Count The Calories page - top image', hint: 'Landscape, e.g. 1920x1080. Only the first active one is used. Title and subtitle become the headline and text.' },
   { value: 'home_toolkit', label: 'Home page - tool card', hint: 'Square icon, transparent PNG or WebP. Set the link to /pets, /consultations or /onboarding to choose which card it replaces.' },
 ];
 

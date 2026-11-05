@@ -30,7 +30,7 @@ export default function HomePage() {
   const redirectNavigate = useNavigate();
   useEffect(() => {
     const id = hash.slice(1);
-    // The Recipe Calculator moved to its own page; keep old /#fit-calculator links working.
+    // Count The Calories (the old Recipe Calculator) moved to its own page; keep old /#fit-calculator links working.
     if (id === 'fit-calculator') {
       redirectNavigate('/recipe-calculator', { replace: true });
       return;
@@ -227,7 +227,7 @@ export default function HomePage() {
                   {[
                     { link: '/pets', image: '/images/toolkit/know-your-pet.webp', title: 'Know Your Pet', text: "Create a dedicated profile for your pet and keep their key details organised and easy to access whenever you need them.", cta: 'Create Their Profile', enabled: isKnowYourPetEnabled, onClick: () => navigate('/pets'), secondaryOnClick: () => navigate('/pets') },
                     { link: '/consultations', image: '/images/toolkit/locate-vet.webp', title: 'Locate Your Vet', text: "Find veterinary clinics near you, explore available options, and make it easier to know where to turn when your companion needs professional care.", cta: 'Explore Nearby Vets', enabled: isConsultationsEnabled, onClick: () => navigate('/consultations'), secondaryOnClick: () => navigate('/consultations') },
-                    { link: '/onboarding', /* admin override key; the card itself opens /recipe-calculator */ image: '/images/toolkit/meal-planner.webp', title: 'Recipe Calculator', text: "Explore an estimate of your pet's daily energy needs, helping you better understand the nutritional considerations behind their feeding routine.", cta: 'Estimate Their Needs', enabled: isMealPlannerEnabled, onClick: () => navigate('/recipe-calculator'), secondaryOnClick: () => navigate('/recipe-calculator') },
+                    { link: '/onboarding', /* admin override key; the card itself opens /recipe-calculator */ image: '/images/toolkit/meal-planner.webp', title: 'Count The Calories', text: "Explore an estimate of your pet's daily energy needs, helping you better understand the nutritional considerations behind their feeding routine.", cta: 'Estimate Their Needs', enabled: isMealPlannerEnabled, onClick: () => navigate('/recipe-calculator'), secondaryOnClick: () => navigate('/recipe-calculator') },
                   ].map((card) => {
                     // Image, title and text can be replaced from the admin panel (Banners > "Home page - tool card").
                     const override = toolkitOverrides[card.link];

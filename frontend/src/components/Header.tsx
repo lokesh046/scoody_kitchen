@@ -120,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
     ...(isKnowYourPetEnabled ? [{ id: 'pets', label: 'Know Your Pet', path: '/pets' }] : []),
     ...(vetAccess.navVisible ? [{ id: 'consultations', label: 'Vet Consult', path: '/consultations', badge: vetAccess.navLabel }] : []),
     ...(shopEntry.visible ? [{ id: 'shop', label: 'Shop', path: '/shop', badge: shopEntry.label }] : []),
-    ...(calculatorEntry.visible ? [{ id: 'calculator', label: 'Recipe Calculator', path: '/recipe-calculator', badge: calculatorEntry.label }] : []),
+    ...(calculatorEntry.visible ? [{ id: 'calculator', label: 'Count The Calories', path: '/recipe-calculator', badge: calculatorEntry.label }] : []),
     { id: 'orders', label: 'My Orders', path: '/orders' },
     ...(isMealPlannerEnabled ? [{ id: 'onboarding', label: 'Meal Planner', path: '/onboarding' }] : []),
     ...(isChatbotEnabled ? [{ id: 'assistant', label: 'AI Assistant', path: '/assistant' }] : []),

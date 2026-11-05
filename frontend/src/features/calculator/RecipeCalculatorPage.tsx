@@ -6,6 +6,8 @@ import { HeroScrollHint } from '../../components/HeroScrollHint';
 import { SiteFooter } from '../../components/SiteFooter';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Eyebrow } from '../../components/Eyebrow';
+import { ScrollSpyTimeline } from '../../components/ScrollSpyTimeline';
+import { ToolCarousel } from '../../components/ToolCarousel';
 import { RouteUnavailable } from '../../components/RouteUnavailable';
 import { CalculatorGettingStarted } from './CalculatorGettingStarted';
 import { useAuthStore } from '../../store/auth';
@@ -14,10 +16,10 @@ import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingHero } from '../../hooks/useAdminContent';
 
-const PAGE_TITLE = 'Recipe Calculator';
+const PAGE_TITLE = 'Count The Calories';
 const PAGE_DESCRIPTION = "Understand your dog's daily energy requirements and get a more informed starting point for planning their meals.";
 
-// The top image, headline and text can be changed in Admin > Banners ("Recipe Calculator page - top
+// The top image, headline and text can be changed in Admin > Banners ("Count The Calories page - top
 // image"); anything left empty there keeps these defaults.
 const DEFAULT_HERO = {
   image: '/images/hero/calculator-1.webp',
@@ -25,19 +27,26 @@ const DEFAULT_HERO = {
   subtitle: "Understand your pet's daily energy requirements and get a more informed starting point for planning their meals.",
 };
 
-const ENERGY_POINTS = [
+// The same scroll timeline (dashed line, gold markers, alternating photo cards) as Shop and Know Your Pet.
+const ENERGY_STEPS = [
   {
     icon: Flame,
+    image: '/images/calculator-timeline/energy.webp',
+    imageAlt: 'A golden retriever running across a sunlit grass field',
     title: 'Adequate energy everyday',
     text: 'The right amount of food provides the energy pets need for movement, activity, and essential body functions.',
   },
   {
     icon: SlidersHorizontal,
+    image: '/images/calculator-timeline/needs-vary.webp',
+    imageAlt: 'A senior dog and a puppy resting side by side on a rug',
     title: 'Needs that vary',
     text: 'Energy requirements can differ with factors such as age, body weight, activity level, and health.',
   },
   {
     icon: Compass,
+    image: '/images/calculator-timeline/informed.webp',
+    imageAlt: 'A person weighing fresh chicken and vegetable dog food on a kitchen scale while their golden retriever waits beside them',
     title: 'A more informed approach to meals',
     text: 'An energy estimate can help you make more informed feeding decisions, alongside appropriate nutritional guidance.',
   },
@@ -47,8 +56,8 @@ const ENERGY_POINTS = [
 // (cats, new questions, a meal plan, pricing), update these with it.
 const FAQS = [
   {
-    q: 'What does the Recipe Calculator do?',
-    a: "The Recipe Calculator estimates your dog's daily energy requirements using the details you provide. The result can help you make more informed decisions when planning their meals.",
+    q: 'What does Count The Calories do?',
+    a: "Count The Calories estimates your dog's daily energy requirements using the details you provide. The result can help you make more informed decisions when planning their meals.",
   },
   {
     q: 'What information do I need to provide?',
@@ -83,7 +92,7 @@ const FAQS = [
     a: "Your pet's energy requirements may change as they grow, age, become more or less active, or experience changes in health or body condition. Reassess their needs when appropriate and seek veterinary guidance if unsure.",
   },
   {
-    q: 'Is the Recipe Calculator free to use?',
+    q: 'Is Count The Calories free to use?',
     a: "Calculating your dog's estimate is free. You will be asked to sign in or create an account to continue to the meal planner. Buying a recipe is a separate step.",
   },
 ];
@@ -132,20 +141,20 @@ export function RecipeCalculatorPage() {
   const ecosystem = [
     ...(isKnowYourPetEnabled
       ? [{
-          title: 'Know Your Pet',
+          label: 'Know Your Pet',
           image: '/images/toolkit/know-your-pet.webp',
           text: "Understand your pet's characteristics and keep their profile information organised.",
-          cta: 'Explore Know Your Pet',
           path: '/pets',
+          cta: 'Explore Know Your Pet',
         }]
       : []),
     ...(isVetEnabled
       ? [{
-          title: 'Locate Your Vet',
+          label: 'Locate Your Vet',
           image: '/images/toolkit/locate-vet.webp',
           text: 'Find veterinary clinics in your area and take the next step towards their care.',
-          cta: 'Explore Locate Your Vet',
           path: '/consultations',
+          cta: 'Explore Locate Your Vet',
         }]
       : []),
   ];
@@ -155,7 +164,7 @@ export function RecipeCalculatorPage() {
       <RouteUnavailable
         variant={entry.variant}
         activeTab="calculator"
-        title={entry.variant === 'coming_soon' ? 'Recipe Calculator: Coming soon' : 'Recipe Calculator: Unavailable'}
+        title={entry.variant === 'coming_soon' ? 'Count The Calories: Coming soon' : 'Count The Calories: Unavailable'}
         actionLabel="Back to Home"
         actionPath="/"
       />
@@ -184,7 +193,6 @@ export function RecipeCalculatorPage() {
 
         <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-28 sm:pb-28 max-w-5xl">
           <div className={`max-w-2xl space-y-4 text-left animate-fade-in-up ${hero.ready ? '' : 'invisible'}`}>
-            <p className="font-mono text-xs sm:text-sm uppercase tracking-widest text-turmeric [text-shadow:0_1px_8px_rgba(0,0,0,0.9)]">Recipe Calculator</p>
             <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
               {hero.title}
             </h1>
@@ -208,69 +216,36 @@ export function RecipeCalculatorPage() {
 
       {/* Every pet has their own energy needs */}
       <section aria-labelledby="calc-needs-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
-        <div className="max-w-6xl mx-auto">
-          <div className="max-w-2xl mx-auto text-center space-y-4 mb-12">
+        <div className="max-w-7xl mx-auto">
+          <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
             <h2 id="calc-needs-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
               Every pet has their own energy needs.
             </h2>
-            <p className="font-body text-sm text-paper/75 leading-relaxed">
+            <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
               The right amount of energy helps support your pet's everyday activities, from resting and playing to growing and staying active. Understanding their daily energy requirements can give you a useful starting point when planning their meals.
             </p>
           </div>
-          <ol className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {ENERGY_POINTS.map(({ icon: Icon, title, text }, index) => (
-              <li key={title} className="rounded-[20px] border border-paper/10 bg-midnightCard p-6 sm:p-7 space-y-3 text-left">
-                <div className="flex items-center justify-between">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-paper">
-                    <Icon aria-hidden="true" className="h-6 w-6 text-turmeric" strokeWidth={1.6} />
-                  </span>
-                  <span className="font-mono text-xs font-bold text-turmeric/80">{String(index + 1).padStart(2, '0')}</span>
-                </div>
-                <h3 className="font-display font-bold text-lg text-paper">{title}</h3>
-                <p className="font-body text-sm text-paper/75 leading-relaxed">{text}</p>
-              </li>
-            ))}
-          </ol>
+          <ScrollSpyTimeline steps={ENERGY_STEPS} />
         </div>
       </section>
 
       {/* How it works -- the same staged animation as Know Your Pet's "Getting started" */}
       <CalculatorGettingStarted />
 
-      {/* Hearth & One ecosystem */}
+      {/* Hearth & One ecosystem -- the animated tool cards the other landing pages use */}
       {ecosystem.length > 0 && (
         <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
-          <div className="max-w-5xl mx-auto">
-            <div className="max-w-2xl mx-auto text-center space-y-4 mb-12">
+          <div className="max-w-7xl mx-auto">
+            <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
               <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">Hearth &amp; One Ecosystem</p>
               <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
                 One companion. Different aspects of their care.
               </h2>
-              <p className="font-body text-sm text-paper/75 leading-relaxed">
+              <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
                 Explore the tools designed to support different parts of the pet-parent journey.
               </p>
             </div>
-            <div className={`grid grid-cols-1 ${ecosystem.length > 1 ? 'md:grid-cols-2' : 'max-w-md mx-auto'} gap-6`}>
-              {ecosystem.map((card) => (
-                <article key={card.title} className="flex flex-col rounded-[20px] overflow-hidden border border-paper/10 bg-midnightCard">
-                  <div className="aspect-[4/3] bg-midnight flex items-center justify-center border-b border-paper/10">
-                    <img src={card.image} alt="" aria-hidden="true" width={800} height={800} loading="lazy" className="h-full w-full object-contain p-4" />
-                  </div>
-                  <div className="flex flex-1 flex-col gap-3 p-6 text-left">
-                    <h3 className="font-display font-bold text-xl text-paper">{card.title}</h3>
-                    <p className="font-body text-sm text-paper/75 leading-relaxed flex-1">{card.text}</p>
-                    <button
-                      type="button"
-                      onClick={() => navigate(card.path)}
-                      className="inline-flex items-center gap-2 self-start font-mono text-xs uppercase tracking-wider font-bold text-turmeric hover:text-paper transition-colors cursor-pointer"
-                    >
-                      <span>{card.cta}</span>
-                      <ArrowRight aria-hidden="true" className="w-4 h-4" />
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
+            <ToolCarousel items={ecosystem} />
           </div>
         </section>
       )}
@@ -310,8 +285,7 @@ export function RecipeCalculatorPage() {
       {/* Closing CTA */}
       <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 bg-gradient-to-b from-midnightCard to-midnight text-paper text-center">
         <div className="max-w-4xl mx-auto">
-          <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">Recipe Calculator</p>
-          <h2 id="calc-cta-heading" className="mt-4 font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
+          <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
             Take the next step towards more informed meals.
           </h2>
           <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">

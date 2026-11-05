@@ -1,4 +1,4 @@
-"""Adds the landing-page top banners (Shop, Know Your Pet, Locate Your Vet, Recipe Calculator) to this database.
+"""Adds the landing-page top banners (Shop, Know Your Pet, Locate Your Vet, Count The Calories) to this database.
 
 Safe to run more than once: a page that already has an active banner is skipped.
 Dry run by default; nothing is written unless you pass --apply.
@@ -6,7 +6,7 @@ Dry run by default; nothing is written unless you pass --apply.
 Run inside the backend container (no secrets needed, it uses the app's own connection):
   docker exec -i pet_platform_backend python - --apply < add_landing_page_banners.py
 
-Source: the first three are the banners that beta already shows; the Recipe Calculator one is new. The Shop subtitle was reworded because
+Source: the first three are the banners that beta already shows; the Count The Calories one is new. The Shop subtitle was reworded because
 beta's said "Human-grade recipes ... every ingredient and its percentage published", which we
 cannot back up. The Know Your Pet and Locate Your Vet text is unchanged.
 """
