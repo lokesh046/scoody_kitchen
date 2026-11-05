@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Check, Flame, SlidersHorizontal } from 'lucide-react';
-import { BottomFade } from './SectionFade';
 import { TONE } from './tones';
 
 // The same staged "Getting started" animation as the Know Your Pet page: each step fades in, and its
@@ -63,7 +62,7 @@ function StepPreview({ step }: { step: number }) {
   );
 }
 
-export function CalculatorGettingStarted({ fadeTo }: { fadeTo: string }) {
+export function CalculatorGettingStarted() {
   const reduceMotion = useReducedMotion();
   const [activeStep, setActiveStep] = useState(0);
   const [hasEntered, setHasEntered] = useState(false);
@@ -78,7 +77,7 @@ export function CalculatorGettingStarted({ fadeTo }: { fadeTo: string }) {
   }, []);
 
   return (
-    <section aria-labelledby="calc-getting-started-heading" className="relative px-4 pt-20 pb-36 text-paper sm:px-6 md:px-8 md:pt-24 md:pb-44" style={{ background: `linear-gradient(to bottom, ${TONE.forest}, ${TONE.forestDeep})` }}>
+    <section aria-labelledby="calc-getting-started-heading" className="relative px-4 py-16 text-paper sm:px-6 md:px-8 md:py-20" style={{ background: TONE.forest }}>
       <div className="relative mx-auto max-w-6xl">
         <div className="mx-auto mb-12 max-w-5xl text-center md:mb-16">
           <h2 id="calc-getting-started-heading" className="font-script text-3xl font-normal tracking-normal leading-snug sm:text-4xl xl:text-5xl lg:whitespace-nowrap">
@@ -133,7 +132,6 @@ export function CalculatorGettingStarted({ fadeTo }: { fadeTo: string }) {
           ))}
         </motion.ol>
       </div>
-      <BottomFade to={fadeTo} />
     </section>
   );
 }

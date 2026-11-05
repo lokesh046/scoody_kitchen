@@ -9,7 +9,6 @@ import { CartDrawer } from '../../components/CartDrawer';
 import { ToolCarousel } from '../../components/ToolCarousel';
 import { RouteUnavailable } from '../../components/RouteUnavailable';
 import { CalculatorGettingStarted } from './CalculatorGettingStarted';
-import { BottomFade } from './SectionFade';
 import { TONE } from './tones';
 import { useAuthStore } from '../../store/auth';
 import { useFeatureFlag, useFlagEntry, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
@@ -213,12 +212,11 @@ export function RecipeCalculatorPage() {
             </div>
           </div>
         </div>
-        <BottomFade to={TONE.midnight} />
         <HeroScrollHint />
       </section>
 
       {/* Every pet has their own energy needs */}
-      <section aria-labelledby="calc-needs-heading" className="relative px-4 sm:px-6 md:px-8 pt-20 pb-36 md:pt-24 md:pb-44 text-paper" style={{ background: `linear-gradient(to bottom, ${TONE.midnight}, ${TONE.espresso})` }}>
+      <section aria-labelledby="calc-needs-heading" className="relative px-4 sm:px-6 md:px-8 py-16 md:py-20 text-paper" style={{ background: TONE.espresso }}>
         <div className="relative max-w-7xl mx-auto">
           <div className="max-w-5xl mx-auto text-center space-y-3 mb-12">
             <h2 id="calc-needs-heading" className="font-script font-normal text-3xl sm:text-4xl xl:text-5xl tracking-normal leading-snug lg:whitespace-nowrap">
@@ -267,15 +265,14 @@ export function RecipeCalculatorPage() {
             ))}
           </motion.ol>
         </div>
-        <BottomFade to={TONE.forest} />
       </section>
 
       {/* How it works -- the same staged animation as Know Your Pet's "Getting started" */}
-      <CalculatorGettingStarted fadeTo={ecosystem.length > 0 ? TONE.navy : TONE.plum} />
+      <CalculatorGettingStarted />
 
       {/* Hearth & One ecosystem -- the animated tool cards the other landing pages use */}
       {ecosystem.length > 0 && (
-        <section aria-labelledby="calc-ecosystem-heading" className="relative px-4 sm:px-6 md:px-8 pt-20 pb-36 md:pt-24 md:pb-44 text-paper" style={{ background: `linear-gradient(to bottom, ${TONE.navy}, ${TONE.navyDeep})` }}>
+        <section aria-labelledby="calc-ecosystem-heading" className="relative px-4 sm:px-6 md:px-8 py-16 md:py-20 text-paper" style={{ background: TONE.navy }}>
           <div className="relative max-w-7xl mx-auto">
             <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
               <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
@@ -287,12 +284,11 @@ export function RecipeCalculatorPage() {
             </div>
             <ToolCarousel items={ecosystem} />
           </div>
-          <BottomFade to={TONE.plum} />
         </section>
       )}
 
       {/* FAQ */}
-      <section aria-labelledby="calc-faq-heading" className="relative px-4 sm:px-6 md:px-8 pt-20 pb-36 md:pt-24 md:pb-44 text-paper" style={{ background: `linear-gradient(to bottom, ${TONE.plum}, ${TONE.plumDeep})` }}>
+      <section aria-labelledby="calc-faq-heading" className="relative px-4 sm:px-6 md:px-8 py-16 md:py-20 text-paper" style={{ background: TONE.plum }}>
         <div className="relative max-w-4xl mx-auto">
           <div className="text-center mb-10 space-y-3">
             <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl tracking-normal leading-snug">
@@ -323,7 +319,7 @@ export function RecipeCalculatorPage() {
       </section>
 
       {/* Closing CTA */}
-      <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 text-paper text-center" style={{ background: `linear-gradient(to bottom, ${TONE.plumDeep}, ${TONE.midnight})` }}>
+      <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 bg-gradient-to-b from-midnightCard to-midnight text-paper text-center">
         <div className="max-w-4xl mx-auto">
           <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
             Take the next step towards more informed meals.
