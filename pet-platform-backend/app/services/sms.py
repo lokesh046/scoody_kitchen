@@ -47,7 +47,8 @@ async def send_sms_otp(phone_number: str, code: str) -> None:
             body = response.json()
         except ValueError:
             pass
-        if response.status_code >= 400 or body.get("type") == "error":
+        # Count only an explicit {"type": "success"} as sent, so an odd 200 reply can never look like delivery.
+        if response.status_code >= 400 or body.get("type") != "success":
             # The code is only in the request, never the response, so the body is safe to log.
             logger.error("MSG91 send failed for %s: status=%s body=%s", mobile, response.status_code, response.text)
             raise SmsSendError(f"MSG91 returned {response.status_code}")
