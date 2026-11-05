@@ -6,13 +6,11 @@ import * as authApi from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
 
 jest.mock('../../api/auth', () => ({
-  requestOtpPreCheck: jest.fn(),
   verifyPhoneWithToken: jest.fn(),
   sendWhatsAppOtp: jest.fn(),
   verifyWhatsAppOtp: jest.fn(),
 }));
 jest.mock('../../../App', () => ({ navigationRef: { isReady: () => false, navigate: jest.fn() } }));
-jest.mock('../../config/firebase', () => ({ FIREBASE_CONFIG: {} }));
 jest.mock('../../store/authStore', () => ({ useAuthStore: jest.fn() }));
 
 const mockedAuthApi = authApi as jest.Mocked<typeof authApi>;
@@ -25,7 +23,7 @@ const signedIn = (user: any) => mockedStore.mockReturnValue({ user, updateUser: 
 const enterNumberAndSend = async () => {
   fireEvent.changeText(screen.getByPlaceholderText('0000000000'), '9876543210');
   fireEvent.press(screen.getByText('Send Verification Code'));
-  await waitFor(() => expect(screen.getByText(/Code sent via/)).toBeTruthy());
+  await waitFor(() => expect(screen.getByText(/Code sent by SMS/)).toBeTruthy());
 };
 
 describe('PhoneVerificationGate', () => {
@@ -42,7 +40,7 @@ describe('PhoneVerificationGate', () => {
     fireEvent.press(screen.getByText('Wrong number? Change number'));
 
     expect(screen.getByText('Send Verification Code')).toBeTruthy();
-    expect(screen.queryByText(/Code sent via/)).toBeNull();
+    expect(screen.queryByText(/Code sent by SMS/)).toBeNull();
     // the number is still there, ready to be edited
     expect(screen.getByDisplayValue('9876543210')).toBeTruthy();
   });
@@ -58,7 +56,7 @@ describe('PhoneVerificationGate', () => {
     rerender(<PhoneVerificationGate />);
 
     await waitFor(() => expect(screen.getByText('Send Verification Code')).toBeTruthy());
-    expect(screen.queryByText(/Code sent via/)).toBeNull();
+    expect(screen.queryByText(/Code sent by SMS/)).toBeNull();
     expect(screen.queryByDisplayValue('9876543210')).toBeNull();
     expect(mockedAuthApi.sendWhatsAppOtp).toHaveBeenCalledTimes(1); // nothing new was sent
   });

@@ -22,9 +22,8 @@ import {
 } from 'lucide-react-native';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { COLORS } from '../theme/colors';
-import { requestOtpPreCheck, verifyPhoneWithToken, sendWhatsAppOtp, verifyWhatsAppOtp } from '../api/auth';
+import { sendWhatsAppOtp, verifyWhatsAppOtp } from '../api/auth';
 import { UserProfile } from '../store/authStore';
-import { FIREBASE_CONFIG } from '../config/firebase';
 import { useResponsive } from '../hooks/useResponsive';
 import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
 import { toE164, getCountry } from '../utils/phone';
@@ -54,12 +53,7 @@ export function PhoneVerificationModal({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [infoNotice, setInfoNotice] = useState<string | null>(null);
-  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
   const [cooldownCountdown, setCooldownCountdown] = useState(0);
-  const [sessionInfo, setSessionInfo] = useState<string | null>(null);
-  // WhatsApp is the primary channel; falls back to Firebase SMS if the user
-  // can't receive WhatsApp or a send fails.
-  const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   // When the sent code is still valid, closing the modal by accident (the X,
   // a backdrop tap, the system back gesture) and reopening it should resume
   // the OTP-entry step instead of silently discarding the code and forcing
@@ -90,8 +84,6 @@ export function PhoneVerificationModal({
     setErrorMsg(null);
     setInfoNotice(null);
     setIsLoading(false);
-    setSessionInfo(null);
-    setVerificationChannel('whatsapp');
     setOtpExpiresAt(null);
   }, [visible, phone]);
 
@@ -125,73 +117,21 @@ export function PhoneVerificationModal({
       : phone.replace(/\D/g, '').slice(-10);
   const fullPhoneNumber = toE164(country, displayDigits);
 
-  const handleSendOtp = async (channel: 'whatsapp' | 'sms' = verificationChannel) => {
+  const handleSendOtp = async () => {
     setIsLoading(true);
     setErrorMsg(null);
     setInfoNotice(null);
-
-    if (channel === 'whatsapp') {
-      try {
-        const result = await sendWhatsAppOtp(fullPhoneNumber);
-        setStep(2);
-        setCooldownCountdown(60);
-        setOtpExpiresAt(Date.now() + (result.expires_in || 300) * 1000);
-      } catch (err: any) {
-        console.log('WhatsApp OTP request error:', err.response?.data || err.message);
-        setErrorMsg(
-          err.response?.data?.detail ||
-          "Couldn't send a WhatsApp code. You can try SMS instead below."
-        );
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-
-    // SMS fallback (Firebase Phone Auth via REST Identity Toolkit)
     try {
-      // 1. Backend rate limit & cooldown pre-check gate
-      const precheck = await requestOtpPreCheck(fullPhoneNumber);
-      if (precheck.attempts_remaining !== undefined) {
-        setAttemptsRemaining(precheck.attempts_remaining);
-      }
-
-      // 2. Request OTP via Firebase REST Identity Toolkit
-      const fbRes = await fetch(
-        `https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key=${FIREBASE_CONFIG.apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phoneNumber: fullPhoneNumber,
-          }),
-        }
-      );
-
-      const fbData = await fbRes.json();
-      if (fbData.sessionInfo) {
-        setSessionInfo(fbData.sessionInfo);
-      }
-
+      const result = await sendWhatsAppOtp(fullPhoneNumber);
       setStep(2);
-      setCooldownCountdown(30);
-      setOtpExpiresAt(Date.now() + 5 * 60 * 1000);
+      setCooldownCountdown(60);
+      setOtpExpiresAt(Date.now() + (result.expires_in || 600) * 1000);
     } catch (err: any) {
       console.log('OTP request error:', err.response?.data || err.message);
-      const detail =
-        err.response?.data?.detail ||
-        err.message ||
-        'Failed to send SMS code. Please verify the phone number format.';
-      setErrorMsg(detail);
+      setErrorMsg(err.response?.data?.detail || "Couldn't send the code. Please try again in a moment.");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleTrySmsInstead = () => {
-    setVerificationChannel('sms');
-    setErrorMsg(null);
-    handleSendOtp('sms');
   };
 
   const handleVerifyOtp = async () => {
@@ -204,31 +144,7 @@ export function PhoneVerificationModal({
     setErrorMsg(null);
 
     try {
-      let updatedUser: UserProfile;
-
-      if (verificationChannel === 'whatsapp') {
-        updatedUser = await verifyWhatsAppOtp(fullPhoneNumber, verificationCode);
-      } else {
-        if (!sessionInfo) {
-          throw new Error('Verification session has expired. Please send the OTP again.');
-        }
-        const verifyRes = await fetch(
-          `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPhoneNumber?key=${FIREBASE_CONFIG.apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sessionInfo,
-              code: verificationCode,
-            }),
-          }
-        );
-        const verifyData = await verifyRes.json();
-        if (!verifyData.idToken) {
-          throw new Error(verifyData.error?.message || 'Incorrect OTP code. Please try again.');
-        }
-        updatedUser = await verifyPhoneWithToken(verifyData.idToken);
-      }
+      const updatedUser: UserProfile = await verifyWhatsAppOtp(fullPhoneNumber, verificationCode);
 
       setOtpExpiresAt(null);
       Alert.alert('Phone Verified', 'Your contact phone number has been verified in your account ledger.');
@@ -277,7 +193,7 @@ export function PhoneVerificationModal({
                   <Text style={styles.tagBadgeText}>REGISTRY PHONE VERIFICATION</Text>
                 </View>
                 <Text style={styles.title}>
-                  {verificationChannel === 'whatsapp' ? 'WhatsApp Verification' : 'SMS Authentication'}
+                  SMS Verification
                 </Text>
               </View>
 
@@ -310,36 +226,25 @@ export function PhoneVerificationModal({
             {step === 1 ? (
               <View style={styles.body}>
                 <Text style={styles.description}>
-                  We'll send a one-time verification code via WhatsApp to your registered profile number:{' '}
+                  We'll send a one-time verification code by SMS to your registered profile number:{' '}
                   <Text style={styles.phoneHighlight}>+{getCountry(country).dialCode} {displayDigits}</Text>.
                 </Text>
 
                 <View style={styles.actionColumn}>
                   <TouchableOpacity
                     style={[styles.primaryBtn, isLoading && styles.btnDisabled]}
-                    onPress={() => handleSendOtp('whatsapp')}
+                    onPress={() => handleSendOtp()}
                     disabled={isLoading}
                     activeOpacity={0.85}
                   >
                     {isLoading ? (
                       <View style={styles.rowCentered}>
                         <ActivityIndicator size="small" color="#FFFFFF" />
-                        <Text style={styles.primaryBtnText}>Sending WhatsApp code...</Text>
+                        <Text style={styles.primaryBtnText}>Sending code...</Text>
                       </View>
                     ) : (
-                      <Text style={styles.primaryBtnText}>Send Code via WhatsApp</Text>
+                      <Text style={styles.primaryBtnText}>Send Code by SMS</Text>
                     )}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.sandboxBtn}
-                    onPress={handleTrySmsInstead}
-                    disabled={isLoading}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.sandboxBtnText}>
-                      Can't receive WhatsApp? Send via SMS instead
-                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -361,14 +266,8 @@ export function PhoneVerificationModal({
                 </View>
 
                 <Text style={styles.codeSubNote}>
-                  Enter the verification code sent to your phone. Code is valid for 5 minutes.
+                  Enter the verification code sent to your phone. Code is valid for 10 minutes.
                 </Text>
-
-                {attemptsRemaining !== null && (
-                  <Text style={styles.attemptsText}>
-                    HOURLY ATTEMPTS REMAINING: {attemptsRemaining} OF 3
-                  </Text>
-                )}
 
                 <View style={styles.otpActionRow}>
                   {cooldownCountdown > 0 ? (

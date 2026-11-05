@@ -13,13 +13,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ShieldCheck, Clock, CheckCircle2, AlertCircle } from 'lucide-react-native';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import {
-  requestOtpPreCheck,
-  verifyPhoneWithToken,
   sendWhatsAppOtp,
   verifyWhatsAppOtp,
 } from '../api/auth';
 import { useAuthStore } from '../store/authStore';
-import { FIREBASE_CONFIG } from '../config/firebase';
 import { navigationRef } from '../../App';
 import { PhoneNumberInput } from './PhoneNumberInput';
 import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
@@ -42,10 +39,7 @@ export function PhoneVerificationGate() {
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
   const [cooldownCountdown, setCooldownCountdown] = useState(0);
-  const [sessionInfo, setSessionInfo] = useState<string | null>(null);
-  const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
 
   const timerRef = useRef<any>(null);
 
@@ -63,10 +57,7 @@ export function PhoneVerificationGate() {
     setVerificationCode('');
     setIsLoading(false);
     setErrorMsg(null);
-    setAttemptsRemaining(null);
     setCooldownCountdown(0);
-    setSessionInfo(null);
-    setVerificationChannel('whatsapp');
   }, [accountKey]);
 
   // Back from the code screen to the number box, so a wrong number can be corrected.
@@ -75,9 +66,7 @@ export function PhoneVerificationGate() {
     setStep('phone');
     setVerificationCode('');
     setErrorMsg(null);
-    setAttemptsRemaining(null);
     setCooldownCountdown(0);
-    setSessionInfo(null);
   };
 
   useEffect(() => {
@@ -125,53 +114,18 @@ export function PhoneVerificationGate() {
       return;
     }
     setErrorMsg(null);
-    handleSendOtp('whatsapp');
+    handleSendOtp();
   };
 
-  const handleSendOtp = async (channel: 'whatsapp' | 'sms') => {
+  const handleSendOtp = async () => {
     setIsLoading(true);
     setErrorMsg(null);
-    setVerificationChannel(channel);
-
-    if (channel === 'whatsapp') {
-      try {
-        await sendWhatsAppOtp(fullPhoneNumber);
-        setStep('otp');
-        setCooldownCountdown(60);
-      } catch (err: any) {
-        setErrorMsg(
-          err.response?.data?.detail || "Couldn't send a WhatsApp code. You can try SMS instead below."
-        );
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-
     try {
-      const precheck = await requestOtpPreCheck(fullPhoneNumber);
-      if (precheck.attempts_remaining !== undefined) {
-        setAttemptsRemaining(precheck.attempts_remaining);
-      }
-
-      const fbRes = await fetch(
-        `https://identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key=${FIREBASE_CONFIG.apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phoneNumber: fullPhoneNumber }),
-        }
-      );
-      const fbData = await fbRes.json();
-      if (fbData.sessionInfo) {
-        setSessionInfo(fbData.sessionInfo);
-      }
+      await sendWhatsAppOtp(fullPhoneNumber);
       setStep('otp');
-      setCooldownCountdown(30);
+      setCooldownCountdown(60);
     } catch (err: any) {
-      setErrorMsg(
-        err.response?.data?.detail || err.message || 'Failed to send SMS code. Please verify the phone number format.'
-      );
+      setErrorMsg(err.response?.data?.detail || "Couldn't send the code. Please try again in a moment.");
     } finally {
       setIsLoading(false);
     }
@@ -186,27 +140,7 @@ export function PhoneVerificationGate() {
     setErrorMsg(null);
 
     try {
-      let updatedUser;
-      if (verificationChannel === 'whatsapp') {
-        updatedUser = await verifyWhatsAppOtp(fullPhoneNumber, verificationCode);
-      } else {
-        if (!sessionInfo) {
-          throw new Error('Verification session has expired. Please send the OTP again.');
-        }
-        const verifyRes = await fetch(
-          `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPhoneNumber?key=${FIREBASE_CONFIG.apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionInfo, code: verificationCode }),
-          }
-        );
-        const verifyData = await verifyRes.json();
-        if (!verifyData.idToken) {
-          throw new Error(verifyData.error?.message || 'Incorrect OTP code. Please try again.');
-        }
-        updatedUser = await verifyPhoneWithToken(verifyData.idToken);
-      }
+      const updatedUser = await verifyWhatsAppOtp(fullPhoneNumber, verificationCode);
       await updateUser(updatedUser);
       // Once verification is done, always land on Home -- this gate opens
       // right at app start (before the user has navigated anywhere real),
@@ -278,7 +212,7 @@ export function PhoneVerificationGate() {
             ) : (
               <View style={styles.body}>
                 <Text style={styles.description}>
-                  Code sent via {verificationChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to{' '}
+                  Code sent by SMS to{' '}
                   <Text style={styles.phoneHighlight}>+{getCountry(country).dialCode} {phoneDigits}</Text>.
                 </Text>
 
@@ -307,12 +241,6 @@ export function PhoneVerificationGate() {
                   />
                 </View>
 
-                {attemptsRemaining !== null && (
-                  <Text style={styles.attemptsText}>
-                    HOURLY ATTEMPTS REMAINING: {attemptsRemaining} OF 3
-                  </Text>
-                )}
-
                 <View style={styles.otpActionRow}>
                   {cooldownCountdown > 0 ? (
                     <View style={styles.resendBtnDisabled}>
@@ -322,7 +250,7 @@ export function PhoneVerificationGate() {
                   ) : (
                     <TouchableOpacity
                       style={styles.resendBtn}
-                      onPress={() => handleSendOtp(verificationChannel)}
+                      onPress={() => handleSendOtp()}
                       disabled={isLoading}
                       activeOpacity={0.8}
                     >
@@ -349,20 +277,6 @@ export function PhoneVerificationGate() {
                     )}
                   </TouchableOpacity>
                 </View>
-
-                {verificationChannel === 'whatsapp' && (
-                  <TouchableOpacity
-                    style={styles.sandboxBtn}
-                    onPress={() => {
-                      setErrorMsg(null);
-                      handleSendOtp('sms');
-                    }}
-                    disabled={isLoading}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.sandboxBtnText}>Can't receive WhatsApp? Send via SMS instead</Text>
-                  </TouchableOpacity>
-                )}
               </View>
             )}
 
