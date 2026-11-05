@@ -9,7 +9,6 @@ import { CartDrawer } from '../../components/CartDrawer';
 import { ToolCarousel } from '../../components/ToolCarousel';
 import { RouteUnavailable } from '../../components/RouteUnavailable';
 import { CalculatorGettingStarted } from './CalculatorGettingStarted';
-import { TONE } from './tones';
 import { useAuthStore } from '../../store/auth';
 import { useFeatureFlag, useFlagEntry, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
@@ -216,8 +215,8 @@ export function RecipeCalculatorPage() {
       </section>
 
       {/* Every pet has their own energy needs */}
-      <section aria-labelledby="calc-needs-heading" className="relative px-4 sm:px-6 md:px-8 py-16 md:py-20 text-paper" style={{ background: TONE.espresso }}>
-        <div className="relative max-w-7xl mx-auto">
+      <section aria-labelledby="calc-needs-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
+        <div className="max-w-7xl mx-auto">
           <div className="max-w-5xl mx-auto text-center space-y-3 mb-12">
             <h2 id="calc-needs-heading" className="font-script font-normal text-3xl sm:text-4xl xl:text-5xl tracking-normal leading-snug lg:whitespace-nowrap">
               Every pet has their own energy needs.
@@ -272,8 +271,8 @@ export function RecipeCalculatorPage() {
 
       {/* Hearth & One ecosystem -- the animated tool cards the other landing pages use */}
       {ecosystem.length > 0 && (
-        <section aria-labelledby="calc-ecosystem-heading" className="relative px-4 sm:px-6 md:px-8 py-16 md:py-20 text-paper" style={{ background: TONE.navy }}>
-          <div className="relative max-w-7xl mx-auto">
+        <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
+          <div className="max-w-7xl mx-auto">
             <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
               <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
                 One companion. Different aspects of their care.
@@ -288,10 +287,10 @@ export function RecipeCalculatorPage() {
       )}
 
       {/* FAQ */}
-      <section aria-labelledby="calc-faq-heading" className="relative px-4 sm:px-6 md:px-8 py-16 md:py-20 text-paper" style={{ background: TONE.plum }}>
-        <div className="relative max-w-4xl mx-auto">
+      <section aria-labelledby="calc-faq-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20">
+        <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10 space-y-3">
-            <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl tracking-normal leading-snug">
+            <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl tracking-normal leading-snug text-ink">
               Frequently asked questions.
             </h2>
           </div>
@@ -299,17 +298,17 @@ export function RecipeCalculatorPage() {
             {FAQS.map((faq, index) => {
               const isOpen = openFaq === index;
               return (
-                <div key={faq.q} className="border border-paper/10 bg-paper/5 rounded-sm overflow-hidden">
+                <div key={faq.q} className="border border-cardboard border-opacity-40 bg-paperLight rounded-sm overflow-hidden">
                   <button
                     onClick={() => setOpenFaq(isOpen ? null : index)}
                     aria-expanded={isOpen}
                     className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left cursor-pointer"
                   >
-                    <span className="font-body font-bold text-sm text-paper">{faq.q}</span>
-                    {isOpen ? <Minus aria-hidden="true" className="w-5 h-5 shrink-0 text-turmeric" /> : <Plus aria-hidden="true" className="w-5 h-5 shrink-0 text-turmeric" />}
+                    <span className="font-body font-bold text-sm text-ink">{faq.q}</span>
+                    {isOpen ? <Minus aria-hidden="true" className="w-5 h-5 shrink-0 text-black" /> : <Plus aria-hidden="true" className="w-5 h-5 shrink-0 text-black" />}
                   </button>
                   {isOpen && (
-                    <div className="px-5 pb-4 font-body text-sm leading-relaxed text-paper/80">{faq.a}</div>
+                    <div className="px-5 pb-4 font-body text-sm leading-relaxed text-ink opacity-80">{faq.a}</div>
                   )}
                 </div>
               );
