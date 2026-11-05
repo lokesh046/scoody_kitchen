@@ -263,7 +263,7 @@ export function RecipeCalculatorPage() {
             variants={{ hidden: {}, visible: { transition: { staggerChildren: reduceMotion ? 0 : 0.18 } } }}
             className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8"
           >
-            {ENERGY_STEPS.map(({ icon: Icon, image, imageAlt, title, text }, index) => (
+            {ENERGY_STEPS.map(({ icon: Icon, image, imageAlt, title, text }) => (
               <motion.li
                 key={title}
                 variants={{ hidden: { opacity: 0, y: 28 }, visible: { opacity: 1, y: 0 } }}
@@ -280,9 +280,6 @@ export function RecipeCalculatorPage() {
                     className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
                   />
                   <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-midnightCard/80 via-transparent to-transparent" />
-                  <span className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-turmeric/60 bg-midnight/80 font-mono text-xs font-bold text-turmeric">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
                 </div>
                 <div className="flex flex-1 flex-col gap-3 p-6">
                   <div className="flex items-center gap-3">
