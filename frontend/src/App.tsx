@@ -1,3 +1,4 @@
+import { HideWhenHidden, HideVetWhenHidden } from './components/HideWhenHidden';
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './store/auth';
@@ -183,9 +184,9 @@ export default function App() {
           <Suspense fallback={<RouteLoadingFallback />}>
             <Routes>
               <Route path="/" element={<HomePage />} />
-              <Route path="/shop" element={<ShopLandingPage />} />
+              <Route path="/shop" element={<HideWhenHidden flag="shop_checkout"><ShopLandingPage /></HideWhenHidden>} />
               <Route path="/shop/app" element={<ShopPage />} />
-              <Route path="/recipe-calculator" element={<RecipeCalculatorPage />} />
+              <Route path="/recipe-calculator" element={<HideWhenHidden flag="shop_meal_planner"><RecipeCalculatorPage /></HideWhenHidden>} />
               <Route path="/login" element={<AuthPage />} />
               <Route path="/auth/verify" element={<VerifyCallback />} />
               <Route path="/auth/magic-link/verify" element={<VerifyCallback />} />
@@ -193,9 +194,9 @@ export default function App() {
               <Route path="/product/:id" element={<ProductDetailPage />} />
               <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
               <Route path="/orders" element={<RequireAuth><OrdersPage /></RequireAuth>} />
-              <Route path="/pets" element={<PetsLandingPage />} />
+              <Route path="/pets" element={<HideWhenHidden flag="pets_know_your_pet"><PetsLandingPage /></HideWhenHidden>} />
               <Route path="/pets/app" element={<RequireAuth><PetsPage /></RequireAuth>} />
-              <Route path="/consultations" element={<VetLandingPage />} />
+              <Route path="/consultations" element={<HideVetWhenHidden><VetLandingPage /></HideVetWhenHidden>} />
               <Route path="/consultations/app" element={<RequireAuth><ConsultationsPage /></RequireAuth>} />
               <Route path="/consultations/:id" element={<RequireAuth><ConsultationsPage /></RequireAuth>} />
               <Route path="/consultations/:id/call" element={<RequireAuth><VideoCallPage /></RequireAuth>} />
