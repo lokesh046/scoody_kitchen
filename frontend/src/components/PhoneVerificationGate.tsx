@@ -3,13 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { useAuthStore } from '../store/auth';
-import { auth } from '../api/firebase';
-import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import {
   sendWhatsAppOtp,
   verifyWhatsAppOtp,
-  verifyFirebasePhoneToken,
-  requestOtpPreCheck,
   logoutUser,
 } from '../api/auth';
 import { PhoneNumberInput } from './PhoneNumberInput';
@@ -29,14 +25,10 @@ export const PhoneVerificationGate: React.FC = () => {
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [country, setCountry] = useState(DEFAULT_COUNTRY_ISO2);
   const [phone, setPhone] = useState('');
-  const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   const [verificationCode, setVerificationCode] = useState('');
-  const [confirmResult, setConfirmResult] = useState<any>(null);
-  const [recaptchaVerifier, setRecaptchaVerifier] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cooldownCountdown, setCooldownCountdown] = useState(0);
-  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
 
   // This component stays mounted for the whole session and only hides itself, so without a reset its
   // state (code screen, previous number, typed code, errors) survives a logout and the NEXT account
@@ -46,19 +38,10 @@ export const PhoneVerificationGate: React.FC = () => {
     setStep('phone');
     setCountry(DEFAULT_COUNTRY_ISO2);
     setPhone('');
-    setVerificationChannel('whatsapp');
     setVerificationCode('');
-    setConfirmResult(null);
     setIsLoading(false);
     setError(null);
     setCooldownCountdown(0);
-    setAttemptsRemaining(null);
-    setRecaptchaVerifier((current: any) => {
-      try {
-        current?.clear();
-      } catch {}
-      return null;
-    });
   }, [accountKey]);
 
   // Pre-fill from the user's existing profile phone, if any (e.g. a
@@ -102,54 +85,19 @@ export const PhoneVerificationGate: React.FC = () => {
       return;
     }
     setError(null);
-    handleSendOtp('whatsapp');
+    handleSendOtp();
   };
 
-  const handleSendOtp = async (channel: 'whatsapp' | 'sms') => {
+  const handleSendOtp = async () => {
     setIsLoading(true);
     setError(null);
-    setVerificationChannel(channel);
     const fullPhone = toE164(country, phone);
-
-    if (channel === 'whatsapp') {
-      try {
-        await sendWhatsAppOtp(fullPhone);
-        setStep('otp');
-        setCooldownCountdown(60);
-      } catch (err: any) {
-        setError(
-          err.response?.data?.detail || "Couldn't send a WhatsApp code. You can try SMS instead below."
-        );
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-
     try {
-      const rateLimitResponse = await requestOtpPreCheck(fullPhone);
-      if (rateLimitResponse.attempts_remaining !== undefined) {
-        setAttemptsRemaining(rateLimitResponse.attempts_remaining);
-      }
-
-      const container = document.getElementById('phone-gate-recaptcha-container');
-      if (container) {
-        container.innerHTML = '<div id="phone-gate-recaptcha-anchor"></div>';
-      }
-      const verifier = new RecaptchaVerifier(auth, 'phone-gate-recaptcha-anchor', { size: 'invisible' });
-      setRecaptchaVerifier(verifier);
-
-      const confirmation = await signInWithPhoneNumber(auth, fullPhone, verifier);
-      setConfirmResult(confirmation);
+      await sendWhatsAppOtp(fullPhone);
       setStep('otp');
-      setCooldownCountdown(30);
+      setCooldownCountdown(60);
     } catch (err: any) {
-      setError(err.response?.data?.detail || err.message || 'Failed to send SMS code.');
-      if (recaptchaVerifier) {
-        try {
-          recaptchaVerifier.clear();
-        } catch {}
-      }
+      setError(err.response?.data?.detail || "Couldn't send the code. Please try again in a moment.");
     } finally {
       setIsLoading(false);
     }
@@ -165,23 +113,8 @@ export const PhoneVerificationGate: React.FC = () => {
     const fullPhone = toE164(country, phone);
 
     try {
-      let updatedUser;
-      if (verificationChannel === 'whatsapp') {
-        updatedUser = await verifyWhatsAppOtp(fullPhone, verificationCode);
-      } else {
-        if (!confirmResult) {
-          throw new Error('Verification session has expired. Please send the code again.');
-        }
-        const userCredential = await confirmResult.confirm(verificationCode);
-        const idToken = await userCredential.user.getIdToken();
-        updatedUser = await verifyFirebasePhoneToken(idToken);
-      }
+      const updatedUser = await verifyWhatsAppOtp(fullPhone, verificationCode);
       setAuth(updatedUser, accessToken);
-      if (recaptchaVerifier) {
-        try {
-          recaptchaVerifier.clear();
-        } catch {}
-      }
       // Once verification is done, always land on home -- any
       // "take me back to what I was trying to reach" redirect already
       // happened at login time (see RequireAuth/AuthPage), before this
@@ -200,13 +133,6 @@ export const PhoneVerificationGate: React.FC = () => {
     setVerificationCode('');
     setError(null);
     setCooldownCountdown(0);
-    setAttemptsRemaining(null);
-    setConfirmResult(null);
-    if (recaptchaVerifier) {
-      try {
-        recaptchaVerifier.clear();
-      } catch {}
-    }
   };
 
   const handleSignOutInstead = async () => {
@@ -220,7 +146,6 @@ export const PhoneVerificationGate: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-[9999] bg-ink bg-opacity-60 flex items-center justify-center p-4">
-      <div id="phone-gate-recaptcha-container" />
       <div className="bg-paperLight border border-cardboard rounded-sm shadow-2xl max-w-md w-full p-6 space-y-5">
         <div className="space-y-1.5">
           <span className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold block">
@@ -272,7 +197,7 @@ export const PhoneVerificationGate: React.FC = () => {
         ) : (
           <div className="space-y-4">
             <p className="font-body text-xs text-ink opacity-80">
-              Code sent via {verificationChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to{' '}
+              Code sent by SMS to{' '}
               <strong className="font-mono text-ink">+{getCountry(country).dialCode} {phone}</strong>.{' '}
               <button
                 type="button"
@@ -297,12 +222,6 @@ export const PhoneVerificationGate: React.FC = () => {
               />
             </div>
 
-            {attemptsRemaining !== null && (
-              <p className="font-mono text-[9px] text-paprika font-bold uppercase">
-                Hourly Attempts Remaining: {attemptsRemaining} of 3
-              </p>
-            )}
-
             <div className="flex space-x-2">
               {cooldownCountdown > 0 ? (
                 <button
@@ -315,7 +234,7 @@ export const PhoneVerificationGate: React.FC = () => {
               ) : (
                 <button
                   type="button"
-                  onClick={() => handleSendOtp(verificationChannel)}
+                  onClick={() => handleSendOtp()}
                   disabled={isLoading}
                   className="w-1/3 border border-cardboard bg-transparent hover:bg-paper font-mono text-[9px] uppercase py-2.5 rounded-sm tracking-wider text-ink cursor-pointer transition-colors"
                 >
@@ -338,20 +257,6 @@ export const PhoneVerificationGate: React.FC = () => {
                 )}
               </button>
             </div>
-
-            {verificationChannel === 'whatsapp' && (
-              <button
-                type="button"
-                onClick={() => {
-                  setError(null);
-                  handleSendOtp('sms');
-                }}
-                disabled={isLoading}
-                className="w-full font-mono text-[9px] py-1 text-ink opacity-60 hover:opacity-100 uppercase tracking-wider cursor-pointer transition-opacity disabled:opacity-30"
-              >
-                Can't receive WhatsApp? Send via SMS instead
-              </button>
-            )}
           </div>
         )}
 

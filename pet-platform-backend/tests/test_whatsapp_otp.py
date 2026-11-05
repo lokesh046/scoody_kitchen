@@ -130,7 +130,7 @@ def test_normalize_phone_keeps_existing_country_code():
 def test_send_otp_success_stores_hash_not_plaintext(auth_override):
     mock_redis = MockRedisStore()
     with patch("app.api.auth.rate_limit_redis_client", mock_redis), \
-         patch("app.api.auth.send_whatsapp_otp", new_callable=AsyncMock) as mock_send:
+         patch("app.api.auth.send_sms_otp", new_callable=AsyncMock) as mock_send:
         res = client.post("/auth/whatsapp/send-otp", json={"phone_number": TEST_PHONE})
 
     assert res.status_code == 200
@@ -159,7 +159,7 @@ def test_send_otp_cooldown_blocks_resend(auth_override):
     mock_redis = MockRedisStore()
     mock_redis.ttls[f"wa_otp_cooldown:{TEST_PHONE}"] = 45
     with patch("app.api.auth.rate_limit_redis_client", mock_redis), \
-         patch("app.api.auth.send_whatsapp_otp", new_callable=AsyncMock) as mock_send:
+         patch("app.api.auth.send_sms_otp", new_callable=AsyncMock) as mock_send:
         res = client.post("/auth/whatsapp/send-otp", json={"phone_number": TEST_PHONE})
 
     assert res.status_code == 429
@@ -172,7 +172,7 @@ def test_send_otp_hourly_cap_blocks(auth_override):
     mock_redis.data[f"wa_otp_count:{TEST_PHONE}"] = "5"
     mock_redis.ttls[f"wa_otp_count:{TEST_PHONE}"] = 1800
     with patch("app.api.auth.rate_limit_redis_client", mock_redis), \
-         patch("app.api.auth.send_whatsapp_otp", new_callable=AsyncMock) as mock_send:
+         patch("app.api.auth.send_sms_otp", new_callable=AsyncMock) as mock_send:
         res = client.post("/auth/whatsapp/send-otp", json={"phone_number": TEST_PHONE})
 
     assert res.status_code == 429
@@ -180,11 +180,11 @@ def test_send_otp_hourly_cap_blocks(auth_override):
 
 
 def test_send_otp_meta_failure_returns_502(auth_override):
-    from app.services.whatsapp import WhatsAppSendError
+    from app.services.sms import SmsSendError as WhatsAppSendError
 
     mock_redis = MockRedisStore()
     with patch("app.api.auth.rate_limit_redis_client", mock_redis), \
-         patch("app.api.auth.send_whatsapp_otp", new_callable=AsyncMock) as mock_send:
+         patch("app.api.auth.send_sms_otp", new_callable=AsyncMock) as mock_send:
         mock_send.side_effect = WhatsAppSendError("boom")
         res = client.post("/auth/whatsapp/send-otp", json={"phone_number": TEST_PHONE})
 
