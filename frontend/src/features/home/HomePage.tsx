@@ -32,7 +32,7 @@ export default function HomePage() {
     const id = hash.slice(1);
     // Count The Calories (the old Recipe Calculator) moved to its own page; keep old /#fit-calculator links working.
     if (id === 'fit-calculator') {
-      redirectNavigate('/recipe-calculator', { replace: true });
+      redirectNavigate('/recipe-calculator#fit-calculator', { replace: true });
       return;
     }
     if (id !== 'hearth-hound') return;

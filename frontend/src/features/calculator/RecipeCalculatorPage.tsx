@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, ArrowUpRight, Plus, Minus, Flame, SlidersHorizontal, Compass } from 'lucide-react';
 import { Header } from '../../components/Header';
@@ -9,6 +9,7 @@ import { CartDrawer } from '../../components/CartDrawer';
 import { ToolCarousel } from '../../components/ToolCarousel';
 import { RouteUnavailable } from '../../components/RouteUnavailable';
 import { CalculatorGettingStarted } from './CalculatorGettingStarted';
+import { RecipeCalculator } from './RecipeCalculator';
 import { useAuthStore } from '../../store/auth';
 import { useFeatureFlag, useFlagEntry, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
@@ -60,11 +61,11 @@ const FAQS = [
   },
   {
     q: 'What information do I need to provide?',
-    a: "The meal planner asks for your dog's name and gender, their breed, age and weight (in kilograms or pounds), how active they are, and any sensitivities you would like recipes to avoid, such as beef, chicken, or grains.",
+    a: "The calculator on this page needs your dog's weight and how active they are; a name is optional. The step-by-step meal planner asks a little more: your dog's name and gender, their breed, age and weight (in kilograms or pounds), how active they are, and any sensitivities you would like recipes to avoid, such as beef, chicken, or grains.",
   },
   {
     q: 'What does the result show?',
-    a: "It shows an estimate of your dog's daily energy requirements, worked out from their weight and activity level. It also compares that figure with a typical value for their breed, and lists recipes from our range that match the preferences you chose.",
+    a: "Both show an estimate of your dog's daily energy requirements, worked out from their weight and activity level. The calculator on this page also suggests a recipe from our range for their size, and the meal planner compares the figure with a typical value for their breed and lists recipes that match the preferences you chose.",
   },
   {
     q: 'Can I use the calculator for both dogs and cats?',
@@ -92,12 +93,13 @@ const FAQS = [
   },
   {
     q: 'Is Count The Calories free to use?',
-    a: "Calculating your dog's estimate is free. You will be asked to sign in or create an account to continue to the meal planner. Buying a recipe is a separate step.",
+    a: "Calculating your dog's estimate is free, and the calculator on this page works without an account. You will be asked to sign in or create an account to continue to the meal planner or to add a recipe to your cart. Buying a recipe is a separate step.",
   },
 ];
 
 export function RecipeCalculatorPage() {
   const navigate = useNavigate();
+  const { hash } = useLocation();
   const reduceMotion = useReducedMotion();
   const user = useAuthStore((state) => state.user);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -111,6 +113,17 @@ export function RecipeCalculatorPage() {
   const hero = useLandingHero('calculator_hero', DEFAULT_HERO);
 
   useDocumentMetadata(PAGE_TITLE, PAGE_DESCRIPTION);
+
+  // The page loads lazily, so the site-wide anchor jump runs before the calculator exists. Do it here.
+  useEffect(() => {
+    if (hash !== '#fit-calculator' || entry.blocked) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById('fit-calculator')?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      });
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [hash, entry.blocked]);
 
   useStructuredData({
     '@context': 'https://schema.org',
@@ -268,6 +281,10 @@ export function RecipeCalculatorPage() {
 
       {/* How it works -- the same staged animation as Know Your Pet's "Getting started" */}
       <CalculatorGettingStarted />
+
+      {/* The calculator section that used to be on the home page, unchanged. Links from the home page,
+          the footer and the other landing pages can open it directly (/recipe-calculator#fit-calculator). */}
+      <RecipeCalculator />
 
       {/* Hearth & One ecosystem -- the animated tool cards the other landing pages use */}
       {ecosystem.length > 0 && (

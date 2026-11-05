@@ -180,7 +180,7 @@ function OtherToolsSection() {
       ? [{
           label: 'Count The Calories', image: '/images/toolkit/meal-planner.webp',
           text: "Estimate your pet's daily energy requirements using the details requested by the calculator.",
-          path: '/recipe-calculator',
+          path: '/recipe-calculator#fit-calculator',
           cta: 'Estimate their daily needs',
         }]
       : []),
