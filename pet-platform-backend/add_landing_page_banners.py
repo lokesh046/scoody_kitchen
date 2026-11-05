@@ -38,7 +38,7 @@ BANNERS = [
         placement="calculator_hero",
         title="A little more clarity in every meal.",
         subtitle="Understand your pet's daily energy requirements and get a more informed starting point for planning their meals.",
-        image_url="/images/hero/hero-4.webp",
+        image_url="/images/hero/calculator-1.webp",
     ),
 ]
 

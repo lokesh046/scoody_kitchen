@@ -20,7 +20,7 @@ const PAGE_DESCRIPTION = "Understand your dog's daily energy requirements and ge
 // The top image, headline and text can be changed in Admin > Banners ("Recipe Calculator page - top
 // image"); anything left empty there keeps these defaults.
 const DEFAULT_HERO = {
-  image: '/images/hero/hero-4.webp',
+  image: '/images/hero/calculator-1.webp',
   title: 'A little more clarity in every meal.',
   subtitle: "Understand your pet's daily energy requirements and get a more informed starting point for planning their meals.",
 };
@@ -173,7 +173,10 @@ export function RecipeCalculatorPage() {
           src={hero.image}
           alt=""
           aria-hidden="true"
-          className={`absolute inset-0 w-full h-full object-cover object-[68%_center] md:object-center transition-opacity duration-500 ${hero.ready ? 'opacity-100' : 'opacity-0'}`}
+          className={`absolute inset-0 w-full h-full object-cover ${
+            // The default photo has its subject (dog and bowl) at the far right, so a phone crop must sit further right.
+            hero.image === DEFAULT_HERO.image ? 'object-[97%_center]' : 'object-[68%_center]'
+          } md:object-center transition-opacity duration-500 ${hero.ready ? 'opacity-100' : 'opacity-0'}`}
           loading="eager"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/30 to-black/80" />
@@ -181,7 +184,7 @@ export function RecipeCalculatorPage() {
 
         <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-28 sm:pb-28 max-w-5xl">
           <div className={`max-w-2xl space-y-4 text-left animate-fade-in-up ${hero.ready ? '' : 'invisible'}`}>
-            <p className="font-mono text-xs sm:text-sm uppercase tracking-widest text-turmeric">Recipe Calculator</p>
+            <p className="font-mono text-xs sm:text-sm uppercase tracking-widest text-turmeric [text-shadow:0_1px_8px_rgba(0,0,0,0.9)]">Recipe Calculator</p>
             <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
               {hero.title}
             </h1>
