@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from pydantic import BaseModel, Field
 
-BannerPlacement = Literal["home", "shop_hero", "pets_hero", "vet_hero", "home_toolkit"]
+BannerPlacement = Literal["home", "shop_hero", "pets_hero", "vet_hero", "calculator_hero", "home_toolkit"]
 
 class BannerCreate(BaseModel):
     title: str | None = Field(default=None, max_length=200)

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, Plus, Minus, Flame, SlidersHorizontal, Compass } from 'lucide-react';
 import { Header } from '../../components/Header';
+import { HeroScrollHint } from '../../components/HeroScrollHint';
 import { SiteFooter } from '../../components/SiteFooter';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Eyebrow } from '../../components/Eyebrow';
@@ -11,9 +12,18 @@ import { useAuthStore } from '../../store/auth';
 import { useFeatureFlag, useFlagEntry, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
+import { useLandingHero } from '../../hooks/useAdminContent';
 
 const PAGE_TITLE = 'Recipe Calculator';
 const PAGE_DESCRIPTION = "Understand your dog's daily energy requirements and get a more informed starting point for planning their meals.";
+
+// The top image, headline and text can be changed in Admin > Banners ("Recipe Calculator page - top
+// image"); anything left empty there keeps these defaults.
+const DEFAULT_HERO = {
+  image: '/images/hero/hero-4.webp',
+  title: 'A little more clarity in every meal.',
+  subtitle: "Understand your pet's daily energy requirements and get a more informed starting point for planning their meals.",
+};
 
 const ENERGY_POINTS = [
   {
@@ -89,6 +99,7 @@ export function RecipeCalculatorPage() {
   // The calculator follows the same switch as the rest of the meal planner. While it is off, a
   // direct visit shows only its status (Coming soon / Unavailable), like the Shop and Vet pages.
   const entry = useFlagEntry('shop_meal_planner');
+  const hero = useLandingHero('calculator_hero', DEFAULT_HERO);
 
   useDocumentMetadata(PAGE_TITLE, PAGE_DESCRIPTION);
 
@@ -155,16 +166,27 @@ export function RecipeCalculatorPage() {
     <div className="min-h-screen bg-paper flex flex-col font-body selection:bg-turmeric selection:text-paper w-full">
       <Header floatingUntilScroll activeTab="calculator" onCartToggle={() => setIsCartOpen(true)} />
 
-      {/* Hero */}
-      <section data-scroll-hero className="relative w-full overflow-hidden bg-midnight">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center px-4 sm:px-8 md:px-12 pt-32 pb-16 sm:pb-20 lg:pt-40 lg:pb-24">
-          <div className="space-y-5 text-left animate-fade-in-up">
-            <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">Recipe Calculator</p>
-            <h1 className="font-script font-normal text-5xl sm:text-6xl md:text-7xl text-paper tracking-normal leading-[1.1]">
-              A little more clarity in every meal.
+      {/* Hero -- same shape as the other landing pages: full-bleed photo, legibility gradients, copy
+          anchored bottom-left. The photo, headline and text come from Admin > Banners. */}
+      <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-midnight">
+        <img
+          src={hero.image}
+          alt=""
+          aria-hidden="true"
+          className={`absolute inset-0 w-full h-full object-cover object-[68%_center] md:object-center transition-opacity duration-500 ${hero.ready ? 'opacity-100' : 'opacity-0'}`}
+          loading="eager"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/30 to-black/80" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
+
+        <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-28 sm:pb-28 max-w-5xl">
+          <div className={`max-w-2xl space-y-4 text-left animate-fade-in-up ${hero.ready ? '' : 'invisible'}`}>
+            <p className="font-mono text-xs sm:text-sm uppercase tracking-widest text-turmeric">Recipe Calculator</p>
+            <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
+              {hero.title}
             </h1>
             <p className="font-body text-sm sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
-              Understand your pet's daily energy requirements and get a more informed starting point for planning their meals.
+              {hero.subtitle}
             </p>
             <div className="pt-2">
               <button
@@ -177,19 +199,8 @@ export function RecipeCalculatorPage() {
               </button>
             </div>
           </div>
-          <div className="flex justify-center lg:justify-end">
-            <div className="w-full max-w-[420px] lg:max-w-[480px] rounded-[24px] bg-paperLight p-6 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
-              <img
-                src="/images/toolkit/meal-planner.webp"
-                alt="An illustration of a dog bowl filled with chicken and vegetables, beside a calendar and a dial"
-                width={800}
-                height={800}
-                loading="eager"
-                className="w-full h-auto object-contain"
-              />
-            </div>
-          </div>
         </div>
+        <HeroScrollHint />
       </section>
 
       {/* Every pet has their own energy needs */}
