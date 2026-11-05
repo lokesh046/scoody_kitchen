@@ -29,6 +29,7 @@ import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
 import { toE164, getCountry } from '../utils/phone';
 
 import { ModalKeyboardAvoider } from './ModalKeyboardAvoider';
+import { useOtpStatus } from '../hooks/useOtpStatus';
 interface PhoneVerificationModalProps {
   visible: boolean;
   // Defaults to India for callers that don't collect a country yet (e.g.
@@ -50,6 +51,7 @@ export function PhoneVerificationModal({
   const { isTablet, modalOverlayStyle, modalSheetContainerStyle } = useResponsive();
   const [step, setStep] = useState<1 | 2>(1);
   const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
+  const [codesLeft, setCodesLeft] = useState<{ left: number; limit: number } | null>(null);
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -83,6 +85,7 @@ export function PhoneVerificationModal({
     setStep(1);
     setVerificationCode('');
     setVerificationChannel('whatsapp');
+    setCodesLeft(null);
     setErrorMsg(null);
     setInfoNotice(null);
     setIsLoading(false);
@@ -118,6 +121,14 @@ export function PhoneVerificationModal({
       ? parsedIncoming.nationalNumber
       : phone.replace(/\D/g, '').slice(-10);
   const fullPhoneNumber = toE164(country, displayDigits);
+  const otpStatus = useOtpStatus(fullPhoneNumber.length > 5 ? fullPhoneNumber : null, visible && step === 1);
+  const resumeCode = () => {
+    if (!otpStatus) return;
+    setCodesLeft({ left: otpStatus.attempts_remaining, limit: otpStatus.attempts_limit });
+    setCooldownCountdown(otpStatus.cooldown_seconds);
+    setOtpExpiresAt(Date.now() + otpStatus.code_expires_in * 1000);
+    setStep(2);
+  };
 
   const handleSendOtp = async (channel: 'whatsapp' | 'sms' = 'whatsapp') => {
     setIsLoading(true);
@@ -126,6 +137,9 @@ export function PhoneVerificationModal({
     try {
       const result = await sendWhatsAppOtp(fullPhoneNumber, channel);
       setVerificationChannel(result.channel === 'sms' ? 'sms' : 'whatsapp');
+      if (result.attempts_remaining !== undefined && result.attempts_limit !== undefined) {
+        setCodesLeft({ left: result.attempts_remaining, limit: result.attempts_limit });
+      }
       setStep(2);
       setCooldownCountdown(60);
       setOtpExpiresAt(Date.now() + (result.expires_in || 600) * 1000);
@@ -233,11 +247,26 @@ export function PhoneVerificationModal({
                   <Text style={styles.phoneHighlight}>+{getCountry(country).dialCode} {displayDigits}</Text>.
                 </Text>
 
+                {otpStatus && (
+                  <View>
+                    <Text style={styles.attemptsText}>
+                      {otpStatus.attempts_remaining > 0
+                        ? `CODES LEFT THIS HOUR: ${otpStatus.attempts_remaining} OF ${otpStatus.attempts_limit}`
+                        : `NO MORE CODES THIS HOUR. TRY AGAIN IN ABOUT ${Math.max(1, Math.ceil(otpStatus.retry_after_seconds / 60))} MINUTES.`}
+                    </Text>
+                    {otpStatus.code_active && (
+                      <TouchableOpacity style={styles.sandboxBtn} onPress={resumeCode} activeOpacity={0.8}>
+                        <Text style={styles.sandboxBtnText}>You already have a code — enter it</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+
                 <View style={styles.actionColumn}>
                   <TouchableOpacity
                     style={[styles.primaryBtn, isLoading && styles.btnDisabled]}
                     onPress={() => handleSendOtp()}
-                    disabled={isLoading}
+                    disabled={isLoading || otpStatus?.attempts_remaining === 0}
                     activeOpacity={0.85}
                   >
                     {isLoading ? (
@@ -253,7 +282,7 @@ export function PhoneVerificationModal({
                   <TouchableOpacity
                     style={styles.sandboxBtn}
                     onPress={() => handleSendOtp('sms')}
-                    disabled={isLoading}
+                    disabled={isLoading || otpStatus?.attempts_remaining === 0}
                     activeOpacity={0.8}
                   >
                     <Text style={styles.sandboxBtnText}>Can't use WhatsApp? Send via SMS instead</Text>
@@ -281,6 +310,14 @@ export function PhoneVerificationModal({
                   Enter the verification code sent to your phone. Code is valid for 10 minutes.
                 </Text>
 
+                {codesLeft && (
+                  <Text style={styles.attemptsText}>
+                    {codesLeft.left > 0
+                      ? `CODES LEFT THIS HOUR: ${codesLeft.left} OF ${codesLeft.limit}`
+                      : 'NO MORE CODES THIS HOUR. TRY AGAIN LATER.'}
+                  </Text>
+                )}
+
                 <View style={styles.otpActionRow}>
                   {cooldownCountdown > 0 ? (
                     <View style={styles.resendBtnDisabled}>
@@ -293,7 +330,7 @@ export function PhoneVerificationModal({
                     <TouchableOpacity
                       style={styles.resendBtn}
                       onPress={() => handleSendOtp(verificationChannel)}
-                      disabled={isLoading}
+                      disabled={isLoading || codesLeft?.left === 0}
                       activeOpacity={0.8}
                     >
                       <Text style={styles.resendBtnText}>Resend</Text>

@@ -116,10 +116,29 @@ export const uploadAvatarImage = async (file: File): Promise<{ url: string }> =>
 export const sendWhatsAppOtp = async (
   phoneNumber: string,
   channel: 'whatsapp' | 'sms' = 'whatsapp'
-): Promise<{ sent: boolean; expires_in: number; channel: 'whatsapp' | 'sms' }> => {
+): Promise<{ sent: boolean; expires_in: number; channel: 'whatsapp' | 'sms'; attempts_remaining?: number; attempts_limit?: number }> => {
   const response = await apiClient.post('/auth/whatsapp/send-otp', {
     phone_number: phoneNumber,
     channel,
+  });
+  return response.data;
+};
+
+export interface OtpStatus {
+  attempts_remaining: number;
+  attempts_limit: number;
+  retry_after_seconds: number;
+  cooldown_seconds: number;
+  code_active: boolean;
+  code_expires_in: number;
+  tries_left: number | null;
+}
+
+// What is left for this number right now (codes left this hour, wait, whether a sent code is still valid),
+// so the screen can pick up where the user left off after closing the page.
+export const getOtpStatus = async (phoneNumber: string): Promise<OtpStatus> => {
+  const response = await apiClient.get('/auth/whatsapp/otp-status', {
+    params: { phone_number: phoneNumber },
   });
   return response.data;
 };

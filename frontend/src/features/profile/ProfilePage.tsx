@@ -34,6 +34,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
+import { useOtpStatus } from '../../hooks/useOtpStatus';
 
 export const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
@@ -125,7 +126,8 @@ export const ProfilePage: React.FC = () => {
       const updatedUser = await updateUserProfile({
         first_name: firstName || undefined,
         last_name: lastName || undefined,
-        phone: phone ? toE164(country, phone) : undefined,
+        // A verified number only changes through the OTP flow (Change -> Verify Phone), never by saving the form.
+        phone: user?.is_phone_verified ? undefined : (phone ? toE164(country, phone) : undefined),
         profile_image_url: imageUrl || undefined,
       });
 
@@ -158,6 +160,14 @@ export const ProfilePage: React.FC = () => {
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
   const [verificationStep, setVerificationStep] = useState<1 | 2>(1);
   const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
+  const [codesLeft, setCodesLeft] = useState<{ left: number; limit: number } | null>(null);
+  const otpStatus = useOtpStatus(isValidForCountry(country, phone) ? toE164(country, phone) : null, isVerifyingPhone && verificationStep === 1);
+  const resumeCode = () => {
+    if (!otpStatus) return;
+    setCodesLeft({ left: otpStatus.attempts_remaining, limit: otpStatus.attempts_limit });
+    setCooldownCountdown(otpStatus.cooldown_seconds);
+    setVerificationStep(2);
+  };
   const [verificationCode, setVerificationCode] = useState('');
   const [isVerifyingLoading, setIsVerifyingLoading] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
@@ -187,6 +197,7 @@ export const ProfilePage: React.FC = () => {
     setVerificationCode('');
     setVerificationStep(1);
     setVerificationChannel('whatsapp');
+    setCodesLeft(null);
     setIsVerifyingPhone(true);
   };
 
@@ -197,6 +208,9 @@ export const ProfilePage: React.FC = () => {
     try {
       const result = await sendWhatsAppOtp(fullPhone, channel);
       setVerificationChannel(result.channel === 'sms' ? 'sms' : 'whatsapp');
+      if (result.attempts_remaining !== undefined && result.attempts_limit !== undefined) {
+        setCodesLeft({ left: result.attempts_remaining, limit: result.attempts_limit });
+      }
       setVerificationStep(2);
       setCooldownCountdown(60);
     } catch (err: any) {
@@ -727,11 +741,30 @@ export const ProfilePage: React.FC = () => {
                   <strong className="text-ink ml-1 font-mono">+{getCountry(country).dialCode} {phone}</strong>.
                 </p>
 
+                {otpStatus && (
+                  <div className="space-y-1">
+                    <p className="font-mono text-[9px] text-paprika font-bold uppercase">
+                      {otpStatus.attempts_remaining > 0
+                        ? `Codes left this hour: ${otpStatus.attempts_remaining} of ${otpStatus.attempts_limit}`
+                        : `No more codes this hour. Try again in about ${Math.max(1, Math.ceil(otpStatus.retry_after_seconds / 60))} minutes.`}
+                    </p>
+                    {otpStatus.code_active && (
+                      <button
+                        type="button"
+                        onClick={resumeCode}
+                        className="font-mono text-[9px] uppercase tracking-wider font-bold text-herb underline underline-offset-2 hover:opacity-80 cursor-pointer"
+                      >
+                        You already have a code — enter it
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <div className="pt-2 flex flex-col gap-2">
                   <button
                     type="button"
                     onClick={() => handleSendOtp()}
-                    disabled={isVerifyingLoading}
+                    disabled={isVerifyingLoading || otpStatus?.attempts_remaining === 0}
                     className="w-full bg-herb hover:bg-herb/90 text-white font-body font-bold text-xs py-3 rounded-sm tracking-wider uppercase transition-colors disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer shadow-xs"
                   >
                     {isVerifyingLoading ? (
@@ -747,7 +780,7 @@ export const ProfilePage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleSendOtp('sms')}
-                    disabled={isVerifyingLoading}
+                    disabled={isVerifyingLoading || otpStatus?.attempts_remaining === 0}
                     className="w-full font-mono text-[9px] py-2 text-ink opacity-60 hover:opacity-100 uppercase tracking-wider cursor-pointer transition-opacity disabled:opacity-30"
                   >
                     Can't use WhatsApp? Send via SMS instead
@@ -774,6 +807,14 @@ export const ProfilePage: React.FC = () => {
                   Enter the verification code sent to your phone. Code is valid for 10 minutes.
                 </p>
 
+                {codesLeft && (
+                  <p className="font-mono text-[9px] text-paprika font-bold uppercase">
+                    {codesLeft.left > 0
+                      ? `Codes left this hour: ${codesLeft.left} of ${codesLeft.limit}`
+                      : 'No more codes this hour. Please try again later.'}
+                  </p>
+                )}
+
                 <div className="pt-2 flex space-x-2">
                   {cooldownCountdown > 0 ? (
                     <button
@@ -787,7 +828,7 @@ export const ProfilePage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleSendOtp(verificationChannel)}
-                      disabled={isVerifyingLoading}
+                      disabled={isVerifyingLoading || codesLeft?.left === 0}
                       className="w-1/3 border border-cardboard bg-transparent hover:bg-paperLight font-mono text-[9px] uppercase py-2.5 rounded-sm tracking-wider text-ink cursor-pointer transition-colors"
                     >
                       Resend

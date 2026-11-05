@@ -372,7 +372,14 @@ def update_user_profile(db: Session, user: User, update_data: UserUpdate) -> Use
     if update_data.last_name is not None:
         user.last_name = update_data.last_name.strip()
     if update_data.phone is not None:
-        user.phone = update_data.phone.strip()
+        from app.services.whatsapp import normalize_phone_to_whatsapp_format
+
+        new_phone = update_data.phone.strip()
+        # A different number is not verified, whatever the old one was. Verification only ever
+        # comes from the OTP flow (which sets the phone and the flag together), never from a plain save.
+        if normalize_phone_to_whatsapp_format(new_phone) != normalize_phone_to_whatsapp_format(user.phone or ""):
+            user.is_phone_verified = False
+        user.phone = new_phone
     if update_data.profile_image_url is not None:
         user.profile_image_url = update_data.profile_image_url.strip()
 

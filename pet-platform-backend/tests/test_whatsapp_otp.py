@@ -169,7 +169,7 @@ def test_send_otp_cooldown_blocks_resend(auth_override):
 
 def test_send_otp_hourly_cap_blocks(auth_override):
     mock_redis = MockRedisStore()
-    mock_redis.data[f"wa_otp_count:{TEST_PHONE}"] = "5"
+    mock_redis.data[f"wa_otp_count:{TEST_PHONE}"] = "3"
     mock_redis.ttls[f"wa_otp_count:{TEST_PHONE}"] = 1800
     with patch("app.api.auth.rate_limit_redis_client", mock_redis), \
          patch("app.api.auth.send_whatsapp_otp", new_callable=AsyncMock) as mock_send:
@@ -265,10 +265,43 @@ def test_verify_otp_expired_or_missing_record(auth_override, db_override):
 def test_verify_otp_too_many_attempts_rejected(auth_override, db_override):
     code_hash = hmac.new(settings.WHATSAPP_OTP_SECRET.encode(), b"123456", hashlib.sha256).hexdigest()
     mock_redis = MockRedisStore()
-    mock_redis.set(f"wa_otp:{TEST_PHONE}", json.dumps({"hash": code_hash, "attempts": 5}), ex=600)
+    mock_redis.set(f"wa_otp:{TEST_PHONE}", json.dumps({"hash": code_hash, "attempts": 3}), ex=600)
 
     with patch("app.api.auth.rate_limit_redis_client", mock_redis):
         res = client.post("/auth/whatsapp/verify-otp", json={"phone_number": TEST_PHONE, "code": "123456"})
 
     assert res.status_code == 429
     assert f"wa_otp:{TEST_PHONE}" not in mock_redis.data  # record cleared after lockout
+
+
+def test_otp_status_reports_what_is_left_after_a_send(auth_override):
+    mock_redis = MockRedisStore()
+    mock_redis.data[f"wa_otp_count:{TEST_PHONE}"] = "2"
+    mock_redis.ttls[f"wa_otp_count:{TEST_PHONE}"] = 1500
+    mock_redis.data[f"wa_otp:{TEST_PHONE}"] = json.dumps({"hash": "x", "attempts": 1})
+    mock_redis.ttls[f"wa_otp:{TEST_PHONE}"] = 400
+    with patch("app.api.auth.rate_limit_redis_client", mock_redis):
+        res = client.get("/auth/whatsapp/otp-status", params={"phone_number": TEST_PHONE})
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["attempts_remaining"] == 1 and body["attempts_limit"] == 3
+    assert body["code_active"] is True and body["tries_left"] == 2
+    assert "hash" not in json.dumps(body)
+
+
+def test_otp_status_when_all_codes_used_says_when_to_retry(auth_override):
+    mock_redis = MockRedisStore()
+    mock_redis.data[f"wa_otp_count:{TEST_PHONE}"] = "3"
+    mock_redis.ttls[f"wa_otp_count:{TEST_PHONE}"] = 1200
+    with patch("app.api.auth.rate_limit_redis_client", mock_redis):
+        res = client.get("/auth/whatsapp/otp-status", params={"phone_number": TEST_PHONE})
+
+    body = res.json()
+    assert body["attempts_remaining"] == 0 and body["retry_after_seconds"] == 1200
+    assert body["code_active"] is False
+
+
+def test_otp_status_requires_auth():
+    res = client.get("/auth/whatsapp/otp-status", params={"phone_number": TEST_PHONE})
+    assert res.status_code == 401
