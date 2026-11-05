@@ -169,7 +169,7 @@ def test_send_otp_cooldown_blocks_resend(auth_override):
 
 def test_send_otp_hourly_cap_blocks(auth_override):
     mock_redis = MockRedisStore()
-    mock_redis.data[f"wa_otp_count:{TEST_PHONE}"] = "5"
+    mock_redis.data[f"wa_otp_count:{TEST_PHONE}"] = "3"
     mock_redis.ttls[f"wa_otp_count:{TEST_PHONE}"] = 1800
     with patch("app.api.auth.rate_limit_redis_client", mock_redis), \
          patch("app.api.auth.send_whatsapp_otp", new_callable=AsyncMock) as mock_send:
@@ -265,7 +265,7 @@ def test_verify_otp_expired_or_missing_record(auth_override, db_override):
 def test_verify_otp_too_many_attempts_rejected(auth_override, db_override):
     code_hash = hmac.new(settings.WHATSAPP_OTP_SECRET.encode(), b"123456", hashlib.sha256).hexdigest()
     mock_redis = MockRedisStore()
-    mock_redis.set(f"wa_otp:{TEST_PHONE}", json.dumps({"hash": code_hash, "attempts": 5}), ex=600)
+    mock_redis.set(f"wa_otp:{TEST_PHONE}", json.dumps({"hash": code_hash, "attempts": 3}), ex=600)
 
     with patch("app.api.auth.rate_limit_redis_client", mock_redis):
         res = client.post("/auth/whatsapp/verify-otp", json={"phone_number": TEST_PHONE, "code": "123456"})

@@ -478,9 +478,9 @@ def get_client_ip(request: Request) -> str:
 # below require an authenticated user.
 
 WHATSAPP_OTP_COOLDOWN_SECONDS = 60
-WHATSAPP_OTP_MAX_PER_PHONE_PER_HOUR = 5
+WHATSAPP_OTP_MAX_PER_PHONE_PER_HOUR = 3
 WHATSAPP_OTP_MAX_PER_IP_PER_HOUR = 10
-WHATSAPP_OTP_MAX_ATTEMPTS = 5
+WHATSAPP_OTP_MAX_ATTEMPTS = 3
 
 
 def _hash_whatsapp_otp(code: str) -> str:
