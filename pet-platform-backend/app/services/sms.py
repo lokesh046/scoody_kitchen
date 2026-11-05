@@ -51,6 +51,8 @@ async def send_sms_otp(phone_number: str, code: str) -> None:
             # The code is only in the request, never the response, so the body is safe to log.
             logger.error("MSG91 send failed for %s: status=%s body=%s", mobile, response.status_code, response.text)
             raise SmsSendError(f"MSG91 returned {response.status_code}")
+        # MSG91 accepted the request: log its request id so the delivery report can be found in the MSG91 dashboard.
+        logger.info("MSG91 accepted OTP SMS for %s: %s", mobile, response.text)
     except httpx.HTTPError as exc:
         logger.error("MSG91 network error for %s: %s", mobile, exc)
         raise SmsSendError("Network error contacting MSG91") from exc
