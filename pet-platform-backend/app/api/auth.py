@@ -43,6 +43,7 @@ from app.services.auth_service import (
     update_user_profile,
 )
 from app.services.whatsapp import normalize_phone_to_whatsapp_format, send_whatsapp_otp, WhatsAppSendError
+from app.services.sms import send_sms_otp, SmsSendError
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -675,14 +676,19 @@ async def send_whatsapp_otp_endpoint(
     code = f"{secrets.randbelow(900000) + 100000}"
     code_hash = _hash_whatsapp_otp(code)
 
+    channel = "whatsapp"
     try:
         await send_whatsapp_otp(phone_number, code)
     except WhatsAppSendError:
-        # Full error already logged server-side inside send_whatsapp_otp.
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Couldn't send the verification code. Please try again in a moment.",
-        )
+        # WhatsApp failed or isn't configured (already logged inside) -- fall back to SMS.
+        try:
+            await send_sms_otp(phone_number, code)
+            channel = "sms"
+        except SmsSendError:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Couldn't send the verification code. Please try again in a moment.",
+            )
 
     # Sending a new OTP replaces any previous one for this number -- SET
     # overwrites the key outright rather than merging, so a stale record
@@ -699,7 +705,7 @@ async def send_whatsapp_otp_endpoint(
         pipe_write.expire(ip_count_key, 3600)
     pipe_write.execute()
 
-    return {"sent": True, "expires_in": settings.OTP_EXPIRY_SECONDS}
+    return {"sent": True, "expires_in": settings.OTP_EXPIRY_SECONDS, "channel": channel}
 
 
 @router.post(
