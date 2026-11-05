@@ -8,6 +8,7 @@ import { UserProfile } from '../../store/authStore';
 jest.mock('../../api/auth', () => ({
   verifyPhoneWithToken: jest.fn(),
   sendWhatsAppOtp: jest.fn(),
+  getOtpStatus: jest.fn(() => Promise.reject(new Error('no status in tests'))),
   verifyWhatsAppOtp: jest.fn(),
 }));
 
@@ -151,5 +152,24 @@ describe('PhoneVerificationModal', () => {
       expect(mockedAuthApi.sendWhatsAppOtp).toHaveBeenCalledWith('+919876543210', 'sms');
     });
     expect(await screen.findByText('SMS Verification')).toBeTruthy();
+  });
+
+  it('shows the codes left and lets the user carry on with a code they already have', async () => {
+    mockedAuthApi.getOtpStatus.mockResolvedValue({
+      attempts_remaining: 2,
+      attempts_limit: 3,
+      retry_after_seconds: 0,
+      cooldown_seconds: 20,
+      code_active: true,
+      code_expires_in: 400,
+      tries_left: 3,
+    });
+
+    renderModal();
+
+    expect(await screen.findByText('CODES LEFT THIS HOUR: 2 OF 3')).toBeTruthy();
+    fireEvent.press(screen.getByText('You already have a code — enter it'));
+    expect(await screen.findByText('ENTER 6-DIGIT OTP CODE')).toBeTruthy();
+    expect(mockedAuthApi.sendWhatsAppOtp).not.toHaveBeenCalled();
   });
 });

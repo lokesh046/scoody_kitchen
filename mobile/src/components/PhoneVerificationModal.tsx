@@ -29,6 +29,7 @@ import { DEFAULT_COUNTRY_ISO2 } from '../constants/countries';
 import { toE164, getCountry } from '../utils/phone';
 
 import { ModalKeyboardAvoider } from './ModalKeyboardAvoider';
+import { useOtpStatus } from '../hooks/useOtpStatus';
 interface PhoneVerificationModalProps {
   visible: boolean;
   // Defaults to India for callers that don't collect a country yet (e.g.
@@ -120,6 +121,14 @@ export function PhoneVerificationModal({
       ? parsedIncoming.nationalNumber
       : phone.replace(/\D/g, '').slice(-10);
   const fullPhoneNumber = toE164(country, displayDigits);
+  const otpStatus = useOtpStatus(fullPhoneNumber.length > 5 ? fullPhoneNumber : null, visible && step === 1);
+  const resumeCode = () => {
+    if (!otpStatus) return;
+    setCodesLeft({ left: otpStatus.attempts_remaining, limit: otpStatus.attempts_limit });
+    setCooldownCountdown(otpStatus.cooldown_seconds);
+    setOtpExpiresAt(Date.now() + otpStatus.code_expires_in * 1000);
+    setStep(2);
+  };
 
   const handleSendOtp = async (channel: 'whatsapp' | 'sms' = 'whatsapp') => {
     setIsLoading(true);
@@ -238,11 +247,26 @@ export function PhoneVerificationModal({
                   <Text style={styles.phoneHighlight}>+{getCountry(country).dialCode} {displayDigits}</Text>.
                 </Text>
 
+                {otpStatus && (
+                  <View>
+                    <Text style={styles.attemptsText}>
+                      {otpStatus.attempts_remaining > 0
+                        ? `CODES LEFT THIS HOUR: ${otpStatus.attempts_remaining} OF ${otpStatus.attempts_limit}`
+                        : `NO MORE CODES THIS HOUR. TRY AGAIN IN ABOUT ${Math.max(1, Math.ceil(otpStatus.retry_after_seconds / 60))} MINUTES.`}
+                    </Text>
+                    {otpStatus.code_active && (
+                      <TouchableOpacity style={styles.sandboxBtn} onPress={resumeCode} activeOpacity={0.8}>
+                        <Text style={styles.sandboxBtnText}>You already have a code — enter it</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+
                 <View style={styles.actionColumn}>
                   <TouchableOpacity
                     style={[styles.primaryBtn, isLoading && styles.btnDisabled]}
                     onPress={() => handleSendOtp()}
-                    disabled={isLoading}
+                    disabled={isLoading || otpStatus?.attempts_remaining === 0}
                     activeOpacity={0.85}
                   >
                     {isLoading ? (
@@ -258,7 +282,7 @@ export function PhoneVerificationModal({
                   <TouchableOpacity
                     style={styles.sandboxBtn}
                     onPress={() => handleSendOtp('sms')}
-                    disabled={isLoading}
+                    disabled={isLoading || otpStatus?.attempts_remaining === 0}
                     activeOpacity={0.8}
                   >
                     <Text style={styles.sandboxBtnText}>Can't use WhatsApp? Send via SMS instead</Text>

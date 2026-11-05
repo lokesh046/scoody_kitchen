@@ -57,6 +57,25 @@ export const sendWhatsAppOtp = async (
   return response.data;
 };
 
+export interface OtpStatus {
+  attempts_remaining: number;
+  attempts_limit: number;
+  retry_after_seconds: number;
+  cooldown_seconds: number;
+  code_active: boolean;
+  code_expires_in: number;
+  tries_left: number | null;
+}
+
+// What is left for this number right now (codes left this hour, wait, whether a sent code is still valid),
+// so the screen can pick up where the user left off after closing the page.
+export const getOtpStatus = async (phoneNumber: string): Promise<OtpStatus> => {
+  const response = await apiClient.get<OtpStatus>('/auth/whatsapp/otp-status', {
+    params: { phone_number: phoneNumber },
+  });
+  return response.data;
+};
+
 export const verifyWhatsAppOtp = async (phoneNumber: string, code: string): Promise<UserProfile> => {
   const response = await apiClient.post<UserProfile>('/auth/whatsapp/verify-otp', {
     phone_number: phoneNumber,

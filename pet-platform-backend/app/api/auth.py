@@ -586,6 +586,44 @@ async def send_whatsapp_otp_endpoint(
     }
 
 
+@router.get("/whatsapp/otp-status", status_code=status.HTTP_200_OK)
+@limiter.limit("30/minute")
+def whatsapp_otp_status(
+    request: Request,
+    phone_number: str,
+    current_user: User = Depends(get_current_user),
+):
+    """What is left for this number right now, so the screen can show it again after the user closed
+    the page and came back: codes left this hour, the wait before the next send, and whether a sent
+    code is still valid (so they can carry on entering it). Never returns the code or its hash."""
+    OTPRequest(phone_number=phone_number)  # same E.164 validation as sending
+    redis_client = rate_limit_redis_client
+    pipe = redis_client.pipeline()
+    pipe.get(f"wa_otp_count:{phone_number}")
+    pipe.ttl(f"wa_otp_count:{phone_number}")
+    pipe.ttl(f"wa_otp_cooldown:{phone_number}")
+    pipe.get(f"wa_otp:{phone_number}")
+    pipe.ttl(f"wa_otp:{phone_number}")
+    count, count_ttl, cooldown_ttl, raw_record, record_ttl = pipe.execute()
+
+    sent = int(count) if count is not None else 0
+    tries_left = None
+    code_active = False
+    if raw_record is not None:
+        record = json.loads(raw_record)
+        tries_left = max(0, WHATSAPP_OTP_MAX_ATTEMPTS - record["attempts"])
+        code_active = tries_left > 0 and record_ttl > 0
+    return {
+        "attempts_remaining": max(0, WHATSAPP_OTP_MAX_PER_PHONE_PER_HOUR - sent),
+        "attempts_limit": WHATSAPP_OTP_MAX_PER_PHONE_PER_HOUR,
+        "retry_after_seconds": max(0, count_ttl) if sent >= WHATSAPP_OTP_MAX_PER_PHONE_PER_HOUR else 0,
+        "cooldown_seconds": max(0, cooldown_ttl),
+        "code_active": code_active,
+        "code_expires_in": max(0, record_ttl) if code_active else 0,
+        "tries_left": tries_left if code_active else None,
+    }
+
+
 @router.post(
     "/whatsapp/verify-otp",
     response_model=UserResponse,

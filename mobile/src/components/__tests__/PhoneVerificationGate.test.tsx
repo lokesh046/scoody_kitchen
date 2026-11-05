@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/authStore';
 jest.mock('../../api/auth', () => ({
   verifyPhoneWithToken: jest.fn(),
   sendWhatsAppOtp: jest.fn(),
+  getOtpStatus: jest.fn(() => Promise.reject(new Error('no status in tests'))),
   verifyWhatsAppOtp: jest.fn(),
 }));
 jest.mock('../../../App', () => ({ navigationRef: { isReady: () => false, navigate: jest.fn() } }));
