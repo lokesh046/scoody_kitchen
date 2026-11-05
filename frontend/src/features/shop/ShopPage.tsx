@@ -258,6 +258,7 @@ export default function ShopPage() {
   const addItem = useCartStore((state) => state.addItem);
   const { user } = useAuthStore();
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
+  const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
   const shopFallback = useFeatureFlagFallback('shop_checkout');
   const shopEntry = useFlagEntry('shop_checkout');
 
@@ -360,14 +361,16 @@ export default function ShopPage() {
                 >
                   Explore Shop Recipes
                 </button>
-                <button
-                  onClick={() => {
-                    navigate('/recipe-calculator#fit-calculator');
-                  }}
-                  className="border border-cardboard border-opacity-40 text-paper hover:bg-paperLight hover:bg-opacity-10 font-body font-bold text-xs uppercase px-8 py-4 rounded-none tracking-wider transition-colors flex items-center cursor-pointer"
-                >
-                  Configure My Dog's Diet
-                </button>
+                {isMealPlannerEnabled && (
+                  <button
+                    onClick={() => {
+                      navigate('/recipe-calculator#fit-calculator');
+                    }}
+                    className="border border-cardboard border-opacity-40 text-paper hover:bg-paperLight hover:bg-opacity-10 font-body font-bold text-xs uppercase px-8 py-4 rounded-none tracking-wider transition-colors flex items-center cursor-pointer"
+                  >
+                    Configure My Dog's Diet
+                  </button>
+                )}
               </div>
             </div>
 

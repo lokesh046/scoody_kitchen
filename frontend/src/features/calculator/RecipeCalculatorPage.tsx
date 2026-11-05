@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, ArrowUpRight, Plus, Minus, Flame, SlidersHorizontal, Compass } from 'lucide-react';
 import { Header } from '../../components/Header';
@@ -186,6 +186,9 @@ export function RecipeCalculatorPage() {
         }]
       : []),
   ];
+
+  // Hidden (not just off) means the page should not exist for visitors, like the other hidden features.
+  if (entry.state === 'hide') return <Navigate to="/" replace />;
 
   if (entry.blocked) {
     return (
