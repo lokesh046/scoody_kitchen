@@ -1,89 +1,90 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Plus, Minus, Scale, Activity, ClipboardList } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Plus, Minus, Flame, SlidersHorizontal, Compass } from 'lucide-react';
 import { Header } from '../../components/Header';
 import { SiteFooter } from '../../components/SiteFooter';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Eyebrow } from '../../components/Eyebrow';
-import { ToolCarousel } from '../../components/ToolCarousel';
 import { RouteUnavailable } from '../../components/RouteUnavailable';
-import { RecipeCalculator } from './RecipeCalculator';
+import { CalculatorGettingStarted } from './CalculatorGettingStarted';
+import { useAuthStore } from '../../store/auth';
 import { useFeatureFlag, useFlagEntry, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 
 const PAGE_TITLE = 'Recipe Calculator';
-const PAGE_DESCRIPTION = "Estimate your dog's daily energy needs from their weight and activity level, then see a recipe that fits.";
+const PAGE_DESCRIPTION = "Understand your dog's daily energy requirements and get a more informed starting point for planning their meals.";
 
-const STEPS = [
-  { icon: Scale, title: 'Tell us their size', text: "Pick a size preset, or enter your dog's exact weight in pounds." },
-  { icon: Activity, title: 'Choose how active they are', text: 'From relaxed walks to daily training, activity changes how much energy they use.' },
-  { icon: ClipboardList, title: 'Read the estimate', text: 'You get an estimated daily energy figure and a recipe from our range that suits their size.' },
+const ENERGY_POINTS = [
+  {
+    icon: Flame,
+    title: 'Adequate energy everyday',
+    text: 'The right amount of food provides the energy pets need for movement, activity, and essential body functions.',
+  },
+  {
+    icon: SlidersHorizontal,
+    title: 'Needs that vary',
+    text: 'Energy requirements can differ with factors such as age, body weight, activity level, and health.',
+  },
+  {
+    icon: Compass,
+    title: 'A more informed approach to meals',
+    text: 'An energy estimate can help you make more informed feeding decisions, alongside appropriate nutritional guidance.',
+  },
 ];
 
-const GOOD_TO_KNOW = [
-  { title: 'It is an estimate', text: "The figure comes from a standard formula for a typical adult dog. It is a starting point for thinking about portions, not an exact prescription." },
-  { title: 'Every dog is different', text: 'Age, health, breed, and whether your dog is neutered all change real energy needs, and the calculator does not account for them.' },
-  { title: 'Your vet knows best', text: 'If your dog has a health condition, is a puppy, is a senior, or is losing or gaining weight, talk to a veterinarian about how much to feed.' },
-];
-
+// Answers describe what the meal planner (/onboarding) actually does today. If the planner changes
+// (cats, new questions, a meal plan, pricing), update these with it.
 const FAQS = [
   {
-    q: 'How is the daily figure worked out?',
-    a: "It starts from a standard resting-energy formula based on your dog's weight, then multiplies it by a factor for their activity level. The formula is shown beside the calculator so you can see exactly what it does.",
+    q: 'What does the Recipe Calculator do?',
+    a: "The Recipe Calculator estimates your dog's daily energy requirements using the details you provide. The result can help you make more informed decisions when planning their meals.",
   },
   {
-    q: 'Is the result what I should feed every day?',
-    a: 'No. It is an estimate for a typical adult dog. Real needs vary with age, health, breed, and lifestyle, so treat it as a starting point and watch how your dog does.',
+    q: 'What information do I need to provide?',
+    a: "The meal planner asks for your dog's name and gender, their breed, age and weight (in kilograms or pounds), how active they are, and any sensitivities you would like recipes to avoid, such as beef, chicken, or grains.",
   },
   {
-    q: 'Why does it suggest a particular recipe?',
-    a: "The suggestion follows your dog's size and activity level and picks a recipe from our range to match. It is a convenient shortcut, not a veterinary recommendation.",
+    q: 'What does the result show?',
+    a: "It shows an estimate of your dog's daily energy requirements, worked out from their weight and activity level. It also compares that figure with a typical value for their breed, and lists recipes from our range that match the preferences you chose.",
   },
   {
-    q: 'Do you store the details I enter?',
-    a: "The calculator works out the figure from what you type on the page. Your dog's name is only used to label the result.",
+    q: 'Can I use the calculator for both dogs and cats?',
+    a: 'The calculator currently supports dogs only.',
   },
   {
-    q: 'Can this replace advice from my vet?',
-    a: 'No. The calculator helps you understand the numbers behind a feeding routine. It does not replace advice, diagnosis, or treatment from a qualified veterinarian.',
+    q: 'How accurate is the calorie estimate?',
+    a: "The result is an estimate rather than an exact measurement. It uses your dog's weight and activity level, so age, body condition, and health are not part of the figure. Energy requirements vary between individual pets, and actual needs can depend on factors such as age, activity, body condition, and health.",
+  },
+  {
+    q: 'Does the calculator create a complete meal plan?',
+    a: 'No. It estimates energy requirements and suggests recipes that match your preferences. The result is a starting point for feeding decisions rather than a complete nutritional plan, and it does not give portion sizes or ingredient amounts.',
+  },
+  {
+    q: 'Can I use the result to choose a recipe or food?',
+    a: 'After the estimate, the planner shows recipes from our range that match the preferences you selected, so you can open them from there. The recipe filters check recipe names and descriptions, not a verified allergen list, so please read the full ingredients before choosing food, especially for a dog with allergies.',
+  },
+  {
+    q: 'Should I consult a veterinarian?',
+    a: "Yes. A veterinarian can help assess your pet's individual nutritional requirements, particularly if your pet has a medical condition, food sensitivities, or specific dietary needs.",
+  },
+  {
+    q: "Should I recalculate if my pet's needs change?",
+    a: "Your pet's energy requirements may change as they grow, age, become more or less active, or experience changes in health or body condition. Reassess their needs when appropriate and seek veterinary guidance if unsure.",
+  },
+  {
+    q: 'Is the Recipe Calculator free to use?',
+    a: "Calculating your dog's estimate is free. You will be asked to sign in or create an account to continue to the meal planner. Buying a recipe is a separate step.",
   },
 ];
-
-function OtherToolsSection() {
-  const isConsultationsEnabled = useVetEntryEnabled();
-  const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
-  const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
-
-  const tools = [
-    ...(isKnowYourPetEnabled ? [{ label: 'Know Your Pet', image: '/images/toolkit/know-your-pet.webp', text: "Keep your companion's details and health records in one place.", path: '/pets' }] : []),
-    ...(isConsultationsEnabled ? [{ label: 'Vet Consults', image: '/images/toolkit/vet-consults.webp', text: 'Book time with a veterinarian when something needs a professional look.', path: '/consultations' }] : []),
-    ...(isChatbotEnabled ? [{ label: 'AI Assistant', image: '/images/toolkit/ai-assistant.webp', text: 'Ask questions about nutrition and everyday pet care.', path: '/assistant' }] : []),
-  ];
-
-  if (tools.length === 0) return null;
-
-  return (
-    <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
-      <div className="max-w-7xl mx-auto">
-        <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
-          <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
-            Feeding is one part of their care.
-          </h2>
-          <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
-            Explore the tools designed to support different parts of the pet-parent journey.
-          </p>
-        </div>
-        <ToolCarousel items={tools} />
-      </div>
-    </section>
-  );
-}
 
 export function RecipeCalculatorPage() {
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
+  const isVetEnabled = useVetEntryEnabled();
 
   // The calculator follows the same switch as the rest of the meal planner. While it is off, a
   // direct visit shows only its status (Coming soon / Unavailable), like the Shop and Vet pages.
@@ -110,6 +111,34 @@ export function RecipeCalculatorPage() {
     })),
   });
 
+  // Signed-in visitors go straight to the meal planner; everyone else signs in or signs up first
+  // and is then brought to the planner.
+  const startCalculating = () => {
+    if (user) navigate('/onboarding');
+    else navigate('/login?redirect=onboarding');
+  };
+
+  const ecosystem = [
+    ...(isKnowYourPetEnabled
+      ? [{
+          title: 'Know Your Pet',
+          image: '/images/toolkit/know-your-pet.webp',
+          text: "Understand your pet's characteristics and keep their profile information organised.",
+          cta: 'Explore Know Your Pet',
+          path: '/pets',
+        }]
+      : []),
+    ...(isVetEnabled
+      ? [{
+          title: 'Locate Your Vet',
+          image: '/images/toolkit/locate-vet.webp',
+          text: 'Find veterinary clinics in your area and take the next step towards their care.',
+          cta: 'Explore Locate Your Vet',
+          path: '/consultations',
+        }]
+      : []),
+  ];
+
   if (entry.blocked) {
     return (
       <RouteUnavailable
@@ -130,19 +159,21 @@ export function RecipeCalculatorPage() {
       <section data-scroll-hero className="relative w-full overflow-hidden bg-midnight">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center px-4 sm:px-8 md:px-12 pt-32 pb-16 sm:pb-20 lg:pt-40 lg:pb-24">
           <div className="space-y-5 text-left animate-fade-in-up">
-            <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">Metabolic Sizing Engine</p>
+            <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">Recipe Calculator</p>
             <h1 className="font-script font-normal text-5xl sm:text-6xl md:text-7xl text-paper tracking-normal leading-[1.1]">
-              The Recipe Calculator
+              A little more clarity in every meal.
             </h1>
             <p className="font-body text-sm sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
-              Enter your dog's weight and how active they are, and get an estimate of their daily energy needs, with a recipe from our range that suits their size.
+              Understand your pet's daily energy requirements and get a more informed starting point for planning their meals.
             </p>
             <div className="pt-2">
               <button
-                onClick={() => document.getElementById('fit-calculator')?.scrollIntoView({ behavior: 'smooth' })}
-                className="pet-profile-cta cta-glow relative isolate overflow-hidden bg-turmeric text-ink font-body font-bold text-xs uppercase px-8 py-4 tracking-wider rounded-[4px] border border-[#E5BB8E] hover:-translate-y-0.5 active:translate-y-[1px] transition-transform duration-300 cursor-pointer motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+                type="button"
+                onClick={startCalculating}
+                className="pet-profile-cta cta-glow relative isolate overflow-hidden inline-flex items-center gap-2 bg-turmeric text-ink font-body font-bold text-xs uppercase px-8 py-4 tracking-wider rounded-[4px] border border-[#E5BB8E] hover:-translate-y-0.5 active:translate-y-[1px] transition-transform duration-300 cursor-pointer motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
               >
-                <span className="relative">Try the calculator</span>
+                <span className="relative">Calculate their needs</span>
+                <ArrowUpRight aria-hidden="true" className="relative w-4 h-4" />
               </button>
             </div>
           </div>
@@ -161,65 +192,83 @@ export function RecipeCalculatorPage() {
         </div>
       </section>
 
-      {/* The calculator itself */}
-      <RecipeCalculator />
-
-      {/* How it works */}
-      <section aria-labelledby="calc-how-heading" className="bg-paper px-4 py-16 sm:px-6 md:px-8 md:py-20">
-        <div className="mx-auto max-w-5xl">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <h2 id="calc-how-heading" className="font-script text-3xl font-normal tracking-normal leading-snug text-ink sm:text-4xl lg:text-5xl">
-              Three quick steps.
+      {/* Every pet has their own energy needs */}
+      <section aria-labelledby="calc-needs-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
+        <div className="max-w-6xl mx-auto">
+          <div className="max-w-2xl mx-auto text-center space-y-4 mb-12">
+            <h2 id="calc-needs-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
+              Every pet has their own energy needs.
             </h2>
-            <p className="mx-auto mt-4 max-w-lg font-body text-sm leading-relaxed text-ink/75">
-              It takes under a minute, and you do not need an account to try it.
+            <p className="font-body text-sm text-paper/75 leading-relaxed">
+              The right amount of energy helps support your pet's everyday activities, from resting and playing to growing and staying active. Understanding their daily energy requirements can give you a useful starting point when planning their meals.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {STEPS.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <div key={step.title} className="space-y-3 text-left">
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs font-bold text-turmeric border border-turmeric border-opacity-40 rounded-full w-8 h-8 flex items-center justify-center shrink-0">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <Icon aria-hidden="true" className="w-5 h-5 text-turmeric" />
-                  </div>
-                  <h3 className="font-display font-bold text-base text-ink">{step.title}</h3>
-                  <p className="font-body text-sm text-ink opacity-75 leading-relaxed">{step.text}</p>
+          <ol className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {ENERGY_POINTS.map(({ icon: Icon, title, text }, index) => (
+              <li key={title} className="rounded-[20px] border border-paper/10 bg-midnightCard p-6 sm:p-7 space-y-3 text-left">
+                <div className="flex items-center justify-between">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-paper">
+                    <Icon aria-hidden="true" className="h-6 w-6 text-turmeric" strokeWidth={1.6} />
+                  </span>
+                  <span className="font-mono text-xs font-bold text-turmeric/80">{String(index + 1).padStart(2, '0')}</span>
                 </div>
-              );
-            })}
-          </div>
+                <h3 className="font-display font-bold text-lg text-paper">{title}</h3>
+                <p className="font-body text-sm text-paper/75 leading-relaxed">{text}</p>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
-      {/* Good to know -- keeps the estimate in proportion */}
-      <section aria-labelledby="calc-know-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
-        <div className="max-w-6xl mx-auto">
-          <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
-            <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">Good to know</p>
-            <h2 id="calc-know-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
-              A starting point, not a prescription.
-            </h2>
+      {/* How it works -- the same staged animation as Know Your Pet's "Getting started" */}
+      <CalculatorGettingStarted />
+
+      {/* Hearth & One ecosystem */}
+      {ecosystem.length > 0 && (
+        <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
+          <div className="max-w-5xl mx-auto">
+            <div className="max-w-2xl mx-auto text-center space-y-4 mb-12">
+              <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">Hearth &amp; One Ecosystem</p>
+              <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
+                One companion. Different aspects of their care.
+              </h2>
+              <p className="font-body text-sm text-paper/75 leading-relaxed">
+                Explore the tools designed to support different parts of the pet-parent journey.
+              </p>
+            </div>
+            <div className={`grid grid-cols-1 ${ecosystem.length > 1 ? 'md:grid-cols-2' : 'max-w-md mx-auto'} gap-6`}>
+              {ecosystem.map((card) => (
+                <article key={card.title} className="flex flex-col rounded-[20px] overflow-hidden border border-paper/10 bg-midnightCard">
+                  <div className="aspect-[4/3] bg-midnight flex items-center justify-center border-b border-paper/10">
+                    <img src={card.image} alt="" aria-hidden="true" width={800} height={800} loading="lazy" className="h-full w-full object-contain p-4" />
+                  </div>
+                  <div className="flex flex-1 flex-col gap-3 p-6 text-left">
+                    <h3 className="font-display font-bold text-xl text-paper">{card.title}</h3>
+                    <p className="font-body text-sm text-paper/75 leading-relaxed flex-1">{card.text}</p>
+                    <button
+                      type="button"
+                      onClick={() => navigate(card.path)}
+                      className="inline-flex items-center gap-2 self-start font-mono text-xs uppercase tracking-wider font-bold text-turmeric hover:text-paper transition-colors cursor-pointer"
+                    >
+                      <span>{card.cta}</span>
+                      <ArrowRight aria-hidden="true" className="w-4 h-4" />
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {GOOD_TO_KNOW.map((item) => (
-              <div key={item.title} className="rounded-[20px] border border-paper/10 bg-midnightCard p-6 sm:p-7 space-y-2 text-left">
-                <h3 className="font-display font-bold text-base text-paper">{item.title}</h3>
-                <p className="font-body text-sm text-paper/75 leading-relaxed">{item.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* FAQ */}
-      <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20">
+      <section aria-labelledby="calc-faq-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-10">
+          <div className="text-center mb-10 space-y-3">
             <Eyebrow label="A Few Helpful Answers" />
+            <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl tracking-normal leading-snug text-ink">
+              Frequently asked questions.
+            </h2>
           </div>
           <div className="space-y-3">
             {FAQS.map((faq, index) => {
@@ -244,23 +293,22 @@ export function RecipeCalculatorPage() {
         </div>
       </section>
 
-      <OtherToolsSection />
-
       {/* Closing CTA */}
       <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 bg-gradient-to-b from-midnightCard to-midnight text-paper text-center">
         <div className="max-w-4xl mx-auto">
-          <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
-            Want to go further?
+          <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">Recipe Calculator</p>
+          <h2 id="calc-cta-heading" className="mt-4 font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
+            Take the next step towards more informed meals.
           </h2>
           <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">
-            The step-by-step diet planner walks through your dog's details one question at a time.
+            Estimate your pet's daily energy requirements and use the result as a starting point for making informed feeding decisions.
           </p>
           <button
             type="button"
-            onClick={() => navigate('/onboarding')}
+            onClick={startCalculating}
             className="pet-profile-cta group relative isolate overflow-hidden inline-flex max-w-full items-center justify-center gap-3 sm:gap-5 mt-10 sm:mt-12 rounded-full border border-turmeric bg-turmeric px-6 sm:px-9 py-4 sm:py-5 font-display font-semibold text-base sm:text-lg text-ink shadow-[inset_0_0_0_2px_rgba(249,246,240,0.25)] cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-paper motion-safe:transition-transform motion-safe:duration-300 motion-safe:hover:-translate-y-1 motion-safe:active:scale-[0.98]"
           >
-            <span className="relative">Open the diet planner</span>
+            <span className="relative">Calculate Their Needs</span>
             <ArrowRight aria-hidden="true" className="relative w-5 h-5 shrink-0 motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:translate-x-1" />
           </button>
         </div>
