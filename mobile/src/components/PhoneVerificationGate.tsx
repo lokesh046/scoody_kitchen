@@ -36,6 +36,7 @@ export function PhoneVerificationGate() {
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [country, setCountry] = useState(DEFAULT_COUNTRY_ISO2);
   const [phoneDigits, setPhoneDigits] = useState('');
+  const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -54,6 +55,7 @@ export function PhoneVerificationGate() {
     setStep('phone');
     setCountry(DEFAULT_COUNTRY_ISO2);
     setPhoneDigits('');
+    setVerificationChannel('whatsapp');
     setVerificationCode('');
     setIsLoading(false);
     setErrorMsg(null);
@@ -117,11 +119,12 @@ export function PhoneVerificationGate() {
     handleSendOtp();
   };
 
-  const handleSendOtp = async () => {
+  const handleSendOtp = async (channel: 'whatsapp' | 'sms' = 'whatsapp') => {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      await sendWhatsAppOtp(fullPhoneNumber);
+      const result = await sendWhatsAppOtp(fullPhoneNumber, channel);
+      setVerificationChannel(result.channel === 'sms' ? 'sms' : 'whatsapp');
       setStep('otp');
       setCooldownCountdown(60);
     } catch (err: any) {
@@ -205,14 +208,29 @@ export function PhoneVerificationGate() {
                       <Text style={styles.primaryBtnText}>Sending code...</Text>
                     </View>
                   ) : (
-                    <Text style={styles.primaryBtnText}>Send Verification Code</Text>
+                    <Text style={styles.primaryBtnText}>Send Code via WhatsApp</Text>
                   )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.sandboxBtn}
+                  onPress={() => {
+                    if (!isValidForCountry(country, phoneDigits)) {
+                      setErrorMsg(`Please enter a valid phone number for ${getCountry(country).name}.`);
+                      return;
+                    }
+                    handleSendOtp('sms');
+                  }}
+                  disabled={isLoading}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.sandboxBtnText}>Can't use WhatsApp? Send via SMS instead</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <View style={styles.body}>
                 <Text style={styles.description}>
-                  Code sent by SMS to{' '}
+                  Code sent via {verificationChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to{' '}
                   <Text style={styles.phoneHighlight}>+{getCountry(country).dialCode} {phoneDigits}</Text>.
                 </Text>
 
@@ -250,7 +268,7 @@ export function PhoneVerificationGate() {
                   ) : (
                     <TouchableOpacity
                       style={styles.resendBtn}
-                      onPress={() => handleSendOtp()}
+                      onPress={() => handleSendOtp(verificationChannel)}
                       disabled={isLoading}
                       activeOpacity={0.8}
                     >
@@ -277,6 +295,20 @@ export function PhoneVerificationGate() {
                     )}
                   </TouchableOpacity>
                 </View>
+
+                {verificationChannel === 'whatsapp' && (
+                  <TouchableOpacity
+                    style={styles.sandboxBtn}
+                    onPress={() => {
+                      setErrorMsg(null);
+                      handleSendOtp('sms');
+                    }}
+                    disabled={isLoading}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.sandboxBtnText}>Didn't get it on WhatsApp? Send via SMS instead</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 

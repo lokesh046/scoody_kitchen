@@ -157,6 +157,7 @@ export const ProfilePage: React.FC = () => {
   // Phone Verification Modal State
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
   const [verificationStep, setVerificationStep] = useState<1 | 2>(1);
+  const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   const [verificationCode, setVerificationCode] = useState('');
   const [isVerifyingLoading, setIsVerifyingLoading] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
@@ -185,15 +186,17 @@ export const ProfilePage: React.FC = () => {
     setVerifyError(null);
     setVerificationCode('');
     setVerificationStep(1);
+    setVerificationChannel('whatsapp');
     setIsVerifyingPhone(true);
   };
 
-  const handleSendOtp = async () => {
+  const handleSendOtp = async (channel: 'whatsapp' | 'sms' = 'whatsapp') => {
     setIsVerifyingLoading(true);
     setVerifyError(null);
     const fullPhone = toE164(country, phone);
     try {
-      await sendWhatsAppOtp(fullPhone);
+      const result = await sendWhatsAppOtp(fullPhone, channel);
+      setVerificationChannel(result.channel === 'sms' ? 'sms' : 'whatsapp');
       setVerificationStep(2);
       setCooldownCountdown(60);
     } catch (err: any) {
@@ -699,7 +702,7 @@ export const ProfilePage: React.FC = () => {
                   REGISTRY PHONE VERIFICATION
                 </span>
                 <h3 className="font-display font-black text-xl text-ink">
-                  SMS Verification
+                  {verificationChannel === 'whatsapp' ? 'WhatsApp Verification' : 'SMS Verification'}
                 </h3>
               </div>
               <button 
@@ -720,7 +723,7 @@ export const ProfilePage: React.FC = () => {
             {verificationStep === 1 ? (
               <div className="space-y-4">
                 <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
-                  We'll send a one-time verification code by SMS to your registered profile number:
+                  We'll send a one-time verification code via WhatsApp to your registered profile number:
                   <strong className="text-ink ml-1 font-mono">+{getCountry(country).dialCode} {phone}</strong>.
                 </p>
 
@@ -737,8 +740,17 @@ export const ProfilePage: React.FC = () => {
                         <span>Sending code...</span>
                       </>
                     ) : (
-                      <span>Send Code by SMS</span>
+                      <span>Send Code via WhatsApp</span>
                     )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSendOtp('sms')}
+                    disabled={isVerifyingLoading}
+                    className="w-full font-mono text-[9px] py-2 text-ink opacity-60 hover:opacity-100 uppercase tracking-wider cursor-pointer transition-opacity disabled:opacity-30"
+                  >
+                    Can't use WhatsApp? Send via SMS instead
                   </button>
                 </div>
               </div>
@@ -774,7 +786,7 @@ export const ProfilePage: React.FC = () => {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => handleSendOtp()}
+                      onClick={() => handleSendOtp(verificationChannel)}
                       disabled={isVerifyingLoading}
                       className="w-1/3 border border-cardboard bg-transparent hover:bg-paperLight font-mono text-[9px] uppercase py-2.5 rounded-sm tracking-wider text-ink cursor-pointer transition-colors"
                     >
@@ -797,6 +809,20 @@ export const ProfilePage: React.FC = () => {
                     )}
                   </button>
                 </div>
+
+                {verificationChannel === 'whatsapp' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVerifyError(null);
+                      handleSendOtp('sms');
+                    }}
+                    disabled={isVerifyingLoading}
+                    className="w-full font-mono text-[9px] py-2 text-ink opacity-60 hover:opacity-100 uppercase tracking-wider cursor-pointer transition-opacity disabled:opacity-30"
+                  >
+                    Didn't get it on WhatsApp? Send via SMS instead
+                  </button>
+                )}
               </div>
             )}
           </div>

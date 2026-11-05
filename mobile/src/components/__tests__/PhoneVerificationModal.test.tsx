@@ -46,30 +46,31 @@ describe('PhoneVerificationModal', () => {
     jest.clearAllMocks();
   });
 
-  it('defaults to step 1 with SMS as the only channel', () => {
+  it('defaults to step 1 with WhatsApp as the primary channel', () => {
     renderModal();
-    expect(screen.getByText('Send Code by SMS')).toBeTruthy();
+    expect(screen.getByText('Send Code via WhatsApp')).toBeTruthy();
+    expect(screen.getByText("Can't use WhatsApp? Send via SMS instead")).toBeTruthy();
   });
 
-  it('sends an SMS OTP and advances to the code-entry step', async () => {
-    mockedAuthApi.sendWhatsAppOtp.mockResolvedValue({ sent: true, expires_in: 300 });
+  it('sends a WhatsApp OTP and advances to the code-entry step', async () => {
+    mockedAuthApi.sendWhatsAppOtp.mockResolvedValue({ sent: true, expires_in: 300, channel: 'whatsapp' });
     renderModal();
 
-    fireEvent.press(screen.getByText('Send Code by SMS'));
+    fireEvent.press(screen.getByText('Send Code via WhatsApp'));
 
     await waitFor(() => {
-      expect(mockedAuthApi.sendWhatsAppOtp).toHaveBeenCalledWith('+919876543210');
+      expect(mockedAuthApi.sendWhatsAppOtp).toHaveBeenCalledWith('+919876543210', 'whatsapp');
     });
     expect(await screen.findByText('ENTER 6-DIGIT OTP CODE')).toBeTruthy();
   });
 
-  it('verifies the SMS OTP and reports success', async () => {
-    mockedAuthApi.sendWhatsAppOtp.mockResolvedValue({ sent: true, expires_in: 300 });
+  it('verifies the WhatsApp OTP and reports success', async () => {
+    mockedAuthApi.sendWhatsAppOtp.mockResolvedValue({ sent: true, expires_in: 300, channel: 'whatsapp' });
     mockedAuthApi.verifyWhatsAppOtp.mockResolvedValue(baseUser);
 
     const { onSuccess, onClose } = renderModal();
 
-    fireEvent.press(screen.getByText('Send Code by SMS'));
+    fireEvent.press(screen.getByText('Send Code via WhatsApp'));
     await screen.findByText('ENTER 6-DIGIT OTP CODE');
 
     fireEvent.changeText(screen.getByPlaceholderText('123456'), '482913');
@@ -83,13 +84,13 @@ describe('PhoneVerificationModal', () => {
   });
 
   it('resumes the code-entry step if closed and reopened before the code expires', async () => {
-    mockedAuthApi.sendWhatsAppOtp.mockResolvedValue({ sent: true, expires_in: 300 });
+    mockedAuthApi.sendWhatsAppOtp.mockResolvedValue({ sent: true, expires_in: 300, channel: 'whatsapp' });
 
     const { rerender } = render(
       <PhoneVerificationModal visible phone={PHONE} onClose={jest.fn()} onSuccess={jest.fn()} />
     );
 
-    fireEvent.press(screen.getByText('Send Code by SMS'));
+    fireEvent.press(screen.getByText('Send Code via WhatsApp'));
     await screen.findByText('ENTER 6-DIGIT OTP CODE');
 
     // Accidentally close the modal (e.g. backdrop tap, system back gesture)...
@@ -102,14 +103,14 @@ describe('PhoneVerificationModal', () => {
   });
 
   it('resets to step 1 if reopened after the code has expired', async () => {
-    mockedAuthApi.sendWhatsAppOtp.mockResolvedValue({ sent: true, expires_in: 300 });
+    mockedAuthApi.sendWhatsAppOtp.mockResolvedValue({ sent: true, expires_in: 300, channel: 'whatsapp' });
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
 
     const { rerender } = render(
       <PhoneVerificationModal visible phone={PHONE} onClose={jest.fn()} onSuccess={jest.fn()} />
     );
 
-    fireEvent.press(screen.getByText('Send Code by SMS'));
+    fireEvent.press(screen.getByText('Send Code via WhatsApp'));
     await screen.findByText('ENTER 6-DIGIT OTP CODE');
 
     rerender(<PhoneVerificationModal visible={false} phone={PHONE} onClose={jest.fn()} onSuccess={jest.fn()} />);
@@ -119,23 +120,36 @@ describe('PhoneVerificationModal', () => {
 
     rerender(<PhoneVerificationModal visible phone={PHONE} onClose={jest.fn()} onSuccess={jest.fn()} />);
 
-    expect(screen.getByText('Send Code by SMS')).toBeTruthy();
+    expect(screen.getByText('Send Code via WhatsApp')).toBeTruthy();
     nowSpy.mockRestore();
   });
 
   it('resets to step 1 if reopened for a different phone number', async () => {
-    mockedAuthApi.sendWhatsAppOtp.mockResolvedValue({ sent: true, expires_in: 300 });
+    mockedAuthApi.sendWhatsAppOtp.mockResolvedValue({ sent: true, expires_in: 300, channel: 'whatsapp' });
 
     const { rerender } = render(
       <PhoneVerificationModal visible phone="9876543210" onClose={jest.fn()} onSuccess={jest.fn()} />
     );
 
-    fireEvent.press(screen.getByText('Send Code by SMS'));
+    fireEvent.press(screen.getByText('Send Code via WhatsApp'));
     await screen.findByText('ENTER 6-DIGIT OTP CODE');
 
     rerender(<PhoneVerificationModal visible={false} phone="9876543210" onClose={jest.fn()} onSuccess={jest.fn()} />);
     rerender(<PhoneVerificationModal visible phone="8825812858" onClose={jest.fn()} onSuccess={jest.fn()} />);
 
-    expect(screen.getByText('Send Code by SMS')).toBeTruthy();
+    expect(screen.getByText('Send Code via WhatsApp')).toBeTruthy();
+  });
+
+  it('sends by SMS straight away when the user taps the SMS link', async () => {
+    mockedAuthApi.sendWhatsAppOtp.mockResolvedValue({ sent: true, expires_in: 600, channel: 'sms' });
+
+    renderModal();
+
+    fireEvent.press(screen.getByText("Can't use WhatsApp? Send via SMS instead"));
+
+    await waitFor(() => {
+      expect(mockedAuthApi.sendWhatsAppOtp).toHaveBeenCalledWith('+919876543210', 'sms');
+    });
+    expect(await screen.findByText('SMS Verification')).toBeTruthy();
   });
 });

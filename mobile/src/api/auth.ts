@@ -44,10 +44,15 @@ export interface RequestOtpResponse {
   attempts_remaining?: number;
 }
 
-// Phone-verification OTP, sent by SMS (MSG91). Fully backend-owned: send-otp is the real send.
-export const sendWhatsAppOtp = async (phoneNumber: string): Promise<{ sent: boolean; expires_in: number }> => {
-  const response = await apiClient.post<{ sent: boolean; expires_in: number }>('/auth/whatsapp/send-otp', {
+// Phone-verification OTP. 'whatsapp' tries WhatsApp first and the backend falls back to SMS (MSG91)
+// if that fails; 'sms' goes straight to SMS. The response says which channel was actually used.
+export const sendWhatsAppOtp = async (
+  phoneNumber: string,
+  channel: 'whatsapp' | 'sms' = 'whatsapp'
+): Promise<{ sent: boolean; expires_in: number; channel: 'whatsapp' | 'sms' }> => {
+  const response = await apiClient.post<{ sent: boolean; expires_in: number; channel: 'whatsapp' | 'sms' }>('/auth/whatsapp/send-otp', {
     phone_number: phoneNumber,
+    channel,
   });
   return response.data;
 };

@@ -49,6 +49,7 @@ export function PhoneVerificationModal({
 }: PhoneVerificationModalProps) {
   const { isTablet, modalOverlayStyle, modalSheetContainerStyle } = useResponsive();
   const [step, setStep] = useState<1 | 2>(1);
+  const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -81,6 +82,7 @@ export function PhoneVerificationModal({
 
     setStep(1);
     setVerificationCode('');
+    setVerificationChannel('whatsapp');
     setErrorMsg(null);
     setInfoNotice(null);
     setIsLoading(false);
@@ -117,12 +119,13 @@ export function PhoneVerificationModal({
       : phone.replace(/\D/g, '').slice(-10);
   const fullPhoneNumber = toE164(country, displayDigits);
 
-  const handleSendOtp = async () => {
+  const handleSendOtp = async (channel: 'whatsapp' | 'sms' = 'whatsapp') => {
     setIsLoading(true);
     setErrorMsg(null);
     setInfoNotice(null);
     try {
-      const result = await sendWhatsAppOtp(fullPhoneNumber);
+      const result = await sendWhatsAppOtp(fullPhoneNumber, channel);
+      setVerificationChannel(result.channel === 'sms' ? 'sms' : 'whatsapp');
       setStep(2);
       setCooldownCountdown(60);
       setOtpExpiresAt(Date.now() + (result.expires_in || 600) * 1000);
@@ -193,7 +196,7 @@ export function PhoneVerificationModal({
                   <Text style={styles.tagBadgeText}>REGISTRY PHONE VERIFICATION</Text>
                 </View>
                 <Text style={styles.title}>
-                  SMS Verification
+                  {verificationChannel === 'whatsapp' ? 'WhatsApp Verification' : 'SMS Verification'}
                 </Text>
               </View>
 
@@ -226,7 +229,7 @@ export function PhoneVerificationModal({
             {step === 1 ? (
               <View style={styles.body}>
                 <Text style={styles.description}>
-                  We'll send a one-time verification code by SMS to your registered profile number:{' '}
+                  We'll send a one-time verification code via WhatsApp to your registered profile number:{' '}
                   <Text style={styles.phoneHighlight}>+{getCountry(country).dialCode} {displayDigits}</Text>.
                 </Text>
 
@@ -243,8 +246,17 @@ export function PhoneVerificationModal({
                         <Text style={styles.primaryBtnText}>Sending code...</Text>
                       </View>
                     ) : (
-                      <Text style={styles.primaryBtnText}>Send Code by SMS</Text>
+                      <Text style={styles.primaryBtnText}>Send Code via WhatsApp</Text>
                     )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.sandboxBtn}
+                    onPress={() => handleSendOtp('sms')}
+                    disabled={isLoading}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.sandboxBtnText}>Can't use WhatsApp? Send via SMS instead</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -280,7 +292,7 @@ export function PhoneVerificationModal({
                   ) : (
                     <TouchableOpacity
                       style={styles.resendBtn}
-                      onPress={() => handleSendOtp()}
+                      onPress={() => handleSendOtp(verificationChannel)}
                       disabled={isLoading}
                       activeOpacity={0.8}
                     >
@@ -307,6 +319,20 @@ export function PhoneVerificationModal({
                     )}
                   </TouchableOpacity>
                 </View>
+
+                {verificationChannel === 'whatsapp' && (
+                  <TouchableOpacity
+                    style={styles.sandboxBtn}
+                    onPress={() => {
+                      setErrorMsg(null);
+                      handleSendOtp('sms');
+                    }}
+                    disabled={isLoading}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.sandboxBtnText}>Didn't get it on WhatsApp? Send via SMS instead</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
 

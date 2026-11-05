@@ -130,7 +130,7 @@ def test_normalize_phone_keeps_existing_country_code():
 def test_send_otp_success_stores_hash_not_plaintext(auth_override):
     mock_redis = MockRedisStore()
     with patch("app.api.auth.rate_limit_redis_client", mock_redis), \
-         patch("app.api.auth.send_sms_otp", new_callable=AsyncMock) as mock_send:
+         patch("app.api.auth.send_whatsapp_otp", new_callable=AsyncMock) as mock_send:
         res = client.post("/auth/whatsapp/send-otp", json={"phone_number": TEST_PHONE})
 
     assert res.status_code == 200
@@ -159,7 +159,7 @@ def test_send_otp_cooldown_blocks_resend(auth_override):
     mock_redis = MockRedisStore()
     mock_redis.ttls[f"wa_otp_cooldown:{TEST_PHONE}"] = 45
     with patch("app.api.auth.rate_limit_redis_client", mock_redis), \
-         patch("app.api.auth.send_sms_otp", new_callable=AsyncMock) as mock_send:
+         patch("app.api.auth.send_whatsapp_otp", new_callable=AsyncMock) as mock_send:
         res = client.post("/auth/whatsapp/send-otp", json={"phone_number": TEST_PHONE})
 
     assert res.status_code == 429
@@ -172,25 +172,57 @@ def test_send_otp_hourly_cap_blocks(auth_override):
     mock_redis.data[f"wa_otp_count:{TEST_PHONE}"] = "5"
     mock_redis.ttls[f"wa_otp_count:{TEST_PHONE}"] = 1800
     with patch("app.api.auth.rate_limit_redis_client", mock_redis), \
-         patch("app.api.auth.send_sms_otp", new_callable=AsyncMock) as mock_send:
+         patch("app.api.auth.send_whatsapp_otp", new_callable=AsyncMock) as mock_send:
         res = client.post("/auth/whatsapp/send-otp", json={"phone_number": TEST_PHONE})
 
     assert res.status_code == 429
     mock_send.assert_not_called()
 
 
-def test_send_otp_meta_failure_returns_502(auth_override):
-    from app.services.sms import SmsSendError as WhatsAppSendError
+def test_send_otp_both_channels_failing_returns_502(auth_override):
+    from app.services.whatsapp import WhatsAppSendError
+    from app.services.sms import SmsSendError
 
     mock_redis = MockRedisStore()
     with patch("app.api.auth.rate_limit_redis_client", mock_redis), \
-         patch("app.api.auth.send_sms_otp", new_callable=AsyncMock) as mock_send:
-        mock_send.side_effect = WhatsAppSendError("boom")
+         patch("app.api.auth.send_whatsapp_otp", new_callable=AsyncMock) as mock_wa, \
+         patch("app.api.auth.send_sms_otp", new_callable=AsyncMock) as mock_sms:
+        mock_wa.side_effect = WhatsAppSendError("boom")
+        mock_sms.side_effect = SmsSendError("boom")
         res = client.post("/auth/whatsapp/send-otp", json={"phone_number": TEST_PHONE})
 
     assert res.status_code == 502
     # The record must not exist if sending failed -- nothing to verify against.
     assert f"wa_otp:{TEST_PHONE}" not in mock_redis.data
+
+
+def test_send_otp_falls_back_to_sms_when_whatsapp_fails(auth_override):
+    from app.services.whatsapp import WhatsAppSendError
+
+    mock_redis = MockRedisStore()
+    with patch("app.api.auth.rate_limit_redis_client", mock_redis), \
+         patch("app.api.auth.send_whatsapp_otp", new_callable=AsyncMock) as mock_wa, \
+         patch("app.api.auth.send_sms_otp", new_callable=AsyncMock) as mock_sms:
+        mock_wa.side_effect = WhatsAppSendError("boom")
+        res = client.post("/auth/whatsapp/send-otp", json={"phone_number": TEST_PHONE})
+
+    assert res.status_code == 200
+    assert res.json()["channel"] == "sms"
+    mock_sms.assert_awaited_once()
+    assert f"wa_otp:{TEST_PHONE}" in mock_redis.data
+
+
+def test_send_otp_sms_channel_skips_whatsapp(auth_override):
+    mock_redis = MockRedisStore()
+    with patch("app.api.auth.rate_limit_redis_client", mock_redis), \
+         patch("app.api.auth.send_whatsapp_otp", new_callable=AsyncMock) as mock_wa, \
+         patch("app.api.auth.send_sms_otp", new_callable=AsyncMock) as mock_sms:
+        res = client.post("/auth/whatsapp/send-otp", json={"phone_number": TEST_PHONE, "channel": "sms"})
+
+    assert res.status_code == 200
+    assert res.json()["channel"] == "sms"
+    mock_wa.assert_not_called()
+    mock_sms.assert_awaited_once()
 
 
 def test_verify_otp_correct_code_marks_phone_verified(auth_override, db_override):

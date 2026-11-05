@@ -25,6 +25,7 @@ export const PhoneVerificationGate: React.FC = () => {
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [country, setCountry] = useState(DEFAULT_COUNTRY_ISO2);
   const [phone, setPhone] = useState('');
+  const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +39,7 @@ export const PhoneVerificationGate: React.FC = () => {
     setStep('phone');
     setCountry(DEFAULT_COUNTRY_ISO2);
     setPhone('');
+    setVerificationChannel('whatsapp');
     setVerificationCode('');
     setIsLoading(false);
     setError(null);
@@ -88,12 +90,13 @@ export const PhoneVerificationGate: React.FC = () => {
     handleSendOtp();
   };
 
-  const handleSendOtp = async () => {
+  const handleSendOtp = async (channel: 'whatsapp' | 'sms' = 'whatsapp') => {
     setIsLoading(true);
     setError(null);
     const fullPhone = toE164(country, phone);
     try {
-      await sendWhatsAppOtp(fullPhone);
+      const result = await sendWhatsAppOtp(fullPhone, channel);
+      setVerificationChannel(result.channel === 'sms' ? 'sms' : 'whatsapp');
       setStep('otp');
       setCooldownCountdown(60);
     } catch (err: any) {
@@ -190,14 +193,28 @@ export const PhoneVerificationGate: React.FC = () => {
                   <span>Sending code...</span>
                 </>
               ) : (
-                <span>Send Verification Code</span>
+                <span>Send Code via WhatsApp</span>
               )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!isValidForCountry(country, phone)) {
+                  setError(`Please enter a valid phone number for ${getCountry(country).name}.`);
+                  return;
+                }
+                handleSendOtp('sms');
+              }}
+              disabled={isLoading}
+              className="w-full font-mono text-[9px] py-1 text-ink opacity-60 hover:opacity-100 uppercase tracking-wider cursor-pointer transition-opacity disabled:opacity-30"
+            >
+              Can't use WhatsApp? Send via SMS instead
             </button>
           </div>
         ) : (
           <div className="space-y-4">
             <p className="font-body text-xs text-ink opacity-80">
-              Code sent by SMS to{' '}
+              Code sent via {verificationChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to{' '}
               <strong className="font-mono text-ink">+{getCountry(country).dialCode} {phone}</strong>.{' '}
               <button
                 type="button"
@@ -234,7 +251,7 @@ export const PhoneVerificationGate: React.FC = () => {
               ) : (
                 <button
                   type="button"
-                  onClick={() => handleSendOtp()}
+                  onClick={() => handleSendOtp(verificationChannel)}
                   disabled={isLoading}
                   className="w-1/3 border border-cardboard bg-transparent hover:bg-paper font-mono text-[9px] uppercase py-2.5 rounded-sm tracking-wider text-ink cursor-pointer transition-colors"
                 >
@@ -257,6 +274,20 @@ export const PhoneVerificationGate: React.FC = () => {
                 )}
               </button>
             </div>
+
+            {verificationChannel === 'whatsapp' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  handleSendOtp('sms');
+                }}
+                disabled={isLoading}
+                className="w-full font-mono text-[9px] py-1 text-ink opacity-60 hover:opacity-100 uppercase tracking-wider cursor-pointer transition-opacity disabled:opacity-30"
+              >
+                Didn't get it on WhatsApp? Send via SMS instead
+              </button>
+            )}
           </div>
         )}
 
