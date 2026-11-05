@@ -304,33 +304,6 @@ export function RecipeCalculatorPage() {
           the footer and the other landing pages can open it directly (/recipe-calculator#fit-calculator). */}
       <RecipeCalculator />
 
-      {/* Hearth & One ecosystem -- the animated tool cards the other landing pages use */}
-      {ecosystem.length > 0 && (
-        <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
-          <div className="max-w-7xl mx-auto">
-            <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
-              <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
-                <span className="sr-only">One companion. Different aspects of their care.</span>
-                <span aria-hidden="true">
-                  {'One companion. Different aspects of their care.'.split(' ').map((word, index) => (
-                    <span key={index}>
-                      {index > 0 ? ' ' : ''}
-                      <span className="pet-profile-heading-word inline-block" style={{ animationDelay: `${index * 160}ms` }}>
-                        {word}
-                      </span>
-                    </span>
-                  ))}
-                </span>
-              </h2>
-              <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
-                Explore the tools designed to support different parts of the pet-parent journey.
-              </p>
-            </div>
-            <ToolCarousel items={ecosystem} />
-          </div>
-        </section>
-      )}
-
       {/* FAQ */}
       <section aria-labelledby="calc-faq-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20">
         <div className="max-w-4xl mx-auto">
@@ -363,7 +336,7 @@ export function RecipeCalculatorPage() {
       </section>
 
       {/* Closing CTA */}
-      <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 bg-gradient-to-b from-midnightCard to-midnight text-paper text-center">
+      <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 pt-20 sm:pt-24 md:pt-28 pb-4 md:pb-6 bg-gradient-to-b from-midnightCard to-midnight text-paper text-center">
         <div className="max-w-4xl mx-auto">
           <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
             Take the next step towards more informed meals.
@@ -381,6 +354,33 @@ export function RecipeCalculatorPage() {
           </button>
         </div>
       </section>
+
+      {/* Hearth & One ecosystem -- the animated tool cards the other landing pages use */}
+      {ecosystem.length > 0 && (
+        <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 pt-16 pb-6 md:pt-20 md:pb-8 bg-midnight text-paper">
+          <div className="max-w-7xl mx-auto">
+            <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
+              <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
+                <span className="sr-only">One companion. Different aspects of their care.</span>
+                <span aria-hidden="true">
+                  {'One companion. Different aspects of their care.'.split(' ').map((word, index) => (
+                    <span key={index}>
+                      {index > 0 ? ' ' : ''}
+                      <span className="pet-profile-heading-word inline-block" style={{ animationDelay: `${index * 160}ms` }}>
+                        {word}
+                      </span>
+                    </span>
+                  ))}
+                </span>
+              </h2>
+              <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
+                Explore the tools designed to support different parts of the pet-parent journey.
+              </p>
+            </div>
+            <ToolCarousel items={ecosystem} />
+          </div>
+        </section>
+      )}
 
       <SiteFooter />
 
