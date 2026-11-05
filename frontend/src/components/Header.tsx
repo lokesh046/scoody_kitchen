@@ -16,7 +16,7 @@ import {
 import { useFeatureFlag, useFeatureFlags, useFlagEntry, useVetAccess } from '../hooks/useFeatureFlag';
 
 interface HeaderProps {
-  activeTab?: 'shop' | 'pets' | 'consultations' | 'orders' | 'assistant' | 'profile' | 'admin' | 'doctor' | 'apply-doctor' | 'support' | 'blog';
+  activeTab?: 'shop' | 'calculator' | 'pets' | 'consultations' | 'orders' | 'assistant' | 'profile' | 'admin' | 'doctor' | 'apply-doctor' | 'support' | 'blog';
   onCartToggle?: () => void;
   // When true, the header floats transparently over whatever sits behind it
   // (a full-bleed hero image) instead of its normal solid sticky bar.
@@ -113,12 +113,14 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
   const shopEntry = useFlagEntry('shop_checkout');
   const isShopEnabled = shopEntry.state === 'on'; // the cart icon is only for a working shop
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
+  const calculatorEntry = useFlagEntry('shop_meal_planner');
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
 
   const navLinks: { id: string; label: string; path: string; badge?: string | null }[] = [
     ...(isKnowYourPetEnabled ? [{ id: 'pets', label: 'Know Your Pet', path: '/pets' }] : []),
     ...(vetAccess.navVisible ? [{ id: 'consultations', label: 'Vet Consult', path: '/consultations', badge: vetAccess.navLabel }] : []),
     ...(shopEntry.visible ? [{ id: 'shop', label: 'Shop', path: '/shop', badge: shopEntry.label }] : []),
+    ...(calculatorEntry.visible ? [{ id: 'calculator', label: 'Recipe Calculator', path: '/recipe-calculator', badge: calculatorEntry.label }] : []),
     { id: 'orders', label: 'My Orders', path: '/orders' },
     ...(isMealPlannerEnabled ? [{ id: 'onboarding', label: 'Meal Planner', path: '/onboarding' }] : []),
     ...(isChatbotEnabled ? [{ id: 'assistant', label: 'AI Assistant', path: '/assistant' }] : []),

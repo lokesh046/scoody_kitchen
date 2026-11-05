@@ -22,6 +22,7 @@ const PetsPage = lazy(() => import('./features/pets/PetsPage').then((m) => ({ de
 const PetsLandingPage = lazy(() => import('./features/pets/PetsLandingPage').then((m) => ({ default: m.PetsLandingPage })));
 const ConsultationsPage = lazy(() => import('./features/consultations/ConsultationsPage').then((m) => ({ default: m.ConsultationsPage })));
 const VetLandingPage = lazy(() => import('./features/consultations/VetLandingPage').then((m) => ({ default: m.VetLandingPage })));
+const RecipeCalculatorPage = lazy(() => import('./features/calculator/RecipeCalculatorPage').then((m) => ({ default: m.RecipeCalculatorPage })));
 const VideoCallPage = lazy(() => import('./features/consultations/VideoCallPage').then((m) => ({ default: m.VideoCallPage })));
 const AssistantPage = lazy(() => import('./features/chatbot/AssistantPage').then((m) => ({ default: m.AssistantPage })));
 const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
@@ -43,7 +44,7 @@ const NotFoundPage = lazy(() => import('./components/NotFoundPage').then((m) => 
 
 // The dark landing pages. Their loading screens must be dark too, or every visit flashes a
 // cream screen before the dark hero. Keep this list in sync with the inline script in index.html.
-const DARK_LANDING_PATHS = new Set(['/', '/shop', '/pets', '/consultations']);
+const DARK_LANDING_PATHS = new Set(['/', '/shop', '/pets', '/consultations', '/recipe-calculator']);
 const isDarkLandingPath = () =>
   typeof window !== 'undefined' &&
   DARK_LANDING_PATHS.has(window.location.pathname.replace(/\/+$/, '') || '/');
@@ -184,6 +185,7 @@ export default function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/shop" element={<ShopLandingPage />} />
               <Route path="/shop/app" element={<ShopPage />} />
+              <Route path="/recipe-calculator" element={<RecipeCalculatorPage />} />
               <Route path="/login" element={<AuthPage />} />
               <Route path="/auth/verify" element={<VerifyCallback />} />
               <Route path="/auth/magic-link/verify" element={<VerifyCallback />} />

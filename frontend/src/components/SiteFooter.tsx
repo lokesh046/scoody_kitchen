@@ -47,7 +47,7 @@ export function SiteFooter({ className = 'bg-midnight' }: { className?: string }
                 <li><button onClick={() => navigate('/consultations')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Locate Your Vet</button></li>
               )}
               {isMealPlannerEnabled && (
-                <li><button onClick={() => goToHomeSection('fit-calculator')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Recipe Calculator</button></li>
+                <li><button onClick={() => navigate('/recipe-calculator')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Recipe Calculator</button></li>
               )}
               <li><button onClick={() => navigate('/blog')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Journal &amp; Resources</button></li>
             </ul>
