@@ -267,15 +267,15 @@ export function RecipeCalculatorPage() {
             ))}
           </motion.ol>
         </div>
-        <BottomFade to={TONE.cream} />
+        <BottomFade to={TONE.forest} />
       </section>
 
       {/* How it works -- the same staged animation as Know Your Pet's "Getting started" */}
-      <CalculatorGettingStarted fadeTo={ecosystem.length > 0 ? TONE.forest : TONE.sand} />
+      <CalculatorGettingStarted fadeTo={ecosystem.length > 0 ? TONE.navy : TONE.plum} />
 
       {/* Hearth & One ecosystem -- the animated tool cards the other landing pages use */}
       {ecosystem.length > 0 && (
-        <section aria-labelledby="calc-ecosystem-heading" className="relative px-4 sm:px-6 md:px-8 pt-20 pb-36 md:pt-24 md:pb-44 text-paper" style={{ background: `linear-gradient(to bottom, ${TONE.forest}, ${TONE.forestDeep})` }}>
+        <section aria-labelledby="calc-ecosystem-heading" className="relative px-4 sm:px-6 md:px-8 pt-20 pb-36 md:pt-24 md:pb-44 text-paper" style={{ background: `linear-gradient(to bottom, ${TONE.navy}, ${TONE.navyDeep})` }}>
           <div className="relative max-w-7xl mx-auto">
             <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
               <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
@@ -287,15 +287,15 @@ export function RecipeCalculatorPage() {
             </div>
             <ToolCarousel items={ecosystem} />
           </div>
-          <BottomFade to={TONE.sand} />
+          <BottomFade to={TONE.plum} />
         </section>
       )}
 
       {/* FAQ */}
-      <section aria-labelledby="calc-faq-heading" className="relative px-4 sm:px-6 md:px-8 pt-20 pb-36 md:pt-24 md:pb-44" style={{ background: TONE.sand }}>
+      <section aria-labelledby="calc-faq-heading" className="relative px-4 sm:px-6 md:px-8 pt-20 pb-36 md:pt-24 md:pb-44 text-paper" style={{ background: `linear-gradient(to bottom, ${TONE.plum}, ${TONE.plumDeep})` }}>
         <div className="relative max-w-4xl mx-auto">
           <div className="text-center mb-10 space-y-3">
-            <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl tracking-normal leading-snug text-ink">
+            <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl tracking-normal leading-snug">
               Frequently asked questions.
             </h2>
           </div>
@@ -303,28 +303,27 @@ export function RecipeCalculatorPage() {
             {FAQS.map((faq, index) => {
               const isOpen = openFaq === index;
               return (
-                <div key={faq.q} className="border border-cardboard border-opacity-40 bg-paperLight rounded-sm overflow-hidden">
+                <div key={faq.q} className="border border-paper/10 bg-paper/5 rounded-sm overflow-hidden">
                   <button
                     onClick={() => setOpenFaq(isOpen ? null : index)}
                     aria-expanded={isOpen}
                     className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left cursor-pointer"
                   >
-                    <span className="font-body font-bold text-sm text-ink">{faq.q}</span>
-                    {isOpen ? <Minus aria-hidden="true" className="w-5 h-5 shrink-0 text-black" /> : <Plus aria-hidden="true" className="w-5 h-5 shrink-0 text-black" />}
+                    <span className="font-body font-bold text-sm text-paper">{faq.q}</span>
+                    {isOpen ? <Minus aria-hidden="true" className="w-5 h-5 shrink-0 text-turmeric" /> : <Plus aria-hidden="true" className="w-5 h-5 shrink-0 text-turmeric" />}
                   </button>
                   {isOpen && (
-                    <div className="px-5 pb-4 font-body text-sm leading-relaxed text-ink opacity-80">{faq.a}</div>
+                    <div className="px-5 pb-4 font-body text-sm leading-relaxed text-paper/80">{faq.a}</div>
                   )}
                 </div>
               );
             })}
           </div>
         </div>
-        <BottomFade to={TONE.ctaTop} />
       </section>
 
       {/* Closing CTA */}
-      <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 bg-gradient-to-b from-midnightCard to-midnight text-paper text-center">
+      <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 text-paper text-center" style={{ background: `linear-gradient(to bottom, ${TONE.plumDeep}, ${TONE.midnight})` }}>
         <div className="max-w-4xl mx-auto">
           <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
             Take the next step towards more informed meals.
