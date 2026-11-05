@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, ArrowUpRight, Plus, Minus, Flame, SlidersHorizontal, Compass } from 'lucide-react';
 import { Header } from '../../components/Header';
 import { HeroScrollHint } from '../../components/HeroScrollHint';
 import { SiteFooter } from '../../components/SiteFooter';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Eyebrow } from '../../components/Eyebrow';
-import { ScrollSpyTimeline } from '../../components/ScrollSpyTimeline';
 import { ToolCarousel } from '../../components/ToolCarousel';
 import { RouteUnavailable } from '../../components/RouteUnavailable';
 import { CalculatorGettingStarted } from './CalculatorGettingStarted';
@@ -27,7 +27,7 @@ const DEFAULT_HERO = {
   subtitle: "Understand your pet's daily energy requirements and get a more informed starting point for planning their meals.",
 };
 
-// The same scroll timeline (dashed line, gold markers, alternating photo cards) as Shop and Know Your Pet.
+// Three photo cards, one per point.
 const ENERGY_STEPS = [
   {
     icon: Flame,
@@ -99,6 +99,7 @@ const FAQS = [
 
 export function RecipeCalculatorPage() {
   const navigate = useNavigate();
+  const reduceMotion = useReducedMotion();
   const user = useAuthStore((state) => state.user);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -225,7 +226,44 @@ export function RecipeCalculatorPage() {
               The right amount of energy helps support your pet's everyday activities, from resting and playing to growing and staying active. Understanding their daily energy requirements can give you a useful starting point when planning their meals.
             </p>
           </div>
-          <ScrollSpyTimeline steps={ENERGY_STEPS} />
+          <motion.ol
+            initial={reduceMotion ? false : 'hidden'}
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.15 }}
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: reduceMotion ? 0 : 0.18 } } }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8"
+          >
+            {ENERGY_STEPS.map(({ icon: Icon, image, imageAlt, title, text }, index) => (
+              <motion.li
+                key={title}
+                variants={{ hidden: { opacity: 0, y: 28 }, visible: { opacity: 1, y: 0 } }}
+                transition={{ duration: reduceMotion ? 0 : 0.6, ease: [0.22, 1, 0.36, 1] }}
+                className="group flex flex-col overflow-hidden rounded-[24px] border border-paper/10 bg-midnightCard text-left transition-colors duration-300 hover:border-turmeric/40"
+              >
+                <div className="relative aspect-[4/3] overflow-hidden">
+                  <img
+                    src={image}
+                    alt={imageAlt}
+                    width={1200}
+                    height={896}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                  />
+                  <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-midnightCard/80 via-transparent to-transparent" />
+                  <span className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-turmeric/60 bg-midnight/80 font-mono text-xs font-bold text-turmeric">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                </div>
+                <div className="flex flex-1 flex-col gap-3 p-6">
+                  <div className="flex items-center gap-3">
+                    <Icon aria-hidden="true" className="h-5 w-5 shrink-0 text-turmeric" strokeWidth={1.6} />
+                    <h3 className="font-display text-lg font-bold leading-snug text-paper">{title}</h3>
+                  </div>
+                  <p className="font-body text-sm leading-relaxed text-paper/75">{text}</p>
+                </div>
+              </motion.li>
+            ))}
+          </motion.ol>
         </div>
       </section>
 
