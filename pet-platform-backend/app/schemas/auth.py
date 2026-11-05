@@ -1,3 +1,4 @@
+from typing import Literal
 from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -77,6 +78,11 @@ class OTPRequest(BaseModel):
         if not re.match(r"^\+[1-9]\d{1,14}$", v):
             raise ValueError("Phone number must be in E.164 format (e.g. +919876543210)")
         return v
+
+
+class SendOTPRequest(OTPRequest):
+    # 'whatsapp' tries WhatsApp first and falls back to SMS if that fails; 'sms' goes straight to SMS.
+    channel: Literal["whatsapp", "sms"] = "whatsapp"
 
 
 class WhatsAppVerifyOTP(BaseModel):

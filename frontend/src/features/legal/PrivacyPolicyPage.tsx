@@ -117,15 +117,14 @@ export const PrivacyPolicyPage: React.FC = () => {
             <H3>3.3 Information We Receive From Third Parties</H3>
             <UL>
               <li><strong>Google:</strong> basic profile information when you use "Continue with Google."</li>
-              <li><strong>WhatsApp / Meta Platforms:</strong> delivery-status confirmation for one-time passcodes we send to verify your phone number. Meta does not share the content of your WhatsApp account with us, and we do not share anything with Meta beyond the phone number needed to deliver that one message.</li>
-              <li><strong>Firebase (Google):</strong> delivery-status confirmation for SMS one-time passcodes, used as a backup verification channel when WhatsApp delivery isn't available.</li>
+              <li><strong>MSG91 (Walkover):</strong> delivery of the SMS one-time passcodes we send to verify your phone number. We share only the phone number and the passcode needed to deliver that one message.</li>
               <li><strong>Razorpay:</strong> payment status and transaction identifiers once a payment is completed or refunded.</li>
               <li><strong>EasyPost and Shiprocket:</strong> shipment status and tracking updates once your order ships.</li>
             </UL>
 
             <H2>4. How We Use Your Information</H2>
             <UL>
-              <li>To create and manage your account, and to verify your identity via email, WhatsApp, or SMS.</li>
+              <li>To create and manage your account, and to verify your identity via email or SMS.</li>
               <li>To process and deliver your orders, including sharing your name, address, and phone number with our shipping partners (EasyPost, Shiprocket) solely for that delivery.</li>
               <li>To schedule and facilitate veterinary consultations, including hosting the video call, and to maintain the medical and prescription records generated from them.</li>
               <li>To personalize recipe recommendations, meal plans, and AI nutrition assistant responses based on your pet's profile.</li>
@@ -158,8 +157,8 @@ export const PrivacyPolicyPage: React.FC = () => {
             <UL>
               <li><strong>Razorpay Software Private Limited</strong> — payment processing, PCI-DSS compliant card/UPI handling, and refunds.</li>
               <li><strong>EasyPost and Shiprocket</strong> — your name, address, and phone number, to fulfil and track an order.</li>
-              <li><strong>Firebase / Google Cloud Platform</strong> — phone-number verification (SMS fallback), push-notification delivery support, website usage analytics (Firebase Analytics), and Google Places/geocoding for address and nearby-clinic lookups.</li>
-              <li><strong>Meta Platforms (WhatsApp Cloud API)</strong> — delivery of one-time passcodes to your WhatsApp number.</li>
+              <li><strong>Firebase / Google Cloud Platform</strong> — push-notification delivery support, website usage analytics (Firebase Analytics), and Google Places/geocoding for address and nearby-clinic lookups.</li>
+              <li><strong>MSG91 (Walkover)</strong> — delivery of SMS one-time passcodes to verify your phone number.</li>
               <li><strong>Cloudinary Inc.</strong> — hosting for profile photos, pet photos, review photos, and consultation-related documents you upload.</li>
               <li><strong>Google (Gemini API), and secondary AI providers (OpenRouter and a Hostinger-hosted AI router) used only for reliability when the primary provider is unavailable</strong> — processing for the AI nutrition assistant, and for AI Pet Vision (the photo you submit is processed by these providers to identify breed and generate care insights).</li>
               <li><strong>8x8 / Jitsi video infrastructure</strong> — hosts the live video and audio for veterinary consultations.</li>

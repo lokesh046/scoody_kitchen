@@ -111,26 +111,15 @@ export const uploadAvatarImage = async (file: File): Promise<{ url: string }> =>
   return response.data;
 };
 
-export const verifyFirebasePhoneToken = async (idToken: string): Promise<UserResponse> => {
-  const response = await apiClient.post('/auth/firebase/verify-phone', {
-    id_token: idToken,
-  });
-  return response.data;
-};
-
-export const requestOtpPreCheck = async (phoneNumber: string): Promise<{ allowed: boolean; attempts_remaining?: number }> => {
-  const response = await apiClient.post('/auth/request-otp', {
-    phone_number: phoneNumber,
-  });
-  return response.data;
-};
-
-// WhatsApp OTP -- primary phone-verification channel. Fully backend-owned
-// (unlike the Firebase flow above, where the SDK sends the SMS client-side),
-// so there's no separate "pre-check" step: send-otp itself is the real send.
-export const sendWhatsAppOtp = async (phoneNumber: string): Promise<{ sent: boolean; expires_in: number }> => {
+// Phone-verification OTP. 'whatsapp' tries WhatsApp first and the backend falls back to SMS (MSG91)
+// if that fails; 'sms' goes straight to SMS. The response says which channel was actually used.
+export const sendWhatsAppOtp = async (
+  phoneNumber: string,
+  channel: 'whatsapp' | 'sms' = 'whatsapp'
+): Promise<{ sent: boolean; expires_in: number; channel: 'whatsapp' | 'sms' }> => {
   const response = await apiClient.post('/auth/whatsapp/send-otp', {
     phone_number: phoneNumber,
+    channel,
   });
   return response.data;
 };

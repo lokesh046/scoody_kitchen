@@ -5,7 +5,7 @@ import { Header } from './Header';
 
 interface RouteUnavailableProps {
   variant: 'coming_soon' | 'unavailable';
-  activeTab?: 'shop' | 'pets' | 'consultations' | 'orders' | 'assistant' | 'profile' | 'admin' | 'doctor' | 'apply-doctor' | 'support' | 'blog';
+  activeTab?: 'shop' | 'calculator' | 'pets' | 'consultations' | 'orders' | 'assistant' | 'profile' | 'admin' | 'doctor' | 'apply-doctor' | 'support' | 'blog';
   title: string;
   // Optional: pass nothing to show only the status (title) and no explanatory text.
   description?: string;

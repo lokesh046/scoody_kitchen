@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useBackToClose } from '../../hooks/useBackToClose';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatNaiveDateTime } from '../../utils/date';
 import { fetchMyPets, fetchPetHealthRecords } from '../../api/pets';
@@ -168,6 +169,10 @@ export const ConsultationsPage: React.FC = () => {
   const [inspectingDoctor, setInspectingDoctor] = useState<any | null>(null);
   const [inspectingSchedule, setInspectingSchedule] = useState<any | null>(null);
   const [isLoadingInspecting, setIsLoadingInspecting] = useState(false);
+
+  // On a phone, Back closes an open clinic or specialist panel instead of leaving this page for the landing page.
+  useBackToClose(inspectingClinic !== null, () => setInspectingClinic(null));
+  useBackToClose(inspectingDoctorId !== null, () => setInspectingDoctorId(null));
 
   // Queries
   const { data: pets } = useQuery({

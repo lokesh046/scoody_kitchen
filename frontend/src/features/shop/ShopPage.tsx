@@ -362,11 +362,7 @@ export default function ShopPage() {
                 </button>
                 <button
                   onClick={() => {
-                    navigate('/#fit-calculator');
-                    setTimeout(() => {
-                      const el = document.getElementById('fit-calculator');
-                      if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    }, 150);
+                    navigate('/recipe-calculator#fit-calculator');
                   }}
                   className="border border-cardboard border-opacity-40 text-paper hover:bg-paperLight hover:bg-opacity-10 font-body font-bold text-xs uppercase px-8 py-4 rounded-none tracking-wider transition-colors flex items-center cursor-pointer"
                 >

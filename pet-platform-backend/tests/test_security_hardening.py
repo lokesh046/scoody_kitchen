@@ -66,8 +66,6 @@ def test_payment_simulation_is_blocked_unless_explicitly_allowed(monkeypatch):
         "app.api.auth.verify_magic_link_via_url",
         "app.api.auth.verify_magic_link_via_post",
         "app.api.auth.refresh_token_endpoint",
-        "app.api.auth.verify_firebase_phone",
-        "app.api.auth.request_otp",
         "app.api.auth.send_whatsapp_otp_endpoint",
         "app.api.auth.verify_whatsapp_otp_endpoint",
         "app.api.newsletter.subscribe",

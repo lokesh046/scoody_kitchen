@@ -10,13 +10,14 @@ export const FAQ_PAGES: { value: FaqPage; label: string }[] = [
   { value: 'vet', label: 'Locate Your Vet page' },
 ];
 
-export type BannerPlacement = 'home' | 'shop_hero' | 'pets_hero' | 'vet_hero' | 'home_toolkit';
+export type BannerPlacement = 'home' | 'shop_hero' | 'pets_hero' | 'vet_hero' | 'calculator_hero' | 'home_toolkit';
 
 export const BANNER_PLACEMENTS: { value: BannerPlacement; label: string; hint: string }[] = [
   { value: 'home', label: 'Home page - banner carousel', hint: 'Landscape, e.g. 1920x600.' },
   { value: 'shop_hero', label: 'Shop Recipes page - top image', hint: 'Landscape, e.g. 1920x1080. Only the first active one is used. Title and subtitle become the headline and text.' },
   { value: 'pets_hero', label: 'Know Your Pet page - top image', hint: 'Landscape, e.g. 1920x1080. Only the first active one is used. Title and subtitle become the headline and text.' },
   { value: 'vet_hero', label: 'Locate Your Vet page - top image', hint: 'Landscape, e.g. 1920x1080. Only the first active one is used. Title and subtitle become the headline and text.' },
+  { value: 'calculator_hero', label: 'Count The Calories page - top image', hint: 'Landscape, e.g. 1920x1080. Only the first active one is used. Title and subtitle become the headline and text.' },
   { value: 'home_toolkit', label: 'Home page - tool card', hint: 'Square icon, transparent PNG or WebP. Set the link to /pets, /consultations or /onboarding to choose which card it replaces.' },
 ];
 

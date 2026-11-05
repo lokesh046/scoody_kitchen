@@ -6,13 +6,11 @@ import * as authApi from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
 
 jest.mock('../../api/auth', () => ({
-  requestOtpPreCheck: jest.fn(),
   verifyPhoneWithToken: jest.fn(),
   sendWhatsAppOtp: jest.fn(),
   verifyWhatsAppOtp: jest.fn(),
 }));
 jest.mock('../../../App', () => ({ navigationRef: { isReady: () => false, navigate: jest.fn() } }));
-jest.mock('../../config/firebase', () => ({ FIREBASE_CONFIG: {} }));
 jest.mock('../../store/authStore', () => ({ useAuthStore: jest.fn() }));
 
 const mockedAuthApi = authApi as jest.Mocked<typeof authApi>;
@@ -24,14 +22,14 @@ const signedIn = (user: any) => mockedStore.mockReturnValue({ user, updateUser: 
 
 const enterNumberAndSend = async () => {
   fireEvent.changeText(screen.getByPlaceholderText('0000000000'), '9876543210');
-  fireEvent.press(screen.getByText('Send Verification Code'));
+  fireEvent.press(screen.getByText('Send Code via WhatsApp'));
   await waitFor(() => expect(screen.getByText(/Code sent via/)).toBeTruthy());
 };
 
 describe('PhoneVerificationGate', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedAuthApi.sendWhatsAppOtp.mockResolvedValue({ sent: true, expires_in: 300 } as any);
+    mockedAuthApi.sendWhatsAppOtp.mockResolvedValue({ sent: true, expires_in: 300, channel: 'whatsapp' } as any);
   });
 
   it('lets the user go back from the code screen to fix a wrong number', async () => {
@@ -41,7 +39,7 @@ describe('PhoneVerificationGate', () => {
 
     fireEvent.press(screen.getByText('Wrong number? Change number'));
 
-    expect(screen.getByText('Send Verification Code')).toBeTruthy();
+    expect(screen.getByText('Send Code via WhatsApp')).toBeTruthy();
     expect(screen.queryByText(/Code sent via/)).toBeNull();
     // the number is still there, ready to be edited
     expect(screen.getByDisplayValue('9876543210')).toBeTruthy();
@@ -57,7 +55,7 @@ describe('PhoneVerificationGate', () => {
     signedIn(userB);
     rerender(<PhoneVerificationGate />);
 
-    await waitFor(() => expect(screen.getByText('Send Verification Code')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Send Code via WhatsApp')).toBeTruthy());
     expect(screen.queryByText(/Code sent via/)).toBeNull();
     expect(screen.queryByDisplayValue('9876543210')).toBeNull();
     expect(mockedAuthApi.sendWhatsAppOtp).toHaveBeenCalledTimes(1); // nothing new was sent

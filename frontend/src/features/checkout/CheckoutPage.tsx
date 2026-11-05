@@ -11,9 +11,7 @@ import { validateCoupon } from '../../api/coupons';
 import { createPayment, simulatePaymentSuccess, simulatePaymentFailure, verifyRazorpayPayment } from '../../api/payments';
 import type { PaymentResponse } from '../../api/payments';
 import { loadRazorpaySDK } from '../../utils/razorpay';
-import { auth } from '../../api/firebase';
-import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
-import { verifyFirebasePhoneToken, requestOtpPreCheck, sendWhatsAppOtp, verifyWhatsAppOtp } from '../../api/auth';
+import { sendWhatsAppOtp, verifyWhatsAppOtp } from '../../api/auth';
 import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
@@ -246,17 +244,12 @@ export const CheckoutPage: React.FC = () => {
   const [isVerifyWarningOpen, setIsVerifyWarningOpen] = useState(false);
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
   const [verificationStep, setVerificationStep] = useState<1 | 2>(1);
+  const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   const [verificationCode, setVerificationCode] = useState('');
-  const [confirmResult, setConfirmResult] = useState<any>(null);
   const [isVerifyingLoading, setIsVerifyingLoading] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
-  const [recaptchaVerifier, setRecaptchaVerifier] = useState<any>(null);
 
   const [cooldownCountdown, setCooldownCountdown] = useState(0);
-  const [attemptsRemaining, setAttemptsRemaining] = useState<number | null>(null);
-  // WhatsApp is the primary channel; falls back to Firebase SMS if the user
-  // can't receive WhatsApp or a send fails.
-  const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
 
   // Manage SMS resend cooldown timer countdown
   useEffect(() => {
@@ -498,70 +491,21 @@ export const CheckoutPage: React.FC = () => {
     setIsVerifyingPhone(true);
   };
 
-  const handleSendOtp = async (channel: 'whatsapp' | 'sms' = verificationChannel) => {
+  const handleSendOtp = async (channel: 'whatsapp' | 'sms' = 'whatsapp') => {
     setIsVerifyingLoading(true);
     setVerifyError(null);
     const fullPhone = toE164(phoneCountry, phone);
-
-    if (channel === 'whatsapp') {
-      try {
-        await sendWhatsAppOtp(fullPhone);
-        setVerificationStep(2);
-        setCooldownCountdown(60);
-      } catch (err: any) {
-        console.error('Error sending WhatsApp OTP:', err);
-        setVerifyError(
-          err.response?.data?.detail ||
-          "Couldn't send a WhatsApp code. You can try SMS instead below."
-        );
-      } finally {
-        setIsVerifyingLoading(false);
-      }
-      return;
-    }
-
     try {
-      const rateLimitResponse = await requestOtpPreCheck(fullPhone);
-      if (rateLimitResponse.attempts_remaining !== undefined) {
-        setAttemptsRemaining(rateLimitResponse.attempts_remaining);
-      }
-
-      const container = document.getElementById('recaptcha-container');
-      if (container) {
-        container.innerHTML = '<div id="recaptcha-verifier-anchor"></div>';
-      }
-
-      const verifier = new RecaptchaVerifier(auth, 'recaptcha-verifier-anchor', {
-        size: 'invisible',
-        callback: () => {}
-      });
-      setRecaptchaVerifier(verifier);
-
-      const confirmation = await signInWithPhoneNumber(auth, fullPhone, verifier);
-      setConfirmResult(confirmation);
+      const result = await sendWhatsAppOtp(fullPhone, channel);
+      setVerificationChannel(result.channel === 'sms' ? 'sms' : 'whatsapp');
       setVerificationStep(2);
-      setCooldownCountdown(30);
+      setCooldownCountdown(60);
     } catch (err: any) {
       console.error('Error sending OTP:', err);
-      setVerifyError(
-        err.response?.data?.detail ||
-        err.message ||
-        'Failed to send SMS code. Please check credentials and format.'
-      );
-      if (recaptchaVerifier) {
-        try {
-          recaptchaVerifier.clear();
-        } catch (e) {}
-      }
+      setVerifyError(err.response?.data?.detail || "Couldn't send the code. Please try again in a moment.");
     } finally {
       setIsVerifyingLoading(false);
     }
-  };
-
-  const handleTrySmsInstead = () => {
-    setVerificationChannel('sms');
-    setVerifyError(null);
-    handleSendOtp('sms');
   };
 
   const handleVerifyOtp = async () => {
@@ -573,28 +517,11 @@ export const CheckoutPage: React.FC = () => {
     setVerifyError(null);
     const fullPhone = toE164(phoneCountry, phone);
     try {
-      let updatedUser;
-
-      if (verificationChannel === 'whatsapp') {
-        updatedUser = await verifyWhatsAppOtp(fullPhone, verificationCode);
-      } else {
-        if (!confirmResult) {
-          throw new Error('Verification session has expired. Please send OTP again.');
-        }
-        const userCredential = await confirmResult.confirm(verificationCode);
-        const idToken = await userCredential.user.getIdToken();
-        updatedUser = await verifyFirebasePhoneToken(idToken);
-      }
+      const updatedUser = await verifyWhatsAppOtp(fullPhone, verificationCode);
 
       setAuth(updatedUser, accessToken);
       setIsVerifyingPhone(false);
       setErrorMessage('');
-      
-      if (recaptchaVerifier) {
-        try {
-          recaptchaVerifier.clear();
-        } catch (e) {}
-      }
     } catch (err: any) {
       console.error('OTP Verification failed:', err);
       setVerifyError(err.response?.data?.detail || err.message || 'Incorrect OTP code. Please try again.');
@@ -605,11 +532,6 @@ export const CheckoutPage: React.FC = () => {
 
   const handleCloseVerification = () => {
     setIsVerifyingPhone(false);
-    if (recaptchaVerifier) {
-      try {
-        recaptchaVerifier.clear();
-      } catch (e) {}
-    }
   };
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
@@ -1557,11 +1479,6 @@ export const CheckoutPage: React.FC = () => {
         </div>
       )}
 
-      {/* Invisible reCAPTCHA container */}
-      <div id="recaptcha-container">
-        <div id="recaptcha-verifier-anchor"></div>
-      </div>
-
       {/* Retro Ledger Phone Verification Modal */}
       {isVerifyingPhone && (
         <div className="fixed inset-0 bg-ink bg-opacity-40 backdrop-blur-sm z-50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
@@ -1572,7 +1489,7 @@ export const CheckoutPage: React.FC = () => {
                   REGISTRY PHONE VERIFICATION
                 </span>
                 <h3 className="font-display font-black text-2xl text-ink uppercase tracking-tight">
-                  {verificationChannel === 'whatsapp' ? 'WhatsApp Verification' : 'SMS Authentication'}
+                  {verificationChannel === 'whatsapp' ? 'WhatsApp Verification' : 'SMS Verification'}
                 </h3>
               </div>
               <button 
@@ -1599,14 +1516,14 @@ export const CheckoutPage: React.FC = () => {
                 <div className="pt-2 flex flex-col gap-2">
                   <button
                     type="button"
-                    onClick={() => handleSendOtp('whatsapp')}
+                    onClick={() => handleSendOtp()}
                     disabled={isVerifyingLoading}
                     className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs py-3.5 rounded-none tracking-wide uppercase transition-colors disabled:opacity-50 flex items-center justify-center space-x-2 cursor-pointer border-0"
                   >
                     {isVerifyingLoading ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Sending WhatsApp code...</span>
+                        <span>Sending code...</span>
                       </>
                     ) : (
                       <span>Send Code via WhatsApp</span>
@@ -1615,11 +1532,11 @@ export const CheckoutPage: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={handleTrySmsInstead}
+                    onClick={() => handleSendOtp('sms')}
                     disabled={isVerifyingLoading}
                     className="w-full font-mono text-[10px] py-2 text-ink opacity-60 hover:opacity-100 uppercase tracking-wider cursor-pointer transition-opacity disabled:opacity-30"
                   >
-                    Can't receive WhatsApp? Send via SMS instead
+                    Can't use WhatsApp? Send via SMS instead
                   </button>
                 </div>
               </div>
@@ -1640,14 +1557,8 @@ export const CheckoutPage: React.FC = () => {
                 </div>
 
                 <p className="font-body text-xs text-ink opacity-70 leading-relaxed">
-                  Enter the verification code sent to your phone. Code is valid for 5 minutes.
+                  Enter the verification code sent to your phone. Code is valid for 10 minutes.
                 </p>
-
-                {attemptsRemaining !== null && (
-                  <p className="font-mono text-[10px] text-paprika font-bold uppercase">
-                    Hourly Attempts Remaining: {attemptsRemaining} of 3
-                  </p>
-                )}
 
                 <div className="pt-2 flex space-x-3">
                   {cooldownCountdown > 0 ? (
@@ -1661,7 +1572,7 @@ export const CheckoutPage: React.FC = () => {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => handleSendOtp()}
+                      onClick={() => handleSendOtp(verificationChannel)}
                       disabled={isVerifyingLoading}
                       className="w-1/3 border border-cardboard bg-transparent hover:bg-paper font-mono text-[11px] uppercase py-3 rounded-none tracking-wide text-ink cursor-pointer transition-colors"
                     >
@@ -1684,6 +1595,20 @@ export const CheckoutPage: React.FC = () => {
                     )}
                   </button>
                 </div>
+
+                {verificationChannel === 'whatsapp' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVerifyError(null);
+                      handleSendOtp('sms');
+                    }}
+                    disabled={isVerifyingLoading}
+                    className="w-full font-mono text-[10px] py-2 text-ink opacity-60 hover:opacity-100 uppercase tracking-wider cursor-pointer transition-opacity disabled:opacity-30"
+                  >
+                    Didn't get it on WhatsApp? Send via SMS instead
+                  </button>
+                )}
               </div>
             )}
           </div>

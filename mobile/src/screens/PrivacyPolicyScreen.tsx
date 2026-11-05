@@ -92,7 +92,7 @@ export default function PrivacyPolicyScreen({ navigation }: PrivacyPolicyScreenP
         <H3>3.3 Information We Receive From Third Parties</H3>
         <Bullet><Text style={styles.bulletBold}>Google: </Text>basic profile information when you use "Continue with Google."</Bullet>
         <Bullet><Text style={styles.bulletBold}>WhatsApp / Meta Platforms: </Text>delivery-status confirmation for one-time passcodes used to verify your phone number.</Bullet>
-        <Bullet><Text style={styles.bulletBold}>Firebase (Google): </Text>delivery-status confirmation for SMS one-time passcodes, used as a backup verification channel.</Bullet>
+        <Bullet><Text style={styles.bulletBold}>MSG91 (Walkover): </Text>delivery of the SMS one-time passcodes we send to verify your phone number.</Bullet>
         <Bullet><Text style={styles.bulletBold}>Razorpay: </Text>payment status and transaction identifiers once a payment is completed or refunded.</Bullet>
         <Bullet><Text style={styles.bulletBold}>EasyPost and Shiprocket: </Text>shipment status and tracking updates once your order ships.</Bullet>
 
@@ -123,7 +123,7 @@ export default function PrivacyPolicyScreen({ navigation }: PrivacyPolicyScreenP
         <P>We do not sell your personal data. We share it only with:</P>
         <Bullet><Text style={styles.bulletBold}>Razorpay Software Private Limited </Text>— payment processing and refunds.</Bullet>
         <Bullet><Text style={styles.bulletBold}>EasyPost and Shiprocket </Text>— your name, address, and phone, to fulfil and track an order.</Bullet>
-        <Bullet><Text style={styles.bulletBold}>Firebase / Google Cloud Platform </Text>— phone verification, push notifications, and Google Places/geocoding.</Bullet>
+        <Bullet><Text style={styles.bulletBold}>Firebase / Google Cloud Platform </Text>— push notifications, and Google Places/geocoding.</Bullet>
         <Bullet><Text style={styles.bulletBold}>Meta Platforms (WhatsApp Cloud API) </Text>— delivery of one-time passcodes.</Bullet>
         <Bullet><Text style={styles.bulletBold}>Cloudinary Inc. </Text>— hosting for photos and uploaded documents.</Bullet>
         <Bullet><Text style={styles.bulletBold}>Google (Gemini API), with OpenRouter and a Hostinger-hosted AI router as reliability fallbacks </Text>— AI nutrition assistant, and AI Pet Vision (the photo you submit is processed by these providers to identify breed and generate care insights).</Bullet>

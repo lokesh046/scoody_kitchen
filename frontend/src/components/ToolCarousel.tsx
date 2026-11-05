@@ -194,7 +194,8 @@ function Orbit({ items }: { items: ToolCarouselItem[] }) {
         </div>
         <button type="button" aria-label="Next tool" className={controlClass} onClick={() => { move(1); }}><ArrowRight aria-hidden="true" className="h-4 w-4" /></button>
       </div>
-      <p className="mt-4 text-center font-mono text-xs text-paper/65" aria-live={focused ? 'polite' : 'off'} aria-atomic="true">{active + 1} / {count} · {items[active].label}</p>
+      {/* Not shown on screen; kept so screen readers still hear which card is selected. */}
+      <p className="sr-only" aria-live={focused ? 'polite' : 'off'} aria-atomic="true">{active + 1} / {count} · {items[active].label}</p>
     </div>
   );
 }

@@ -27,8 +27,8 @@ from app.schemas.auth import (
     UserUpdate,
     AccountDeletionRequest,
     AccountDeletionResponse,
-    FirebaseVerifyPhonePayload,
     OTPRequest,
+    SendOTPRequest,
     WhatsAppVerifyOTP,
 )
 from app.services.auth_service import (
@@ -43,6 +43,7 @@ from app.services.auth_service import (
     update_user_profile,
 )
 from app.services.whatsapp import normalize_phone_to_whatsapp_format, send_whatsapp_otp, WhatsAppSendError
+from app.services.sms import send_sms_otp, SmsSendError
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -464,48 +465,6 @@ async def upload_avatar(
     return {"url": avatar_url}
 
 
-@router.post(
-    "/firebase/verify-phone",
-    response_model=UserResponse,
-    status_code=status.HTTP_200_OK,
-)
-@limiter.limit("10/minute")
-def verify_firebase_phone(
-    request: Request,
-    payload: FirebaseVerifyPhonePayload,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    try:
-        from firebase_admin import auth as firebase_auth
-        decoded_token = firebase_auth.verify_id_token(payload.id_token)
-        phone_number = decoded_token.get("phone_number")
-
-        if not phone_number:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid Firebase ID Token: phone number missing.",
-            )
-        
-        # Update user profile verification status
-        current_user.phone = phone_number
-        current_user.is_phone_verified = True
-        db.commit()
-        db.refresh(current_user)
-        
-        return current_user
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Firebase phone verification failed: {str(e)}",
-        )
-
-
-COOLDOWN_SECONDS = 30
-MAX_PER_PHONE_PER_HOUR = 3
-MAX_PER_IP_PER_HOUR = 10
-
 def get_client_ip(request: Request) -> str:
     x_forwarded_for = request.headers.get("X-Forwarded-For")
     if x_forwarded_for:
@@ -513,101 +472,10 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "127.0.0.1"
 
 
-@router.post(
-    "/request-otp",
-    status_code=status.HTTP_200_OK,
-)
-@limiter.limit("10/minute")
-def request_otp(
-    request: Request,
-    payload: OTPRequest,
-):
-    """
-    Pre-check rate-limiting gate for Firebase Phone Auth OTP requests.
-
-    Since Firebase itself doesn't expose a server-side send hook to rate-limit
-    requests directly, this pre-check verifies cooldown and hourly limits via Redis
-    before letting the client trigger the Firebase SDK send operation.
-    """
-    # OTP cooldown/count keys are rate-limit state, not cache — they must
-    # survive cache eviction under memory pressure, or a stampede that
-    # evicts them would let the phone/IP limits reset early. Uses the
-    # dedicated rate-limiter Redis client (same instance app/core/limiter.py
-    # uses for slowapi) instead of the shared cache client.
-    redis_client = rate_limit_redis_client
-
-    phone_number = payload.phone_number
-    ip_address = get_client_ip(request)
-
-    cooldown_key = f"otp_cooldown:{phone_number}"
-    phone_count_key = f"otp_count:{phone_number}"
-    ip_count_key = f"otp_ip_count:{ip_address}"
-
-    # Read values & TTLs in a pipeline
-    pipe_read = redis_client.pipeline()
-    pipe_read.ttl(cooldown_key)
-    pipe_read.get(phone_count_key)
-    pipe_read.ttl(phone_count_key)
-    pipe_read.get(ip_count_key)
-    pipe_read.ttl(ip_count_key)
-
-    cooldown_ttl, phone_count, phone_ttl, ip_count, ip_ttl = pipe_read.execute()
-
-    # Check Cooldown Limit
-    if cooldown_ttl > 0:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Please wait {cooldown_ttl} seconds before requesting another code",
-        )
-
-    # Check Phone Hourly Limit
-    if phone_count is not None and int(phone_count) >= MAX_PER_PHONE_PER_HOUR:
-        wait_minutes = max(1, phone_ttl // 60) if phone_ttl > 0 else 60
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Too many attempts for this number. Try again in {wait_minutes} minutes.",
-        )
-
-    # Check IP Hourly Limit
-    if ip_count is not None and int(ip_count) >= MAX_PER_IP_PER_HOUR:
-        wait_minutes = max(1, ip_ttl // 60) if ip_ttl > 0 else 60
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Too many attempts for this IP address. Try again in {wait_minutes} minutes.",
-        )
-
-    # All checks passed: set cooldown and increment hourly counters
-    pipe_write = redis_client.pipeline()
-    # 1. Set Cooldown Key
-    pipe_write.set(cooldown_key, "1", ex=COOLDOWN_SECONDS)
-    # 2. Increment Phone Counter
-    pipe_write.incr(phone_count_key)
-    # If key was newly created, set TTL to 1 hour (3600 seconds)
-    if phone_count is None:
-        pipe_write.expire(phone_count_key, 3600)
-    # 3. Increment IP Counter
-    pipe_write.incr(ip_count_key)
-    # If key was newly created, set TTL to 1 hour (3600 seconds)
-    if ip_count is None:
-        pipe_write.expire(ip_count_key, 3600)
-
-    pipe_write.execute()
-
-    # Calculate attempts remaining
-    current_count = int(phone_count) if phone_count is not None else 0
-    attempts_remaining = max(0, MAX_PER_PHONE_PER_HOUR - (current_count + 1))
-
-    return {"allowed": True, "attempts_remaining": attempts_remaining}
-
-
-# --- WhatsApp OTP phone verification -------------------------------------
-# Primary phone-verification channel: unlike the Firebase flow above (where
-# the SDK sends the SMS client-side and the backend only rate-limits +
-# verifies a token afterwards), this is fully server-owned -- the backend
-# generates the code, hashes and stores it, sends it via Meta's Cloud API,
-# and verifies the submission itself. Same purpose as verify_firebase_phone
-# (confirm current_user's phone), not a signup path: both endpoints below
-# require an authenticated user.
+# --- Phone verification by SMS (MSG91) -------------------------------------
+# Fully server-owned: the backend generates the code, hashes and stores it, sends it by SMS
+# through MSG91, and verifies the submission itself. Not a signup path: both endpoints
+# below require an authenticated user.
 
 WHATSAPP_OTP_COOLDOWN_SECONDS = 60
 WHATSAPP_OTP_MAX_PER_PHONE_PER_HOUR = 5
@@ -632,7 +500,7 @@ def _hash_whatsapp_otp(code: str) -> str:
 @limiter.limit("10/minute")
 async def send_whatsapp_otp_endpoint(
     request: Request,
-    payload: OTPRequest,
+    payload: SendOTPRequest,
     current_user: User = Depends(get_current_user),
 ):
     """Generate a 6-digit code, store its hash in Redis, and send it to
@@ -675,14 +543,22 @@ async def send_whatsapp_otp_endpoint(
     code = f"{secrets.randbelow(900000) + 100000}"
     code_hash = _hash_whatsapp_otp(code)
 
-    try:
-        await send_whatsapp_otp(phone_number, code)
-    except WhatsAppSendError:
-        # Full error already logged server-side inside send_whatsapp_otp.
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Couldn't send the verification code. Please try again in a moment.",
-        )
+    channel = "sms"
+    if payload.channel == "whatsapp":
+        try:
+            await send_whatsapp_otp(phone_number, code)
+            channel = "whatsapp"
+        except WhatsAppSendError:
+            # WhatsApp failed or isn't configured (already logged inside) -- fall back to SMS.
+            pass
+    if channel == "sms":
+        try:
+            await send_sms_otp(phone_number, code)
+        except SmsSendError:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Couldn't send the verification code. Please try again in a moment.",
+            )
 
     # Sending a new OTP replaces any previous one for this number -- SET
     # overwrites the key outright rather than merging, so a stale record
@@ -699,7 +575,7 @@ async def send_whatsapp_otp_endpoint(
         pipe_write.expire(ip_count_key, 3600)
     pipe_write.execute()
 
-    return {"sent": True, "expires_in": settings.OTP_EXPIRY_SECONDS}
+    return {"sent": True, "expires_in": settings.OTP_EXPIRY_SECONDS, "channel": channel}
 
 
 @router.post(

@@ -33,7 +33,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Quicksand:wght@300;400;500;600;700&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Lobster&family=Parisienne&display=swap" />
 
-    <!-- The dark landing pages (home, shop, pets, consultations) otherwise flash a blank
+    <!-- The dark landing pages (home, shop, pets, consultations, recipe calculator) otherwise flash a blank
          white page, then a cream one (the stylesheet's body background), before the dark
          hero appears. Mark them from the very first paint; App.tsx keeps the mark correct
          on navigation. Keep the colour in sync with `midnight` in tailwind.config and the
@@ -52,7 +52,7 @@
         // file (/privacy, /login, ...). Decide here, before the body is parsed, so that page is
         // never painted. scripts/prerender.js tags <html> and #root with the route they were made for.
         if (made !== null && norm(made) !== path) document.documentElement.classList.add('not-prerendered');
-        if (path === '/' || path === '/shop' || path === '/pets' || path === '/consultations') {
+        if (path === '/' || path === '/shop' || path === '/pets' || path === '/consultations' || path === '/recipe-calculator') {
           document.documentElement.classList.add('dark-landing');
         }
       })();

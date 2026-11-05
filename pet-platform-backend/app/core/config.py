@@ -126,6 +126,12 @@ class Setting(BaseSettings):
     WHATSAPP_TEMPLATE_LANG: str = "en"
     WHATSAPP_API_VERSION: str = "v25.0"
     OTP_EXPIRY_SECONDS: int = 600
+
+    # MSG91 SMS -- backup OTP channel, used only when the WhatsApp send fails
+    # or WhatsApp isn't configured. Sender header (SYNVIT) and the DLT
+    # template are attached to the MSG91 template, not sent from here.
+    MSG91_AUTH_KEY: str | None = None
+    MSG91_TEMPLATE_ID: str | None = None
     # HMAC key for hashing WhatsApp OTP codes at rest -- deliberately
     # separate from hash_token()'s plain SHA-256 (used for magic-link
     # tokens, which are long/high-entropy). A 6-digit OTP has only 1e6

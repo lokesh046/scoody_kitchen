@@ -178,9 +178,9 @@ function OtherToolsSection() {
       : []),
     ...(isMealPlannerEnabled
       ? [{
-          label: 'Recipe Calculator', image: '/images/toolkit/meal-planner.webp',
+          label: 'Count The Calories', image: '/images/toolkit/meal-planner.webp',
           text: "Estimate your pet's daily energy requirements using the details requested by the calculator.",
-          path: '/onboarding',
+          path: '/recipe-calculator#fit-calculator',
           cta: 'Estimate their daily needs',
         }]
       : []),
