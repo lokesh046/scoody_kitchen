@@ -37,6 +37,7 @@ export function PhoneVerificationGate() {
   const [country, setCountry] = useState(DEFAULT_COUNTRY_ISO2);
   const [phoneDigits, setPhoneDigits] = useState('');
   const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
+  const [codesLeft, setCodesLeft] = useState<{ left: number; limit: number } | null>(null);
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -56,6 +57,7 @@ export function PhoneVerificationGate() {
     setCountry(DEFAULT_COUNTRY_ISO2);
     setPhoneDigits('');
     setVerificationChannel('whatsapp');
+    setCodesLeft(null);
     setVerificationCode('');
     setIsLoading(false);
     setErrorMsg(null);
@@ -125,6 +127,9 @@ export function PhoneVerificationGate() {
     try {
       const result = await sendWhatsAppOtp(fullPhoneNumber, channel);
       setVerificationChannel(result.channel === 'sms' ? 'sms' : 'whatsapp');
+      if (result.attempts_remaining !== undefined && result.attempts_limit !== undefined) {
+        setCodesLeft({ left: result.attempts_remaining, limit: result.attempts_limit });
+      }
       setStep('otp');
       setCooldownCountdown(60);
     } catch (err: any) {
@@ -259,6 +264,14 @@ export function PhoneVerificationGate() {
                   />
                 </View>
 
+                {codesLeft && (
+                  <Text style={styles.attemptsText}>
+                    {codesLeft.left > 0
+                      ? `CODES LEFT THIS HOUR: ${codesLeft.left} OF ${codesLeft.limit}`
+                      : 'NO MORE CODES THIS HOUR. TRY AGAIN LATER.'}
+                  </Text>
+                )}
+
                 <View style={styles.otpActionRow}>
                   {cooldownCountdown > 0 ? (
                     <View style={styles.resendBtnDisabled}>
@@ -269,7 +282,7 @@ export function PhoneVerificationGate() {
                     <TouchableOpacity
                       style={styles.resendBtn}
                       onPress={() => handleSendOtp(verificationChannel)}
-                      disabled={isLoading}
+                      disabled={isLoading || codesLeft?.left === 0}
                       activeOpacity={0.8}
                     >
                       <Text style={styles.resendBtnText}>Resend</Text>

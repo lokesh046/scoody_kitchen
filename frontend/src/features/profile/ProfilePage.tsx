@@ -159,6 +159,7 @@ export const ProfilePage: React.FC = () => {
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
   const [verificationStep, setVerificationStep] = useState<1 | 2>(1);
   const [verificationChannel, setVerificationChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
+  const [codesLeft, setCodesLeft] = useState<{ left: number; limit: number } | null>(null);
   const [verificationCode, setVerificationCode] = useState('');
   const [isVerifyingLoading, setIsVerifyingLoading] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
@@ -188,6 +189,7 @@ export const ProfilePage: React.FC = () => {
     setVerificationCode('');
     setVerificationStep(1);
     setVerificationChannel('whatsapp');
+    setCodesLeft(null);
     setIsVerifyingPhone(true);
   };
 
@@ -198,6 +200,9 @@ export const ProfilePage: React.FC = () => {
     try {
       const result = await sendWhatsAppOtp(fullPhone, channel);
       setVerificationChannel(result.channel === 'sms' ? 'sms' : 'whatsapp');
+      if (result.attempts_remaining !== undefined && result.attempts_limit !== undefined) {
+        setCodesLeft({ left: result.attempts_remaining, limit: result.attempts_limit });
+      }
       setVerificationStep(2);
       setCooldownCountdown(60);
     } catch (err: any) {
@@ -775,6 +780,14 @@ export const ProfilePage: React.FC = () => {
                   Enter the verification code sent to your phone. Code is valid for 10 minutes.
                 </p>
 
+                {codesLeft && (
+                  <p className="font-mono text-[9px] text-paprika font-bold uppercase">
+                    {codesLeft.left > 0
+                      ? `Codes left this hour: ${codesLeft.left} of ${codesLeft.limit}`
+                      : 'No more codes this hour. Please try again later.'}
+                  </p>
+                )}
+
                 <div className="pt-2 flex space-x-2">
                   {cooldownCountdown > 0 ? (
                     <button
@@ -788,7 +801,7 @@ export const ProfilePage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleSendOtp(verificationChannel)}
-                      disabled={isVerifyingLoading}
+                      disabled={isVerifyingLoading || codesLeft?.left === 0}
                       className="w-1/3 border border-cardboard bg-transparent hover:bg-paperLight font-mono text-[9px] uppercase py-2.5 rounded-sm tracking-wider text-ink cursor-pointer transition-colors"
                     >
                       Resend

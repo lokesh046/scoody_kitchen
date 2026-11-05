@@ -116,7 +116,7 @@ export const uploadAvatarImage = async (file: File): Promise<{ url: string }> =>
 export const sendWhatsAppOtp = async (
   phoneNumber: string,
   channel: 'whatsapp' | 'sms' = 'whatsapp'
-): Promise<{ sent: boolean; expires_in: number; channel: 'whatsapp' | 'sms' }> => {
+): Promise<{ sent: boolean; expires_in: number; channel: 'whatsapp' | 'sms'; attempts_remaining?: number; attempts_limit?: number }> => {
   const response = await apiClient.post('/auth/whatsapp/send-otp', {
     phone_number: phoneNumber,
     channel,

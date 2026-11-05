@@ -531,7 +531,7 @@ async def send_whatsapp_otp_endpoint(
         wait_minutes = max(1, phone_ttl // 60) if phone_ttl > 0 else 60
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Too many attempts for this number. Try again in {wait_minutes} minutes.",
+            detail=f"You've used all {WHATSAPP_OTP_MAX_PER_PHONE_PER_HOUR} codes for this hour. Please try again in about {wait_minutes} minutes.",
         )
     if ip_count is not None and int(ip_count) >= WHATSAPP_OTP_MAX_PER_IP_PER_HOUR:
         wait_minutes = max(1, ip_ttl // 60) if ip_ttl > 0 else 60
@@ -575,7 +575,15 @@ async def send_whatsapp_otp_endpoint(
         pipe_write.expire(ip_count_key, 3600)
     pipe_write.execute()
 
-    return {"sent": True, "expires_in": settings.OTP_EXPIRY_SECONDS, "channel": channel}
+    sent_this_hour = (int(phone_count) if phone_count is not None else 0) + 1
+    return {
+        "sent": True,
+        "expires_in": settings.OTP_EXPIRY_SECONDS,
+        "channel": channel,
+        # So the screen can show "N of 5 codes left this hour" instead of the user finding out at the limit.
+        "attempts_remaining": max(0, WHATSAPP_OTP_MAX_PER_PHONE_PER_HOUR - sent_this_hour),
+        "attempts_limit": WHATSAPP_OTP_MAX_PER_PHONE_PER_HOUR,
+    }
 
 
 @router.post(
@@ -618,7 +626,7 @@ def verify_whatsapp_otp_endpoint(
         redis_client.set(otp_record_key, json.dumps(record), ex=max(ttl, 1))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Incorrect code. Please try again.",
+            detail=f"Incorrect code. {max(0, WHATSAPP_OTP_MAX_ATTEMPTS - record['attempts'])} tries left for this code.",
         )
 
     redis_client.delete(otp_record_key)

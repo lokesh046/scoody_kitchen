@@ -49,8 +49,8 @@ export interface RequestOtpResponse {
 export const sendWhatsAppOtp = async (
   phoneNumber: string,
   channel: 'whatsapp' | 'sms' = 'whatsapp'
-): Promise<{ sent: boolean; expires_in: number; channel: 'whatsapp' | 'sms' }> => {
-  const response = await apiClient.post<{ sent: boolean; expires_in: number; channel: 'whatsapp' | 'sms' }>('/auth/whatsapp/send-otp', {
+): Promise<{ sent: boolean; expires_in: number; channel: 'whatsapp' | 'sms'; attempts_remaining?: number; attempts_limit?: number }> => {
+  const response = await apiClient.post<{ sent: boolean; expires_in: number; channel: 'whatsapp' | 'sms'; attempts_remaining?: number; attempts_limit?: number }>('/auth/whatsapp/send-otp', {
     phone_number: phoneNumber,
     channel,
   });
