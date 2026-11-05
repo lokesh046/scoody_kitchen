@@ -242,6 +242,8 @@ export function RecipeCalculatorPage() {
             </div>
           </div>
         </div>
+        {/* The photo melts into the dark of the next section, so the banner and the first section read as one. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-40 md:h-56 bg-gradient-to-t from-midnight via-midnight/70 to-transparent" />
         <HeroScrollHint />
       </section>
 
