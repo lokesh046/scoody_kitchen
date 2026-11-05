@@ -335,29 +335,9 @@ export function RecipeCalculatorPage() {
         </div>
       </section>
 
-      {/* Closing CTA */}
-      <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 pt-20 sm:pt-24 md:pt-28 pb-4 md:pb-6 bg-gradient-to-b from-midnightCard to-midnight text-paper text-center">
-        <div className="max-w-4xl mx-auto">
-          <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
-            Take the next step towards more informed meals.
-          </h2>
-          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">
-            Estimate your pet's daily energy requirements and use the result as a starting point for making informed feeding decisions.
-          </p>
-          <button
-            type="button"
-            onClick={startCalculating}
-            className="pet-profile-cta group relative isolate overflow-hidden inline-flex max-w-full items-center justify-center gap-3 sm:gap-5 mt-10 sm:mt-12 rounded-full border border-turmeric bg-turmeric px-6 sm:px-9 py-4 sm:py-5 font-display font-semibold text-base sm:text-lg text-ink shadow-[inset_0_0_0_2px_rgba(249,246,240,0.25)] cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-paper motion-safe:transition-transform motion-safe:duration-300 motion-safe:hover:-translate-y-1 motion-safe:active:scale-[0.98]"
-          >
-            <span className="relative">Calculate Their Needs</span>
-            <ArrowRight aria-hidden="true" className="relative w-5 h-5 shrink-0 motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:translate-x-1" />
-          </button>
-        </div>
-      </section>
-
       {/* Hearth & One ecosystem -- the animated tool cards the other landing pages use */}
       {ecosystem.length > 0 && (
-        <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 pt-16 pb-6 md:pt-20 md:pb-8 bg-midnight text-paper">
+        <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 pt-16 pb-10 md:pt-20 md:pb-12 bg-midnight text-paper">
           <div className="max-w-7xl mx-auto">
             <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
               <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
@@ -381,6 +361,26 @@ export function RecipeCalculatorPage() {
           </div>
         </section>
       )}
+
+      {/* Closing CTA */}
+      <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 pt-12 sm:pt-14 md:pt-16 pb-10 md:pb-12 bg-midnight text-paper text-center">
+        <div className="max-w-4xl mx-auto">
+          <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
+            Take the next step towards more informed meals.
+          </h2>
+          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">
+            Estimate your pet's daily energy requirements and use the result as a starting point for making informed feeding decisions.
+          </p>
+          <button
+            type="button"
+            onClick={startCalculating}
+            className="pet-profile-cta group relative isolate overflow-hidden inline-flex max-w-full items-center justify-center gap-3 sm:gap-5 mt-10 sm:mt-12 rounded-full border border-turmeric bg-turmeric px-6 sm:px-9 py-4 sm:py-5 font-display font-semibold text-base sm:text-lg text-ink shadow-[inset_0_0_0_2px_rgba(249,246,240,0.25)] cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-paper motion-safe:transition-transform motion-safe:duration-300 motion-safe:hover:-translate-y-1 motion-safe:active:scale-[0.98]"
+          >
+            <span className="relative">Calculate Their Needs</span>
+            <ArrowRight aria-hidden="true" className="relative w-5 h-5 shrink-0 motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:translate-x-1" />
+          </button>
+        </div>
+      </section>
 
       <SiteFooter />
 
