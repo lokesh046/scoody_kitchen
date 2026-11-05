@@ -125,7 +125,8 @@ export const ProfilePage: React.FC = () => {
       const updatedUser = await updateUserProfile({
         first_name: firstName || undefined,
         last_name: lastName || undefined,
-        phone: phone ? toE164(country, phone) : undefined,
+        // A verified number only changes through the OTP flow (Change -> Verify Phone), never by saving the form.
+        phone: user?.is_phone_verified ? undefined : (phone ? toE164(country, phone) : undefined),
         profile_image_url: imageUrl || undefined,
       });
 

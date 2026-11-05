@@ -551,7 +551,8 @@ export const EditProfileModal = memo(function EditProfileModal({
     setFormError(null);
     setFormSuccess(null);
 
-    const phoneToSend = phone ? toE164(country, phone) : undefined;
+    // A verified number only changes through the OTP flow, never by saving the form.
+    const phoneToSend = user?.is_phone_verified ? undefined : (phone ? toE164(country, phone) : undefined);
 
     try {
       const updatedUser = await updateUserProfile({
