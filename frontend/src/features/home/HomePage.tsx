@@ -636,9 +636,6 @@ export default function HomePage() {
                 <p className="font-display font-black text-2xl text-paper tracking-tight">
                   Hearth & One
                 </p>
-                <p className="font-body text-xs max-w-md mx-auto leading-relaxed text-paper opacity-75">
-                  Transparent small-batch pet wellness, human-grade meal formulations, and clinical telemedicine.
-                </p>
               </div>
 
               {/* Quick Links Navigation Ledger */}

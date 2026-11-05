@@ -31,9 +31,6 @@ export function SiteFooter({ className = 'bg-midnight' }: { className?: string }
             />
           </div>
           <p className="font-display font-black text-2xl text-paper tracking-tight">Hearth & One</p>
-          <p className="font-body text-xs max-w-md leading-relaxed text-paper opacity-65">
-            Transparent small-batch pet wellness, human-grade meal formulations, and clinical telemedicine.
-          </p>
         </div>
     
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-10 sm:gap-6 text-left">

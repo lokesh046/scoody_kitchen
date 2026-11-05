@@ -6,7 +6,6 @@ import { Header } from '../../components/Header';
 import { HeroScrollHint } from '../../components/HeroScrollHint';
 import { SiteFooter } from '../../components/SiteFooter';
 import { CartDrawer } from '../../components/CartDrawer';
-import { Eyebrow } from '../../components/Eyebrow';
 import { ToolCarousel } from '../../components/ToolCarousel';
 import { RouteUnavailable } from '../../components/RouteUnavailable';
 import { CalculatorGettingStarted } from './CalculatorGettingStarted';
@@ -218,11 +217,11 @@ export function RecipeCalculatorPage() {
       {/* Every pet has their own energy needs */}
       <section aria-labelledby="calc-needs-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
         <div className="max-w-7xl mx-auto">
-          <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
-            <h2 id="calc-needs-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
+          <div className="max-w-5xl mx-auto text-center space-y-3 mb-12">
+            <h2 id="calc-needs-heading" className="font-script font-normal text-3xl sm:text-4xl xl:text-5xl tracking-normal leading-snug lg:whitespace-nowrap">
               Every pet has their own energy needs.
             </h2>
-            <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
+            <p className="mx-auto max-w-2xl font-body text-sm sm:text-base text-paper/90 leading-relaxed">
               The right amount of energy helps support your pet's everyday activities, from resting and playing to growing and staying active. Understanding their daily energy requirements can give you a useful starting point when planning their meals.
             </p>
           </div>
@@ -275,7 +274,6 @@ export function RecipeCalculatorPage() {
         <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
           <div className="max-w-7xl mx-auto">
             <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
-              <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">Hearth &amp; One Ecosystem</p>
               <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
                 One companion. Different aspects of their care.
               </h2>
@@ -292,7 +290,6 @@ export function RecipeCalculatorPage() {
       <section aria-labelledby="calc-faq-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10 space-y-3">
-            <Eyebrow label="A Few Helpful Answers" />
             <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl tracking-normal leading-snug text-ink">
               Frequently asked questions.
             </h2>
