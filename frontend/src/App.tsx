@@ -1,4 +1,4 @@
-import { HideWhenHidden, HideVetWhenHidden } from './components/HideWhenHidden';
+import { HideWhenHidden, HideVetWhenHidden, FlagRouteGate } from './components/HideWhenHidden';
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './store/auth';
@@ -203,8 +203,8 @@ export default function App() {
               <Route path="/consultations/room/:id" element={<RequireAuth><VideoCallPage /></RequireAuth>} />
               <Route path="/apply-doctor" element={<RequireAuth><ApplyDoctorPage /></RequireAuth>} />
               <Route path="/onboarding" element={<OnboardingPage />} />
-              <Route path="/blog" element={<BlogListPage />} />
-              <Route path="/blog/:slug" element={<BlogPostPage />} />
+              <Route path="/blog" element={<FlagRouteGate flag="journal" name="Journal" activeTab="blog"><BlogListPage /></FlagRouteGate>} />
+              <Route path="/blog/:slug" element={<FlagRouteGate flag="journal" name="Journal" activeTab="blog"><BlogPostPage /></FlagRouteGate>} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/delete-account" element={<DeleteAccountPage />} />

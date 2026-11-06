@@ -20,6 +20,13 @@ DEFAULT_FLAGS = [
         "is_enabled": False,
     },
     {
+        "key": "journal",
+        "name": "Journal & Resources",
+        "description": "The public Journal (/blog and its posts), the Journal preview on the home page and the footer link. When turned off, choose what visitors see: hidden entirely, a Coming Soon notice, or an Unavailable notice.",
+        "category": "journal",
+        "is_enabled": True,
+    },
+    {
         "key": "home_reviews",
         "name": "Homepage Customer Reviews",
         "description": "Shows the customer reviews section on the home page (website and app). Turn it off to hide the whole section.",

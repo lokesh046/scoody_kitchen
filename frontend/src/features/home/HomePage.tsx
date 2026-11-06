@@ -20,7 +20,7 @@ import { HoundPortalReveal } from '../../components/HoundPortalReveal';
 import { ReviewsCarousel } from '../../components/ReviewsCarousel';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
-import { useFeatureFlag, useFeatureFlagFallback, useFeatureFlags, useVetEntryEnabled, useVetEntryFallback } from '../../hooks/useFeatureFlag';
+import { useFeatureFlag, useFeatureFlagFallback, useFeatureFlags, useFlagEntry, useVetEntryEnabled, useVetEntryFallback } from '../../hooks/useFeatureFlag';
 import { FeaturePlaceholderCard } from '../../components/FeaturePlaceholderCard';
 import { JournalPreviewSection } from '../../components/JournalPreviewSection';
 import { useToolkitOverrides } from '../../hooks/useAdminContent';
@@ -85,6 +85,7 @@ export default function HomePage() {
   const consultationsFallback = useVetEntryFallback();
   const chatbotFallback = useFeatureFlagFallback('ai_chatbot');
   const shopFallback = useFeatureFlagFallback('shop_checkout');
+  const journalEntry = useFlagEntry('journal');
   // The recipe cards show blurred with a "Coming soon" band when the admin teaser switch is on, and also
   // whenever ordering is hidden or marked coming soon -- so beta and production look the same. ("Unavailable"
   // keeps the normal cards with their own label.) While flags load the shop counts as on, so nothing flashes.
@@ -617,7 +618,9 @@ export default function HomePage() {
         {/* Let our #Scoobysfam speak for us Carousel */}
         {!isReviewsHidden && <ReviewsCarousel dark={isFullscreenHeroEnabled} />}
 
-        <JournalPreviewSection dark={isFullscreenHeroEnabled} />
+        {journalEntry.visible && (
+          <JournalPreviewSection dark={isFullscreenHeroEnabled} status={journalEntry.blocked ? journalEntry.variant : undefined} />
+        )}
 
         {/* Polished Footer with Navigation Ledger -- default homepage only */}
         {!isFullscreenHeroEnabled && (

@@ -12,18 +12,36 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-export function JournalPreviewSection({ dark = false }: { dark?: boolean }) {
+// `status` is set when the Journal is switched off with a Coming Soon / Unavailable notice: the section then
+// shows its heading and that notice instead of the entries (and does not load them).
+export function JournalPreviewSection({ dark = false, status }: { dark?: boolean; status?: 'coming_soon' | 'unavailable' }) {
   const navigate = useNavigate();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: posts, isLoading } = useQuery({
     queryKey: ['blog-posts-published'],
     queryFn: fetchPublishedBlogPosts,
+    enabled: !status,
   });
 
   // Same convention as FAQSection — an empty, loaded section renders nothing
   // rather than a heading with nothing scrollable under it.
-  if (!isLoading && (!posts || posts.length === 0)) return null;
+  if (!status && !isLoading && (!posts || posts.length === 0)) return null;
+
+  if (status) {
+    return (
+      <section className={`${dark ? 'bg-obsidian border-ink border-opacity-10' : 'bg-paper border-cardboard border-opacity-30'} py-12 md:py-20 px-3 sm:px-6 md:px-8 border-b`}>
+        <div className="max-w-7xl mx-auto text-center space-y-3">
+          <h2 className={`text-2xl sm:text-3xl md:text-4xl tracking-tight text-ink ${dark ? 'font-script font-normal' : 'font-display font-black'}`}>
+            Notes on feeding your dog well
+          </h2>
+          <p className={`font-mono text-[11px] uppercase tracking-wider font-bold ${dark ? 'text-turmeric' : 'text-herb'}`}>
+            {status === 'coming_soon' ? 'Journal: Coming soon' : 'Journal: Temporarily unavailable'}
+          </p>
+        </div>
+      </section>
+    );
+  }
 
   const handleScroll = (direction: 'left' | 'right') => {
     if (!scrollContainerRef.current) return;
