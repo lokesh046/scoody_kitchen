@@ -10,7 +10,6 @@ import type { HealthRecordResponse } from '../../api/pets';
 import { useAuthStore } from '../../store/auth';
 import { uploadAvatarImage } from '../../api/auth';
 import { classifyPetImage, type ClassificationResponse } from '../../api/vision';
-import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
 import { 
@@ -21,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
 import { PetHeritagePassport } from '../../components/PetHeritagePassport';
+import { PetBreedScanUpload } from './PetBreedScanUpload';
 
 const mapRecordType = (type: string | undefined | null): string => {
   if (!type) return 'general';
@@ -82,6 +82,8 @@ export const PetsPage: React.FC = () => {
   const [visionResult, setVisionResult] = useState<ClassificationResponse | null>(null);
   const [visionError, setVisionError] = useState<string | null>(null);
   const [previewScanUrl, setPreviewScanUrl] = useState<string | null>(null);
+  const [selectedScanFile, setSelectedScanFile] = useState<File | null>(null);
+  const scanVersionRef = React.useRef(0);
   const cameraInputRef = React.useRef<HTMLInputElement>(null);
   const galleryInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -163,7 +165,7 @@ export const PetsPage: React.FC = () => {
       if (!blob) return;
       const file = new File([blob], `pet_snapshot_${Date.now()}.jpg`, { type: 'image/jpeg' });
       stopCamera();
-      handleScanImage(file);
+      selectScanImage(file);
     }, 'image/jpeg', 0.85);
   };
 
@@ -185,16 +187,35 @@ export const PetsPage: React.FC = () => {
     };
   }, [previewScanUrl]);
 
+  const resetScan = () => {
+    scanVersionRef.current += 1;
+    setPreviewScanUrl(null);
+    setSelectedScanFile(null);
+    setPetImageUrl('');
+    setVisionResult(null);
+    setVisionError(null);
+    setBreed('');
+    setIsUploadingRegImage(false);
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+    if (galleryInputRef.current) galleryInputRef.current.value = '';
+  };
+
+  const selectScanImage = (file: File) => {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setVisionError('Please choose a JPG, PNG or WebP photo.');
+      return;
+    }
+    resetScan();
+    setSelectedScanFile(file);
+    setPreviewScanUrl(URL.createObjectURL(file));
+  };
+
   const handleScanImage = async (file: File) => {
-    if (!file) return;
+    if (isClassifying) return;
     setIsClassifying(true);
     setVisionError(null);
-
-    // Revoke previous blob URL to prevent browser heap memory leak
-    setPreviewScanUrl((prev) => {
-      if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
-    });
+    setVisionResult(null);
+    const scanVersion = scanVersionRef.current;
 
     try {
       const res = await classifyPetImage(file);
@@ -207,19 +228,19 @@ export const PetsPage: React.FC = () => {
         setIsUploadingRegImage(true);
         uploadAvatarImage(file)
           .then((uploadRes) => {
-            setPetImageUrl(uploadRes.url);
+            if (scanVersionRef.current === scanVersion) setPetImageUrl(uploadRes.url);
           })
           .catch(() => {
             // Retain local preview
           })
           .finally(() => {
-            setIsUploadingRegImage(false);
+            if (scanVersionRef.current === scanVersion) setIsUploadingRegImage(false);
           });
       } else {
         setVisionError(res.error_message || 'No dog or cat detected. Please take a clear photo of your companion!');
       }
     } catch (err: any) {
-      setVisionError(err.message || 'Vision classification failed. Please check connection.');
+      setVisionError(err.message || 'We couldn’t scan this photo. Please check your connection and try again.');
     } finally {
       setIsClassifying(false);
     }
@@ -338,6 +359,7 @@ export const PetsPage: React.FC = () => {
       setMicrochip('');
       setPetImageUrl('');
       setPreviewScanUrl(null);
+      setSelectedScanFile(null);
       setVisionResult(null);
       setVisionError(null);
       setFormError('');
@@ -783,7 +805,7 @@ export const PetsPage: React.FC = () => {
                   }`}
                 >
                   <Camera className="w-3.5 h-3.5 text-turmeric" />
-                  <span>⚡ AI Heritage Scan</span>
+                  <span>AI breed scan</span>
                 </button>
                 <button
                   type="button"
@@ -795,7 +817,7 @@ export const PetsPage: React.FC = () => {
                   }`}
                 >
                   <FileText className="w-3.5 h-3.5 text-paprika" />
-                  <span>✍️ Manual Form</span>
+                  <span>Manual form</span>
                 </button>
               </div>
             </div>
@@ -809,7 +831,8 @@ export const PetsPage: React.FC = () => {
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handleScanImage(file);
+                if (file) selectScanImage(file);
+                e.target.value = '';
               }}
             />
             <input
@@ -819,7 +842,8 @@ export const PetsPage: React.FC = () => {
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) handleScanImage(file);
+                if (file) selectScanImage(file);
+                e.target.value = '';
               }}
             />
 
@@ -830,17 +854,16 @@ export const PetsPage: React.FC = () => {
                   {/* Top Bar / Header */}
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-cardboard/40 pb-5">
                     <div>
-                      <Eyebrow label="IN-MEMORY AI CLINICAL VISION & HERITAGE" />
-                      <h3 className="font-display font-black text-2xl sm:text-3xl text-ink tracking-tight mt-1">
-                        Instant Breed & Heritage Scan
+                      <h3 className="font-display font-semibold text-2xl sm:text-3xl text-ink tracking-tight">
+                        Discover your pet’s breed
                       </h3>
                       <p className="font-body text-xs sm:text-sm text-ink opacity-75 mt-1 max-w-2xl leading-relaxed">
-                        Snap or upload a photo to auto-detect breed traits in RAM (&lt;500ms), unlock the official <strong>Companion Heritage Passport</strong> with biological superpowers, and fast-track registration.
+                        Get an AI breed estimate from a photo, explore breed traits, and start your companion’s profile.
                       </p>
                     </div>
 
                     {/* Show Live Camera & Upload buttons in the top header ONLY after an image is uploaded/scanned */}
-                    {(previewScanUrl || petImageUrl) && (
+                    {visionResult?.success && visionResult.is_pet && (
                       <div className="flex items-center gap-2 shrink-0 animate-fade-in">
                         <button
                           type="button"
@@ -849,7 +872,7 @@ export const PetsPage: React.FC = () => {
                           className="h-10 px-3.5 bg-ink hover:bg-ink/90 text-turmeric font-mono font-bold text-xs uppercase tracking-wider rounded-[8px] flex items-center space-x-2 cursor-pointer transition-colors shadow-sm active:scale-98 disabled:opacity-50"
                         >
                           <Camera className="w-3.5 h-3.5 text-turmeric" />
-                          <span>Live Camera</span>
+                          <span>Use camera</span>
                         </button>
 
                         <button
@@ -859,118 +882,47 @@ export const PetsPage: React.FC = () => {
                           className="h-10 px-3.5 border-2 border-cardboard hover:bg-paper text-ink font-mono font-bold text-xs uppercase tracking-wider rounded-[8px] flex items-center space-x-2 cursor-pointer transition-colors shadow-xs active:scale-98 disabled:opacity-50"
                         >
                           <Scan className="w-3.5 h-3.5 text-paprika" />
-                          <span>Upload Photo</span>
+                          <span>Change photo</span>
                         </button>
                       </div>
                     )}
                   </div>
 
-                  {/* Scanning Status */}
-                  {isClassifying && (
-                    <div className="p-6 bg-paper border border-dashed border-turmeric rounded-[12px] flex items-center justify-center space-x-4 animate-pulse">
-                      <Loader2 className="w-6 h-6 text-turmeric animate-spin shrink-0" />
-                      <div>
-                        <span className="font-mono text-sm font-bold uppercase text-ink block">
-                          Analyzing Biological Traits in RAM...
-                        </span>
-                        <span className="font-body text-xs text-ink/70">
-                          Detecting breed morphology, historical lineage &amp; nutrient profile (~450ms).
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
                   {/* Error Notification */}
                   {visionError && !isClassifying && (
-                    <div className="p-4 bg-rose-50 border border-rose-200 rounded-[10px] text-xs sm:text-sm text-rose-800 flex items-start space-x-2.5 font-body">
+                    <div role="alert" className="p-4 bg-rose-50 border border-rose-200 rounded-[10px] text-xs sm:text-sm text-rose-800 flex items-start space-x-2.5 font-body">
                       <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                       <span>{visionError}</span>
                     </div>
                   )}
 
-                  {/* HORIZONTAL PRE-SCAN HERO (when no photo scanned yet) */}
-                  {!previewScanUrl && !petImageUrl && !isClassifying && (
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center pt-2">
-                      {/* Left Column: Vision Pitch & Action Triggers (5 cols) */}
-                      <div className="lg:col-span-5 space-y-4">
-                        <div className="space-y-1">
-                          <span className="font-mono text-[10px] uppercase font-bold text-paprika tracking-widest block">
-                            CLINICAL VISION ENGINE
-                          </span>
-                          <h4 className="font-display font-black text-xl sm:text-2xl text-ink tracking-tight">
-                            Fast-Track Your Pet's Registry
-                          </h4>
-                          <p className="font-body text-xs text-ink/75 leading-relaxed">
-                            Take a picture or drop a photo. Our neural model identifies your companion's genetic lineage, renders their official Heritage Passport, and pre-populates their profile.
-                          </p>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row lg:flex-col xl:flex-row gap-2.5 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => startCamera('environment')}
-                            disabled={isClassifying}
-                            className="flex-1 h-11 px-4 bg-ink hover:bg-ink/90 text-turmeric font-mono font-bold text-xs uppercase tracking-wider rounded-[8px] flex items-center justify-center space-x-2 cursor-pointer transition-colors shadow-md active:scale-98 disabled:opacity-50"
-                          >
-                            <Camera className="w-4 h-4 text-turmeric" />
-                            <span>Live Camera</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => galleryInputRef.current?.click()}
-                            disabled={isClassifying}
-                            className="flex-1 h-11 px-4 border-2 border-cardboard hover:bg-paper text-ink font-mono font-bold text-xs uppercase tracking-wider rounded-[8px] flex items-center justify-center space-x-2 cursor-pointer transition-colors shadow-sm active:scale-98 disabled:opacity-50"
-                          >
-                            <Scan className="w-4 h-4 text-paprika" />
-                            <span>Upload File</span>
-                          </button>
-                        </div>
-
-                        <div className="pt-3 border-t border-dashed border-cardboard/60 space-y-2 font-mono text-[11px] text-ink/75">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-herb shrink-0" />
-                            <span>5-point Biological Superpower Skill Radar</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-herb shrink-0" />
-                            <span>Geographic Homeland &amp; Era Mutation Lore</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-herb shrink-0" />
-                            <span>Downloadable Official Passport Graphic (PNG)</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Right Column: Visual Dropzone Box (7 cols) */}
-                      <div 
-                        onClick={() => galleryInputRef.current?.click()}
-                        className="lg:col-span-7 p-8 sm:p-12 bg-paper/40 border-2 border-dashed border-cardboard hover:border-turmeric rounded-[18px] flex flex-col items-center justify-center text-center space-y-3.5 cursor-pointer group transition-all"
-                      >
-                        <div className="w-16 h-16 rounded-full bg-paper border border-cardboard group-hover:scale-110 group-hover:border-turmeric transition-all flex items-center justify-center shadow-xs">
-                          <PawPrint className="w-8 h-8 text-turmeric" />
-                        </div>
-                        <div className="space-y-1">
-                          <span className="font-display font-black text-lg text-ink block">
-                            Drop Pet Photo Here or Tap to Browse
-                          </span>
-                          <p className="font-body text-xs text-ink/60 max-w-sm mx-auto">
-                            Supports JPEG, PNG, or WebP. Auto-detects Golden Retrievers, German Shepherds, Indies, Persians, and 300+ breeds.
-                          </p>
-                        </div>
-                        <span className="font-mono text-xs font-bold text-turmeric uppercase tracking-wider group-hover:underline">
-                          Select Companion Image &rarr;
-                        </span>
-                      </div>
-                    </div>
+                  {(!visionResult?.success || !visionResult.is_pet || isClassifying) && (
+                    <PetBreedScanUpload
+                      previewUrl={previewScanUrl}
+                      fileName={selectedScanFile?.name}
+                      isScanning={isClassifying}
+                      onUpload={() => galleryInputRef.current?.click()}
+                      onCamera={() => startCamera('environment')}
+                      onSelect={selectScanImage}
+                      onScan={() => { if (selectedScanFile) void handleScanImage(selectedScanFile); }}
+                    />
                   )}
+                  <p className="font-body text-xs leading-relaxed text-ink/60 border-t border-cardboard/50 pt-4">
+                    A photo provides an estimate, not a genetic ancestry test. You can edit the suggested breed before saving your profile.
+                  </p>
 
                   {/* HORIZONTAL POST-SCAN WORKSPACE: PASSPORT (LEFT) + REGISTRATION FORM (RIGHT) */}
-                  {(previewScanUrl || petImageUrl) && !isClassifying && (
+                  {visionResult?.success && visionResult.is_pet && !isClassifying && (
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start pt-2">
                       {/* Left Column: Full Official Heritage Passport (7 cols) */}
                       <div className="lg:col-span-7 space-y-4">
+                        {!visionResult.heritage && (previewScanUrl || petImageUrl) && (
+                          <img
+                            src={previewScanUrl || petImageUrl}
+                            alt="Your pet’s scanned photo"
+                            className="w-full max-h-96 rounded-xl border border-cardboard object-contain bg-paper"
+                          />
+                        )}
                         {visionResult?.heritage && (
                           <PetHeritagePassport
                             petName={name}
@@ -990,7 +942,7 @@ export const PetsPage: React.FC = () => {
                             <div className="flex items-center justify-between">
                               <div>
                                 <span className="font-mono text-[10px] uppercase font-bold text-herb tracking-widest block">
-                                  AI CLINICAL DETECTION
+                                  AI BREED ESTIMATE
                                 </span>
                                 <div className="flex items-center gap-2 mt-0.5">
                                   <span className="font-display font-black text-lg text-ink">
@@ -998,7 +950,7 @@ export const PetsPage: React.FC = () => {
                                   </span>
                                   {visionResult?.confidence && (
                                     <span className="font-mono text-[10px] font-bold text-paprika bg-herb/15 border border-herb/40 px-2 py-0.5 rounded-sm">
-                                      {Math.round(visionResult.confidence * 100)}% Match
+                                      {Math.round(visionResult.confidence * 100)}% confidence
                                     </span>
                                   )}
                                 </div>
@@ -1006,16 +958,12 @@ export const PetsPage: React.FC = () => {
 
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setPreviewScanUrl(null);
-                                  setVisionResult(null);
-                                  setVisionError(null);
-                                }}
+                                onClick={resetScan}
                                 className="font-mono text-xs text-ink/60 hover:text-rose-600 transition-colors flex items-center gap-1 cursor-pointer"
                                 title="Scan different photo"
                               >
                                 <X className="w-3.5 h-3.5" />
-                                <span>Rescan</span>
+                                <span>New scan</span>
                               </button>
                             </div>
 
@@ -1089,7 +1037,7 @@ export const PetsPage: React.FC = () => {
                                 </label>
                                 {visionResult?.confidence && (
                                   <span className="font-mono text-[10px] font-bold text-herb">
-                                    {Math.round(visionResult.confidence * 100)}% Match
+                                    {Math.round(visionResult.confidence * 100)}% confidence
                                   </span>
                                 )}
                               </div>
