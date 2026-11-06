@@ -320,7 +320,6 @@ export default function HomePage() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-ink border-opacity-10 pb-6">
                   <div className="space-y-2">
                     <h2 className="font-script font-normal text-4xl sm:text-5xl tracking-normal text-ink">Signature Recipes</h2>
-                    <p className="font-body text-sm text-ink opacity-60">Veterinary-audited small batch recipes, cooked to biological perfection.</p>
                   </div>
                   {isShopEnabled ? (
                     <button
@@ -455,9 +454,6 @@ export default function HomePage() {
                 <h2 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl uppercase tracking-tight text-ink">
                   Signature Recipes
                 </h2>
-                <p className="font-body text-sm text-ink opacity-75">
-                  Veterinary-audited small batch recipes, cooked to biological perfection.
-                </p>
               </div>
               {isShopEnabled ? (
                 <button
