@@ -198,7 +198,7 @@ function OtherToolsSection() {
               ))}
             </span>
           </h2>
-          <p className="mx-auto max-w-2xl font-body text-sm text-paper opacity-70 leading-relaxed">
+          <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-sm text-paper opacity-70 leading-relaxed">
             Explore the tools designed to support different parts of the pet-parent journey.
           </p>
         </div>
