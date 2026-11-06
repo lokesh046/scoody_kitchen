@@ -5,6 +5,7 @@ import { Activity, Check } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { fetchProducts } from '../../api/products';
+import { useRecipeOrdering } from '../../hooks/useRecipeOrdering';
 
 interface QuickPreset {
   label: string;
@@ -22,6 +23,7 @@ const DOG_PRESETS: QuickPreset[] = [
 // The calculator section (Count The Calories). It used to be a section of the home page; it now lives on its own
 // page (/recipe-calculator). The maths and the wording are unchanged from the home page version.
 export function RecipeCalculator() {
+  const ordering = useRecipeOrdering();
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const addItem = useCartStore((state) => state.addItem);
@@ -212,7 +214,12 @@ export function RecipeCalculator() {
                   <span className="font-mono text-xs sm:text-sm uppercase font-bold text-turmeric block">
                     RECOMMENDED RECIPE FORMULATION:
                   </span>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border border-ink border-opacity-15 p-4 gap-4 rounded-[14px] hover:border-turmeric transition-colors">
+                  <div className="relative">
+                  <div
+                    className={`flex flex-col sm:flex-row items-start sm:items-center justify-between border border-ink border-opacity-15 p-4 gap-4 rounded-[14px] hover:border-turmeric transition-colors ${
+                      ordering === 'teaser' ? 'pointer-events-none select-none opacity-70 blur-[3px]' : ''
+                    }`}
+                  >
                     <div className="flex items-center space-x-3 text-left">
                       <img
                         src={calcResult.recommendedProduct.image_url || 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&q=80&w=200'}
@@ -231,11 +238,11 @@ export function RecipeCalculator() {
                     </div>
                     <button
                       onClick={() => {
-                        if (calcResult.recommendedProduct) {
+                        if (calcResult.recommendedProduct && ordering === 'on') {
                           handleAddRecommended(calcResult.recommendedProduct.id);
                         }
                       }}
-                      disabled={isAddingRecommended}
+                      disabled={isAddingRecommended || ordering !== 'on'}
                       className={`min-h-[44px] font-mono text-xs sm:text-sm font-bold uppercase px-5 py-3 rounded-[8px] transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${
                         isAddedRecommended
                           ? 'bg-emerald-600 text-white'
@@ -248,9 +255,20 @@ export function RecipeCalculator() {
                           <span>Added!</span>
                         </>
                       ) : (
-                        <span>Add Recommended</span>
+                        <span>{ordering === 'unavailable' ? 'Unavailable' : 'Add Recommended'}</span>
                       )}
                     </button>
+                  </div>
+                  {ordering === 'teaser' && (
+                    <div
+                      aria-label={`${calcResult.recommendedProduct.name}: Coming soon`}
+                      className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-[14px] text-center"
+                    >
+                      <div className="w-full border-y border-turmeric/40 bg-midnight/90 px-6 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.25)]">
+                        <p className="font-script text-2xl sm:text-3xl font-normal text-turmeric">Coming soon</p>
+                      </div>
+                    </div>
+                  )}
                   </div>
                 </div>
               )}
