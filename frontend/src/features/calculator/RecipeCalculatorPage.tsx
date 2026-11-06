@@ -309,37 +309,6 @@ export function RecipeCalculatorPage() {
           the footer and the other landing pages can open it directly (/recipe-calculator#fit-calculator). */}
       <RecipeCalculator />
 
-      {/* FAQ */}
-      <section aria-labelledby="calc-faq-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-10 space-y-3">
-            <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl tracking-normal leading-snug text-ink">
-              Frequently asked questions
-            </h2>
-          </div>
-          <div className="space-y-3">
-            {FAQS.map((faq, index) => {
-              const isOpen = openFaq === index;
-              return (
-                <div key={faq.q} className="border border-cardboard border-opacity-40 bg-paperLight rounded-sm overflow-hidden">
-                  <button
-                    onClick={() => setOpenFaq(isOpen ? null : index)}
-                    aria-expanded={isOpen}
-                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left cursor-pointer"
-                  >
-                    <span className="font-body font-bold text-sm text-ink">{faq.q}</span>
-                    {isOpen ? <Minus aria-hidden="true" className="w-5 h-5 shrink-0 text-black" /> : <Plus aria-hidden="true" className="w-5 h-5 shrink-0 text-black" />}
-                  </button>
-                  {isOpen && (
-                    <div className="px-5 pb-4 font-body text-sm leading-relaxed text-ink opacity-80">{faq.a}</div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
       {/* Hearth & One ecosystem -- the animated tool cards the other landing pages use */}
       {ecosystem.length > 0 && (
         <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 pt-16 pb-10 md:pt-20 md:pb-12 bg-midnight text-paper">
@@ -384,6 +353,37 @@ export function RecipeCalculatorPage() {
             <span className="relative">Calculate Their Needs</span>
             <ArrowRight aria-hidden="true" className="relative w-5 h-5 shrink-0 motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:translate-x-1" />
           </button>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section aria-labelledby="calc-faq-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-10 space-y-3">
+            <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl tracking-normal leading-snug">
+              Frequently asked questions
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {FAQS.map((faq, index) => {
+              const isOpen = openFaq === index;
+              return (
+                <div key={faq.q} className="border border-paper/10 bg-midnightCard rounded-sm overflow-hidden">
+                  <button
+                    onClick={() => setOpenFaq(isOpen ? null : index)}
+                    aria-expanded={isOpen}
+                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left cursor-pointer"
+                  >
+                    <span className="font-body font-bold text-sm text-paper">{faq.q}</span>
+                    {isOpen ? <Minus aria-hidden="true" className="w-5 h-5 shrink-0 text-paper" /> : <Plus aria-hidden="true" className="w-5 h-5 shrink-0 text-paper" />}
+                  </button>
+                  {isOpen && (
+                    <div className="px-5 pb-4 font-body text-sm leading-relaxed text-paper/80">{faq.a}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 
