@@ -164,35 +164,23 @@ export default function HomePage() {
             {/* Why Hearth & One */}
             <section className="relative bg-gradient-to-b from-midnight via-midnightCard to-midnightCard py-20 md:py-28 px-4 sm:px-6 md:px-8">
               <div className="max-w-7xl mx-auto text-left space-y-16">
-                <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-10 lg:gap-16 items-center">
-                  <div className="space-y-6">
-                    <div className="space-y-3">
-                      <p className="font-script font-normal text-2xl sm:text-3xl lg:text-4xl tracking-normal text-turmeric leading-snug">
-                        Why Hearth &amp; One
-                      </p>
-                      <h2 className="font-script font-normal text-4xl sm:text-5xl lg:text-6xl text-paper leading-snug max-w-xl">
-                        <span className="sr-only">Bringing the pieces of pet care together</span>
-                        <span aria-hidden="true">
-                          {['Bringing', 'the', 'pieces', 'of', 'pet care', 'together'].map((phrase, index) => (
-                            <span key={phrase}>
-                              {index > 0 ? ' ' : ''}
-                              <span className="pet-profile-heading-word inline-block whitespace-nowrap" style={{ animationDelay: `${index * 160}ms` }}>
-                                {phrase}
-                              </span>
-                            </span>
-                          ))}
+                <div className="text-center space-y-3">
+                  <p className="font-script font-normal text-2xl sm:text-3xl lg:text-4xl tracking-normal text-turmeric leading-snug">
+                    Why Hearth &amp; One
+                  </p>
+                  <h2 className="font-script font-normal text-4xl sm:text-5xl lg:text-6xl text-paper leading-snug lg:whitespace-nowrap">
+                    <span className="sr-only">Bringing the pieces of pet care together</span>
+                    <span aria-hidden="true">
+                      {['Bringing', 'the', 'pieces', 'of', 'pet care', 'together'].map((phrase, index) => (
+                        <span key={phrase}>
+                          {index > 0 ? ' ' : ''}
+                          <span className="pet-profile-heading-word inline-block whitespace-nowrap" style={{ animationDelay: `${index * 160}ms` }}>
+                            {phrase}
+                          </span>
                         </span>
-                      </h2>
-                    </div>
-                  </div>
-                  <img
-                    src="/images/why/connected.webp"
-                    alt="A woman at a sunlit kitchen table with her Doberman resting its chin on her knee, a bowl of home-style food and a phone within reach"
-                    width={1600}
-                    height={893}
-                    loading="lazy"
-                    className="block h-[220px] sm:h-[260px] lg:h-[300px] w-full rounded-[4px] object-cover object-[center_45%]"
-                  />
+                      ))}
+                    </span>
+                  </h2>
                 </div>
 
                 <div className="gold-divided-items grid grid-cols-1 md:grid-cols-3 gap-12 pt-4">
