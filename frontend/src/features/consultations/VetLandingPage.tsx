@@ -165,26 +165,18 @@ function JourneyStep({ step, index }: { step: typeof STEPS[number]; index: numbe
 }
 
 function OtherToolsSection() {
+  const isShopEnabled = useFeatureFlag('shop_checkout', true);
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
+  const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
 
+  // Same set and layout as the Know Your Pet page's "One companion" section (every tool except this page's own),
+  // so with three or more tools the cards turn in the same orbit.
   const tools = [
-    ...(isKnowYourPetEnabled
-      ? [{
-          label: 'Know Your Pet', image: '/images/toolkit/know-your-pet.webp',
-          text: "Understand your pet's characteristics and keep their profile information organised.",
-          path: '/pets',
-          cta: 'Explore Know Your Pet',
-        }]
-      : []),
-    ...(isMealPlannerEnabled
-      ? [{
-          label: 'Count The Calories', image: '/images/toolkit/meal-planner.webp',
-          text: "Estimate your pet's daily energy requirements using the details requested by the calculator.",
-          path: '/recipe-calculator#fit-calculator',
-          cta: 'Estimate their daily needs',
-        }]
-      : []),
+    ...(isShopEnabled ? [{ label: 'Shop Recipes', image: '/images/toolkit/shop-recipes.webp', text: 'Human-grade meals built around what your pet actually needs.', path: '/shop' }] : []),
+    ...(isKnowYourPetEnabled ? [{ label: 'Know Your Pet', image: '/images/toolkit/know-your-pet.webp', text: "Understand your pet's characteristics and keep their profile information organised.", path: '/pets' }] : []),
+    ...(isMealPlannerEnabled ? [{ label: 'Count The Calories', image: '/images/toolkit/meal-planner.webp', text: "Estimate your pet's daily energy needs from their profile.", path: '/recipe-calculator#fit-calculator' }] : []),
+    ...(isChatbotEnabled ? [{ label: 'AI Assistant', image: '/images/toolkit/ai-assistant.webp', text: 'Ask questions about nutrition and everyday pet care.', path: '/assistant' }] : []),
   ];
 
   if (tools.length === 0) return null;
@@ -192,9 +184,19 @@ function OtherToolsSection() {
   return (
     <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
       <div className="max-w-7xl mx-auto">
-        <div className="max-w-6xl mx-auto text-center space-y-3 mb-12">
+        <div className="max-w-6xl mx-auto text-center space-y-3 mb-8">
           <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
-            One companion Different aspects of their care
+            <span className="sr-only">One companion Different aspects of their care</span>
+            <span aria-hidden="true">
+              {'One companion Different aspects of their care'.split(' ').map((word, index) => (
+                <span key={index}>
+                  {index > 0 ? ' ' : ''}
+                  <span className="pet-profile-heading-word inline-block" style={{ animationDelay: `${index * 160}ms` }}>
+                    {word}
+                  </span>
+                </span>
+              ))}
+            </span>
           </h2>
           <p className="mx-auto max-w-2xl font-body text-sm text-paper opacity-70 leading-relaxed">
             Explore the tools designed to support different parts of the pet-parent journey.
