@@ -473,6 +473,54 @@
   }
 }
 
+/* Metallic lettering echoes the photo frame; light passes through the gold. */
+.hound-coming-soon-gold {
+  width: fit-content;
+  max-width: 100%;
+  padding-bottom: 0.12em;
+  margin-bottom: -0.12em;
+  color: #9b702e;
+  background:
+    linear-gradient(110deg, transparent 42%, rgb(255 249 218 / 85%) 49%, transparent 56%) 180% 0 / 250% 100% no-repeat,
+    linear-gradient(175deg, #a57932 8%, #d4af56 30%, #f1d58d 44%, #9b702e 58%, #b98b38 76%, #ddbd73 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@keyframes hound-gold-letter-sheen {
+  0%, 72% { background-position: 180% 0, 0 0; }
+  96%, 100% { background-position: -80% 0, 0 0; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hound-coming-soon-gold {
+    animation: hound-gold-letter-sheen 6s ease-in-out infinite;
+  }
+}
+
+@media (forced-colors: active) {
+  .hound-coming-soon-gold {
+    background: none;
+    -webkit-text-fill-color: CanvasText;
+  }
+}
+
+/* A narrow metallic rail and recessed inner rim frame the complete reveal. */
+.hound-photo-frame {
+  padding: 6px;
+  border: 1px solid #9c7346;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #8b6238 0%, #e7c58e 18%, #b48b53 42%, #f0d6a8 62%, #946b3d 84%, #c5a06a 100%);
+  box-shadow: 0 12px 28px -16px rgb(54 40 32 / 40%), inset 0 1px 0 rgb(255 241 210 / 65%), inset 0 -1px 0 rgb(87 57 27 / 45%);
+}
+
+@media (min-width: 640px) {
+  .hound-photo-frame {
+    padding: 8px;
+  }
+}
+
 /* Thin gold separators leave breathing room around each value. */
 .gold-divided-items > * + *::before {
   content: '';

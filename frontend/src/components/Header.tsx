@@ -165,9 +165,6 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
               <h1 className={`font-display font-black text-base sm:text-xl lg:text-2xl tracking-tight ${headerTextClass} group-hover:text-turmeric transition-colors leading-tight truncate`}>
                 Hearth & One
               </h1>
-              <p className="font-mono text-[8px] sm:text-[9px] uppercase tracking-wider text-turmeric opacity-90 hidden sm:block truncate">
-                Human-Grade Pet Cooking
-              </p>
             </div>
           </Link>
 

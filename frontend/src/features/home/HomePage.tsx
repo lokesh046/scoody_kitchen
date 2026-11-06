@@ -287,13 +287,13 @@ export default function HomePage() {
             </section>
 
             {/* Hearth & Hound -- coming soon */}
-            <section id="hearth-hound" className="relative bg-obsidian py-20 md:py-28 px-4 sm:px-6 md:px-8">
+            <section id="hearth-hound" className="relative bg-obsidian pt-20 pb-8 md:pt-28 md:pb-10 px-4 sm:px-6 md:px-8">
               <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
                 <div className="order-2 lg:order-1">
                   <HoundPortalReveal />
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
-                  <p className="font-script font-normal text-5xl sm:text-6xl lg:text-7xl tracking-normal leading-tight text-turmeric">
+                  <p className="hound-coming-soon-gold font-script font-normal text-5xl sm:text-6xl lg:text-7xl tracking-normal leading-tight">
                     Coming Soon
                   </p>
                   <h2 className="font-script text-3xl sm:text-4xl lg:text-5xl font-normal tracking-normal text-ink leading-snug">
@@ -314,7 +314,7 @@ export default function HomePage() {
             </section>
 
             {/* Signature Recipes -- Black & Gold restyle */}
-            <section className="relative bg-obsidian py-20 md:py-28 px-4 sm:px-6 md:px-8">
+            <section className="relative bg-obsidian pt-8 pb-20 md:pt-10 md:pb-28 px-4 sm:px-6 md:px-8">
               <div className="max-w-7xl mx-auto space-y-10">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-ink border-opacity-10 pb-6">
                   <div className="space-y-2">
