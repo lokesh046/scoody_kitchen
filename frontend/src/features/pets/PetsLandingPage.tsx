@@ -33,7 +33,7 @@ const CLOSER_LOOK = [
 ];
 
 const PROFILE_DETAILS = [
-  { icon: '/images/pet-icons/rfid.svg', label: 'RFID', value: 'Microchip ID on file', position: 'lg:col-start-1 lg:row-start-1', side: 1 },
+  { icon: '/images/pet-icons/rfid.svg', label: 'Identification', value: 'Microchip ID', position: 'lg:col-start-1 lg:row-start-1', side: 1 },
   { icon: '/images/pet-icons/name.svg', label: 'Name', value: 'Puma', position: 'lg:col-start-1 lg:row-start-2', side: 1 },
   { icon: '/images/pet-icons/date-of-birth.svg', label: 'Date of birth', value: '14 Mar 2022', position: 'lg:col-start-3 lg:row-start-1', side: -1 },
   { icon: '/images/pet-icons/gender.svg', label: 'Gender', value: 'Male', position: 'lg:col-start-3 lg:row-start-2', side: -1 },
