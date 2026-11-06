@@ -167,6 +167,8 @@ export const FullscreenHomeHero: React.FC = () => {
           </div>
         </>
       )}
+      {/* Blend the bottom of the banner into the section below so there is no hard edge. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-40 md:h-56 bg-gradient-to-t from-midnight via-midnight/70 to-transparent" />
       <HeroScrollHint />
     </section>
   );
