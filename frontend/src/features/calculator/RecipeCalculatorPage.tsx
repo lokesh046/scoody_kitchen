@@ -313,8 +313,8 @@ export function RecipeCalculatorPage() {
       {ecosystem.length > 0 && (
         <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 pt-16 pb-10 md:pt-20 md:pb-12 bg-midnight text-paper">
           <div className="max-w-7xl mx-auto">
-            <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
-              <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
+            <div className="max-w-6xl mx-auto text-center space-y-3 mb-12">
+              <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
                 <span className="sr-only">One companion Different aspects of their care</span>
                 <span aria-hidden="true">
                   {'One companion Different aspects of their care'.split(' ').map((word, index) => (
@@ -327,7 +327,7 @@ export function RecipeCalculatorPage() {
                   ))}
                 </span>
               </h2>
-              <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
+              <p className="mx-auto max-w-2xl font-body text-sm text-paper opacity-70 leading-relaxed">
                 Explore the tools designed to support different parts of the pet-parent journey.
               </p>
             </div>
@@ -338,8 +338,8 @@ export function RecipeCalculatorPage() {
 
       {/* Closing CTA */}
       <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 pt-12 sm:pt-14 md:pt-16 pb-10 md:pb-12 bg-midnight text-paper text-center">
-        <div className="max-w-4xl mx-auto">
-          <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
+        <div className="max-w-7xl mx-auto">
+          <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
             Take the next step towards more informed meals
           </h2>
           <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">

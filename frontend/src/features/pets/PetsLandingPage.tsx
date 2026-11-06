@@ -90,8 +90,8 @@ function OtherToolsSection() {
   return (
     <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
       <div className="max-w-7xl mx-auto">
-        <div className="max-w-2xl mx-auto text-center space-y-3 mb-8">
-          <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
+        <div className="max-w-6xl mx-auto text-center space-y-3 mb-8">
+          <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
             <span className="sr-only">One companion Different aspects of their care</span>
             <span aria-hidden="true">
               {'One companion Different aspects of their care'.split(' ').map((word, index) => (
@@ -104,7 +104,7 @@ function OtherToolsSection() {
               ))}
             </span>
           </h2>
-          <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
+          <p className="mx-auto max-w-2xl font-body text-sm text-paper opacity-70 leading-relaxed">
             Explore the tools designed to support different parts of the pet-parent journey.
           </p>
         </div>
