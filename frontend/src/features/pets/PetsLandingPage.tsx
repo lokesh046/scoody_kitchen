@@ -336,7 +336,7 @@ export function PetsLandingPage() {
       <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10">
-            <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug text-paper">Frequently asked questions</h2>
+            <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">Frequently asked questions</h2>
           </div>
           <div className="space-y-3">
             {FAQS.map((faq, index) => {
