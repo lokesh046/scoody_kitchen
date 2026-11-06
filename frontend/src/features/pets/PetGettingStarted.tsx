@@ -76,7 +76,7 @@ export function PetGettingStarted() {
       <div className="mx-auto max-w-7xl">
         <div className="mx-auto mb-12 max-w-2xl text-center md:mb-16">
           <h2 id="pet-getting-started-heading" className="font-script text-3xl font-normal tracking-normal leading-snug sm:text-4xl lg:text-5xl">Getting started is simple</h2>
-          <p className="mx-auto mt-4 max-w-lg font-body text-sm leading-relaxed text-paper/75">Start with the basics and build a more complete picture of your companion over time.</p>
+          <p className="mx-auto mt-4 max-w-lg font-body text-sm leading-relaxed text-paper/90">Start with the basics and build a more complete picture of your companion over time.</p>
         </div>
         <motion.ol onViewportEnter={() => setHasEntered(true)} viewport={{ once: true, amount: 0.25 }} className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
           {STEPS.map((step, index) => (
@@ -118,7 +118,7 @@ export function PetGettingStarted() {
                 </span>
               </div>
               <h3 className="mb-3 mt-5 font-display text-xl font-bold leading-snug tracking-tight text-paper sm:mt-0">{step.title}</h3>
-              <p className="font-body text-sm leading-relaxed text-paper/75">{step.text}</p>
+              <p className="font-body text-sm leading-relaxed text-paper/90">{step.text}</p>
             </motion.li>
           ))}
         </motion.ol>

@@ -29,7 +29,7 @@ function ToolCard({ item, active = true }: { item: ToolCarouselItem; active?: bo
         {item.image ? <img src={item.image} alt="" className="h-full w-full object-contain" draggable={false} /> : <ImageIcon className="h-7 w-7 text-turmeric/60" strokeWidth={1.2} />}
       </div>
       <h3 className="font-display text-xl font-bold">{item.label}</h3>
-      <p className="mb-5 mt-3 font-body text-sm leading-relaxed text-paper/75">{item.text}</p>
+      <p className="mb-5 mt-3 font-body text-sm leading-relaxed text-paper/90">{item.text}</p>
       <span className="mt-auto inline-flex min-h-[44px] items-center justify-center gap-2 font-body text-sm font-semibold text-turmeric underline decoration-turmeric/40 underline-offset-4">
         {item.cta ?? `Explore ${item.label}`}<ArrowRight aria-hidden="true" className="h-4 w-4 shrink-0" />
       </span>

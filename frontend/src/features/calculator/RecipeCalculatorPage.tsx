@@ -310,7 +310,7 @@ export function RecipeCalculatorPage() {
                     <Icon aria-hidden="true" className="h-5 w-5 shrink-0 text-turmeric" strokeWidth={1.6} />
                     <h3 className="font-display text-lg font-bold leading-snug text-paper">{title}</h3>
                   </div>
-                  <p className="font-body text-sm leading-relaxed text-paper/75">{text}</p>
+                  <p className="font-body text-sm leading-relaxed text-paper/90">{text}</p>
                 </div>
               </motion.li>
             ))}
@@ -343,7 +343,7 @@ export function RecipeCalculatorPage() {
                   ))}
                 </span>
               </h2>
-              <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-sm text-paper opacity-70 leading-relaxed">
+              <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-sm text-paper opacity-90 leading-relaxed">
                 Explore the tools designed to support different parts of the pet-parent journey.
               </p>
             </div>
@@ -358,7 +358,7 @@ export function RecipeCalculatorPage() {
           <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
             Take the next step towards more informed meals
           </h2>
-          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">
+          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/90 leading-relaxed">
             Estimate your pet's daily energy requirements and use the result as a starting point for making informed feeding decisions.
           </p>
           <button

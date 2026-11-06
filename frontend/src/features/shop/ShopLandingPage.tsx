@@ -122,7 +122,7 @@ function OtherToolsSection() {
           <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
             Good food is one part of their care
           </h2>
-          <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
+          <p className="font-body text-sm text-paper opacity-90 leading-relaxed">
             Explore the tools designed to support different parts of the pet-parent journey.
           </p>
         </div>
@@ -228,7 +228,7 @@ export function ShopLandingPage() {
             <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug text-paper">
               What you can expect from the catalogue
             </h2>
-            <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
+            <p className="font-body text-sm text-paper opacity-90 leading-relaxed">
               Every recipe is listed with the same detail, so comparing two of them is a matter of reading, not guessing.
             </p>
           </div>
@@ -244,7 +244,7 @@ export function ShopLandingPage() {
             <h2 id="shop-ledger-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
               Percentages, not promises
             </h2>
-            <p className="font-body text-sm text-paper/75 leading-relaxed">
+            <p className="font-body text-sm text-paper/90 leading-relaxed">
               Most labels tell you what went in. Each of our recipes tells you how much of it went in.
             </p>
           </div>
@@ -353,7 +353,7 @@ export function ShopLandingPage() {
           <h2 id="shop-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
             See what is in the bowl
           </h2>
-          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">
+          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/90 leading-relaxed">
             Browse the recipes and read every one of them all the way down.
           </p>
           <button

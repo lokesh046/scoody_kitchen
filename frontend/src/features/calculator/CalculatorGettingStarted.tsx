@@ -82,7 +82,7 @@ export function CalculatorGettingStarted() {
           <h2 id="calc-getting-started-heading" className="font-script text-3xl font-normal tracking-normal leading-snug sm:text-4xl xl:text-5xl lg:whitespace-nowrap">
             A clearer starting point, in a few simple steps
           </h2>
-          <p className="mx-auto mt-4 max-w-lg font-body text-sm leading-relaxed text-paper/75">
+          <p className="mx-auto mt-4 max-w-lg font-body text-sm leading-relaxed text-paper/90">
             Enter the relevant details, calculate their estimated energy needs, and use the result as a guide when planning their meals.
           </p>
         </div>
@@ -126,7 +126,7 @@ export function CalculatorGettingStarted() {
                 </span>
               </div>
               <h3 className="mb-3 mt-5 font-display text-xl font-bold leading-snug tracking-tight text-paper sm:mt-0">{step.title}</h3>
-              <p className="font-body text-sm leading-relaxed text-paper/75">{step.text}</p>
+              <p className="font-body text-sm leading-relaxed text-paper/90">{step.text}</p>
             </motion.li>
           ))}
         </motion.ol>

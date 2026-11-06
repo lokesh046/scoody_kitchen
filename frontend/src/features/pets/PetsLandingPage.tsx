@@ -104,7 +104,7 @@ function OtherToolsSection() {
               ))}
             </span>
           </h2>
-          <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-sm text-paper opacity-70 leading-relaxed">
+          <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-sm text-paper opacity-90 leading-relaxed">
             Explore the tools designed to support different parts of the pet-parent journey.
           </p>
         </div>
@@ -227,7 +227,7 @@ export function PetsLandingPage() {
                 ))}
               </span>
             </h2>
-            <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
+            <p className="font-body text-sm text-paper opacity-90 leading-relaxed">
               Every pet has their own traits, background, and needs. Here's what you can discover and keep track of with Know Your Pet.
             </p>
           </div>
@@ -307,7 +307,7 @@ export function PetsLandingPage() {
                   <img src={icon} alt="" aria-hidden="true" className="w-8 h-8 object-contain" loading="lazy" />
                 </div>
                 <dl className="min-w-0 space-y-1">
-                  <dt className="font-body text-xs text-paper/60">{label}</dt>
+                  <dt className="font-body text-xs text-paper/75">{label}</dt>
                   <dd className="font-display font-semibold text-base sm:text-lg leading-snug text-paper">{value}</dd>
                 </dl>
               </motion.article>
@@ -327,7 +327,7 @@ export function PetsLandingPage() {
           <h2 id="pet-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug lg:whitespace-nowrap">
             Get to know them a little better
           </h2>
-          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">
+          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/90 leading-relaxed">
             Start building a clearer picture of your pet, one detail at a time.
           </p>
           <button

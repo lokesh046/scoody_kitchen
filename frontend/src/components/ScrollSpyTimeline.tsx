@@ -142,7 +142,7 @@ export function ScrollSpyTimeline({ steps, compact = false }: { steps: TimelineS
                 {!reversed && (
                   <motion.div {...reveal} className={`w-full max-w-md bg-ink border border-paper border-opacity-15 rounded-[28px] ${compact ? 'p-4' : 'p-6'} shadow-[0_24px_48px_-20px_rgba(0,0,0,0.7)] text-right`}>
                     <h3 className="font-display font-bold text-lg text-paper">{title}</h3>
-                    <p className="font-body text-sm text-paper opacity-70 leading-relaxed mt-2">{text}</p>
+                    <p className="font-body text-sm text-paper opacity-90 leading-relaxed mt-2">{text}</p>
                     <StepImage image={image} alt={imageAlt} compact={compact} />
                   </motion.div>
                 )}
@@ -163,7 +163,7 @@ export function ScrollSpyTimeline({ steps, compact = false }: { steps: TimelineS
                 {reversed && (
                   <motion.div {...reveal} className={`w-full max-w-md bg-ink border border-paper border-opacity-15 rounded-[28px] ${compact ? 'p-4' : 'p-6'} shadow-[0_24px_48px_-20px_rgba(0,0,0,0.7)] text-left`}>
                     <h3 className="font-display font-bold text-lg text-paper">{title}</h3>
-                    <p className="font-body text-sm text-paper opacity-70 leading-relaxed mt-2">{text}</p>
+                    <p className="font-body text-sm text-paper opacity-90 leading-relaxed mt-2">{text}</p>
                     <StepImage image={image} alt={imageAlt} compact={compact} />
                   </motion.div>
                 )}
@@ -204,7 +204,7 @@ export function ScrollSpyTimeline({ steps, compact = false }: { steps: TimelineS
             </div>
             <motion.div {...reveal} className={`min-w-0 bg-ink border border-paper border-opacity-15 rounded-[24px] ${compact ? 'p-4' : 'p-5'} shadow-[0_20px_40px_-18px_rgba(0,0,0,0.7)] flex-1`}>
               <h3 className="font-display font-bold text-base text-paper">{title}</h3>
-              <p className="font-body text-sm text-paper opacity-70 leading-relaxed mt-1.5">{text}</p>
+              <p className="font-body text-sm text-paper opacity-90 leading-relaxed mt-1.5">{text}</p>
               <StepImage image={image} alt={imageAlt} compact={compact} />
             </motion.div>
           </div>

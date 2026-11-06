@@ -209,7 +209,7 @@ export default function HomePage() {
                   <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal text-paper">
                     Your pet-care toolkit
                   </h2>
-                  <p className="font-body text-sm text-paper opacity-60">
+                  <p className="font-body text-sm text-paper opacity-90">
                     Three tools, one ecosystem — built around how pet parents actually care for their companions.
                   </p>
                 </div>
@@ -262,7 +262,7 @@ export default function HomePage() {
 
                       <div className="p-6 space-y-2 grow text-center">
                         <h3 className="font-display font-bold text-lg text-paper">{title}</h3>
-                        <p className="font-body text-sm text-paper opacity-65 leading-relaxed">{text}</p>
+                        <p className="font-body text-sm text-paper opacity-90 leading-relaxed">{text}</p>
                       </div>
 
                       <div className={`grid grid-cols-1 gap-3 p-6 pt-0 ${enabled ? 'sm:grid-cols-2' : ''}`}>
@@ -688,7 +688,7 @@ export default function HomePage() {
                 <h2 className="font-script font-normal text-3xl sm:text-4xl tracking-normal text-paper">
                   Good things are worth staying connected to
                 </h2>
-                <p className="font-body text-sm text-paper opacity-65 leading-relaxed max-w-md">
+                <p className="font-body text-sm text-paper opacity-90 leading-relaxed max-w-md">
                   Stay up to date with what's happening at Hearth &amp; One, from new features and services to useful resources and special updates for pet parents. Only the updates that matter, delivered to your inbox.
                 </p>
               </div>

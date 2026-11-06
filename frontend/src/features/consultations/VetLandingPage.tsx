@@ -156,7 +156,7 @@ function JourneyStep({ step, index }: { step: typeof STEPS[number]; index: numbe
         <motion.div style={{ opacity: reduceMotion ? 1 : opacity, y: reduceMotion ? 0 : y }} className="relative mt-5 max-w-sm">
           <p className="mb-2 font-mono text-xs sm:text-sm uppercase tracking-wider text-turmeric">{step.stop}</p>
           <h3 className="font-display font-bold text-xl lg:text-2xl leading-snug text-paper">{step.title}</h3>
-          <p className="mt-3 font-body text-sm leading-relaxed text-paper/70">{step.text}</p>
+          <p className="mt-3 font-body text-sm leading-relaxed text-paper/90">{step.text}</p>
         </motion.div>
       </div>
       {index < STEPS.length - 1 && <JourneyTrail reverse={index % 2 === 1} />}
@@ -198,7 +198,7 @@ function OtherToolsSection() {
               ))}
             </span>
           </h2>
-          <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-sm text-paper opacity-70 leading-relaxed">
+          <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-sm text-paper opacity-90 leading-relaxed">
             Explore the tools designed to support different parts of the pet-parent journey.
           </p>
         </div>
@@ -323,7 +323,7 @@ export function VetLandingPage() {
           <h2 id="vet-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
             The right care starts closer than you think
           </h2>
-          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">
+          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/90 leading-relaxed">
             Find the clinics around you and take the next step for your companion.
           </p>
           <button
