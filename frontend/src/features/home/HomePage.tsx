@@ -85,6 +85,10 @@ export default function HomePage() {
   const consultationsFallback = useVetEntryFallback();
   const chatbotFallback = useFeatureFlagFallback('ai_chatbot');
   const shopFallback = useFeatureFlagFallback('shop_checkout');
+  // The recipe cards show blurred with a "Coming soon" band when the admin teaser switch is on, and also
+  // whenever ordering is hidden or marked coming soon -- so beta and production look the same. ("Unavailable"
+  // keeps the normal cards with their own label.) While flags load the shop counts as on, so nothing flashes.
+  const isRecipeTeaser = isRecipeComingSoonEnabled || (!isShopEnabled && shopFallback !== 'unavailable');
   const knowYourPetFallback = useFeatureFlagFallback('pets_know_your_pet');
 
   // Auth Store
@@ -358,13 +362,13 @@ export default function HomePage() {
                     {featuredProducts.map((product) => (
                       <div key={product.id} className="relative">
                         <div
-                          className={`h-full [&>div]:h-full ${isRecipeComingSoonEnabled ? 'pointer-events-none select-none opacity-70 blur-[3px]' : ''}`}
+                          className={`h-full [&>div]:h-full ${isRecipeTeaser ? 'pointer-events-none select-none opacity-70 blur-[3px]' : ''}`}
                         >
                           <RecipeCard
                             product={product}
-                            onAddToCart={isRecipeComingSoonEnabled ? undefined : handleAddToCart}
+                            onAddToCart={isRecipeTeaser ? undefined : handleAddToCart}
                             orderingDisabledLabel={
-                              isRecipeComingSoonEnabled
+                              isRecipeTeaser
                                 ? 'Coming Soon'
                                 : isShopEnabled
                                 ? undefined
@@ -376,7 +380,7 @@ export default function HomePage() {
                             }
                           />
                         </div>
-                        {isRecipeComingSoonEnabled && (
+                        {isRecipeTeaser && (
                           <div
                             aria-label={`${product.name}: Coming soon`}
                             className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-[4px] text-center"
