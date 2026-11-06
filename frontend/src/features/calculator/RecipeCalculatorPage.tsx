@@ -337,7 +337,7 @@ export function RecipeCalculatorPage() {
       )}
 
       {/* Closing CTA */}
-      <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 pt-12 sm:pt-14 md:pt-16 pb-10 md:pb-12 bg-midnight text-paper text-center">
+      <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 pt-12 sm:pt-14 md:pt-16 pb-10 md:pb-12 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper text-center">
         <div className="max-w-7xl mx-auto">
           <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
             Take the next step towards more informed meals

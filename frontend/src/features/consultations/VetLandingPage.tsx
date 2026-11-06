@@ -317,7 +317,7 @@ export function VetLandingPage() {
       <OtherToolsSection />
 
       {/* Closing CTA */}
-      <section aria-labelledby="vet-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 bg-gradient-to-b from-midnightCard to-midnight text-paper text-center">
+      <section aria-labelledby="vet-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper text-center">
         <div className="max-w-7xl mx-auto">
           <h2 id="vet-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
             The right care starts closer than you think
