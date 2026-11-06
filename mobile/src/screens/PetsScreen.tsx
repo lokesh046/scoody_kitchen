@@ -573,17 +573,12 @@ export default function PetsScreen({ navigation }: any) {
                   onPress={handleOpenAIConsult}
                   activeOpacity={0.88}
                   accessibilityRole="button"
-                  accessibilityLabel="Talk to Bravo, the AI assistant"
+                  accessibilityLabel="Ask Bravo"
                 >
                   <View style={styles.aiConsultInner}>
                     <AIDogIcon size={46} />
                     <View style={{ flex: 1 }}>
-                      <View style={styles.aiConsultTitleRow}>
-                        <Text style={styles.aiConsultTitle}>Bravo</Text>
-                        <View style={styles.aiLiveBadge}>
-                          <Text style={styles.aiLiveBadgeText}>AI</Text>
-                        </View>
-                      </View>
+                      <Text style={styles.aiConsultTitle}>Ask Bravo</Text>
                       <Text style={styles.aiConsultSubtitle}>
                         Talk to Bravo and get answers to your pet care questions.
                       </Text>
@@ -844,32 +839,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  aiConsultTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 2,
-  },
   aiConsultTitle: {
+    marginBottom: 2,
     fontSize: 14,
     fontWeight: '800',
     color: COLORS.textCoffee,
     fontFamily: FONT_DISPLAY_SEMIBOLD,
-  },
-  aiLiveBadge: {
-    backgroundColor: '#E8F5E9',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 0.5,
-    borderColor: '#C8E6C9',
-  },
-  aiLiveBadgeText: {
-    fontSize: 8.5,
-    fontWeight: '800',
-    color: COLORS.forestGreen,
-    letterSpacing: 0.5,
-    fontFamily: FONT_BODY_BOLD,
   },
   aiConsultSubtitle: {
     fontSize: 11.5,
