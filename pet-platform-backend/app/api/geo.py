@@ -65,8 +65,11 @@ async def ip_locate(request: Request):
 
     # Query external service securely from server
     try:
-        async with httpx.AsyncClient(timeout=4.0) as client:
-            res = await client.get(f"https://freeipapi.com/api/json/{client_ip}")
+        # freeipapi.com moved this endpoint: the old URL now answers 307 and httpx does not follow redirects by
+        # default, so every lookup silently fell back to the headquarters default (Chennai) for everyone. Call the
+        # current URL directly and follow a redirect if they move it again.
+        async with httpx.AsyncClient(timeout=4.0, follow_redirects=True) as client:
+            res = await client.get(f"https://free.freeipapi.com/api/v1/json/{client_ip}")
             if res.status_code == 200:
                 data = res.json()
                 lat = data.get("latitude")
