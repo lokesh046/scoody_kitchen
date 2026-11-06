@@ -1,5 +1,5 @@
 import { HeroScrollHint } from '../../components/HeroScrollHint';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useInView, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import { ArrowRight, Plus, Minus, PawPrint } from 'lucide-react';
@@ -267,20 +267,21 @@ export function VetLandingPage() {
                   a title set from the admin panel falls back to the script text. */}
               {hero.title === DEFAULT_HERO.title ? (
                 <picture>
-                  <source media="(min-width: 640px)" srcSet="/images/hero-titles/vet-wide.webp" width={608} height={252} />
+                  <source media="(min-width: 640px)" srcSet="/images/hero-titles/vet-wide.webp" width={606} height={134} />
                   <img
                     src="/images/hero-titles/vet-narrow.webp"
                     alt={hero.title}
-                    width={338}
-                    height={171}
-                    className="hero-title-without-stops block h-auto w-[min(100%,338px)] sm:w-[min(100%,608px)] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
+                    width={329}
+                    height={76}
+                    className="block h-auto w-[min(100%,var(--hero-n))] sm:w-[min(100%,var(--hero-w))] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
+                    style={{ '--hero-n': '329px', '--hero-w': '606px' } as CSSProperties}
                   />
                 </picture>
               ) : (
                 hero.title
               )}
             </h1>
-            <p className="font-body text-sm sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
+            <p className="font-body text-xs sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
               {hero.subtitle}
             </p>
             <div className="pt-2">

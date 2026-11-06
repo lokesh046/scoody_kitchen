@@ -13,11 +13,11 @@ export interface HeroTitleImage {
 export const heroTitleKey = (title: string) => withoutHeadingFullStops(title).trim().toLowerCase().replace(/\s+/g, ' ');
 
 export const HERO_TITLE_IMAGES: Record<string, HeroTitleImage> = {
-  "hearth & hound: small-batch canine nutrition": { slug: 'home-1', wide: [608, 251], narrow: [338, 222] },
-  "honest ingredients zero filler": { slug: 'home-2', wide: [608, 251], narrow: [338, 171] },
-  "farm-to-freezer holistic meals": { slug: 'home-3', wide: [608, 173], narrow: [338, 171] },
-  "farm-to-bowl fresh holistic meals": { slug: 'home-4', wide: [608, 251], narrow: [338, 171] },
-  "farm-to-bowl holistic meals": { slug: 'home-5', wide: [608, 173], narrow: [338, 119] },
-  "raptor: high-protein all-meat diet": { slug: 'home-6', wide: [608, 251], narrow: [338, 171] },
-  "the hearth & one fam": { slug: 'home-7', wide: [608, 173], narrow: [338, 119] },
+  "hearth & hound: small-batch canine nutrition": { slug: 'home-1', wide: [605, 112], narrow: [329, 64] },
+  "honest ingredients zero filler": { slug: 'home-2', wide: [605, 136], narrow: [329, 77] },
+  "farm-to-freezer holistic meals": { slug: 'home-3', wide: [605, 152], narrow: [330, 86] },
+  "farm-to-bowl fresh holistic meals": { slug: 'home-4', wide: [605, 128], narrow: [329, 73] },
+  "farm-to-bowl holistic meals": { slug: 'home-5', wide: [515, 154], narrow: [331, 102] },
+  "raptor: high-protein all-meat diet": { slug: 'home-6', wide: [606, 126], narrow: [329, 70] },
+  "the hearth & one fam": { slug: 'home-7', wide: [467, 154], narrow: [316, 106] },
 };

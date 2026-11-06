@@ -1,5 +1,5 @@
 import { HeroScrollHint } from '../../components/HeroScrollHint';
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
@@ -188,20 +188,21 @@ export function ShopLandingPage() {
                   a title set from the admin panel falls back to the script text. */}
               {hero.title === DEFAULT_HERO.title ? (
                 <picture>
-                  <source media="(min-width: 640px)" srcSet="/images/hero-titles/shop-wide.webp" width={608} height={173} />
+                  <source media="(min-width: 640px)" srcSet="/images/hero-titles/shop-wide.webp" width={604} height={137} />
                   <img
                     src="/images/hero-titles/shop-narrow.webp"
                     alt={hero.title}
-                    width={338}
-                    height={171}
-                    className="hero-title-without-stops block h-auto w-[min(100%,338px)] sm:w-[min(100%,608px)] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
+                    width={329}
+                    height={78}
+                    className="block h-auto w-[min(100%,var(--hero-n))] sm:w-[min(100%,var(--hero-w))] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
+                    style={{ '--hero-n': '329px', '--hero-w': '604px' } as CSSProperties}
                   />
                 </picture>
               ) : (
                 hero.title
               )}
             </h1>
-            <p className="font-body text-sm sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
+            <p className="font-body text-xs sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
               {hero.subtitle}
             </p>
             <div className="pt-2">

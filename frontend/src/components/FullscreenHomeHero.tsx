@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { withoutHeadingFullStops } from '../utils/headings';
 import { HeroScrollHint } from './HeroScrollHint';
 import React, { useState, useEffect, useRef } from 'react';
@@ -109,7 +110,8 @@ export const FullscreenHomeHero: React.FC = () => {
                     alt={withoutHeadingFullStops(slide.title ?? '')}
                     width={titleImage.narrow[0]}
                     height={titleImage.narrow[1]}
-                    className="hero-title-without-stops block h-auto w-[min(100%,338px)] sm:w-[min(100%,608px)] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
+                    className="block h-auto w-[min(100%,var(--hero-n))] sm:w-[min(100%,var(--hero-w))] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
+                    style={{ '--hero-n': `${titleImage.narrow[0]}px`, '--hero-w': `${titleImage.wide[0]}px` } as CSSProperties}
                   />
                 </picture>
               ) : (
@@ -118,7 +120,7 @@ export const FullscreenHomeHero: React.FC = () => {
             </h1>
           )}
           {slide.subtitle && (
-            <p className="font-body text-sm sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
+            <p className="font-body text-xs sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
               {slide.subtitle}
             </p>
           )}
