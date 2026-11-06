@@ -1,7 +1,9 @@
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useFlagEntry, useVetAccess } from '../hooks/useFeatureFlag';
-import { RouteUnavailable } from './RouteUnavailable';
+// Loaded on demand on purpose: importing it here would pull the Header (and every icon) into the main bundle,
+// which rearranged the build's chunks and left the site blank ("e is not a function" in the icons chunk).
+const RouteUnavailable = lazy(() => import('./RouteUnavailable').then((m) => ({ default: m.RouteUnavailable })));
 
 // A landing page whose feature is set to "hide" should not exist for visitors: send them home, the same way
 // the header links, footer links and cards for it already disappear. A feature set to "coming soon" or
@@ -37,13 +39,15 @@ export function FlagRouteGate({
   if (entry.state === 'hide') return <Navigate to="/" replace />;
   if (entry.blocked) {
     return (
-      <RouteUnavailable
-        variant={entry.variant}
-        activeTab={activeTab}
-        title={entry.variant === 'coming_soon' ? `${name}: Coming soon` : `${name}: Unavailable`}
-        actionLabel="Back to Home"
-        actionPath="/"
-      />
+      <Suspense fallback={null}>
+        <RouteUnavailable
+          variant={entry.variant}
+          activeTab={activeTab}
+          title={entry.variant === 'coming_soon' ? `${name}: Coming soon` : `${name}: Unavailable`}
+          actionLabel="Back to Home"
+          actionPath="/"
+        />
+      </Suspense>
     );
   }
   return <>{children}</>;
