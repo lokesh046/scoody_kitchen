@@ -3,7 +3,7 @@
 // explains the feature; after that, the card's main button goes straight to the feature itself.
 const PREFIX = 'hno_seen_landing_';
 
-export type LandingKey = 'pets' | 'vet' | 'calculator';
+export type LandingKey = 'pets' | 'vet' | 'calculator' | 'shop';
 
 export function markLandingSeen(key: LandingKey): void {
   try {

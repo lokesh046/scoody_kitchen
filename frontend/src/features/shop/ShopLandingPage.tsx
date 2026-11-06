@@ -1,5 +1,5 @@
 import { HeroScrollHint } from '../../components/HeroScrollHint';
-import { useState, type CSSProperties } from 'react';
+import { useState, type CSSProperties, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
@@ -20,6 +20,7 @@ import { useFeatureFlag, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingFaqs, useLandingHero } from '../../hooks/useAdminContent';
+import { markLandingSeen } from '../../utils/landingSeen';
 
 const DEFAULT_HERO_IMAGE = 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg';
 
@@ -133,6 +134,11 @@ function OtherToolsSection() {
 }
 
 export function ShopLandingPage() {
+  // Remember that this landing page has been opened, so the header link can go straight to the shop next time.
+  useEffect(() => {
+    markLandingSeen('shop');
+  }, []);
+
   const reduceMotion = useReducedMotion();
   const navigate = useNavigate();
   const [isCartOpen, setIsCartOpen] = useState(false);
