@@ -1,5 +1,5 @@
 import { HeroScrollHint } from '../../components/HeroScrollHint';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
@@ -21,6 +21,7 @@ import { useFeatureFlag, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingFaqs, useLandingHero } from '../../hooks/useAdminContent';
+import { markLandingSeen } from '../../utils/landingSeen';
 
 const DEFAULT_HERO_IMAGE = '/images/hero/hero-2.webp';
 
@@ -114,6 +115,11 @@ function OtherToolsSection() {
 }
 
 export function PetsLandingPage() {
+  // Remember that this landing page has been opened, so the home-page card can go straight to the feature next time.
+  useEffect(() => {
+    markLandingSeen('pets');
+  }, []);
+
   const reduceMotion = useReducedMotion();
   const navigate = useNavigate();
   const [isCartOpen, setIsCartOpen] = useState(false);

@@ -1,5 +1,5 @@
 import { HeroScrollHint } from '../../components/HeroScrollHint';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useInView, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import { ArrowRight, Plus, Minus, PawPrint } from 'lucide-react';
@@ -11,6 +11,7 @@ import { useFeatureFlag } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingFaqs, useLandingHero } from '../../hooks/useAdminContent';
+import { markLandingSeen } from '../../utils/landingSeen';
 
 const DEFAULT_HERO_IMAGE = '/images/hero/vet-3.webp';
 
@@ -206,6 +207,11 @@ function OtherToolsSection() {
 }
 
 export function VetLandingPage() {
+  // Remember that this landing page has been opened, so the home-page card can go straight to the feature next time.
+  useEffect(() => {
+    markLandingSeen('vet');
+  }, []);
+
   const navigate = useNavigate();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);

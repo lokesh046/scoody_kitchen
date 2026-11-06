@@ -23,6 +23,7 @@ import { useStructuredData } from '../../hooks/useStructuredData';
 import { useFeatureFlag, useFeatureFlagFallback, useFeatureFlags, useFlagEntry, useVetEntryEnabled, useVetEntryFallback } from '../../hooks/useFeatureFlag';
 import { FeaturePlaceholderCard } from '../../components/FeaturePlaceholderCard';
 import { JournalPreviewSection } from '../../components/JournalPreviewSection';
+import { hasSeenLanding } from '../../utils/landingSeen';
 import { useToolkitOverrides } from '../../hooks/useAdminContent';
 
 export default function HomePage() {
@@ -215,9 +216,9 @@ export default function HomePage() {
 
                 <div ref={toolkitGridRef} className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   {[
-                    { link: '/pets', image: '/images/toolkit/know-your-pet.webp', title: 'Know Your Pet', text: "Create a dedicated profile for your pet and keep their key details organised and easy to access whenever you need them.", cta: 'Create Their Profile', enabled: isKnowYourPetEnabled, onClick: () => navigate('/pets'), secondaryOnClick: () => navigate('/pets') },
-                    { link: '/consultations', image: '/images/toolkit/locate-vet.webp', title: 'Locate Your Vet', text: "Find veterinary clinics near you, explore available options, and make it easier to know where to turn when your companion needs professional care.", cta: 'Explore Nearby Vets', enabled: isConsultationsEnabled, onClick: () => navigate('/consultations'), secondaryOnClick: () => navigate('/consultations') },
-                    { link: '/onboarding', /* admin override key; the card itself opens /recipe-calculator */ image: '/images/toolkit/meal-planner.webp', title: 'Count The Calories', text: "Explore an estimate of your pet's daily energy needs, helping you better understand the nutritional considerations behind their feeding routine.", cta: 'Estimate Their Needs', enabled: isMealPlannerEnabled, onClick: () => navigate('/recipe-calculator'), secondaryOnClick: () => navigate('/recipe-calculator') },
+                    { link: '/pets', image: '/images/toolkit/know-your-pet.webp', title: 'Know Your Pet', text: "Create a dedicated profile for your pet and keep their key details organised and easy to access whenever you need them.", cta: 'Create Their Profile', enabled: isKnowYourPetEnabled, onClick: () => navigate(hasSeenLanding('pets') ? '/pets/app' : '/pets'), secondaryOnClick: () => navigate('/pets') },
+                    { link: '/consultations', image: '/images/toolkit/locate-vet.webp', title: 'Locate Your Vet', text: "Find veterinary clinics near you, explore available options, and make it easier to know where to turn when your companion needs professional care.", cta: 'Explore Nearby Vets', enabled: isConsultationsEnabled, onClick: () => navigate(hasSeenLanding('vet') ? '/consultations/app' : '/consultations'), secondaryOnClick: () => navigate('/consultations') },
+                    { link: '/onboarding', /* admin override key; the card itself opens /recipe-calculator */ image: '/images/toolkit/meal-planner.webp', title: 'Count The Calories', text: "Explore an estimate of your pet's daily energy needs, helping you better understand the nutritional considerations behind their feeding routine.", cta: 'Estimate Their Needs', enabled: isMealPlannerEnabled, onClick: () => navigate(hasSeenLanding('calculator') ? '/recipe-calculator#fit-calculator' : '/recipe-calculator'), secondaryOnClick: () => navigate('/recipe-calculator') },
                   ].map((card) => {
                     // Image, title and text can be replaced from the admin panel (Banners > "Home page - tool card").
                     const override = toolkitOverrides[card.link];

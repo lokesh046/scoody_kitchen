@@ -14,6 +14,7 @@ import { useFeatureFlag, useFlagEntry, useVetEntryEnabled } from '../../hooks/us
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingHero } from '../../hooks/useAdminContent';
+import { markLandingSeen } from '../../utils/landingSeen';
 
 const PAGE_TITLE = 'Count The Calories';
 const PAGE_DESCRIPTION = "Understand your dog's daily energy requirements and get a more informed starting point for planning their meals.";
@@ -97,6 +98,11 @@ const FAQS = [
 ];
 
 export function RecipeCalculatorPage() {
+  // Remember that this landing page has been opened, so the home-page card can go straight to the feature next time.
+  useEffect(() => {
+    markLandingSeen('calculator');
+  }, []);
+
   const { hash } = useLocation();
   const reduceMotion = useReducedMotion();
   const [isCartOpen, setIsCartOpen] = useState(false);
