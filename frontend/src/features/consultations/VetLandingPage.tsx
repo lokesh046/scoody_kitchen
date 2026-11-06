@@ -37,7 +37,7 @@ const STEPS = [
 
 const DEFAULT_HERO = {
   image: DEFAULT_HERO_IMAGE,
-  title: 'The right care starts closer than you think.',
+  title: 'The right care starts closer than you think',
   subtitle: 'Find veterinary clinics in your area and take the next step towards getting your companion the care they need.',
 };
 
@@ -193,7 +193,7 @@ function OtherToolsSection() {
       <div className="max-w-7xl mx-auto">
         <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
           <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
-            One companion. Different aspects of their care.
+            One companion Different aspects of their care
           </h2>
           <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
             Explore the tools designed to support different parts of the pet-parent journey.
@@ -265,7 +265,7 @@ export function VetLandingPage() {
                     alt={hero.title}
                     width={338}
                     height={171}
-                    className="block h-auto w-[min(100%,338px)] sm:w-[min(100%,608px)] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
+                    className="hero-title-without-stops block h-auto w-[min(100%,338px)] sm:w-[min(100%,608px)] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
                   />
                 </picture>
               ) : (
@@ -341,7 +341,7 @@ export function VetLandingPage() {
       <section aria-labelledby="vet-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 bg-gradient-to-b from-midnightCard to-midnight text-paper text-center">
         <div className="max-w-4xl mx-auto">
           <h2 id="vet-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
-            The right care starts closer than you think.
+            The right care starts closer than you think
           </h2>
           <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">
             Find the clinics around you and take the next step for your companion.

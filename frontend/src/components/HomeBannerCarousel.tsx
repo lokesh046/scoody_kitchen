@@ -1,3 +1,4 @@
+import { withoutHeadingFullStops } from '../utils/headings';
 import { HeroScrollHint } from './HeroScrollHint';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -22,7 +23,7 @@ const fallbackBanners: any[] = [
   {
     id: -2,
     pretitle: "100% Transparent",
-    title: "Honest Ingredients. Zero Filler.",
+    title: "Honest Ingredients Zero Filler",
     subtitle: "Every single recipe batch contains zero corn, wheat, soy, or rendering byproducts. Certified and tested by pet nutrition specialists.",
     tagline: "Human-grade, small-batch recipes cooked for active pet health.",
     image_url: "https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg",
@@ -352,7 +353,7 @@ export const HomeBannerCarousel: React.FC = () => {
                         )}
                         {slide.title && (
                           <h3 className="font-display font-black text-lg sm:text-2xl md:text-3xl lg:text-[32px] text-paper uppercase tracking-tight leading-tight">
-                            {slide.title}
+                            {withoutHeadingFullStops(slide.title)}
                           </h3>
                         )}
                       </div>

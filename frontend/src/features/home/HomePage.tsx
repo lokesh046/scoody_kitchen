@@ -166,9 +166,9 @@ export default function HomePage() {
                         Why Hearth &amp; One
                       </p>
                       <h2 className="font-script font-normal text-4xl sm:text-5xl lg:text-6xl text-paper leading-snug max-w-xl">
-                        <span className="sr-only">Bringing the pieces of pet care together.</span>
+                        <span className="sr-only">Bringing the pieces of pet care together</span>
                         <span aria-hidden="true">
-                          {['Bringing', 'the', 'pieces', 'of', 'pet care', 'together.'].map((phrase, index) => (
+                          {['Bringing', 'the', 'pieces', 'of', 'pet care', 'together'].map((phrase, index) => (
                             <span key={phrase}>
                               {index > 0 ? ' ' : ''}
                               <span className="pet-profile-heading-word inline-block whitespace-nowrap" style={{ animationDelay: `${index * 160}ms` }}>
@@ -179,9 +179,6 @@ export default function HomePage() {
                         </span>
                       </h2>
                     </div>
-                    <p className="font-body text-base text-paper opacity-70 leading-relaxed max-w-md">
-                      Everything works better when it's <span className="text-turmeric italic">connected.</span>
-                    </p>
                   </div>
                   <img
                     src="/images/why/connected.webp"
@@ -193,13 +190,13 @@ export default function HomePage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-paper divide-opacity-10 gap-10 md:gap-0 pt-4">
+                <div className="gold-divided-items grid grid-cols-1 md:grid-cols-3 gap-12 pt-4">
                   {[
                     { img: '/images/why-section/care.webp', title: 'Care', text: "We believe every companion deserves thoughtful attention to their everyday needs, health, and well-being." },
                     { img: '/images/why-section/clarity.webp', title: 'Clarity', text: "We make it easier to find useful information and navigate everyday pet-care decisions with confidence." },
                     { img: '/images/why-section/connection.webp', title: 'Connection', text: "We bring complementary pet-care tools together in one ecosystem, helping pet parents navigate different needs in one place." },
                   ].map(({ img, title, text }) => (
-                    <div key={title} className="flex flex-col items-center text-center space-y-5 md:px-10 pt-8 md:pt-0 first:pt-0">
+                    <div key={title} className="relative flex flex-col items-center text-center space-y-6 px-4 lg:px-8">
                       <div className="w-32 h-32 flex items-center justify-center">
                         <img src={img} alt="" width={256} height={256} loading="lazy" decoding="async" className="w-full h-full object-contain" />
                       </div>
@@ -216,7 +213,7 @@ export default function HomePage() {
               <div className="max-w-7xl mx-auto text-center space-y-16">
                 <div className="max-w-2xl mx-auto space-y-3">
                   <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal text-paper">
-                    Your pet-care toolkit.
+                    Your pet-care toolkit
                   </h2>
                   <p className="font-body text-sm text-paper opacity-60">
                     Three tools, one ecosystem — built around how pet parents actually care for their companions.
@@ -307,7 +304,7 @@ export default function HomePage() {
                     Coming Soon
                   </p>
                   <h2 className="font-script text-3xl sm:text-4xl lg:text-5xl font-normal tracking-normal text-ink leading-snug">
-                    Thoughtfully made for the ones who are <span className="text-turmeric">one of us.</span>
+                    Thoughtfully made for the ones who are <span className="text-turmeric">one of us</span>
                   </h2>
                   <p className="font-body text-sm sm:text-base text-ink opacity-65 leading-relaxed max-w-md">
                     We're preparing a natural, thoughtfully crafted range of pet food with a focus on quality ingredients, sustainable practices, and pesticide-free sourcing.
@@ -693,7 +690,7 @@ export default function HomePage() {
                   <span>Stay In The Loop</span>
                 </div>
                 <h2 className="font-script font-normal text-3xl sm:text-4xl tracking-normal text-paper">
-                  Good things are worth staying connected to.
+                  Good things are worth staying connected to
                 </h2>
                 <p className="font-body text-sm text-paper opacity-65 leading-relaxed max-w-md">
                   Stay up to date with what's happening at Hearth &amp; One, from new features and services to useful resources and special updates for pet parents. Only the updates that matter, delivered to your inbox.

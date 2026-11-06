@@ -80,7 +80,7 @@ export function CalculatorGettingStarted() {
       <div className="mx-auto max-w-6xl">
         <div className="mx-auto mb-12 max-w-5xl text-center md:mb-16">
           <h2 id="calc-getting-started-heading" className="font-script text-3xl font-normal tracking-normal leading-snug text-ink sm:text-4xl xl:text-5xl lg:whitespace-nowrap">
-            A clearer starting point, in a few simple steps.
+            A clearer starting point, in a few simple steps
           </h2>
           <p className="mx-auto mt-4 max-w-lg font-body text-sm leading-relaxed text-ink/75">
             Enter the relevant details, calculate their estimated energy needs, and use the result as a guide when planning their meals.

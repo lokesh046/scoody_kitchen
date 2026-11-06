@@ -22,7 +22,7 @@ const PAGE_DESCRIPTION = "Understand your dog's daily energy requirements and ge
 // image"); anything left empty there keeps these defaults.
 const DEFAULT_HERO = {
   image: '/images/hero/calculator-1.webp',
-  title: 'A little more clarity in every meal.',
+  title: 'A little more clarity in every meal',
   subtitle: "Understand your pet's daily energy requirements and get a more informed starting point for planning their meals.",
 };
 
@@ -252,7 +252,7 @@ export function RecipeCalculatorPage() {
         <div className="max-w-7xl mx-auto">
           <div className="max-w-5xl mx-auto text-center space-y-3 mb-12">
             <h2 id="calc-needs-heading" className="font-script font-normal text-3xl sm:text-4xl xl:text-5xl tracking-normal leading-snug lg:whitespace-nowrap">
-              Every pet has their own energy needs.
+              Every pet has their own energy needs
             </h2>
             <p className="mx-auto max-w-2xl font-body text-sm sm:text-base text-paper/90 leading-relaxed">
               The right amount of energy helps support your pet's everyday activities, from resting and playing to growing and staying active. Understanding their daily energy requirements can give you a useful starting point when planning their meals.
@@ -308,7 +308,7 @@ export function RecipeCalculatorPage() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10 space-y-3">
             <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl tracking-normal leading-snug text-ink">
-              Frequently asked questions.
+              Frequently asked questions
             </h2>
           </div>
           <div className="space-y-3">
@@ -340,9 +340,9 @@ export function RecipeCalculatorPage() {
           <div className="max-w-7xl mx-auto">
             <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
               <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
-                <span className="sr-only">One companion. Different aspects of their care.</span>
+                <span className="sr-only">One companion Different aspects of their care</span>
                 <span aria-hidden="true">
-                  {'One companion. Different aspects of their care.'.split(' ').map((word, index) => (
+                  {'One companion Different aspects of their care'.split(' ').map((word, index) => (
                     <span key={index}>
                       {index > 0 ? ' ' : ''}
                       <span className="pet-profile-heading-word inline-block" style={{ animationDelay: `${index * 160}ms` }}>
@@ -365,7 +365,7 @@ export function RecipeCalculatorPage() {
       <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 pt-12 sm:pt-14 md:pt-16 pb-10 md:pb-12 bg-midnight text-paper text-center">
         <div className="max-w-4xl mx-auto">
           <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
-            Take the next step towards more informed meals.
+            Take the next step towards more informed meals
           </h2>
           <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">
             Estimate your pet's daily energy requirements and use the result as a starting point for making informed feeding decisions.

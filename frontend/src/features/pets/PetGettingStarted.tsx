@@ -75,7 +75,7 @@ export function PetGettingStarted() {
     <section aria-labelledby="pet-getting-started-heading" className="bg-paper px-4 py-16 sm:px-6 md:px-8 md:py-20">
       <div className="mx-auto max-w-7xl">
         <div className="mx-auto mb-12 max-w-2xl text-center md:mb-16">
-          <h2 id="pet-getting-started-heading" className="font-script text-3xl font-normal tracking-normal leading-snug text-ink sm:text-4xl lg:text-5xl">Getting started is simple.</h2>
+          <h2 id="pet-getting-started-heading" className="font-script text-3xl font-normal tracking-normal leading-snug text-ink sm:text-4xl lg:text-5xl">Getting started is simple</h2>
           <p className="mx-auto mt-4 max-w-lg font-body text-sm leading-relaxed text-ink/75">Start with the basics and build a more complete picture of your companion over time.</p>
         </div>
         <motion.ol onViewportEnter={() => setHasEntered(true)} viewport={{ once: true, amount: 0.25 }} className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">

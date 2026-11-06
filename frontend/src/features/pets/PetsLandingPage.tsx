@@ -32,19 +32,19 @@ const CLOSER_LOOK = [
 ];
 
 const PROFILE_DETAILS = [
-  { icon: '/images/pet-icons/name.svg', label: 'Name', value: 'Puma', position: 'lg:col-start-1 lg:row-start-1', side: 1 },
+  { icon: '/images/pet-icons/rfid.svg', label: 'RFID', value: 'Microchip ID on file', position: 'lg:col-start-1 lg:row-start-1', side: 1 },
+  { icon: '/images/pet-icons/name.svg', label: 'Name', value: 'Puma', position: 'lg:col-start-1 lg:row-start-2', side: 1 },
   { icon: '/images/pet-icons/date-of-birth.svg', label: 'Date of birth', value: '14 Mar 2022', position: 'lg:col-start-3 lg:row-start-1', side: -1 },
   { icon: '/images/pet-icons/gender.svg', label: 'Gender', value: 'Male', position: 'lg:col-start-3 lg:row-start-2', side: -1 },
-  { icon: '/images/pet-icons/breed.svg', label: 'Species & breed', value: 'Dog · Golden Retriever', position: 'lg:col-start-1 lg:row-start-2', side: 1 },
+  { icon: '/images/pet-icons/breed.svg', label: 'Species & breed', value: 'Dog · Golden Retriever', position: 'lg:col-start-1 lg:row-start-3', side: 1 },
   { icon: '/images/pet-icons/weight.svg', label: 'Weight', value: '28 kg', position: 'lg:col-start-3 lg:row-start-3', side: -1 },
-  { icon: '/images/pet-icons/breed-origin.svg', label: 'Breed origin', value: 'Scotland', position: 'lg:col-start-1 lg:row-start-3', side: 1 },
-  { icon: '/images/pet-icons/rfid.svg', label: 'RFID', value: 'Microchip ID on file', position: 'lg:col-start-1 lg:row-start-4', side: 1 },
+  { icon: '/images/pet-icons/breed-origin.svg', label: 'Breed origin', value: 'Scotland', position: 'lg:col-start-1 lg:row-start-4', side: 1 },
   { icon: '/images/pet-icons/health-records.svg', label: 'Health records', value: 'Vaccinations & check-ups', position: 'lg:col-start-3 lg:row-start-4', side: -1 },
 ];
 
 const DEFAULT_HERO = {
   image: DEFAULT_HERO_IMAGE,
-  title: 'Everything about your pet, in one place.',
+  title: 'Everything about your pet, in one place',
   subtitle: "Build a profile that captures your companion's essential details, unique characteristics, and everyday needs.",
 };
 
@@ -89,11 +89,11 @@ function OtherToolsSection() {
   return (
     <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
       <div className="max-w-7xl mx-auto">
-        <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
+        <div className="max-w-2xl mx-auto text-center space-y-3 mb-8">
           <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
-            <span className="sr-only">One companion. Different aspects of their care.</span>
+            <span className="sr-only">One companion Different aspects of their care</span>
             <span aria-hidden="true">
-              {'One companion. Different aspects of their care.'.split(' ').map((word, index) => (
+              {'One companion Different aspects of their care'.split(' ').map((word, index) => (
                 <span key={index}>
                   {index > 0 ? ' ' : ''}
                   <span className="pet-profile-heading-word inline-block" style={{ animationDelay: `${index * 160}ms` }}>
@@ -178,7 +178,7 @@ export function PetsLandingPage() {
                     alt={hero.title}
                     width={338}
                     height={171}
-                    className="block h-auto w-[min(100%,338px)] sm:w-[min(100%,608px)] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
+                    className="hero-title-without-stops block h-auto w-[min(100%,338px)] sm:w-[min(100%,608px)] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
                   />
                 </picture>
               ) : (
@@ -202,13 +202,13 @@ export function PetsLandingPage() {
     </section>
 
       {/* A closer look -- scroll-spy timeline, gold marker handing off step to step */}
-      <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-gradient-to-b from-midnight via-midnightCard to-midnight">
+      <section className="px-4 sm:px-6 md:px-8 py-10 md:py-12 bg-gradient-to-b from-midnight via-midnightCard to-midnight">
         <div className="max-w-7xl mx-auto">
-          <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
+          <div className="max-w-2xl mx-auto text-center space-y-3 mb-8">
             <h2 className="font-script font-normal text-[clamp(1.125rem,4.6vw,2.5rem)] whitespace-nowrap tracking-normal leading-snug text-turmeric">
-              <span className="sr-only">Get to know them, beyond the basics.</span>
+              <span className="sr-only">Get to know them, beyond the basics</span>
               <span aria-hidden="true">
-                {'Get to know them, beyond the basics.'.split(' ').map((word, index) => (
+                {'Get to know them, beyond the basics'.split(' ').map((word, index) => (
                   <span key={index}>
                     {index > 0 ? ' ' : ''}
                     <span className="pet-profile-heading-word inline-block" style={{ animationDelay: `${index * 160}ms` }}>
@@ -232,9 +232,9 @@ export function PetsLandingPage() {
           <div className="max-w-2xl mx-auto text-center space-y-4 mb-10 md:mb-12">
             <p className="font-script font-normal text-[clamp(1.125rem,4.6vw,2.5rem)] whitespace-nowrap tracking-normal leading-snug text-turmeric">Your Pet's Profile</p>
             <h2 id="pet-profile-heading" className="font-body font-normal text-lg sm:text-xl tracking-normal leading-snug">
-              <span className="sr-only">A clearer picture of the companion you know by heart.</span>
+              <span className="sr-only">A clearer picture of the companion you know by heart</span>
               <span aria-hidden="true">
-                {'A clearer picture of the companion you know by heart.'.split(' ').map((word, index) => (
+                {'A clearer picture of the companion you know by heart'.split(' ').map((word, index) => (
                   <span key={index}>
                     {index > 0 ? ' ' : ''}
                     <span
@@ -304,7 +304,6 @@ export function PetsLandingPage() {
               </motion.article>
             ))}
           </motion.div>
-          <p className="max-w-5xl mx-auto mt-4 font-mono text-[10px] uppercase tracking-wider text-paper/60">Sample pet profile · Details for illustration</p>
         </div>
       </section>
 
@@ -346,7 +345,7 @@ export function PetsLandingPage() {
       <section aria-labelledby="pet-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper text-center">
         <div className="max-w-4xl mx-auto">
           <h2 id="pet-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug lg:whitespace-nowrap">
-            Get to know them a little better.
+            Get to know them a little better
           </h2>
           <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">
             Start building a clearer picture of your pet, one detail at a time.

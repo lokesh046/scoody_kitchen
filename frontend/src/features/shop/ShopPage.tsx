@@ -337,9 +337,9 @@ export default function ShopPage() {
               <div className="border-t border-b border-dashed border-cardboard border-opacity-30 py-4 space-y-4">
                 <Eyebrow label="est. 2019 — batch ledger cooking" />
                 <h1 className="font-display text-4xl md:text-6xl font-extrabold text-turmeric leading-tight tracking-tight">
-                  Honest Ingredients.<br/>
+                  Honest Ingredients<br/>
                   <span className="text-paperLight italic font-normal">
-                    Zero Filler Secrets.
+                    Zero Filler Secrets
                   </span>
                 </h1>
               </div>

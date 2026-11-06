@@ -1,3 +1,4 @@
+import { withoutHeadingFullStops } from '../utils/headings';
 import { useQuery } from '@tanstack/react-query';
 import { fetchActiveBanners } from '../api/banners';
 import { fetchActiveFaqs } from '../api/faqs';
@@ -43,7 +44,7 @@ export function useLandingHero(
   const banner = data?.[0];
   return {
     image: banner?.image_url || defaults.image,
-    title: banner?.title || defaults.title,
+    title: withoutHeadingFullStops(banner?.title || defaults.title),
     subtitle: banner?.subtitle || defaults.subtitle,
     ready: !isLoading,
   };
@@ -68,7 +69,7 @@ export function useToolkitOverrides(): Record<string, ToolkitOverride> {
     if (!banner.link_url || overrides[banner.link_url]) return;
     overrides[banner.link_url] = {
       image: banner.image_url || undefined,
-      title: banner.title || undefined,
+      title: banner.title ? withoutHeadingFullStops(banner.title) : undefined,
       text: banner.subtitle || undefined,
     };
   });

@@ -66,7 +66,7 @@ const SAMPLE_LEDGER = [
 
 const DEFAULT_HERO = {
   image: DEFAULT_HERO_IMAGE,
-  title: 'Food you can read, start to finish.',
+  title: 'Food you can read, start to finish',
   subtitle: 'Human-grade recipes cooked in small batches, with every ingredient and its percentage published for you to check.',
 };
 
@@ -120,7 +120,7 @@ function OtherToolsSection() {
       <div className="max-w-7xl mx-auto">
         <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
           <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
-            Good food is one part of their care.
+            Good food is one part of their care
           </h2>
           <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
             Explore the tools designed to support different parts of the pet-parent journey.
@@ -194,7 +194,7 @@ export function ShopLandingPage() {
                     alt={hero.title}
                     width={338}
                     height={171}
-                    className="block h-auto w-[min(100%,338px)] sm:w-[min(100%,608px)] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
+                    className="hero-title-without-stops block h-auto w-[min(100%,338px)] sm:w-[min(100%,608px)] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
                   />
                 </picture>
               ) : (
@@ -225,7 +225,7 @@ export function ShopLandingPage() {
               <span>A closer look</span>
             </div>
             <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug text-paper">
-              What you can expect from the catalogue.
+              What you can expect from the catalogue
             </h2>
             <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
               Every recipe is listed with the same detail, so comparing two of them is a matter of reading, not guessing.
@@ -241,7 +241,7 @@ export function ShopLandingPage() {
           <div className="max-w-2xl mx-auto text-center space-y-4 mb-10 md:mb-12">
             <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">The Ingredient Ledger</p>
             <h2 id="shop-ledger-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
-              Percentages, not promises.
+              Percentages, not promises
             </h2>
             <p className="font-body text-sm text-paper/75 leading-relaxed">
               Most labels tell you what went in. Each of our recipes tells you how much of it went in.
@@ -293,7 +293,7 @@ export function ShopLandingPage() {
         <div className="mx-auto max-w-4xl">
           <div className="mx-auto mb-12 max-w-2xl text-center">
             <h2 id="shop-getting-started" className="font-script text-3xl font-normal tracking-normal leading-snug text-ink sm:text-4xl lg:text-5xl">
-              Finding the right recipe.
+              Finding the right recipe
             </h2>
             <p className="mx-auto mt-4 max-w-lg font-body text-sm leading-relaxed text-ink/75">
               Four steps from the catalogue to a bowl you understand.
@@ -350,7 +350,7 @@ export function ShopLandingPage() {
       <section aria-labelledby="shop-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 bg-gradient-to-b from-midnightCard to-midnight text-paper text-center">
         <div className="max-w-4xl mx-auto">
           <h2 id="shop-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
-            See what is in the bowl.
+            See what is in the bowl
           </h2>
           <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">
             Browse the recipes and read every one of them all the way down.
