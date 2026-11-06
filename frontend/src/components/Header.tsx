@@ -117,8 +117,8 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
   const calculatorEntry = useFlagEntry('shop_meal_planner');
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
 
-  // `seen` + `featurePath`: the first time, the link opens the landing page (`path`); once that landing page has been
-  // opened on this device, it goes straight to the feature.
+  // `seen` + `featurePath`: for a signed-in visitor, the first click opens the landing page (`path`); once that landing
+  // page has been opened on this device, it goes straight to the feature.
   const navLinks: { id: string; label: string; path: string; badge?: string | null; seen?: LandingKey; featurePath?: string }[] = [
     ...(isKnowYourPetEnabled ? [{ id: 'pets', label: 'Know Your Pet', path: '/pets', seen: 'pets' as const, featurePath: '/pets/app' }] : []),
     ...(vetAccess.navVisible ? [{ id: 'consultations', label: 'Vet Consult', path: '/consultations', badge: vetAccess.navLabel, seen: 'vet' as const, featurePath: '/consultations/app' }] : []),
@@ -129,8 +129,10 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
     ...(isChatbotEnabled ? [{ id: 'assistant', label: 'AI Assistant', path: '/assistant' }] : []),
   ];
 
+  // Only for signed-in visitors: the first click opens the landing page, later clicks go straight to the feature.
+  // A signed-out visitor always gets the landing page.
   const linkTarget = (link: (typeof navLinks)[number]) =>
-    link.seen && link.featurePath && hasSeenLanding(link.seen) ? link.featurePath : link.path;
+    user && link.seen && link.featurePath && hasSeenLanding(link.seen) ? link.featurePath : link.path;
 
   return (
     <>
