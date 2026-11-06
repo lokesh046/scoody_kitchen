@@ -206,7 +206,7 @@ export default function HomePage() {
             <section className="relative bg-gradient-to-b from-midnightCard to-midnight py-20 md:py-28 px-4 sm:px-6 md:px-8">
               <div className="max-w-7xl mx-auto text-center space-y-16">
                 <div className="max-w-2xl mx-auto space-y-3">
-                  <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal text-paper">
+                  <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal">
                     Your pet-care toolkit
                   </h2>
                   <p className="font-body text-sm text-paper opacity-90">
