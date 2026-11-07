@@ -30,6 +30,7 @@ const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard').then
 const AdminDoctorsPage = lazy(() => import('./features/admin/AdminDoctorsPage').then((m) => ({ default: m.AdminDoctorsPage })));
 const AdminOrdersPage = lazy(() => import('./features/admin/AdminOrdersPage'));
 const AdminSupportPage = lazy(() => import('./features/admin/AdminSupportPage'));
+const AdminVaccineRulesPage = lazy(() => import('./features/admin/AdminVaccineRulesPage'));
 const SupportPage = lazy(() => import('./features/support/SupportPage'));
 const SupportTicketPage = lazy(() => import('./features/support/SupportTicketPage'));
 const DoctorDashboard = lazy(() => import('./features/doctor/DoctorDashboard').then((m) => ({ default: m.DoctorDashboard })));
@@ -215,6 +216,7 @@ export default function App() {
               <Route path="/admin/doctors" element={<RequireAuth adminOnly={true}><AdminDoctorsPage /></RequireAuth>} />
               <Route path="/admin/orders" element={<RequireAuth adminOnly={true}><AdminOrdersPage /></RequireAuth>} />
               <Route path="/admin/support" element={<RequireAuth adminOnly={true}><AdminSupportPage /></RequireAuth>} />
+              <Route path="/admin/vaccine-rules" element={<RequireAuth adminOnly={true}><AdminVaccineRulesPage /></RequireAuth>} />
               <Route path="/doctor" element={<RequireAuth doctorOnly={true}><DoctorDashboard /></RequireAuth>} />
               <Route path="/doctor/dashboard" element={<RequireAuth doctorOnly={true}><DoctorDashboard /></RequireAuth>} />
               <Route path="*" element={<NotFoundPage />} />

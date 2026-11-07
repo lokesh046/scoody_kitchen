@@ -78,7 +78,8 @@ import {
   Eye,
   X,
   Mail,
-  Download
+  Download,
+  Syringe,
 } from 'lucide-react';
 
 
@@ -814,6 +815,7 @@ export const AdminDashboard: React.FC = () => {
               { id: 'newsletter', label: 'Newsletter', icon: Mail },
               { id: 'faqs', label: 'FAQs', icon: HelpCircle },
               { id: 'features', label: 'Feature Flags', icon: Sliders },
+              { id: 'vaccine_rules', label: 'Vaccine Rules', icon: Syringe },
             ];
 
             return items.map((item) => {
@@ -827,6 +829,8 @@ export const AdminDashboard: React.FC = () => {
                       navigate('/admin/orders');
                     } else if (item.id === 'support') {
                       navigate('/admin/support');
+                    } else if (item.id === 'vaccine_rules') {
+                      navigate('/admin/vaccine-rules');
                     } else {
                       setActiveTab(item.id as any);
                     }

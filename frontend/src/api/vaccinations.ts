@@ -96,3 +96,7 @@ export const saveVaccinationHistory = async (
     headers: { 'Content-Type': 'multipart/form-data' },
   })).data;
 };
+
+// The printable vaccination card (HTML). Fetched with the login token, then opened for printing / Save as PDF.
+export const fetchVaccinationCardHtml = async (petId: number): Promise<string> =>
+  (await apiClient.get<string>(`/pets/${petId}/vaccinations/card`, { responseType: 'text', transformResponse: (d) => d })).data;

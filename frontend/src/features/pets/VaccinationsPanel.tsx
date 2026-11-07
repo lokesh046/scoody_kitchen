@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Loader2, MapPin, Plus, Syringe, Trash2 } from 'lucide-react';
+import { Camera, FileDown, Loader2, MapPin, Plus, Syringe, Trash2 } from 'lucide-react';
 import { useVetAccess } from '../../hooks/useFeatureFlag';
 import {
-  addVaccination, deleteVaccination, fetchVaccinations, uploadVaccinationImage,
+  addVaccination, deleteVaccination, fetchVaccinationCardHtml, fetchVaccinations, uploadVaccinationImage,
   type VaccineStatus, type VaccineStatusItem,
 } from '../../api/vaccinations';
 import { VaccinationHistoryModal } from './VaccinationHistoryModal';
@@ -39,6 +39,23 @@ export function VaccinationsPanel({ petId, petName, dob }: { petId: number; petN
   const vet = useVetAccess();
   const [adding, setAdding] = useState<string | null>(null); // vaccine code with the form open
   const [showHistory, setShowHistory] = useState(false);
+  const [cardBusy, setCardBusy] = useState(false);
+  const [cardError, setCardError] = useState('');
+  const openCard = async () => {
+    setCardBusy(true); setCardError('');
+    try {
+      const html = await fetchVaccinationCardHtml(petId);
+      const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+      const w = window.open(url, '_blank');
+      if (!w) { setCardError('Allow pop-ups to open the card, then try again.'); URL.revokeObjectURL(url); return; }
+      w.addEventListener('load', () => { try { w.focus(); w.print(); } catch { /* the owner can print manually */ } });
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      setCardError("Couldn't create the card. Please try again.");
+    } finally {
+      setCardBusy(false);
+    }
+  };
   const refresh = () => qc.invalidateQueries({ queryKey: ['vaccinations', petId] });
 
   if (isLoading) return <div className="py-10 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-herb" /></div>;
@@ -105,7 +122,14 @@ export function VaccinationsPanel({ petId, petName, dob }: { petId: number; petN
       </div>
 
       <div>
-        <h4 className="font-mono text-[10px] uppercase tracking-wider text-ink font-bold mb-2">Recorded doses ({data.records.length})</h4>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h4 className="font-mono text-[10px] uppercase tracking-wider text-ink font-bold">Recorded doses ({data.records.length})</h4>
+          <button type="button" onClick={openCard} disabled={cardBusy}
+            className="h-8 px-3 border border-cardboard hover:bg-paperLight text-ink font-mono text-[10px] uppercase font-bold rounded-sm cursor-pointer flex items-center gap-1.5 disabled:opacity-60">
+            {cardBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />} Vaccine card (PDF)
+          </button>
+        </div>
+        {cardError && <div className="text-paprika text-xs mb-2" role="alert">{cardError}</div>}
         {data.records.length === 0 ? (
           <p className="font-body text-sm text-ink opacity-70">No doses recorded yet.</p>
         ) : (
