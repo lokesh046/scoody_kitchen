@@ -59,8 +59,19 @@ export interface HistoryAnswer {
 export const fetchVaccinations = async (petId: number): Promise<VaccinationOverview> =>
   (await apiClient.get<VaccinationOverview>(`/pets/${petId}/vaccinations`)).data;
 
-export const addVaccination = async (petId: number, data: VaccinationCreate): Promise<VaccinationRecord> =>
-  (await apiClient.post<VaccinationRecord>(`/pets/${petId}/vaccinations`, data)).data;
+// The vaccine card photo is mandatory, so a dose is always sent together with its photo.
+export const addVaccination = async (petId: number, data: VaccinationCreate, photo: File): Promise<VaccinationRecord> => {
+  const form = new FormData();
+  form.append('vaccine_code', data.vaccine_code);
+  form.append('date_given', data.date_given);
+  if (data.clinic_name) form.append('clinic_name', data.clinic_name);
+  if (data.batch_number) form.append('batch_number', data.batch_number);
+  if (data.notes) form.append('notes', data.notes);
+  form.append('image', photo);
+  return (await apiClient.post<VaccinationRecord>(`/pets/${petId}/vaccinations`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })).data;
+};
 
 export const deleteVaccination = async (petId: number, recordId: number): Promise<void> => {
   await apiClient.delete(`/pets/${petId}/vaccinations/${recordId}`);
@@ -74,5 +85,14 @@ export const uploadVaccinationImage = async (petId: number, recordId: number, fi
   })).data;
 };
 
-export const saveVaccinationHistory = async (petId: number, answers: HistoryAnswer[]): Promise<VaccinationOverview> =>
-  (await apiClient.put<VaccinationOverview>(`/pets/${petId}/vaccinations/history`, { answers })).data;
+// Every "given" answer must come with its vaccine card photo (key: vaccine code).
+export const saveVaccinationHistory = async (
+  petId: number, answers: HistoryAnswer[], photos: Record<string, File>,
+): Promise<VaccinationOverview> => {
+  const form = new FormData();
+  form.append('answers', JSON.stringify(answers));
+  for (const [code, file] of Object.entries(photos)) form.append(`photo_${code}`, file);
+  return (await apiClient.put<VaccinationOverview>(`/pets/${petId}/vaccinations/history`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })).data;
+};

@@ -6,6 +6,7 @@ import {
   type VaccineStatus, type VaccineStatusItem,
 } from '../../api/vaccinations';
 import { VaccinationHistoryModal } from './VaccinationHistoryModal';
+import { VaccineCardPhotoPicker } from './VaccineCardPhotoPicker';
 
 const STATUS_LABEL: Record<VaccineStatus, string> = {
   overdue: 'Overdue',
@@ -119,20 +120,16 @@ function VaccineCard({ item, open, onToggle, petId, dob, onSaved }: {
   const [notes, setNotes] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
   const [error, setError] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
-
   const mutation = useMutation({
     mutationFn: async () => {
-      const rec = await addVaccination(petId, {
+      if (!photo) throw new Error('photo');
+      await addVaccination(petId, {
         vaccine_code: item.code,
         date_given: date,
         clinic_name: clinic || null,
         batch_number: batch || null,
         notes: notes || null,
-      });
-      if (photo) {
-        try { await uploadVaccinationImage(petId, rec.id, photo); } catch { /* the dose is saved; photo can be re-added */ }
-      }
+      }, photo);
     },
     onSuccess: () => {
       setDate(''); setClinic(''); setBatch(''); setNotes(''); setPhoto(null); setError('');
@@ -175,7 +172,7 @@ function VaccineCard({ item, open, onToggle, petId, dob, onSaved }: {
       {open && (
         <form
           className="border-t border-cardboard border-opacity-40 p-3 space-y-2 bg-paperLight"
-          onSubmit={(e) => { e.preventDefault(); if (date && !dateBad) mutation.mutate(); }}
+          onSubmit={(e) => { e.preventDefault(); if (date && photo && !dateBad) mutation.mutate(); }}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <label className="font-body text-xs text-ink">Date given *
@@ -190,11 +187,8 @@ function VaccineCard({ item, open, onToggle, petId, dob, onSaved }: {
               <input type="text" maxLength={60} value={batch} onChange={(e) => setBatch(e.target.value)}
                 className="mt-1 w-full h-9 px-2 border border-cardboard rounded-sm bg-paper text-sm" />
             </label>
-            <div className="font-body text-xs text-ink">Vaccine card photo
-              <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
-              <button type="button" onClick={() => fileRef.current?.click()} className="mt-1 w-full h-9 px-2 border border-dashed border-cardboard rounded-sm bg-paper text-sm flex items-center gap-2 cursor-pointer truncate">
-                <Camera className="w-4 h-4 shrink-0" /> <span className="truncate">{photo ? photo.name : 'Add photo (optional)'}</span>
-              </button>
+            <div className="sm:col-span-2">
+              <VaccineCardPhotoPicker file={photo} onChange={setPhoto} />
             </div>
           </div>
           <label className="font-body text-xs text-ink block">Notes
@@ -203,7 +197,7 @@ function VaccineCard({ item, open, onToggle, petId, dob, onSaved }: {
           </label>
           {dateBad && <div className="text-paprika text-xs">Date can't be in the future or before {dob ? 'the birth date' : 'today'}.</div>}
           {error && <div className="text-paprika text-xs" role="alert">{error}</div>}
-          <button type="submit" disabled={!date || dateBad || mutation.isPending}
+          <button type="submit" disabled={!date || !photo || dateBad || mutation.isPending}
             className="h-9 px-4 bg-herb text-white font-mono text-[10px] uppercase font-bold rounded-sm cursor-pointer disabled:opacity-50 flex items-center gap-2">
             {mutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save dose
           </button>

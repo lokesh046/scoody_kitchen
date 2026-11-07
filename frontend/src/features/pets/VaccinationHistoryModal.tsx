@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Loader2, ShieldCheck } from 'lucide-react';
+import { VaccineCardPhotoPicker } from './VaccineCardPhotoPicker';
 import { saveVaccinationHistory, type HistoryAnswer, type HistoryAnswerKind, type VaccineStatusItem } from '../../api/vaccinations';
 
-type Choice = { kind: HistoryAnswerKind | null; date: string; clinic: string };
+type Choice = { kind: HistoryAnswerKind | null; date: string; clinic: string; photo: File | null };
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -25,7 +26,7 @@ export function VaccinationHistoryModal({
   const core = items.filter((i) => i.category === 'core');
   const optional = items.filter((i) => i.category !== 'core');
   const [choices, setChoices] = useState<Record<string, Choice>>(() =>
-    Object.fromEntries(items.map((i) => [i.code, { kind: null, date: '', clinic: '' } as Choice])));
+    Object.fromEntries(items.map((i) => [i.code, { kind: null, date: '', clinic: '', photo: null } as Choice])));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,6 +36,7 @@ export function VaccinationHistoryModal({
   const dateProblem = (c: Choice): string | null => {
     if (c.kind !== 'given') return null;
     if (!c.date) return 'Enter the date';
+    if (!c.photo) return 'Add a photo of the vaccine card';
     if (c.date > todayIso()) return "Can't be in the future";
     if (dob && c.date < dob) return "Can't be before birth date";
     return null;
@@ -61,7 +63,9 @@ export function VaccinationHistoryModal({
         };
       });
     try {
-      await saveVaccinationHistory(petId, answers);
+      const photos: Record<string, File> = {};
+      for (const i of items) { const c = choices[i.code]; if (c.kind === 'given' && c.photo) photos[i.code] = c.photo; }
+      await saveVaccinationHistory(petId, answers, photos);
       onDone();
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Could not save. Please try again.');
@@ -101,7 +105,7 @@ export function VaccinationHistoryModal({
                 className="h-9 px-2 border border-cardboard rounded-sm bg-paper text-ink text-sm"
                 aria-label={`${i.name} last dose date`}
               />
-              {problem && c.date !== '' && <div className="text-paprika text-[11px] mt-0.5">{problem}</div>}
+              {problem && c.date !== '' && c.photo && <div className="text-paprika text-[11px] mt-0.5">{problem}</div>}
             </div>
             <input
               type="text"
@@ -111,6 +115,9 @@ export function VaccinationHistoryModal({
               placeholder="Clinic (optional)"
               className="h-9 px-2 border border-cardboard rounded-sm bg-paper text-ink text-sm flex-1 min-w-[10rem]"
             />
+            <div className="w-full">
+              <VaccineCardPhotoPicker file={c.photo} onChange={(photo) => set(i.code, { photo })} />
+            </div>
           </div>
         )}
       </div>
@@ -125,8 +132,8 @@ export function VaccinationHistoryModal({
           <div>
             <h3 id="vh-title" className="font-display font-black text-xl text-ink">{petName}'s vaccination history</h3>
             <p className="font-body text-xs text-ink opacity-80 mt-1 leading-relaxed">
-              Tell us the last dose for each vaccine. A rough date from the vaccine card is fine. If you're not sure, choose
-              “Don't know” and we'll flag it for a vet visit.
+              Tell us the last dose for each vaccine and add a photo of the vaccine card (upload or take one). If you're not sure, choose
+              “Don't know” (no photo needed) and we'll flag it for a vet visit.
             </p>
           </div>
         </div>
