@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Camera, Loader2, Plus, Syringe, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Camera, Loader2, MapPin, Plus, Syringe, Trash2 } from 'lucide-react';
+import { useVetAccess } from '../../hooks/useFeatureFlag';
 import {
   addVaccination, deleteVaccination, fetchVaccinations, uploadVaccinationImage,
   type VaccineStatus, type VaccineStatusItem,
@@ -33,6 +35,8 @@ export function VaccinationsPanel({ petId, petName, dob }: { petId: number; petN
     queryKey: ['vaccinations', petId],
     queryFn: () => fetchVaccinations(petId),
   });
+  const navigate = useNavigate();
+  const vet = useVetAccess();
   const [adding, setAdding] = useState<string | null>(null); // vaccine code with the form open
   const [showHistory, setShowHistory] = useState(false);
   const refresh = () => qc.invalidateQueries({ queryKey: ['vaccinations', petId] });
@@ -49,9 +53,32 @@ export function VaccinationsPanel({ petId, petName, dob }: { petId: number; petN
 
   const nameOf = (code: string) => data.items.find((i) => i.code === code)?.name ?? code;
   const anyDraft = data.items.some((i) => !i.vet_reviewed);
+  // Core vaccines that are overdue (incl. "not vaccinated / don't know") or have no record and no birth date to work from.
+  const needsVet = data.items.filter((i) => i.category === 'core' && (i.status === 'overdue' || i.status === 'not_started'));
+  const nearbyOn = vet.gps === 'on';
 
   return (
     <div className="space-y-5">
+      {needsVet.length > 0 && (
+        <div className="border border-red-300 bg-red-50 rounded-sm p-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between" role="status">
+          <div className="font-body text-sm text-red-900">
+            <strong>{petName} needs a vet visit</strong> for {needsVet.map((i) => i.name.replace(/\s*\(.*\)$/, '')).join(', ')}.
+            A vet can vaccinate and note it on the card.
+          </div>
+          {nearbyOn ? (
+            <button type="button" onClick={() => navigate('/consultations/app')}
+              className="h-9 px-3 bg-herb text-white font-mono text-[10px] uppercase font-bold rounded-sm cursor-pointer shrink-0 flex items-center justify-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5" /> Find a vet near me
+            </button>
+          ) : (
+            <button type="button" disabled aria-disabled="true"
+              className="h-9 px-3 border border-cardboard text-ink opacity-70 font-mono text-[10px] uppercase font-bold rounded-sm shrink-0 flex items-center justify-center gap-1.5 cursor-not-allowed">
+              <MapPin className="w-3.5 h-3.5" /> Find a vet near me · Coming soon
+            </button>
+          )}
+        </div>
+      )}
+
       {data.history_required && !data.history_complete && (
         <div className="border border-amber-300 bg-amber-50 rounded-sm p-3 flex flex-col sm:flex-row sm:items-center gap-2 justify-between">
           <span className="font-body text-sm text-amber-900">
