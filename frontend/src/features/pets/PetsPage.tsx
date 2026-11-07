@@ -21,6 +21,9 @@ import {
 import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
 import { PetHeritagePassport } from '../../components/PetHeritagePassport';
 import { PetBreedScanUpload } from './PetBreedScanUpload';
+import { VaccinationsPanel } from './VaccinationsPanel';
+import { VaccinationHistoryModal } from './VaccinationHistoryModal';
+import { fetchVaccinations, type VaccinationOverview } from '../../api/vaccinations';
 
 const mapRecordType = (type: string | undefined | null): string => {
   if (!type) return 'general';
@@ -69,6 +72,7 @@ export const PetsPage: React.FC = () => {
   // Pet Profile Image states
   const isPhotoUploadEnabled = useFeatureFlag('pets_photo_upload', true);
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
+  const isVaccinationsEnabled = useFeatureFlag('pets_vaccinations', false);
   const knowYourPetFallback = useFeatureFlagFallback('pets_know_your_pet');
   const [petImageUrl, setPetImageUrl] = useState('');
   const [isUploadingRegImage, setIsUploadingRegImage] = useState(false);
@@ -258,7 +262,9 @@ export const PetsPage: React.FC = () => {
   const [inspectingPet, setInspectingPet] = useState<any | null>(null);
   const [healthRecords, setHealthRecords] = useState<HealthRecordResponse[]>([]);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'health'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'health' | 'vaccinations'>('profile');
+  // Older pets must give their vaccination history right after being added (cannot be skipped).
+  const [historyStep, setHistoryStep] = useState<{ id: number; name: string; dob: string | null; overview: VaccinationOverview } | null>(null);
 
   // Inline edit state
   const [editName, setEditName] = useState('');
@@ -343,11 +349,21 @@ export const PetsPage: React.FC = () => {
   // Create Pet Mutation
   const createMutation = useMutation({
     mutationFn: (petData: any) => createPet(petData),
-    onSuccess: (_, variables) => {
+    onSuccess: async (created, variables) => {
       queryClient.invalidateQueries({ queryKey: ['pets'] });
       
       setLastCreatedPet({ name: variables.name, imageUrl: variables.profile_image_url });
-      setShowSuccessOverlay(true);
+      let needsHistory = false;
+      if (isVaccinationsEnabled) {
+        try {
+          const overview = await fetchVaccinations(created.id);
+          if (overview.supported && overview.history_required && !overview.history_complete) {
+            setHistoryStep({ id: created.id, name: created.name, dob: created.date_of_birth, overview });
+            needsHistory = true;
+          }
+        } catch { /* if this check fails, don't block adding the pet */ }
+      }
+      if (!needsHistory) setShowSuccessOverlay(true);
 
       // Reset all form inputs and AI scan vision state for next pet
       setName('');
@@ -1681,6 +1697,17 @@ export const PetsPage: React.FC = () => {
                     >
                       Medical Logs ({healthRecords.length})
                     </button>
+                    {isVaccinationsEnabled && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('vaccinations')}
+                        className={`px-3 py-1.5 font-bold rounded-xs transition-colors cursor-pointer ${
+                          activeTab === 'vaccinations' ? 'bg-ink text-paper' : 'text-ink opacity-70 hover:opacity-100'
+                        }`}
+                      >
+                        Vaccinations
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -1842,6 +1869,8 @@ export const PetsPage: React.FC = () => {
                       )}
                     </button>
                   </form>
+                ) : activeTab === 'vaccinations' && isVaccinationsEnabled ? (
+                  <VaccinationsPanel petId={inspectingPet.id} petName={inspectingPet.name} dob={inspectingPet.date_of_birth ?? null} />
                 ) : (
                   /* Medical History & Logs */
                   <div className="space-y-4">
@@ -2109,6 +2138,22 @@ export const PetsPage: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* Mandatory vaccination history for an older pet that was just added */}
+      {historyStep && (
+        <VaccinationHistoryModal
+          petId={historyStep.id}
+          petName={historyStep.name}
+          dob={historyStep.dob}
+          items={historyStep.overview.items}
+          dismissible={false}
+          onDone={() => {
+            queryClient.invalidateQueries({ queryKey: ['vaccinations', historyStep.id] });
+            setHistoryStep(null);
+            setShowSuccessOverlay(true);
+          }}
+        />
       )}
 
       {/* Success Delight Overlay */}

@@ -1,0 +1,166 @@
+import { useState } from 'react';
+import { Loader2, ShieldCheck } from 'lucide-react';
+import { saveVaccinationHistory, type HistoryAnswer, type HistoryAnswerKind, type VaccineStatusItem } from '../../api/vaccinations';
+
+type Choice = { kind: HistoryAnswerKind | null; date: string; clinic: string };
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * The "vaccination history" step. Every core vaccine must be answered: the last dose date,
+ * "Not vaccinated" or "Don't know". Shown right after an older pet is added, and it cannot be
+ * skipped there (dismissible is false). For existing pets it can be opened and closed.
+ */
+export function VaccinationHistoryModal({
+  petId, petName, dob, items, dismissible, onDone, onClose,
+}: {
+  petId: number;
+  petName: string;
+  dob: string | null;
+  items: VaccineStatusItem[];
+  dismissible: boolean;
+  onDone: () => void;
+  onClose?: () => void;
+}) {
+  const core = items.filter((i) => i.category === 'core');
+  const optional = items.filter((i) => i.category !== 'core');
+  const [choices, setChoices] = useState<Record<string, Choice>>(() =>
+    Object.fromEntries(items.map((i) => [i.code, { kind: null, date: '', clinic: '' } as Choice])));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const set = (code: string, patch: Partial<Choice>) =>
+    setChoices((c) => ({ ...c, [code]: { ...c[code], ...patch } }));
+
+  const dateProblem = (c: Choice): string | null => {
+    if (c.kind !== 'given') return null;
+    if (!c.date) return 'Enter the date';
+    if (c.date > todayIso()) return "Can't be in the future";
+    if (dob && c.date < dob) return "Can't be before birth date";
+    return null;
+  };
+  const coreReady = core.every((i) => {
+    const c = choices[i.code];
+    return c.kind !== null && !dateProblem(c);
+  });
+  const optionalOk = optional.every((i) => !dateProblem(choices[i.code]));
+  const canSave = coreReady && optionalOk && !saving;
+
+  const submit = async () => {
+    setSaving(true);
+    setError('');
+    const answers: HistoryAnswer[] = items
+      .filter((i) => choices[i.code].kind !== null)
+      .map((i) => {
+        const c = choices[i.code];
+        return {
+          vaccine_code: i.code,
+          answer: c.kind as HistoryAnswerKind,
+          date_given: c.kind === 'given' ? c.date : null,
+          clinic_name: c.kind === 'given' && c.clinic.trim() ? c.clinic.trim() : null,
+        };
+      });
+    try {
+      await saveVaccinationHistory(petId, answers);
+      onDone();
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Could not save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const row = (i: VaccineStatusItem, required: boolean) => {
+    const c = choices[i.code];
+    const problem = dateProblem(c);
+    const radio = (kind: HistoryAnswerKind, label: string) => (
+      <label className="flex items-center gap-1.5 cursor-pointer">
+        <input type="radio" name={`vh-${i.code}`} checked={c.kind === kind} onChange={() => set(i.code, { kind })} />
+        <span>{label}</span>
+      </label>
+    );
+    return (
+      <div key={i.code} className="border border-cardboard border-opacity-40 rounded-sm p-3 space-y-2 bg-paperLight">
+        <div className="font-body font-semibold text-sm text-ink">
+          {i.name} {required ? <span className="text-paprika text-xs">*</span> : <span className="text-xs opacity-60">(optional)</span>}
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 font-body text-xs text-ink">
+          {radio('given', 'Last dose given on')}
+          {radio('not_vaccinated', 'Not vaccinated')}
+          {radio('unknown', "Don't know")}
+        </div>
+        {c.kind === 'given' && (
+          <div className="flex flex-wrap gap-2 items-start">
+            <div>
+              <input
+                type="date"
+                value={c.date}
+                max={todayIso()}
+                min={dob || undefined}
+                onChange={(e) => set(i.code, { date: e.target.value })}
+                className="h-9 px-2 border border-cardboard rounded-sm bg-paper text-ink text-sm"
+                aria-label={`${i.name} last dose date`}
+              />
+              {problem && c.date !== '' && <div className="text-paprika text-[11px] mt-0.5">{problem}</div>}
+            </div>
+            <input
+              type="text"
+              value={c.clinic}
+              maxLength={150}
+              onChange={(e) => set(i.code, { clinic: e.target.value })}
+              placeholder="Clinic (optional)"
+              className="h-9 px-2 border border-cardboard rounded-sm bg-paper text-ink text-sm flex-1 min-w-[10rem]"
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 bg-ink bg-opacity-60 backdrop-blur-xs z-[60] flex items-start sm:items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="vh-title">
+      <div className="w-full max-w-lg bg-paper border border-cardboard rounded-sm shadow-2xl p-5 sm:p-6 space-y-4 my-auto">
+        <div className="flex items-start gap-3">
+          <ShieldCheck className="w-6 h-6 text-herb shrink-0 mt-0.5" />
+          <div>
+            <h3 id="vh-title" className="font-display font-black text-xl text-ink">{petName}'s vaccination history</h3>
+            <p className="font-body text-xs text-ink opacity-80 mt-1 leading-relaxed">
+              Tell us the last dose for each vaccine. A rough date from the vaccine card is fine. If you're not sure, choose
+              “Don't know” and we'll flag it for a vet visit.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {core.map((i) => row(i, true))}
+          {optional.length > 0 && (
+            <>
+              <div className="font-mono text-[10px] uppercase tracking-wider text-ink opacity-60 pt-1">Other vaccines you may have given</div>
+              {optional.map((i) => row(i, false))}
+            </>
+          )}
+        </div>
+
+        {error && <div className="text-paprika text-xs font-semibold" role="alert">{error}</div>}
+
+        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end pt-1">
+          {dismissible && onClose && (
+            <button type="button" onClick={onClose} className="h-10 px-4 border border-cardboard text-ink font-mono text-xs uppercase font-bold rounded-sm cursor-pointer hover:bg-paperLight">
+              Close
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={!canSave}
+            onClick={submit}
+            className="h-10 px-4 bg-herb text-white font-mono text-xs uppercase font-bold rounded-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            Save history
+          </button>
+        </div>
+        {!coreReady && <p className="font-body text-[11px] text-ink opacity-60 text-right">Answer every vaccine marked * to continue.</p>}
+      </div>
+    </div>
+  );
+}
