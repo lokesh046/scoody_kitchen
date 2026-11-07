@@ -9,6 +9,7 @@ from app.models.user import User
 from app.models.vaccination import PetVaccination
 from app.schemas.vaccination import (
     VaccinationCreate,
+    VaccinationHistoryRequest,
     VaccinationOverviewResponse,
     VaccinationRecordResponse,
     VaccinationUpdate,
@@ -18,6 +19,7 @@ from app.services.storage_service import get_storage_provider, validate_image_fi
 from app.services.vaccination_service import (
     build_overview,
     get_rules,
+    save_history,
     validate_dose_date,
 )
 
@@ -45,6 +47,25 @@ def get_vaccinations(
     current_user: User = Depends(get_current_user),
 ):
     return build_overview(db, _own_pet(db, pet_id, current_user))
+
+
+@router.put("/history", response_model=VaccinationOverviewResponse)
+@limiter.limit("30/minute")
+def save_vaccination_history(
+    request: Request,
+    pet_id: int,
+    data: VaccinationHistoryRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """The step shown when adding an older pet: every core vaccine is answered with the last dose
+    date, "not_vaccinated" or "unknown"."""
+    pet = _own_pet(db, pet_id, current_user)
+    try:
+        save_history(db, pet, data.answers)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    return build_overview(db, pet)
 
 
 @router.post("", response_model=VaccinationRecordResponse, status_code=status.HTTP_201_CREATED)

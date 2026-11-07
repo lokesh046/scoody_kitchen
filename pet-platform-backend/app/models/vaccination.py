@@ -59,3 +59,17 @@ class VaccinationReminder(Base):
     due_date: Mapped[date] = mapped_column(Date, nullable=False)
     kind: Mapped[str] = mapped_column(String(10), nullable=False)  # soon | overdue
     sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class PetVaccineDeclaration(Base):
+    """An owner's answer "not vaccinated" or "don't know" for a vaccine, given when adding an older pet.
+    It counts as answered (so the history step can be completed) but the vaccine still shows overdue."""
+
+    __tablename__ = "pet_vaccine_declarations"
+    __table_args__ = (UniqueConstraint("pet_id", "vaccine_code", name="uq_pet_vaccine_declaration"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pet_id: Mapped[int] = mapped_column(ForeignKey("pets.id", ondelete="CASCADE"), nullable=False, index=True)
+    vaccine_code: Mapped[str] = mapped_column(String(40), nullable=False)
+    answer: Mapped[str] = mapped_column(String(20), nullable=False)  # not_vaccinated | unknown
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

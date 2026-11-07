@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -58,9 +59,24 @@ class VaccineStatusItem(BaseModel):
     last_given_date: date | None = None
     doses_given: int
     series_doses: int
+    declared: str | None = None
+    recent: bool = False
+
+
+class HistoryAnswer(BaseModel):
+    vaccine_code: str = Field(min_length=1, max_length=40)
+    answer: Literal["given", "not_vaccinated", "unknown"]
+    date_given: date | None = None
+    clinic_name: str | None = Field(default=None, max_length=150)
+
+
+class VaccinationHistoryRequest(BaseModel):
+    answers: list[HistoryAnswer] = Field(min_length=1, max_length=20)
 
 
 class VaccinationOverviewResponse(BaseModel):
+    history_required: bool
+    history_complete: bool
     pet_id: int
     species: str
     supported: bool

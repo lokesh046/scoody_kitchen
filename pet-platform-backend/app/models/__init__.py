@@ -31,13 +31,14 @@ from app.models.product_review import ProductReview
 from app.models.coupon import Coupon, DiscountType
 from app.models.feature_flag import FeatureFlag
 from app.models.deleted_account_archive import DeletedAccountArchive
-from app.models.vaccination import VaccineSchedule, PetVaccination, VaccinationReminder
+from app.models.vaccination import VaccineSchedule, PetVaccination, VaccinationReminder, PetVaccineDeclaration
 
 
 __all__ = [
     "VaccineSchedule",
     "PetVaccination",
     "VaccinationReminder",
+    "PetVaccineDeclaration",
     "Coupon",
     "DiscountType",
     "FeatureFlag",

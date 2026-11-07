@@ -72,3 +72,23 @@ def test_dose_order_does_not_matter():
     a = compute_vaccine_status(DHPPI, date(2026, 9, 1), [date(2026, 10, 1), date(2026, 9, 12)], TODAY)
     b = compute_vaccine_status(DHPPI, date(2026, 9, 1), [date(2026, 9, 12), date(2026, 10, 1)], TODAY)
     assert a == b and a["last_given_date"] == date(2026, 10, 1)
+
+
+def test_declared_not_vaccinated_core_is_overdue_and_optional_unaffected():
+    r = compute_vaccine_status(RABIES, date(2025, 1, 1), [], TODAY, "unknown")
+    assert r["status"] == "overdue" and r["declared"] == "unknown" and r["next_due_date"] is None
+    k = compute_vaccine_status(KENNEL, date(2025, 1, 1), [], TODAY, "not_vaccinated")
+    assert k["status"] == "optional"
+
+
+def test_recent_flag_is_ninety_days():
+    assert compute_vaccine_status(RABIES, date(2020, 1, 1), [date(2026, 8, 20)], TODAY)["recent"] is True
+    assert compute_vaccine_status(RABIES, date(2020, 1, 1), [date(2026, 7, 1)], TODAY)["recent"] is False
+
+
+def test_history_required_only_for_older_pets():
+    from app.services.vaccination_service import history_required
+    pet = lambda dob: SimpleNamespace(date_of_birth=dob)
+    assert history_required(pet(date(2026, 10, 1)), TODAY) is False   # about 5 weeks old
+    assert history_required(pet(date(2025, 11, 1)), TODAY) is True    # 1 year old
+    assert history_required(pet(None), TODAY) is True                 # unknown birth date

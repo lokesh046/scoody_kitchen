@@ -70,6 +70,17 @@ def upgrade() -> None:
     )
     op.create_index('ix_vaccination_reminders_pet_id', 'vaccination_reminders', ['pet_id'])
 
+    op.create_table(
+        'pet_vaccine_declarations',
+        sa.Column('id', sa.Integer(), primary_key=True),
+        sa.Column('pet_id', sa.Integer(), sa.ForeignKey('pets.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('vaccine_code', sa.String(40), nullable=False),
+        sa.Column('answer', sa.String(20), nullable=False),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.UniqueConstraint('pet_id', 'vaccine_code', name='uq_pet_vaccine_declaration'),
+    )
+    op.create_index('ix_pet_vaccine_declarations_pet_id', 'pet_vaccine_declarations', ['pet_id'])
+
     op.bulk_insert(schedules, [
         {
             'species': sp, 'code': code, 'name': name, 'category': cat, 'description': desc,
@@ -81,6 +92,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_table('pet_vaccine_declarations')
     op.drop_table('vaccination_reminders')
     op.drop_table('pet_vaccinations')
     op.drop_table('vaccine_schedules')
