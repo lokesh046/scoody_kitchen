@@ -1,6 +1,7 @@
 import json
 from datetime import date
 
+from fastapi.responses import HTMLResponse
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
@@ -19,6 +20,7 @@ from app.schemas.vaccination import (
 )
 from app.services.pet_service import get_pet_by_id
 from app.services.storage_service import get_storage_provider, validate_image_file
+from app.services.vaccination_card import build_card_html
 from app.services.vaccination_service import (
     build_overview,
     get_rules,
@@ -50,6 +52,20 @@ def get_vaccinations(
     current_user: User = Depends(get_current_user),
 ):
     return build_overview(db, _own_pet(db, pet_id, current_user))
+
+
+@router.get("/card", response_class=HTMLResponse)
+def vaccination_card(
+    pet_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """A printable vaccination card for the pet (HTML; print or save it as a PDF)."""
+    pet = _own_pet(db, pet_id, current_user)
+    return HTMLResponse(
+        build_card_html(pet, build_overview(db, pet)),
+        headers={"Cache-Control": "no-store", "Content-Security-Policy": "default-src 'none'; img-src https: http: data:; style-src 'unsafe-inline'"},
+    )
 
 
 @router.put("/history", response_model=VaccinationOverviewResponse)

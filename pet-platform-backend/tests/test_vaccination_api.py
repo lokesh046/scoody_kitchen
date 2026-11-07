@@ -127,3 +127,68 @@ def test_history_missing_core_vaccine_uploads_nothing(client):
               files={"photo_dhppi": ("card.png", PNG, "image/png")})
     assert r.status_code == 400 and "Please answer" in r.json()["detail"]
     assert FakeStorage.uploaded == []
+
+
+def test_vaccination_card_is_owner_only_escaped_html(client):
+    c, Session = client
+    with Session() as s:
+        s.get(Pet, 1).name = "<script>x</script>"
+        s.commit()
+    c.post("/pets/1/vaccinations", data=dose_form(clinic_name="<b>Clinic</b>"), files={"image": ("c.png", PNG, "image/png")})
+    r = c.get("/pets/1/vaccinations/card")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
+    assert "<script>x</script>" not in r.text and "&lt;script&gt;x&lt;/script&gt;" in r.text
+    assert "<b>Clinic</b>" not in r.text and "&lt;b&gt;Clinic&lt;/b&gt;" in r.text
+    assert "Vaccination card" in r.text and "Rabies" in r.text
+    assert c.get("/pets/2/vaccinations/card").status_code == 404
+
+
+# ---- admin rule editor ----
+from app.dependencies.auth import require_role  # noqa: E402
+from app.models.enums import UserRole  # noqa: E402
+
+
+def as_admin():
+    # require_role(...) builds a new dependency each call; override the one the router uses.
+    from app.api.admin_vaccine_rules import router
+    for route in router.routes:
+        for dep in route.dependant.dependencies:
+            if dep.call.__name__ == "role_checker":
+                app.dependency_overrides[dep.call] = lambda: type("U", (), {"id": 9, "role": UserRole.ADMIN})()
+
+
+def test_admin_rules_crud_and_review_reset(client):
+    c, _ = client
+    as_admin()
+    rules = c.get("/admin/vaccine-rules").json()
+    assert {r["species"] for r in rules} == {"dog", "cat"}
+    new = c.post("/admin/vaccine-rules", json={
+        "species": "Goat", "code": "CD_T", "name": "CD&T", "category": "core", "first_dose_weeks": 8,
+        "series_doses": 2, "series_interval_weeks": 4, "booster_months": 12, "repeat_months": 12})
+    assert new.status_code == 201 and new.json()["species"] == "goat" and new.json()["vet_reviewed"] is False
+    dup = c.post("/admin/vaccine-rules", json={"species": "goat", "code": "cd_t", "name": "x1", "first_dose_weeks": 1})
+    assert dup.status_code == 409
+    rid = new.json()["id"]
+    ok = c.patch(f"/admin/vaccine-rules/{rid}", json={"vet_reviewed": True})
+    assert ok.json()["vet_reviewed"] is True
+    changed = c.patch(f"/admin/vaccine-rules/{rid}", json={"booster_months": 6})
+    assert changed.json()["booster_months"] == 6 and changed.json()["vet_reviewed"] is False  # edit clears the sign-off
+    both = c.patch(f"/admin/vaccine-rules/{rid}", json={"booster_months": 9, "vet_reviewed": True})
+    assert both.json()["vet_reviewed"] is True
+    assert c.patch(f"/admin/vaccine-rules/{rid}", json={"series_doses": 0}).status_code == 422
+    assert c.patch("/admin/vaccine-rules/9999", json={"name": "zz"}).status_code == 404
+
+
+def test_bad_species_or_code_rejected(client):
+    c, _ = client
+    as_admin()
+    assert c.post("/admin/vaccine-rules", json={"species": "d", "code": "ok_code", "name": "Name", "first_dose_weeks": 1}).status_code == 422
+    assert c.post("/admin/vaccine-rules", json={"species": "dog", "code": "bad code!", "name": "Name", "first_dose_weeks": 1}).status_code == 422
+
+
+def test_customer_cannot_use_admin_rule_editor(client):
+    c, _ = client
+    app.dependency_overrides[get_current_user] = lambda: type("U", (), {"id": 1, "role": UserRole.CUSTOMER, "is_active": True})()
+    assert c.get("/admin/vaccine-rules").status_code == 403
+    assert c.post("/admin/vaccine-rules", json={"species": "goat", "code": "cdt", "name": "CDT", "first_dose_weeks": 8}).status_code == 403
+    assert c.patch("/admin/vaccine-rules/1", json={"vet_reviewed": True}).status_code == 403
