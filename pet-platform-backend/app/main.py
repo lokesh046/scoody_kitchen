@@ -42,6 +42,7 @@ from app.api.reviews import router as reviews_router
 from app.api.feature_flags import router as feature_flags_router
 from app.api.coupon import router as coupons_router
 from app.api.geo import router as geo_router
+from app.api.vaccinations import router as vaccinations_router
 from app.api.support import router as support_router
 
 from contextlib import asynccontextmanager
@@ -222,6 +223,7 @@ app.include_router(reviews_router)
 app.include_router(feature_flags_router)
 app.include_router(coupons_router)
 app.include_router(geo_router)
+app.include_router(vaccinations_router)
 app.include_router(support_router)
 
 if settings.IMAGE_STORAGE_PROVIDER.lower() == "local":

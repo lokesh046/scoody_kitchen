@@ -111,6 +111,13 @@ DEFAULT_FLAGS = [
         "is_enabled": True,
     },
     {
+        "key": "pets_vaccinations",
+        "name": "Pet Vaccination Records",
+        "description": "The Vaccinations tab on Know Your Pet (website and app): the vaccine schedule for the pet's species, recorded doses, due-date status and reminders. Turn it off to hide the tab.",
+        "category": "pets",
+        "is_enabled": False,
+    },
+    {
         "key": "home_fullscreen_hero",
         "name": "Full-Screen Homepage Hero",
         "description": "Switches the homepage hero banner to a full-viewport-height layout with the navigation header overlaid on top, instead of the normal contained carousel below a solid header.",

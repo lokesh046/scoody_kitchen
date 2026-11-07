@@ -31,6 +31,10 @@ celery_app.conf.update(
             "schedule": 86400.0,
         },
         # Account deletion: purge accounts past their 15-day grace period, then trim the archive.
+        "vaccination-reminders-daily": {
+            "task": "app.tasks.notification_tasks.send_vaccination_reminders_task",
+            "schedule": 86400.0,
+        },
         "purge-deleted-accounts-daily": {
             "task": "app.tasks.notification_tasks.purge_deleted_accounts_task",
             "schedule": 86400.0,
