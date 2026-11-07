@@ -16,7 +16,7 @@ import { SiteFooter } from '../../components/SiteFooter';
 import { ToolCarousel } from '../../components/ToolCarousel';
 import { Header } from '../../components/Header';
 import { CartDrawer } from '../../components/CartDrawer';
-import { ScrollSpyTimeline } from '../../components/ScrollSpyTimeline';
+import { PetHorizontalTimeline } from './PetHorizontalTimeline';
 import { useFeatureFlag, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
@@ -88,7 +88,7 @@ function OtherToolsSection() {
   if (tools.length === 0) return null;
 
   return (
-    <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
+    <section className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-midnight text-paper">
       <div className="max-w-7xl mx-auto">
         <div className="max-w-6xl mx-auto text-center space-y-3 mb-8">
           <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
@@ -210,8 +210,8 @@ export function PetsLandingPage() {
         <HeroScrollHint />
     </section>
 
-      {/* A closer look -- scroll-spy timeline, gold marker handing off step to step */}
-      <section className="px-4 sm:px-6 md:px-8 py-10 md:py-12 bg-gradient-to-b from-midnight via-midnightCard to-midnight">
+      {/* A closer look -- horizontal cards with a connected gold step indicator */}
+      <section className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-gradient-to-b from-midnight via-midnightCard to-midnight">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-2xl mx-auto text-center space-y-3 mb-8">
             <h2 className="font-script font-normal text-[clamp(1.125rem,4.6vw,2.5rem)] whitespace-nowrap tracking-normal leading-snug text-turmeric">
@@ -231,14 +231,14 @@ export function PetsLandingPage() {
               Every pet has their own traits, background, and needs. Here's what you can discover and keep track of with Know Your Pet.
             </p>
           </div>
-          <ScrollSpyTimeline steps={CLOSER_LOOK} compact />
+          <PetHorizontalTimeline steps={CLOSER_LOOK} />
         </div>
       </section>
 
       {/* Pet profile overview: compact profile details around a future pet portrait. */}
-      <section aria-labelledby="pet-profile-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
+      <section aria-labelledby="pet-profile-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-midnight text-paper">
         <div className="max-w-7xl mx-auto">
-          <div className="max-w-2xl mx-auto text-center space-y-4 mb-10 md:mb-12">
+          <div className="max-w-2xl mx-auto text-center space-y-4 mb-8">
             <p className="font-script font-normal text-[clamp(1.125rem,4.6vw,2.5rem)] whitespace-nowrap tracking-normal leading-snug text-turmeric">Your Pet's Profile</p>
             <h2 id="pet-profile-heading" className="font-body font-normal text-lg sm:text-xl tracking-normal leading-snug">
               <span className="sr-only">A clearer picture of the companion you know by heart</span>
@@ -322,7 +322,7 @@ export function PetsLandingPage() {
       <OtherToolsSection />
 
       {/* Closing CTA */}
-      <section aria-labelledby="pet-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper text-center">
+      <section aria-labelledby="pet-cta-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper text-center">
         <div className="max-w-4xl mx-auto">
           <h2 id="pet-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug lg:whitespace-nowrap">
             Get to know them a little better
@@ -342,7 +342,7 @@ export function PetsLandingPage() {
       </section>
 
       {/* FAQ */}
-      <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
+      <section className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-midnight text-paper">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">Frequently asked questions</h2>

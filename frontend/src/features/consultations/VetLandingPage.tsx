@@ -182,7 +182,7 @@ function OtherToolsSection() {
   if (tools.length === 0) return null;
 
   return (
-    <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
+    <section className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-midnight text-paper">
       <div className="max-w-7xl mx-auto">
         <div className="max-w-6xl mx-auto text-center space-y-3 mb-8">
           <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
@@ -300,9 +300,9 @@ export function VetLandingPage() {
     </section>
 
       {/* A connected journey from location search to contacting a clinic. */}
-      <section aria-labelledby="vet-how-it-works" className="px-4 sm:px-6 md:px-8 py-16 md:py-24 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
+      <section aria-labelledby="vet-how-it-works" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center space-y-3 mb-12 md:mb-20">
+          <div className="text-center space-y-3 mb-8">
             <h2 id="vet-how-it-works" className="font-script font-normal text-4xl sm:text-5xl lg:text-6xl tracking-normal text-turmeric leading-snug">How it works</h2>
             <p className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
               Three steps to a clinic near you.
@@ -318,7 +318,7 @@ export function VetLandingPage() {
       <OtherToolsSection />
 
       {/* Closing CTA */}
-      <section aria-labelledby="vet-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper text-center">
+      <section aria-labelledby="vet-cta-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper text-center">
         <div className="max-w-7xl mx-auto">
           <h2 id="vet-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
             The right care starts closer than you think
@@ -338,7 +338,7 @@ export function VetLandingPage() {
       </section>
 
       {/* FAQ */}
-      <section aria-labelledby="vet-faq-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
+      <section aria-labelledby="vet-faq-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-midnight text-paper">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10">
             <h2 id="vet-faq-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">

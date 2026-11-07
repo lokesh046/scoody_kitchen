@@ -72,9 +72,9 @@ export function PetGettingStarted() {
 
 
   return (
-    <section aria-labelledby="pet-getting-started-heading" className="bg-midnight text-paper px-4 py-16 sm:px-6 md:px-8 md:py-20">
+    <section aria-labelledby="pet-getting-started-heading" className="bg-midnight text-paper px-4 py-8 sm:px-6 md:px-8 md:py-10">
       <div className="mx-auto max-w-7xl">
-        <div className="mx-auto mb-12 max-w-2xl text-center md:mb-16">
+        <div className="mx-auto mb-8 max-w-2xl text-center">
           <h2 id="pet-getting-started-heading" className="font-script text-3xl font-normal tracking-normal leading-snug sm:text-4xl lg:text-5xl">Getting started is simple</h2>
           <p className="mx-auto mt-4 max-w-lg font-body text-sm leading-relaxed text-paper/90">Start with the basics and build a more complete picture of your companion over time.</p>
         </div>
