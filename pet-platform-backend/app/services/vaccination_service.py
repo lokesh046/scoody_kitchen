@@ -132,7 +132,8 @@ def build_overview(db: Session, pet: Pet, today: date | None = None) -> dict:
     }
 
 
-def save_history(db: Session, pet: Pet, answers: list, today: date | None = None) -> None:
+def save_history(db: Session, pet: Pet, answers: list, today: date | None = None,
+                 photos: dict[str, str] | None = None, dry_run: bool = False) -> None:
     """Saves the older-pet history step in one go. Every core vaccine for the species must be answered.
     answers: objects with vaccine_code, answer (given | not_vaccinated | unknown), date_given, clinic_name.
     Raises ValueError with a message for the API to return as a 400."""
@@ -156,6 +157,9 @@ def save_history(db: Session, pet: Pet, answers: list, today: date | None = None
             problem = validate_dose_date(pet, a.date_given, today)
             if problem:
                 raise ValueError(problem)
+    if dry_run:
+        return
+    photos = photos or {}
     for code, a in seen.items():
         existing_decl = db.scalar(select(PetVaccineDeclaration).where(
             PetVaccineDeclaration.pet_id == pet.id, PetVaccineDeclaration.vaccine_code == code))
@@ -167,7 +171,7 @@ def save_history(db: Session, pet: Pet, answers: list, today: date | None = None
                 PetVaccination.date_given == a.date_given))
             if dup is None:
                 db.add(PetVaccination(pet_id=pet.id, vaccine_code=code, date_given=a.date_given,
-                                      clinic_name=getattr(a, "clinic_name", None)))
+                                      clinic_name=getattr(a, "clinic_name", None), image_url=photos.get(code)))
         else:
             if existing_decl:
                 existing_decl.answer = a.answer

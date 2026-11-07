@@ -1,4 +1,8 @@
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+import json
+from datetime import date
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -8,7 +12,6 @@ from app.models.pet import Pet
 from app.models.user import User
 from app.models.vaccination import PetVaccination
 from app.schemas.vaccination import (
-    VaccinationCreate,
     VaccinationHistoryRequest,
     VaccinationOverviewResponse,
     VaccinationRecordResponse,
@@ -50,44 +53,121 @@ def get_vaccinations(
 
 
 @router.put("/history", response_model=VaccinationOverviewResponse)
-@limiter.limit("30/minute")
-def save_vaccination_history(
+@limiter.limit("20/minute")
+async def save_vaccination_history(
     request: Request,
     pet_id: int,
-    data: VaccinationHistoryRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """The step shown when adding an older pet: every core vaccine is answered with the last dose
-    date, "not_vaccinated" or "unknown"."""
+    """The step shown when adding an older pet. Multipart form: an `answers` field (JSON list of
+    {vaccine_code, answer: given|not_vaccinated|unknown, date_given, clinic_name}) and, for every
+    "given" answer, a vaccine card photo in the file field `photo_<vaccine_code>` (mandatory)."""
     pet = _own_pet(db, pet_id, current_user)
+    form = await request.form()
     try:
-        save_history(db, pet, data.answers)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+        parsed = VaccinationHistoryRequest(answers=json.loads(str(form.get("answers") or "[]")))
+    except (ValueError, ValidationError):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid vaccination history")
+
+    rules = {r.code: r for r in get_rules(db, pet.species)}
+    uploaded: list[str] = []
+    photos: dict[str, str] = {}
+    try:
+        for a in parsed.answers:
+            if a.answer != "given":
+                continue
+            rule = rules.get(a.vaccine_code)
+            if rule is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown vaccine for this pet's species")
+            file = form.get(f"photo_{a.vaccine_code}")
+            data, upload = await _read_photo(file if hasattr(file, "read") else None, rule.name)
+            # Validate everything cheap first; upload only once the rest of the request is sound.
+            photos[a.vaccine_code] = (data, upload)
+        try:
+            save_history(db, pet, parsed.answers, photos=None, dry_run=True)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+        urls: dict[str, str] = {}
+        for code, (data, upload) in photos.items():
+            url = _store_photo(data, upload)
+            uploaded.append(url)
+            urls[code] = url
+        save_history(db, pet, parsed.answers, photos=urls)
+    except Exception:
+        db.rollback()
+        _discard_photos(uploaded)
+        raise
     return build_overview(db, pet)
 
 
+async def _read_photo(upload: UploadFile | None, label: str) -> tuple[bytes, UploadFile]:
+    """A vaccine card photo is mandatory for every recorded dose."""
+    if upload is None or not getattr(upload, "filename", None):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Add a photo of the vaccine card for {label}")
+    data = await upload.read()
+    validate_image_file(upload, data)
+    return data, upload
+
+
+def _store_photo(data: bytes, upload: UploadFile) -> str:
+    return get_storage_provider().upload_image(
+        file_bytes=data,
+        original_filename=upload.filename or "vaccine-card.jpg",
+        content_type=upload.content_type or "image/jpeg",
+    )
+
+
+def _discard_photos(urls: list[str]) -> None:
+    storage = get_storage_provider()
+    for url in urls:
+        try:
+            storage.delete_image(url)
+        except Exception:
+            pass
+
+
 @router.post("", response_model=VaccinationRecordResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit("60/minute")
-def add_vaccination(
+@limiter.limit("30/minute")
+async def add_vaccination(
     request: Request,
     pet_id: int,
-    data: VaccinationCreate,
+    vaccine_code: str = Form(..., min_length=1, max_length=40),
+    date_given: date = Form(...),
+    clinic_name: str | None = Form(default=None, max_length=150),
+    batch_number: str | None = Form(default=None, max_length=60),
+    notes: str | None = Form(default=None, max_length=1000),
+    image: UploadFile | None = File(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    """Records one dose. The vaccine card photo is required and is uploaded in the same request."""
     pet = _own_pet(db, pet_id, current_user)
-    codes = {r.code for r in get_rules(db, pet.species)}
-    if data.vaccine_code not in codes:
+    rules = {r.code: r for r in get_rules(db, pet.species)}
+    if vaccine_code not in rules:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown vaccine for this pet's species")
-    problem = validate_dose_date(pet, data.date_given)
+    problem = validate_dose_date(pet, date_given)
     if problem:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=problem)
-    record = PetVaccination(pet_id=pet.id, **data.model_dump())
-    db.add(record)
-    db.commit()
-    db.refresh(record)
+    data, upload = await _read_photo(image, rules[vaccine_code].name)
+
+    def clean(v: str | None) -> str | None:
+        v = (v or "").strip()
+        return v or None
+
+    url = _store_photo(data, upload)
+    try:
+        record = PetVaccination(
+            pet_id=pet.id, vaccine_code=vaccine_code, date_given=date_given,
+            clinic_name=clean(clinic_name), batch_number=clean(batch_number), notes=clean(notes), image_url=url,
+        )
+        db.add(record)
+        db.commit()
+        db.refresh(record)
+    except Exception:
+        db.rollback()
+        _discard_photos([url])
+        raise
     return record
 
 
