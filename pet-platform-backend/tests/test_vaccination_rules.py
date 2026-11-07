@@ -75,7 +75,7 @@ def test_dose_order_does_not_matter():
 
 
 def test_declared_not_vaccinated_core_is_overdue_and_optional_unaffected():
-    r = compute_vaccine_status(RABIES, date(2025, 1, 1), [], TODAY, "unknown")
+    r = compute_vaccine_status(RABIES, None, [], TODAY, "unknown")
     assert r["status"] == "overdue" and r["declared"] == "unknown" and r["next_due_date"] is None
     k = compute_vaccine_status(KENNEL, date(2025, 1, 1), [], TODAY, "not_vaccinated")
     assert k["status"] == "optional"
