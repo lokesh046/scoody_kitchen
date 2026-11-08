@@ -209,6 +209,8 @@ const BREEDS: [string, PetCategory][] = [
   ["Yorkshire Terrier", "Companion"],
 ];
 
+export const BREED_NAMES: string[] = BREEDS.map(([name]) => name);
+
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const ENTRIES = BREEDS.map(([name, category]) => ({ key: norm(name), category }));
 

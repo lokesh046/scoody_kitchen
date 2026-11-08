@@ -22,7 +22,7 @@ import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFl
 import { PetHeritagePassport } from '../../components/PetHeritagePassport';
 import { PetBreedScanUpload } from './PetBreedScanUpload';
 import { VaccinationsPanel } from './VaccinationsPanel';
-import { DogCategoryField, SpeciesDropdown } from './PetFormFields';
+import { BreedInput, DogCategoryField, SpeciesButtons, SpeciesDropdown } from './PetFormFields';
 import { canonSpecies, resolveCategory } from './petFormHelpers';
 import { categoryForBreed, type PetCategory } from '../../constants/breedCategory';
 import { VaccinationHistoryModal } from './VaccinationHistoryModal';
@@ -1068,7 +1068,7 @@ export const PetsPage: React.FC = () => {
                               <label className="font-mono text-xs uppercase font-bold text-ink/70 block">
                                 Species:
                               </label>
-                              <SpeciesDropdown value={species} onChange={(v) => { setSpecies(v); setCategory(null); }} className="!h-10" />
+                              <SpeciesButtons compact value={species} onChange={(v) => { setSpecies(v); setCategory(null); }} />
                             </div>
 
                             {/* Breed Input Field (editable with accuracy display) */}
@@ -1083,10 +1083,10 @@ export const PetsPage: React.FC = () => {
                                   </span>
                                 )}
                               </div>
-                              <input
-                                type="text"
+                              <BreedInput
                                 value={breed}
-                                onChange={(e) => setBreed(e.target.value)}
+                                onChange={setBreed}
+                                species={species}
                                 placeholder="e.g. Boston Terrier, Golden Retriever"
                                 className="w-full h-10 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
                               />
@@ -1099,6 +1099,21 @@ export const PetsPage: React.FC = () => {
                               onChange={setCategory}
                               labelClass="font-mono text-xs uppercase font-bold text-ink/70 block"
                             />
+
+                            <div className="space-y-1">
+                              <label className="font-mono text-[11px] uppercase font-bold text-ink/70 block">
+                                Microchip number (optional):
+                              </label>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={19}
+                                value={microchip}
+                                onChange={(e) => setMicrochip(e.target.value)}
+                                placeholder="e.g. 985112345678901"
+                                className="w-full h-10 px-3 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                              />
+                            </div>
 
                             <div className="space-y-1">
                               <label className="font-mono text-[11px] uppercase font-bold text-ink/70 block">
@@ -1145,21 +1160,6 @@ export const PetsPage: React.FC = () => {
                                 value={weight}
                                 onChange={(e) => setWeight(e.target.value)}
                                 placeholder="e.g. 24.5"
-                                className="w-full h-10 px-3 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
-                              />
-                            </div>
-
-                            <div className="space-y-1">
-                              <label className="font-mono text-[11px] uppercase font-bold text-ink/70 block">
-                                Microchip number (optional):
-                              </label>
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                maxLength={19}
-                                value={microchip}
-                                onChange={(e) => setMicrochip(e.target.value)}
-                                placeholder="e.g. 985112345678901"
                                 className="w-full h-10 px-3 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
                               />
                             </div>
@@ -1305,10 +1305,10 @@ export const PetsPage: React.FC = () => {
                       </div>
 
                       <div className="space-y-1.5 text-left">
-                        <label htmlFor="species" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider">
+                        <span className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider">
                           Species:
-                        </label>
-                        <SpeciesDropdown id="species" value={species} onChange={(v) => { setSpecies(v); setCategory(null); }} />
+                        </span>
+                        <SpeciesButtons value={species} onChange={(v) => { setSpecies(v); setCategory(null); }} />
                       </div>
                     </div>
                   )}
@@ -1320,11 +1320,11 @@ export const PetsPage: React.FC = () => {
                         <label htmlFor="breed" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider">
                           Breed / Genetic Lineage (optional):
                         </label>
-                        <input
-                          type="text"
+                        <BreedInput
                           id="breed"
                           value={breed}
-                          onChange={(e) => setBreed(e.target.value)}
+                          onChange={setBreed}
+                          species={species}
                           placeholder="e.g. Golden Retriever, Indian Pariah / Indie"
                           className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
                         />
@@ -1337,6 +1337,23 @@ export const PetsPage: React.FC = () => {
                         onChange={setCategory}
                         labelClass="font-mono text-xs uppercase font-bold text-paprika block tracking-wider"
                       />
+
+                      <div className="space-y-1 text-left">
+                        <label htmlFor="microchip" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider flex items-center space-x-1">
+                          <Cpu className="w-3.5 h-3.5" />
+                          <span>Microchip number (optional):</span>
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={19}
+                          id="microchip"
+                          value={microchip}
+                          onChange={(e) => setMicrochip(e.target.value)}
+                          placeholder="e.g. 985112345678901"
+                          className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
+                        />
+                      </div>
 
                       <div className="text-left">
                       <div className="space-y-1">
@@ -1393,23 +1410,6 @@ export const PetsPage: React.FC = () => {
                           min="0.1"
                         />
                       </div>
-                      </div>
-
-                      <div className="space-y-1 text-left">
-                        <label htmlFor="microchip" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider flex items-center space-x-1">
-                          <Cpu className="w-3.5 h-3.5" />
-                          <span>Microchip number (optional):</span>
-                        </label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          maxLength={19}
-                          id="microchip"
-                          value={microchip}
-                          onChange={(e) => setMicrochip(e.target.value)}
-                          placeholder="e.g. 985112345678901"
-                          className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
-                        />
                       </div>
                     </div>
                   )}
@@ -1789,10 +1789,10 @@ export const PetsPage: React.FC = () => {
 
                     <div className="space-y-1">
                       <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Breed</label>
-                      <input
-                        type="text"
+                      <BreedInput
                         value={editBreed}
-                        onChange={(e) => setEditBreed(e.target.value)}
+                        onChange={setEditBreed}
+                        species={editSpecies}
                         className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
                       />
                     </div>
@@ -1804,6 +1804,19 @@ export const PetsPage: React.FC = () => {
                       onChange={setEditCategory}
                       labelClass="font-mono text-[9px] uppercase font-bold text-paprika block"
                     />
+
+                    <div className="space-y-1">
+                      <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Microchip number (optional)</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={19}
+                        value={editMicrochip}
+                        onChange={(e) => setEditMicrochip(e.target.value)}
+                        placeholder="e.g. 985112345678901"
+                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                      />
+                    </div>
 
                     <div className="space-y-1">
                       <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Birthday</label>
@@ -1838,19 +1851,6 @@ export const PetsPage: React.FC = () => {
                           className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
                         />
                       </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Microchip number (optional)</label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={19}
-                        value={editMicrochip}
-                        onChange={(e) => setEditMicrochip(e.target.value)}
-                        placeholder="e.g. 985112345678901"
-                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
-                      />
                     </div>
 
                     {updateError && (
