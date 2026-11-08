@@ -1093,11 +1093,11 @@ export const ConsultationsPage: React.FC = () => {
         {/* Back Link */}
         <div className="mb-6 text-left">
           <button
-            onClick={() => navigate('/shop/app')}
+            onClick={() => navigate('/')}
             className="font-mono text-[10px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1.5 transition-opacity"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Return to Fresh Meal Store</span>
+            <span>Return to Home</span>
           </button>
         </div>
 
