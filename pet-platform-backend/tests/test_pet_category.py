@@ -88,7 +88,7 @@ def test_microchip_rejects_letters_too_short_or_too_long(value):
         PetCreate(name="Rex", species="Dog", microchip_number=value)
 
 
-def test_my_pets_keep_creation_order_after_edits(db):
+def test_my_pets_list_newest_first_and_edits_do_not_reorder(db):
     from app.services.pet_service import get_pet_by_user_id
     a = create_pet(db, PetCreate(name="first", species="Dog", breed="Beagle"), 1)
     b = create_pet(db, PetCreate(name="second", species="Dog", breed="Pug"), 1)
@@ -96,4 +96,4 @@ def test_my_pets_keep_creation_order_after_edits(db):
     create_pet(db, PetCreate(name="other owner", species="Dog", breed="Pug"), 2)
     update_pet(db, a, PetUpdate(breed="Labrador Retriever", weight=20))   # editing the first pet must not move it
     update_pet(db, b, PetUpdate(name="second renamed"))
-    assert [p.name for p in get_pet_by_user_id(db, 1)] == ["first", "second renamed", "third"]
+    assert [p.name for p in get_pet_by_user_id(db, 1)] == ["third", "second renamed", "first"]

@@ -41,9 +41,9 @@ def get_pet_by_user_id(
 )-> list[Pet]:
 
 
-    # Always in the order the pets were added. Without this the database returns rows in no fixed order,
-    # and an edited pet jumped to the end of the list.
-    statement = select(Pet).where(Pet.user_id == user_id).order_by(Pet.created_at, Pet.id)
+    # Newest pet first, and a fixed order: without an ORDER BY the database returns rows in no set order,
+    # and an edited pet jumped to the end of the list. Editing never changes created_at, so edits don't reorder.
+    statement = select(Pet).where(Pet.user_id == user_id).order_by(Pet.created_at.desc(), Pet.id.desc())
 
 
     return list(db.scalars(statement).all())
