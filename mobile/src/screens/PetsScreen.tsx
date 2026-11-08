@@ -615,10 +615,20 @@ export default function PetsScreen({ navigation }: any) {
                     accessibilityRole="button"
                     accessibilityLabel={`Vaccinations for ${currentPet.name}`}
                   >
-                    <Text style={styles.aiConsultTitle}>Vaccinations</Text>
-                    <Text style={styles.aiConsultSubtitle}>
-                      Vaccine schedule, recorded doses with card photos, and a shareable vaccine card.
-                    </Text>
+                    <View style={styles.aiConsultInner}>
+                      <RNImage
+                        source={require('../../assets/pet/vaccination.webp')}
+                        style={styles.vaccinationIcon}
+                        resizeMode="contain"
+                        accessibilityIgnoresInvertColors
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.aiConsultTitle}>Vaccinations</Text>
+                        <Text style={styles.aiConsultSubtitle}>
+                          Vaccine schedule, recorded doses with card photos, and a shareable vaccine card.
+                        </Text>
+                      </View>
+                    </View>
                   </TouchableOpacity>
                 )}
 
@@ -886,6 +896,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
+  vaccinationIcon: { width: 46, height: 46 },
   aiConsultInner: {
     flexDirection: 'row',
     alignItems: 'center',

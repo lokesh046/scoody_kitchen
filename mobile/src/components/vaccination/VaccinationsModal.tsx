@@ -57,6 +57,7 @@ export default function VaccinationsModal({ visible, petId, petName, dob, onClos
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.screen}>
         <View style={styles.header}>
+          <Image source={require('../../../assets/pet/vaccination.webp')} style={styles.headIcon} resizeMode="contain" accessibilityIgnoresInvertColors />
           <Text style={styles.title}>{petName}: Vaccinations</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Close vaccinations"><Text style={styles.closeText}>Close</Text></TouchableOpacity>
         </View>
@@ -212,6 +213,7 @@ function VaccineCard({ item, open, onToggle, petId, dob, onSaved }: {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.canvas },
   header: { paddingTop: 52, paddingHorizontal: 16, paddingBottom: 12, backgroundColor: COLORS.forestDark, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headIcon: { width: 34, height: 34, marginRight: 10 },
   title: { color: COLORS.textWhite, fontSize: 18, fontWeight: '800', flex: 1 },
   closeBtn: { minHeight: 44, justifyContent: 'center', paddingLeft: 12 }, closeText: { color: COLORS.textWhite, fontWeight: '700' },
   body: { padding: 16, gap: 12, paddingBottom: 40 },
