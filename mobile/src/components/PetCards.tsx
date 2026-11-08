@@ -33,6 +33,7 @@ import {
   Award,
   Cake,
   Cpu,
+  ChevronDown,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -448,6 +449,14 @@ interface PetDossierModalProps {
   onOpenVision: () => void;
 }
 
+// Species the add/edit form offers. A pet already saved with another species keeps it (shown as an extra option).
+const SPECIES_OPTIONS = ['Dog', 'Cat', 'Bird', 'Reptile'];
+const canonSpecies = (value?: string | null): string => {
+  const v = (value || '').trim();
+  if (!v) return 'Dog';
+  return SPECIES_OPTIONS.find((o) => o.toLowerCase() === v.toLowerCase()) ?? v;
+};
+
 export const PetDossierModal = memo(function PetDossierModal({
   visible,
   mode,
@@ -482,6 +491,7 @@ export const PetDossierModal = memo(function PetDossierModal({
   const isPhotoUploadEnabled = useFeatureFlag('pets_photo_upload', true);
   const [name, setName] = useState('');
   const [species, setSpecies] = useState('Dog');
+  const [speciesOpen, setSpeciesOpen] = useState(false);
   const [breed, setBreed] = useState('');
   const [microchip, setMicrochip] = useState('');
   const [showIosDatePicker, setShowIosDatePicker] = useState(false);
@@ -509,7 +519,7 @@ export const PetDossierModal = memo(function PetDossierModal({
     setError(null);
     if (mode === 'edit' && initialPet) {
       setName(initialPet.name || '');
-      setSpecies(initialPet.species || 'Dog');
+      setSpecies(canonSpecies(initialPet.species));
       setBreed(initialPet.breed || '');
       setWeight(
         initialPet.weight
@@ -526,7 +536,7 @@ export const PetDossierModal = memo(function PetDossierModal({
     } else {
       // Add mode
       setName('');
-      setSpecies(initialVisionDetails?.species || 'Dog');
+      setSpecies(canonSpecies(initialVisionDetails?.species));
       setBreed(initialVisionDetails?.breed || '');
       setWeight(initialVisionDetails?.weight ? String(initialVisionDetails.weight) : '15');
       setWeightIsEstimate(!!initialVisionDetails?.weight);
@@ -549,7 +559,7 @@ export const PetDossierModal = memo(function PetDossierModal({
     if (!visible || !initialVisionDetails) return;
     if (initialVisionDetails === lastAppliedVisionRef.current) return;
     lastAppliedVisionRef.current = initialVisionDetails;
-    setSpecies(initialVisionDetails.species || 'Dog');
+    setSpecies(canonSpecies(initialVisionDetails.species));
     setBreed(initialVisionDetails.breed || '');
     if (initialVisionDetails.imageUrl) setImageUri(initialVisionDetails.imageUrl);
     // Only replace the weight while it is still the untouched default, never one the person typed.
@@ -668,7 +678,7 @@ export const PetDossierModal = memo(function PetDossierModal({
       }
       await onSave({
         name: name.trim(),
-        species: species.trim() || 'Dog',
+        species: canonSpecies(species),
         breed: breed.trim() || undefined,
         gender,
         weight: parsedWeight,
@@ -859,16 +869,35 @@ export const PetDossierModal = memo(function PetDossierModal({
 
             <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.species = e.nativeEvent.layout.y; }}>
               <Text style={petCardStyles.fieldLabel}>SPECIES</Text>
-              <View style={petCardStyles.inputContainer}>
-                <TextInput
-                  onFocus={() => onFieldFocus('species')}
-                  style={petCardStyles.textInput}
-                  placeholder="Dog"
-                  placeholderTextColor={COLORS.textLight}
-                  value={species}
-                  onChangeText={setSpecies}
-                />
-              </View>
+              <TouchableOpacity
+                style={petCardStyles.inputContainer}
+                onPress={() => setSpeciesOpen((o) => !o)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Species ${species}. Tap to change`}
+                accessibilityState={{ expanded: speciesOpen }}
+              >
+                <PawPrint size={15} color={COLORS.textLight} />
+                <Text style={petCardStyles.dobValueText}>{species}</Text>
+                <ChevronDown size={16} color={COLORS.forestGreen} style={speciesOpen ? { transform: [{ rotate: '180deg' }] } : undefined} />
+              </TouchableOpacity>
+              {speciesOpen && (
+                <View style={petCardStyles.speciesList} accessibilityRole="menu">
+                  {(SPECIES_OPTIONS.includes(species) ? SPECIES_OPTIONS : [...SPECIES_OPTIONS, species]).map((opt) => (
+                    <TouchableOpacity
+                      key={opt}
+                      style={[petCardStyles.speciesOption, opt === species && petCardStyles.speciesOptionActive]}
+                      onPress={() => { setSpecies(opt); setSpeciesOpen(false); }}
+                      accessibilityRole="menuitem"
+                      accessibilityState={{ selected: opt === species }}
+                      accessibilityLabel={opt}
+                    >
+                      <Text style={[petCardStyles.speciesOptionText, opt === species && petCardStyles.speciesOptionTextActive]}>{opt}</Text>
+                      {opt === species && <Check size={15} color={COLORS.forestGreen} />}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
 
             <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.breed = e.nativeEvent.layout.y; }}>
@@ -897,6 +926,33 @@ export const PetDossierModal = memo(function PetDossierModal({
               <Text style={petCardStyles.fieldHelper}>
                 Not sure of the breed? Tap Scan and take a photo of your pet.
               </Text>
+            </View>
+
+            <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.dob = e.nativeEvent.layout.y; }}>
+              <Text style={petCardStyles.fieldLabel}>DATE OF BIRTH</Text>
+              <TouchableOpacity
+                style={petCardStyles.inputContainer}
+                onPress={openDobPicker}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={dob ? `Date of birth ${formatBirthday(dob)}. Tap to change` : 'Choose date of birth'}
+              >
+                <Cake size={15} color={COLORS.textLight} />
+                <Text style={[petCardStyles.dobValueText, !dob && petCardStyles.dobPlaceholderText]}>
+                  {dob ? formatBirthday(dob) : 'Select date of birth'}
+                </Text>
+                {!!dob && (
+                  <TouchableOpacity
+                    onPress={() => setDob('')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear date of birth"
+                  >
+                    <X size={15} color={COLORS.textLight} />
+                  </TouchableOpacity>
+                )}
+                <CalendarIcon size={16} color={COLORS.forestGreen} />
+              </TouchableOpacity>
             </View>
 
             {/* Gender Selector Chips */}
@@ -952,33 +1008,6 @@ export const PetDossierModal = memo(function PetDossierModal({
                   ? "Estimated from the breed's typical adult size. Please enter your pet's actual weight."
                   : 'Used directly to calculate daily kCal & protein quotas'}
               </Text>
-            </View>
-
-            <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.dob = e.nativeEvent.layout.y; }}>
-              <Text style={petCardStyles.fieldLabel}>DATE OF BIRTH</Text>
-              <TouchableOpacity
-                style={petCardStyles.inputContainer}
-                onPress={openDobPicker}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={dob ? `Date of birth ${formatBirthday(dob)}. Tap to change` : 'Choose date of birth'}
-              >
-                <Cake size={15} color={COLORS.textLight} />
-                <Text style={[petCardStyles.dobValueText, !dob && petCardStyles.dobPlaceholderText]}>
-                  {dob ? formatBirthday(dob) : 'Select date of birth'}
-                </Text>
-                {!!dob && (
-                  <TouchableOpacity
-                    onPress={() => setDob('')}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    accessibilityRole="button"
-                    accessibilityLabel="Clear date of birth"
-                  >
-                    <X size={15} color={COLORS.textLight} />
-                  </TouchableOpacity>
-                )}
-                <CalendarIcon size={16} color={COLORS.forestGreen} />
-              </TouchableOpacity>
             </View>
 
             <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.microchip = e.nativeEvent.layout.y; }}>
@@ -1619,6 +1648,11 @@ export const petCardStyles = StyleSheet.create({
     paddingVertical: 6,
   },
   breedScanText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF', fontFamily: FONT_BODY_BOLD },
+  speciesList: { borderWidth: 1, borderColor: COLORS.kraftBorder, borderRadius: 8, backgroundColor: '#FFFFFF', overflow: 'hidden', marginTop: 4 },
+  speciesOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.kraftBorder },
+  speciesOptionActive: { backgroundColor: COLORS.cardAlt },
+  speciesOptionText: { fontSize: 13, color: COLORS.textCoffee, fontFamily: FONT_BODY },
+  speciesOptionTextActive: { fontWeight: '800', fontFamily: FONT_BODY_BOLD },
   dobValueText: { flex: 1, fontSize: 13, color: COLORS.textCoffee, fontWeight: '600', fontFamily: FONT_BODY_BOLD },
   dobPlaceholderText: { color: COLORS.textLight, fontWeight: '400', fontFamily: FONT_BODY },
   datePickerBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
