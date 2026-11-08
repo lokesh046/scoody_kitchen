@@ -21,8 +21,9 @@ class VaccineSchedule(Base):
     first_dose_weeks: Mapped[int] = mapped_column(Integer, nullable=False)  # age at the first dose
     series_doses: Mapped[int] = mapped_column(Integer, nullable=False, default=1)  # doses in the starter series
     series_interval_weeks: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
-    booster_months: Mapped[int] = mapped_column(Integer, nullable=False, default=12)  # after the starter series
-    repeat_months: Mapped[int] = mapped_column(Integer, nullable=False, default=12)  # every booster after that
+    booster_months: Mapped[int] = mapped_column(Integer, nullable=False, default=12)  # after the starter series; 0 = no booster
+    repeat_months: Mapped[int] = mapped_column(Integer, nullable=False, default=12)  # every booster after that; 0 = no repeat
+    booster_weeks: Mapped[int | None] = mapped_column(Integer, nullable=True)  # when set, the booster is this many weeks after the last series dose
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # False until one of the platform's vets has signed the rule off; the app shows a "draft" note.

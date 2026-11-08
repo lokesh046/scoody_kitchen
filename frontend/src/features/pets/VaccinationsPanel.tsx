@@ -9,6 +9,7 @@ import {
 } from '../../api/vaccinations';
 import { VaccinationHistoryModal } from './VaccinationHistoryModal';
 import { VaccineCardPhotoPicker } from './VaccineCardPhotoPicker';
+import { VaccineGuide } from './VaccineGuide';
 
 const STATUS_LABEL: Record<VaccineStatus, string> = {
   overdue: 'Overdue',
@@ -16,6 +17,7 @@ const STATUS_LABEL: Record<VaccineStatus, string> = {
   upcoming: 'On track',
   optional: 'Optional',
   not_started: 'Add birth date',
+  complete: 'Complete',
 };
 const STATUS_CLASS: Record<VaccineStatus, string> = {
   overdue: 'bg-red-100 text-red-800 border-red-300',
@@ -23,6 +25,7 @@ const STATUS_CLASS: Record<VaccineStatus, string> = {
   upcoming: 'bg-emerald-100 text-emerald-800 border-emerald-300',
   optional: 'bg-paperLight text-ink border-cardboard',
   not_started: 'bg-paperLight text-ink border-cardboard',
+  complete: 'bg-emerald-100 text-emerald-800 border-emerald-300',
 };
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -56,7 +59,7 @@ export function VaccinationsPanel({ petId, petName, dob }: { petId: number; petN
       setCardBusy(false);
     }
   };
-  const refresh = () => qc.invalidateQueries({ queryKey: ['vaccinations', petId] });
+  const refresh = () => { qc.invalidateQueries({ queryKey: ['vaccinations', petId] }); qc.invalidateQueries({ queryKey: ['vaccine-guide', petId] }); };
 
   if (isLoading) return <div className="py-10 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-herb" /></div>;
   if (isError || !data) return <div className="py-6 text-sm text-paprika">Couldn't load vaccination records. Please try again.</div>;
@@ -140,6 +143,8 @@ export function VaccinationsPanel({ petId, petName, dob }: { petId: number; petN
           </ul>
         )}
       </div>
+
+      <VaccineGuide petId={petId} petName={petName} />
 
       {anyDraft && (
         <p className="font-body text-[11px] text-ink opacity-60 leading-relaxed">

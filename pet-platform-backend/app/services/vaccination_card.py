@@ -9,6 +9,7 @@ STATUS_TEXT = {
     "upcoming": "On track",
     "optional": "Optional",
     "not_started": "No record",
+    "complete": "Complete",
 }
 
 

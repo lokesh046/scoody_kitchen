@@ -15,7 +15,7 @@ router = APIRouter(prefix="/admin/vaccine-rules", tags=["Admin: Vaccine rules"])
 # unless the same request sets it again.
 _REVIEWED_FIELDS = {
     "name", "category", "description", "first_dose_weeks", "series_doses",
-    "series_interval_weeks", "booster_months", "repeat_months",
+    "series_interval_weeks", "booster_months", "repeat_months", "booster_weeks",
 }
 
 

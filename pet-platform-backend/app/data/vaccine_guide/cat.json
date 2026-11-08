@@ -1,0 +1,590 @@
+{
+ "species": "cat",
+ "title": "Cat vaccine schedule: kitten to senior (India)",
+ "subtitle": "Based on WSAVA 2024 guidelines and common Indian veterinary practice. Your vet decides the final schedule.",
+ "schedule": [
+  {
+   "age": "Birth to 48 hours",
+   "vaccine": "No vaccine",
+   "protects": "Antibodies from the mother",
+   "notes": "Make sure every kitten suckles colostrum. These antibodies also block early vaccines, which is why several doses are needed.",
+   "planner_refs": []
+  },
+  {
+   "age": "8-9 weeks (some vets start at 6-8)",
+   "vaccine": "FVRCP, 1st dose",
+   "protects": "Panleukopenia (feline parvovirus), herpesvirus (rhinotracheitis), calicivirus",
+   "notes": "Deworm about a week before. Keep indoors and away from unknown cats until the course is complete.",
+   "planner_refs": [
+    0
+   ]
+  },
+  {
+   "age": "8 weeks (optional)",
+   "vaccine": "FeLV, 1st dose",
+   "protects": "Feline leukaemia virus",
+   "notes": "Non-core. For kittens that will go outdoors or live with other cats. Second dose 3-4 weeks later. Ask your vet; availability in India varies.",
+   "planner_refs": []
+  },
+  {
+   "age": "11-13 weeks",
+   "vaccine": "FVRCP, 2nd dose",
+   "protects": "Same as above",
+   "notes": "Given 3-4 weeks after the first dose.",
+   "planner_refs": [
+    1
+   ]
+  },
+  {
+   "age": "12 weeks",
+   "vaccine": "Rabies, 1st dose",
+   "protects": "Rabies",
+   "notes": "Core in India because rabies is endemic.",
+   "planner_refs": [
+    2
+   ]
+  },
+  {
+   "age": "16 weeks or later",
+   "vaccine": "FVRCP, final kitten dose (+ 2nd rabies dose where risk is high)",
+   "protects": "Core diseases",
+   "notes": "Critical: the last kitten dose must be at 16 weeks or older, or it may not work.",
+   "planner_refs": [
+    3,
+    4
+   ]
+  },
+  {
+   "age": "26 weeks (6 months)",
+   "vaccine": "FVRCP booster",
+   "protects": "Core diseases",
+   "notes": "WSAVA advice, to cover any kitten whose early doses did not take. Many Indian vets give it at 12 months instead.",
+   "planner_refs": [
+    5
+   ]
+  },
+  {
+   "age": "12 months",
+   "vaccine": "Rabies booster (+ FeLV booster if started)",
+   "protects": "Rabies, feline leukaemia",
+   "notes": "Start of the adult schedule.",
+   "planner_refs": [
+    6
+   ]
+  },
+  {
+   "age": "Every year (adult)",
+   "vaccine": "Rabies",
+   "protects": "Rabies",
+   "notes": "Yearly in India, as most labels state. WSAVA allows every 3 years only with a 3-year licensed product.",
+   "planner_refs": [
+    6,
+    7,
+    8,
+    10,
+    11,
+    12,
+    14,
+    15,
+    16,
+    18,
+    19,
+    20,
+    22,
+    23,
+    24,
+    26,
+    27,
+    28
+   ]
+  },
+  {
+   "age": "Every year or every 3 years (adult)",
+   "vaccine": "FVRCP",
+   "protects": "Herpesvirus, calicivirus (and panleukopenia)",
+   "notes": "Yearly for outdoor cats, multi-cat homes or boarding; every 3 years for indoor-only cats. Panleukopenia itself needs no more than every 3 years.",
+   "planner_refs": [
+    9,
+    13,
+    17,
+    21,
+    25
+   ]
+  },
+  {
+   "age": "Every 2-3 years (optional)",
+   "vaccine": "FeLV",
+   "protects": "Feline leukaemia",
+   "notes": "Only for cats at risk (outdoor, multi-cat).",
+   "planner_refs": []
+  },
+  {
+   "age": "Senior (11+ years)",
+   "vaccine": "Continue rabies yearly; FVRCP by risk",
+   "protects": "Same",
+   "notes": "Do not stop vaccinating older cats. Add twice-yearly check-ups and blood work.",
+   "planner_refs": []
+  }
+ ],
+ "timeline": [
+  {
+   "stage": 1,
+   "age": "Birth to 8 weeks",
+   "what": "Mother's first milk (colostrum) gives early protection"
+  },
+  {
+   "stage": 2,
+   "age": "8-9 weeks",
+   "what": "1st FVRCP (+ optional 1st FeLV)"
+  },
+  {
+   "stage": 3,
+   "age": "11-13 weeks",
+   "what": "2nd FVRCP; 1st rabies at 12 weeks"
+  },
+  {
+   "stage": 4,
+   "age": "16 weeks or later",
+   "what": "Final kitten FVRCP (+ 2nd rabies where risk is high)"
+  },
+  {
+   "stage": 5,
+   "age": "26 weeks (6 months)",
+   "what": "FVRCP booster"
+  },
+  {
+   "stage": 6,
+   "age": "1 year",
+   "what": "Rabies booster (+ FeLV booster if started)"
+  },
+  {
+   "stage": 7,
+   "age": "1-10 years",
+   "what": "Rabies every year; FVRCP yearly (outdoor) or every 3 years (indoor)"
+  },
+  {
+   "stage": 8,
+   "age": "11+ years",
+   "what": "Same vaccines, plus twice-yearly health checks"
+  }
+ ],
+ "rules": [
+  {
+   "topic": "Pregnant queens",
+   "guidance": "Do not give live vaccines during pregnancy. Bring her vaccines up to date before breeding."
+  },
+  {
+   "topic": "Bite or rabies exposure",
+   "guidance": "See the vet at once for a rabies booster, even if the cat is vaccinated."
+  },
+  {
+   "topic": "Sick or recovering cats",
+   "guidance": "Wait until the vet confirms the cat is well."
+  },
+  {
+   "topic": "Injection site",
+   "guidance": "Ask your vet to record where each injection was given; check the site for lumps in the weeks after."
+  },
+  {
+   "topic": "Deworming: kittens",
+   "guidance": "At 3, 5, 7 and 9 weeks; about 5-7 days before each kitten vaccine."
+  },
+  {
+   "topic": "Deworming: 2-6 months",
+   "guidance": "Monthly."
+  },
+  {
+   "topic": "Deworming: adults",
+   "guidance": "Every 3 months (indoor cats may need it less often; ask your vet)."
+  },
+  {
+   "topic": "FeLV testing",
+   "guidance": "Test for FeLV before starting the FeLV vaccine."
+  }
+ ],
+ "planner": [
+  {
+   "dose": "Kitten 1",
+   "vaccine": "FVRCP",
+   "planned_age": "8 weeks (8-9)",
+   "offset_unit": "weeks",
+   "offset_value": 8,
+   "codes": [
+    "fvrcp"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Kitten 2",
+   "vaccine": "FVRCP",
+   "planned_age": "12 weeks (11-13)",
+   "offset_unit": "weeks",
+   "offset_value": 12,
+   "codes": [
+    "fvrcp"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Kitten 2",
+   "vaccine": "Rabies, 1st dose",
+   "planned_age": "12 weeks",
+   "offset_unit": "weeks",
+   "offset_value": 12,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Kitten 3",
+   "vaccine": "FVRCP, final kitten dose",
+   "planned_age": "16 weeks or later",
+   "offset_unit": "weeks",
+   "offset_value": 16,
+   "codes": [
+    "fvrcp"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Kitten 3",
+   "vaccine": "Rabies, 2nd dose (high risk)",
+   "planned_age": "16 weeks",
+   "offset_unit": "weeks",
+   "offset_value": 16,
+   "codes": [
+    "rabies"
+   ],
+   "optional": true,
+   "note": "Only if your vet advises it"
+  },
+  {
+   "dose": "Booster",
+   "vaccine": "FVRCP",
+   "planned_age": "26 weeks",
+   "offset_unit": "weeks",
+   "offset_value": 26,
+   "codes": [
+    "fvrcp"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Booster",
+   "vaccine": "Rabies",
+   "planned_age": "12 months",
+   "offset_unit": "months",
+   "offset_value": 12,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 2",
+   "vaccine": "Rabies",
+   "planned_age": "2 years",
+   "offset_unit": "months",
+   "offset_value": 24,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 3",
+   "vaccine": "Rabies",
+   "planned_age": "3 years",
+   "offset_unit": "months",
+   "offset_value": 36,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Adult core",
+   "vaccine": "FVRCP (indoor cat)",
+   "planned_age": "3.5 years",
+   "offset_unit": "months",
+   "offset_value": 42,
+   "codes": [
+    "fvrcp"
+   ],
+   "optional": false,
+   "note": "Outdoor or multi-cat: give yearly instead"
+  },
+  {
+   "dose": "Year 4",
+   "vaccine": "Rabies",
+   "planned_age": "4 years",
+   "offset_unit": "months",
+   "offset_value": 48,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 5",
+   "vaccine": "Rabies",
+   "planned_age": "5 years",
+   "offset_unit": "months",
+   "offset_value": 60,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 6",
+   "vaccine": "Rabies",
+   "planned_age": "6 years",
+   "offset_unit": "months",
+   "offset_value": 72,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Adult core",
+   "vaccine": "FVRCP (indoor cat)",
+   "planned_age": "6.5 years",
+   "offset_unit": "months",
+   "offset_value": 78,
+   "codes": [
+    "fvrcp"
+   ],
+   "optional": false,
+   "note": "Outdoor or multi-cat: give yearly instead"
+  },
+  {
+   "dose": "Year 7",
+   "vaccine": "Rabies",
+   "planned_age": "7 years",
+   "offset_unit": "months",
+   "offset_value": 84,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 8",
+   "vaccine": "Rabies",
+   "planned_age": "8 years",
+   "offset_unit": "months",
+   "offset_value": 96,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 9",
+   "vaccine": "Rabies",
+   "planned_age": "9 years",
+   "offset_unit": "months",
+   "offset_value": 108,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Adult core",
+   "vaccine": "FVRCP (indoor cat)",
+   "planned_age": "9.5 years",
+   "offset_unit": "months",
+   "offset_value": 114,
+   "codes": [
+    "fvrcp"
+   ],
+   "optional": false,
+   "note": "Outdoor or multi-cat: give yearly instead"
+  },
+  {
+   "dose": "Year 10",
+   "vaccine": "Rabies",
+   "planned_age": "10 years",
+   "offset_unit": "months",
+   "offset_value": 120,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 11",
+   "vaccine": "Rabies",
+   "planned_age": "11 years",
+   "offset_unit": "months",
+   "offset_value": 132,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 12",
+   "vaccine": "Rabies",
+   "planned_age": "12 years",
+   "offset_unit": "months",
+   "offset_value": 144,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Adult core",
+   "vaccine": "FVRCP (indoor cat)",
+   "planned_age": "12.5 years",
+   "offset_unit": "months",
+   "offset_value": 150,
+   "codes": [
+    "fvrcp"
+   ],
+   "optional": false,
+   "note": "Outdoor or multi-cat: give yearly instead"
+  },
+  {
+   "dose": "Year 13",
+   "vaccine": "Rabies",
+   "planned_age": "13 years",
+   "offset_unit": "months",
+   "offset_value": 156,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 14",
+   "vaccine": "Rabies",
+   "planned_age": "14 years",
+   "offset_unit": "months",
+   "offset_value": 168,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 15",
+   "vaccine": "Rabies",
+   "planned_age": "15 years",
+   "offset_unit": "months",
+   "offset_value": 180,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Adult core",
+   "vaccine": "FVRCP (indoor cat)",
+   "planned_age": "15.5 years",
+   "offset_unit": "months",
+   "offset_value": 186,
+   "codes": [
+    "fvrcp"
+   ],
+   "optional": false,
+   "note": "Outdoor or multi-cat: give yearly instead"
+  },
+  {
+   "dose": "Year 16",
+   "vaccine": "Rabies",
+   "planned_age": "16 years",
+   "offset_unit": "months",
+   "offset_value": 192,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 17",
+   "vaccine": "Rabies",
+   "planned_age": "17 years",
+   "offset_unit": "months",
+   "offset_value": 204,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 18",
+   "vaccine": "Rabies",
+   "planned_age": "18 years",
+   "offset_unit": "months",
+   "offset_value": 216,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  }
+ ],
+ "planner_note": "Planned ages use the middle of each recommended range. FVRCP every 3 years is for indoor-only cats; outdoor or multi-cat homes give it yearly. FeLV is optional; ask your vet.",
+ "sources": [
+  {
+   "title": "WSAVA 2024 Guidelines for the Vaccination of Dogs and Cats",
+   "url": "https://wsava.org/wp-content/uploads/2024/05/2024-Guidelines-for-the-Vaccination-of-Dogs-and-Cats.pdf"
+  },
+  {
+   "title": "WSAVA feline vaccination guidelines (VIN summary)",
+   "url": "https://vin.com/doc/?id=8506325"
+  }
+ ],
+ "disclaimer": "This schedule is general guidance. The treating veterinarian decides the final schedule based on the vaccine brand, local disease risk and the individual animal.",
+ "about": [
+  {
+   "label": "Vaccine Schedule",
+   "text": "The full table from birth to senior, with age, vaccine, what it protects against and notes. Its status colours follow your cat's records."
+  },
+  {
+   "label": "Timeline",
+   "text": "The 8 stages at a glance."
+  },
+  {
+   "label": "Due Date Planner",
+   "text": "Uses your kitten's date of birth to work out the due date for every dose up to 18 years. When you record a vaccine as given, its status changes to Done (green). Otherwise it shows Due soon (orange, within 30 days), Overdue (red) or Upcoming. It is the same Green/Amber/Red idea as a vaccine passport."
+  },
+  {
+   "label": "Rules & Deworming",
+   "text": "Pregnancy, bites, sick animals, deworming and FeLV testing."
+  },
+  {
+   "label": "Sources",
+   "text": "WSAVA 2024 and the VIN summary, with links."
+  }
+ ],
+ "rules_title": "Rules & deworming"
+}

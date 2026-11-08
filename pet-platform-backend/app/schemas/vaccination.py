@@ -83,3 +83,62 @@ class VaccinationOverviewResponse(BaseModel):
     date_of_birth_known: bool
     items: list[VaccineStatusItem]
     records: list[VaccinationRecordResponse]
+
+
+class GuidePlannerItem(BaseModel):
+    dose: str
+    vaccine: str
+    planned_age: str
+    due_date: date
+    date_given: date | None = None
+    status: str  # done | overdue | due_soon | upcoming | not_recorded | optional
+    note: str | None = None
+
+
+class GuideScheduleRow(BaseModel):
+    sno: int
+    age: str
+    vaccine: str
+    protects: str | None = None
+    notes: str | None = None
+    status: str | None = None  # same values as the planner, plus info | optional; None when the birth date is unknown
+    last_dose: date | None = None
+    next_due: date | None = None
+
+
+class GuideTimelineRow(BaseModel):
+    stage: int
+    age: str
+    what: str
+
+
+class GuideRuleRow(BaseModel):
+    topic: str
+    guidance: str
+
+
+class GuideSource(BaseModel):
+    title: str
+    url: str
+
+
+class GuideAboutItem(BaseModel):
+    label: str
+    text: str
+
+
+class VaccineGuideResponse(BaseModel):
+    supported: bool
+    species: str
+    title: str | None = None
+    rules_title: str | None = None
+    subtitle: str | None = None
+    date_of_birth_known: bool = False
+    planner: list[GuidePlannerItem] = []
+    planner_note: str | None = None
+    schedule: list[GuideScheduleRow] = []
+    timeline: list[GuideTimelineRow] = []
+    rules: list[GuideRuleRow] = []
+    about: list[GuideAboutItem] = []
+    sources: list[GuideSource] = []
+    disclaimer: str | None = None

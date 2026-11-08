@@ -12,6 +12,7 @@ export interface VaccineRule {
   series_interval_weeks: number;
   booster_months: number;
   repeat_months: number;
+  booster_weeks: number | null;
   sort_order: number;
   is_active: boolean;
   vet_reviewed: boolean;

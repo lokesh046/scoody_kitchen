@@ -28,6 +28,7 @@ class VaccineRuleResponse(BaseModel):
     series_interval_weeks: int
     booster_months: int
     repeat_months: int
+    booster_weeks: int | None = None
     sort_order: int
     is_active: bool
     vet_reviewed: bool
@@ -42,8 +43,9 @@ class VaccineRuleCreate(BaseModel):
     first_dose_weeks: int = Field(ge=0, le=520)
     series_doses: int = Field(default=1, ge=1, le=20)
     series_interval_weeks: int = Field(default=3, ge=0, le=52)
-    booster_months: int = Field(default=12, ge=1, le=120)
-    repeat_months: int = Field(default=12, ge=1, le=240)
+    booster_months: int = Field(default=12, ge=0, le=120)
+    repeat_months: int = Field(default=12, ge=0, le=240)
+    booster_weeks: int | None = Field(default=None, ge=1, le=260)
     sort_order: int = Field(default=0, ge=0, le=1000)
     is_active: bool = True
     vet_reviewed: bool = False
@@ -79,8 +81,9 @@ class VaccineRuleUpdate(BaseModel):
     first_dose_weeks: int | None = Field(default=None, ge=0, le=520)
     series_doses: int | None = Field(default=None, ge=1, le=20)
     series_interval_weeks: int | None = Field(default=None, ge=0, le=52)
-    booster_months: int | None = Field(default=None, ge=1, le=120)
-    repeat_months: int | None = Field(default=None, ge=1, le=240)
+    booster_months: int | None = Field(default=None, ge=0, le=120)
+    repeat_months: int | None = Field(default=None, ge=0, le=240)
+    booster_weeks: int | None = Field(default=None, ge=1, le=260)
     sort_order: int | None = Field(default=None, ge=0, le=1000)
     is_active: bool | None = None
     vet_reviewed: bool | None = None

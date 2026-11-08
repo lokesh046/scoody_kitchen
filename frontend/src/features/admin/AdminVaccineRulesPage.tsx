@@ -11,7 +11,7 @@ import {
 
 const EMPTY: VaccineRuleInput = {
   species: '', code: '', name: '', category: 'core', description: '',
-  first_dose_weeks: 8, series_doses: 1, series_interval_weeks: 3, booster_months: 12, repeat_months: 12,
+  first_dose_weeks: 8, series_doses: 1, series_interval_weeks: 3, booster_months: 12, repeat_months: 12, booster_weeks: null,
   sort_order: 0, is_active: true, vet_reviewed: false,
 };
 
@@ -90,8 +90,13 @@ function RuleForm({ initial, isNew, species, onSaved, onCancel }: {
         <NumberField label="First dose at (weeks of age)" value={f.first_dose_weeks} min={0} max={520} onChange={(n) => set('first_dose_weeks', n)} />
         <NumberField label="Doses in the starter series" value={f.series_doses} min={1} max={20} onChange={(n) => set('series_doses', n)} />
         <NumberField label="Weeks between starter doses" value={f.series_interval_weeks} min={0} max={52} onChange={(n) => set('series_interval_weeks', n)} />
-        <NumberField label="First booster after series (months)" value={f.booster_months} min={1} max={120} onChange={(n) => set('booster_months', n)} />
-        <NumberField label="Repeat every (months)" value={f.repeat_months} min={1} max={240} onChange={(n) => set('repeat_months', n)} />
+        <NumberField label="First booster after series (months, 0 = none)" value={f.booster_months} min={0} max={120} onChange={(n) => set('booster_months', n)} />
+        <NumberField label="Repeat every (months, 0 = never)" value={f.repeat_months} min={0} max={240} onChange={(n) => set('repeat_months', n)} />
+        <label className="font-body text-xs text-ink block">Booster in weeks (optional, replaces months)
+          <input type="number" min={1} max={260} value={f.booster_weeks ?? ''}
+            onChange={(e) => set('booster_weeks', e.target.value === '' ? null : Number(e.target.value))}
+            className="mt-1 w-full h-9 px-2 border border-cardboard rounded-sm bg-paper text-sm" />
+        </label>
         <NumberField label="Display order" value={f.sort_order} min={0} max={1000} onChange={(n) => set('sort_order', n)} />
       </div>
       <div className="flex flex-wrap gap-x-6 gap-y-2 font-body text-sm text-ink">
@@ -172,7 +177,7 @@ export function AdminVaccineRulesPage() {
                     </div>
                     <div className="font-body text-xs text-ink opacity-75 mt-1">
                       First dose at {r.first_dose_weeks} weeks · {r.series_doses} {r.series_doses === 1 ? 'dose' : 'doses'}
-                      {r.series_doses > 1 && <> every {r.series_interval_weeks} weeks</>} · booster after {r.booster_months} months · then every {r.repeat_months} months
+                      {r.series_doses > 1 && <> every {r.series_interval_weeks} weeks</>} · {r.booster_weeks ? <>booster after {r.booster_weeks} weeks</> : r.booster_months > 0 ? <>booster after {r.booster_months} months</> : <>no booster</>} · {r.repeat_months > 0 ? <>then every {r.repeat_months} months</> : <>no repeat</>}
                     </div>
                   </div>
                   <button onClick={() => setEditing(r.id)} className="h-9 px-3 border border-cardboard hover:bg-paperLight text-ink font-mono text-[10px] uppercase font-bold rounded-sm cursor-pointer shrink-0">Edit</button>

@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 DUE_SOON_DAYS = 30
 RECENT_DAYS = 90  # a dose this recent is shown as a recent record
 PUPPY_WEEKS = 16  # younger pets start the normal schedule; older ones must give their history
+ADULT_WEEKS = 52  # a dose given to a pet this old (or older) is an adult dose: the starter series is treated as done
 
 
 def normalize_species(species: str | None) -> str:
@@ -36,24 +37,37 @@ def compute_vaccine_status(rule, dob: date | None, dose_dates: list[date], today
 
     status: not_started (core vaccine, birth date unknown) | optional (non-core, none given yet)
             | overdue | due_soon (within 30 days) | upcoming
+            | complete (a once-in-a-lifetime vaccine that has been given in full)
+    A rule can say "no booster" (booster_months = 0) or "no repeat" (repeat_months = 0), and a booster can be
+    set in weeks (booster_weeks) instead of months, for example the 26-week puppy booster.
     """
     doses = sorted(dose_dates)
     count = len(doses)
     last = doses[-1] if doses else None
     next_due: date | None = None
+    # An older pet's history gives only its last dose. If that dose was given when the pet was already an
+    # adult, count it as finishing the starter series so it is not asked for "dose 2 in 3 weeks" forever.
+    series_count = count
+    if last and dob and 0 < count < rule.series_doses and (last - dob).days >= ADULT_WEEKS * 7:
+        series_count = rule.series_doses
 
     if count == 0:
         if rule.category == "core" and dob is not None:
             next_due = dob + timedelta(weeks=rule.first_dose_weeks)
-    elif count < rule.series_doses:
+    elif series_count < rule.series_doses:
         next_due = last + timedelta(weeks=rule.series_interval_weeks)
-    elif count == rule.series_doses:
-        next_due = add_months(last, rule.booster_months)
-    else:
+    elif series_count == rule.series_doses:
+        if getattr(rule, "booster_weeks", None):
+            next_due = last + timedelta(weeks=rule.booster_weeks)
+        elif rule.booster_months > 0:
+            next_due = add_months(last, rule.booster_months)
+    elif rule.repeat_months > 0:
         next_due = add_months(last, rule.repeat_months)
 
     if next_due is None and count == 0 and declared and rule.category == "core":
         status = "overdue"  # owner says not vaccinated / unknown: needs a vet visit
+    elif next_due is None and count > 0:
+        status = "complete"
     elif next_due is None:
         status = "not_started" if rule.category == "core" else "optional"
     elif next_due < today:

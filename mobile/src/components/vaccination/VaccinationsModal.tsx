@@ -11,14 +11,16 @@ import {
 import DateField, { prettyDate, toIso } from './DateField';
 import PhotoPickerField from './PhotoPickerField';
 import VaccinationHistoryModal from './VaccinationHistoryModal';
+import VaccineGuide from './VaccineGuide';
 
-const STATUS_LABEL: Record<VaccineStatus, string> = { overdue: 'Overdue', due_soon: 'Due soon', upcoming: 'On track', optional: 'Optional', not_started: 'Add birth date' };
+const STATUS_LABEL: Record<VaccineStatus, string> = { overdue: 'Overdue', due_soon: 'Due soon', upcoming: 'On track', optional: 'Optional', not_started: 'Add birth date', complete: 'Complete' };
 const STATUS_COLOR: Record<VaccineStatus, { bg: string; fg: string }> = {
   overdue: { bg: COLORS.accentRedTintBg, fg: COLORS.accentRed },
   due_soon: { bg: '#FFF6E0', fg: '#8A5A00' },
   upcoming: { bg: '#E8F3EA', fg: COLORS.successGreen },
   optional: { bg: COLORS.cardAlt, fg: COLORS.textMuted },
   not_started: { bg: COLORS.cardAlt, fg: COLORS.textMuted },
+  complete: { bg: '#E8F3EA', fg: COLORS.successGreen },
 };
 
 export default function VaccinationsModal({ visible, petId, petName, dob, onClose, onFindVet }: {
@@ -126,6 +128,7 @@ export default function VaccinationsModal({ visible, petId, petName, dob, onClos
                   </TouchableOpacity>
                 </View>
               ))}
+              <VaccineGuide petId={petId} petName={petName} refreshKey={data.records.length} />
               {data.items.some((i) => !i.vet_reviewed) && (
                 <Text style={styles.disclaimer}>Schedules follow general veterinary guidance (WSAVA) and are pending review by our vets. Always confirm timings with your own vet.</Text>
               )}

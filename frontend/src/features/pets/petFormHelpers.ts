@@ -1,6 +1,6 @@
 import { categoryForBreed, type PetCategory } from '../../constants/breedCategory';
 
-export const SPECIES_OPTIONS = ['Dog', 'Cat', 'Bird', 'Reptile'];
+export const SPECIES_OPTIONS = ['Dog', 'Cat', 'Bird', 'Reptile', 'Goat', 'Cattle', 'Buffalo'];
 
 /** Matches a species case-insensitively to the options; anything else (a pet saved earlier) is kept as typed. */
 export const canonSpecies = (value?: string | null): string => {

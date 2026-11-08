@@ -56,7 +56,7 @@ export function DogCategoryField({ species, breed, value, onChange, labelClass }
   );
 }
 
-/** Species as buttons (Dog, Cat, Bird, Reptile); a pet saved earlier with another species keeps an extra button. */
+/** Species as buttons (Dog, Cat, Bird, Reptile, Goat, Cattle, Buffalo); a pet saved earlier with another species keeps an extra button. */
 export function SpeciesButtons({ value, onChange, compact = false }: { value: string; onChange: (v: string) => void; compact?: boolean }) {
   const options = SPECIES_OPTIONS.includes(value) ? SPECIES_OPTIONS : [...SPECIES_OPTIONS, value];
   return (
@@ -72,7 +72,7 @@ export function SpeciesButtons({ value, onChange, compact = false }: { value: st
             value === s ? 'bg-herb text-white border-herb shadow-xs' : 'bg-paperLight hover:bg-paper border-cardboard text-ink'
           }`}
         >
-          {s} {s === 'Dog' && '🐶'}{s === 'Cat' && '🐱'}{s === 'Bird' && '🦜'}{s === 'Reptile' && '🦎'}
+          {s} {s === 'Dog' && '🐶'}{s === 'Cat' && '🐱'}{s === 'Bird' && '🦜'}{s === 'Reptile' && '🦎'}{s === 'Goat' && '🐐'}{s === 'Cattle' && '🐄'}{s === 'Buffalo' && '🐃'}
         </button>
       ))}
     </div>

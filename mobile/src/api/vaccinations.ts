@@ -1,6 +1,6 @@
 import apiClient from './client';
 
-export type VaccineStatus = 'not_started' | 'optional' | 'overdue' | 'due_soon' | 'upcoming';
+export type VaccineStatus = 'not_started' | 'optional' | 'overdue' | 'due_soon' | 'upcoming' | 'complete';
 export type HistoryAnswerKind = 'given' | 'not_vaccinated' | 'unknown';
 
 export interface VaccineStatusItem {
@@ -92,3 +92,25 @@ export const saveVaccinationHistory = async (
 
 export const fetchVaccinationCardHtml = async (petId: number): Promise<string> =>
   (await apiClient.get<string>(`/pets/${petId}/vaccinations/card`, { responseType: 'text', transformResponse: (d) => d })).data;
+
+export type GuideStatus = 'done' | 'overdue' | 'due_soon' | 'upcoming' | 'not_recorded' | 'optional' | 'info';
+
+export interface VaccineGuide {
+  supported: boolean;
+  species: string;
+  title: string | null;
+  rules_title: string | null;
+  subtitle: string | null;
+  date_of_birth_known: boolean;
+  planner: { dose: string; vaccine: string; planned_age: string; due_date: string; date_given: string | null; status: GuideStatus; note: string | null }[];
+  planner_note: string | null;
+  schedule: { sno: number; age: string; vaccine: string; protects: string | null; notes: string | null; status: GuideStatus | null; last_dose: string | null; next_due: string | null }[];
+  timeline: { stage: number; age: string; what: string }[];
+  rules: { topic: string; guidance: string }[];
+  about: { label: string; text: string }[];
+  sources: { title: string; url: string }[];
+  disclaimer: string | null;
+}
+
+export const fetchVaccineGuide = async (petId: number): Promise<VaccineGuide> =>
+  (await apiClient.get<VaccineGuide>(`/pets/${petId}/vaccinations/guide`)).data;

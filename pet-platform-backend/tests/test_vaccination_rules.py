@@ -92,3 +92,26 @@ def test_history_required_only_for_older_pets():
     assert history_required(pet(date(2026, 10, 1)), TODAY) is False   # about 5 weeks old
     assert history_required(pet(date(2025, 11, 1)), TODAY) is True    # 1 year old
     assert history_required(pet(None), TODAY) is True                 # unknown birth date
+
+
+def test_adult_dose_finishes_the_starter_series():
+    # one DHPP dose recorded when the dog was already 2 years old: next due is the adult booster, not "dose 2"
+    r = compute_vaccine_status(DHPPI, date(2024, 1, 1), [date(2026, 1, 10)], TODAY)
+    assert r["next_due_date"] == date(2027, 1, 10) and r["status"] == "upcoming"
+
+
+def test_booster_in_weeks_and_once_in_a_lifetime_vaccines():
+    from types import SimpleNamespace
+    pup = SimpleNamespace(code="dhppi", name="DHPPi", category="core", description=None, vet_reviewed=False,
+                          first_dose_weeks=7, series_doses=4, series_interval_weeks=3,
+                          booster_months=12, repeat_months=36, booster_weeks=10)
+    dob = date(2026, 5, 1)
+    given = [date(2026, 6, 19), date(2026, 7, 10), date(2026, 7, 31), date(2026, 8, 21)]
+    assert compute_vaccine_status(pup, dob, given[:2], TODAY)["next_due_date"] == date(2026, 7, 31)
+    assert compute_vaccine_status(pup, dob, given, TODAY)["next_due_date"] == date(2026, 10, 30)  # 16 weeks + 10 weeks
+    once = SimpleNamespace(code="theileriosis", name="Theileriosis", category="non_core", description=None,
+                           vet_reviewed=False, first_dose_weeks=13, series_doses=1, series_interval_weeks=0,
+                           booster_months=0, repeat_months=0, booster_weeks=None)
+    assert compute_vaccine_status(once, dob, [], TODAY)["status"] == "optional"
+    done = compute_vaccine_status(once, dob, [date(2026, 8, 1)], TODAY)
+    assert done["status"] == "complete" and done["next_due_date"] is None

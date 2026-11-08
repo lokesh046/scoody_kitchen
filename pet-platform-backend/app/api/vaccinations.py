@@ -17,12 +17,15 @@ from app.schemas.vaccination import (
     VaccinationOverviewResponse,
     VaccinationRecordResponse,
     VaccinationUpdate,
+    VaccineGuideResponse,
 )
 from app.services.pet_service import get_pet_by_id
 from app.services.storage_service import get_storage_provider, validate_image_file
 from app.services.vaccination_card import build_card_html
+from app.services.vaccine_guide import build_guide
 from app.services.vaccination_service import (
     build_overview,
+    get_records,
     get_rules,
     save_history,
     validate_dose_date,
@@ -52,6 +55,20 @@ def get_vaccinations(
     current_user: User = Depends(get_current_user),
 ):
     return build_overview(db, _own_pet(db, pet_id, current_user))
+
+
+@router.get("/guide", response_model=VaccineGuideResponse)
+def get_vaccine_guide(
+    pet_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """The species' full vaccine schedule, timeline and rules, plus a due-date planner for this pet."""
+    pet = _own_pet(db, pet_id, current_user)
+    by_code: dict[str, list[date]] = {}
+    for record in get_records(db, pet.id):
+        by_code.setdefault(record.vaccine_code, []).append(record.date_given)
+    return build_guide(pet.species, pet.date_of_birth, by_code)
 
 
 @router.get("/card", response_class=HTMLResponse)

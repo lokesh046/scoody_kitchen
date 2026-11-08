@@ -464,7 +464,7 @@ interface PetDossierModalProps {
 }
 
 // Species the add/edit form offers. A pet already saved with another species keeps it (shown as an extra option).
-const SPECIES_OPTIONS = ['Dog', 'Cat', 'Bird', 'Reptile'];
+const SPECIES_OPTIONS = ['Dog', 'Cat', 'Bird', 'Reptile', 'Goat', 'Cattle', 'Buffalo'];
 const canonSpecies = (value?: string | null): string => {
   const v = (value || '').trim();
   if (!v) return 'Dog';
