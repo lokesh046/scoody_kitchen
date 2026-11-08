@@ -47,6 +47,7 @@ import { useResponsive } from '../hooks/useResponsive';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useFeatureFlag } from '../hooks/useFeatureFlag';
 import { PET_CATEGORIES, categoryForBreed, type PetCategory } from '../utils/breedCategory';
+import { BREED_DATA } from '../constants/breedData';
 
 // DESIGN.md's brand faces: Outfit for display/headings, Quicksand for body
 // copy. Duplicated from PetsScreen.tsx (which also needs these same string
@@ -496,6 +497,7 @@ export const PetDossierModal = memo(function PetDossierModal({
   };
   const onFieldFocus = (key: string) => {
     focusedField.current = key;
+    if (key !== 'breed') setShowBreedSuggestions(false);
     setTimeout(() => scrollToField(key), 60);
   };
   useEffect(() => {
@@ -505,10 +507,23 @@ export const PetDossierModal = memo(function PetDossierModal({
   const [name, setName] = useState('');
   const [species, setSpecies] = useState('Dog');
   const [speciesOpen, setSpeciesOpen] = useState(false);
+  const [showBreedSuggestions, setShowBreedSuggestions] = useState(false);
+  // Where the breed text box sits inside its field group, so the suggestion list can float right under it.
+  const breedInputBox = useRef({ y: 0, h: 44 });
   // Only used when the breed isn't recognised (mixed breed, typed-in name); not saved.
   const [manualCategory, setManualCategory] = useState<PetCategory | null>(null);
   const [breed, setBreed] = useState('');
   const autoCategory = species === 'Dog' ? categoryForBreed(breed) : null;
+  // Breed suggestions while typing (dogs): names that start with, then contain, what was typed.
+  const breedSuggestions = (() => {
+    const q = breed.trim().toLowerCase();
+    if (species !== 'Dog' || q.length < 1) return [] as string[];
+    const names = BREED_DATA.map((b) => b.name);
+    if (names.some((n) => n.toLowerCase() === q)) return [];
+    const starts = names.filter((n) => n.toLowerCase().startsWith(q));
+    const has = names.filter((n) => !n.toLowerCase().startsWith(q) && n.toLowerCase().includes(q));
+    return [...starts, ...has].slice(0, 6);
+  })();
   const [microchip, setMicrochip] = useState('');
   const [showIosDatePicker, setShowIosDatePicker] = useState(false);
   // True while the weight is only the scan's estimate for a typical adult of the breed.
@@ -771,6 +786,29 @@ export const PetDossierModal = memo(function PetDossierModal({
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={petCardStyles.modalBody}
           >
+            {/* Floating breed suggestions: absolutely positioned inside the scroll content (so touches work on
+                Android) and drawn above the fields underneath, instead of pushing them down. */}
+            {showBreedSuggestions && breedSuggestions.length > 0 && (
+              <View
+                pointerEvents="box-none"
+                style={[petCardStyles.breedFloat, { top: (fieldY.current.breed ?? 0) + breedInputBox.current.y + breedInputBox.current.h + 4 }]}
+              >
+                <View style={petCardStyles.breedFloatList} accessibilityRole="menu">
+                  {breedSuggestions.map((name) => (
+                    <TouchableOpacity
+                      key={name}
+                      style={petCardStyles.speciesOption}
+                      onPress={() => { setBreed(name); setShowBreedSuggestions(false); }}
+                      accessibilityRole="menuitem"
+                      accessibilityLabel={name}
+                    >
+                      <Text style={petCardStyles.speciesOptionText}>{name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
             {/* Pet Photo Section */}
             <View style={petCardStyles.photoPickerSection}>
               <View style={petCardStyles.photoPreviewWrapper}>
@@ -922,14 +960,18 @@ export const PetDossierModal = memo(function PetDossierModal({
 
             <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.breed = e.nativeEvent.layout.y; }}>
               <Text style={petCardStyles.fieldLabel}>BREED</Text>
-              <View style={petCardStyles.inputContainer}>
+              <View
+                style={petCardStyles.inputContainer}
+                onLayout={(e) => { breedInputBox.current = { y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height }; }}
+              >
                 <TextInput
                   onFocus={() => onFieldFocus('breed')}
                   style={petCardStyles.textInput}
                   placeholder="e.g. Golden Retriever, Beagle"
                   placeholderTextColor={COLORS.textLight}
                   value={breed}
-                  onChangeText={setBreed}
+                  onChangeText={(t) => { setBreed(t); setShowBreedSuggestions(true); }}
+                  autoCorrect={false}
                 />
                 <TouchableOpacity
                   style={petCardStyles.breedScanBtn}
@@ -1700,6 +1742,8 @@ export const petCardStyles = StyleSheet.create({
     paddingVertical: 6,
   },
   breedScanText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF', fontFamily: FONT_BODY_BOLD },
+  breedFloat: { position: 'absolute', left: 0, right: 0, zIndex: 50, elevation: 12 },
+  breedFloatList: { borderWidth: 1, borderColor: COLORS.kraftBorder, borderRadius: 8, backgroundColor: '#FFFFFF', overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 10, elevation: 12 },
   speciesList: { borderWidth: 1, borderColor: COLORS.kraftBorder, borderRadius: 8, backgroundColor: '#FFFFFF', overflow: 'hidden', marginTop: 4 },
   speciesOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.kraftBorder },
   speciesOptionActive: { backgroundColor: COLORS.cardAlt },
