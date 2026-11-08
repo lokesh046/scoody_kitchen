@@ -279,13 +279,13 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
           </View>
 
           {/* Category: worked out from the breed (dogs only) */}
-          {(pet.species || '').toLowerCase() === 'dog' && categoryForBreed(pet.breed) && (
+          {(pet.species || '').toLowerCase() === 'dog' && (pet.category || categoryForBreed(pet.breed)) && (
             <View style={petCardStyles.ledgerRow}>
               <View style={petCardStyles.ledgerKeyGroup}>
                 <Award size={16} color={COLORS.forestGreen} />
                 <Text style={petCardStyles.ledgerKeyText}>CATEGORY</Text>
               </View>
-              <Text style={petCardStyles.ledgerValText}>{categoryForBreed(pet.breed)!.toUpperCase()}</Text>
+              <Text style={petCardStyles.ledgerValText}>{(pet.category || categoryForBreed(pet.breed) || '').toUpperCase()}</Text>
             </View>
           )}
 
@@ -457,6 +457,7 @@ interface PetDossierModalProps {
     date_of_birth?: string;
     profile_image_url?: string;
     microchip_number?: string | null;
+    category?: string | null;
   }) => Promise<void>;
   onOpenVision: () => void;
 }
@@ -547,6 +548,7 @@ export const PetDossierModal = memo(function PetDossierModal({
       setGender(initialPet.gender || 'Male');
       setDob(initialPet.date_of_birth ? initialPet.date_of_birth.split('T')[0] : '');
       setMicrochip(initialPet.microchip_number || '');
+      setManualCategory((PET_CATEGORIES as readonly string[]).includes(initialPet.category || '') ? (initialPet.category as PetCategory) : null);
       setImageUri(initialPet.profile_image_url || null);
     } else {
       // Add mode
@@ -558,6 +560,7 @@ export const PetDossierModal = memo(function PetDossierModal({
       setGender('Male');
       setDob('');
       setMicrochip('');
+      setManualCategory(null);
       setImageUri(initialVisionDetails?.imageUrl || null);
     }
     // sessionId is the deliberate trigger; mode/initialPet/initialVisionDetails
@@ -701,6 +704,8 @@ export const PetDossierModal = memo(function PetDossierModal({
         profile_image_url: photoUrl,
         // Blank clears the number when editing; omitted when adding.
         microchip_number: microchipDigits || (mode === 'edit' ? null : undefined),
+        // Dogs only. The server sets it from the breed when it recognises it; otherwise it keeps this choice.
+        category: species === 'Dog' ? (autoCategory ?? manualCategory) : null,
       });
     } catch (err: any) {
       const detail = err?.response?.data?.detail || 'Failed to save pet to backend.';

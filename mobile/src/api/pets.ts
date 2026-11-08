@@ -10,6 +10,7 @@ export interface PetCreatePayload {
   date_of_birth?: string;
   profile_image_url?: string;
   microchip_number?: string | null;
+  category?: string | null;
 }
 
 export interface PetUpdatePayload {
@@ -22,6 +23,7 @@ export interface PetUpdatePayload {
   profile_image_url?: string;
   // null clears the number.
   microchip_number?: string | null;
+  category?: string | null;
 }
 
 export interface HealthRecord {

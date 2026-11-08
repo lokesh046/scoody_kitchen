@@ -334,6 +334,7 @@ export default function PetsScreen({ navigation }: any) {
     date_of_birth?: string;
     profile_image_url?: string;
     microchip_number?: string | null;
+    category?: string | null;
   }) => {
     if (modalMode === 'add') {
       const newPet = await createPet(data);

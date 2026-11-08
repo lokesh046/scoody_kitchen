@@ -65,6 +65,14 @@ class Pet(Base):
         nullable=True,
     )
 
+    # Dogs only: Working, Hound, Sporting or Companion. Set from the breed (see services/breed_category.py);
+    # used to suggest food and care by category.
+    category: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        index=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

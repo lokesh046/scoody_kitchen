@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.models.pet import Pet
 from app.schemas.pet import PetCreate, PetUpdate
+from app.services.breed_category import resolve_category
 
 
 def create_pet(
@@ -22,6 +23,7 @@ def create_pet(
         weight=pet_data.weight,
         profile_image_url=pet_data.profile_image_url,
         microchip_number=pet_data.microchip_number,
+        category=resolve_category(pet_data.species, pet_data.breed, pet_data.category),
     )
 
 
@@ -63,6 +65,11 @@ def update_pet(
 
     for field, value in update_data.items():
         setattr(pet, field, value)
+
+    # Keep the category in step with the breed / species (the owner's choice only counts for unrecognised breeds).
+    if {"breed", "species", "category"} & update_data.keys():
+        chosen = update_data["category"] if "category" in update_data else pet.category
+        pet.category = resolve_category(pet.species, pet.breed, chosen)
 
     db.commit()
     db.refresh(pet)

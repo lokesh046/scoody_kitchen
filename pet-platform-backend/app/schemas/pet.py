@@ -1,6 +1,8 @@
 from datetime import date, datetime
 import re
 
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -48,6 +50,9 @@ class PetCreate(BaseModel):
 
     microchip_number: str | None = None
 
+    # Dogs only; the server sets it from the breed when it recognises it, otherwise this value is used.
+    category: Literal["Working", "Hound", "Sporting", "Companion"] | None = None
+
     _validate_microchip = field_validator("microchip_number", mode="before")(_clean_microchip)
 
 
@@ -86,6 +91,8 @@ class PetUpdate(BaseModel):
 
     microchip_number: str | None = None
 
+    category: Literal["Working", "Hound", "Sporting", "Companion"] | None = None
+
     _validate_microchip = field_validator("microchip_number", mode="before")(_clean_microchip)
 
 class PetResponse(BaseModel):
@@ -99,6 +106,7 @@ class PetResponse(BaseModel):
     weight: float | None
     profile_image_url: str | None
     microchip_number: str | None = None
+    category: str | None = None
     created_at: datetime
 
 
