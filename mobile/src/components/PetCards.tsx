@@ -980,6 +980,27 @@ export const PetDossierModal = memo(function PetDossierModal({
               </View>
             )}
 
+            <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.microchip = e.nativeEvent.layout.y; }}>
+              <Text style={petCardStyles.fieldLabel}>MICROCHIP NUMBER (OPTIONAL)</Text>
+              <View style={petCardStyles.inputContainer}>
+                <Cpu size={15} color={COLORS.textLight} />
+                <TextInput
+                  onFocus={() => onFieldFocus('microchip')}
+                  style={petCardStyles.textInput}
+                  placeholder="985112345678901"
+                  placeholderTextColor={COLORS.textLight}
+                  value={microchip}
+                  onChangeText={setMicrochip}
+                  keyboardType="number-pad"
+                  maxLength={19}
+                  accessibilityLabel="Microchip number, optional"
+                />
+              </View>
+              <Text style={petCardStyles.fieldHelper}>
+                The 15-digit number on your pet's chip card, if they have one
+              </Text>
+            </View>
+
             <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.dob = e.nativeEvent.layout.y; }}>
               <Text style={petCardStyles.fieldLabel}>DATE OF BIRTH</Text>
               <TouchableOpacity
@@ -1059,27 +1080,6 @@ export const PetDossierModal = memo(function PetDossierModal({
                 {weightIsEstimate
                   ? "Estimated from the breed's typical adult size. Please enter your pet's actual weight."
                   : 'Used directly to calculate daily kCal & protein quotas'}
-              </Text>
-            </View>
-
-            <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.microchip = e.nativeEvent.layout.y; }}>
-              <Text style={petCardStyles.fieldLabel}>MICROCHIP NUMBER (OPTIONAL)</Text>
-              <View style={petCardStyles.inputContainer}>
-                <Cpu size={15} color={COLORS.textLight} />
-                <TextInput
-                  onFocus={() => onFieldFocus('microchip')}
-                  style={petCardStyles.textInput}
-                  placeholder="985112345678901"
-                  placeholderTextColor={COLORS.textLight}
-                  value={microchip}
-                  onChangeText={setMicrochip}
-                  keyboardType="number-pad"
-                  maxLength={19}
-                  accessibilityLabel="Microchip number, optional"
-                />
-              </View>
-              <Text style={petCardStyles.fieldHelper}>
-                The 15-digit number on your pet's chip card, if they have one
               </Text>
             </View>
 
