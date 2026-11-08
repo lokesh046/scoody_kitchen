@@ -46,6 +46,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useFeatureFlag } from '../hooks/useFeatureFlag';
+import { PET_CATEGORIES, categoryForBreed, type PetCategory } from '../utils/breedCategory';
 
 // DESIGN.md's brand faces: Outfit for display/headings, Quicksand for body
 // copy. Duplicated from PetsScreen.tsx (which also needs these same string
@@ -277,6 +278,17 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
             </Text>
           </View>
 
+          {/* Category: worked out from the breed (dogs only) */}
+          {(pet.species || '').toLowerCase() === 'dog' && categoryForBreed(pet.breed) && (
+            <View style={petCardStyles.ledgerRow}>
+              <View style={petCardStyles.ledgerKeyGroup}>
+                <Award size={16} color={COLORS.forestGreen} />
+                <Text style={petCardStyles.ledgerKeyText}>CATEGORY</Text>
+              </View>
+              <Text style={petCardStyles.ledgerValText}>{categoryForBreed(pet.breed)!.toUpperCase()}</Text>
+            </View>
+          )}
+
           {/* Gender */}
           <View style={petCardStyles.ledgerRow}>
             <View style={petCardStyles.ledgerKeyGroup}>
@@ -492,7 +504,10 @@ export const PetDossierModal = memo(function PetDossierModal({
   const [name, setName] = useState('');
   const [species, setSpecies] = useState('Dog');
   const [speciesOpen, setSpeciesOpen] = useState(false);
+  // Only used when the breed isn't recognised (mixed breed, typed-in name); not saved.
+  const [manualCategory, setManualCategory] = useState<PetCategory | null>(null);
   const [breed, setBreed] = useState('');
+  const autoCategory = species === 'Dog' ? categoryForBreed(breed) : null;
   const [microchip, setMicrochip] = useState('');
   const [showIosDatePicker, setShowIosDatePicker] = useState(false);
   // True while the weight is only the scan's estimate for a typical adult of the breed.
@@ -927,6 +942,38 @@ export const PetDossierModal = memo(function PetDossierModal({
                 Not sure of the breed? Tap Scan and take a photo of your pet.
               </Text>
             </View>
+
+            {species === 'Dog' && (
+              <View style={petCardStyles.fieldGroup}>
+                <Text style={petCardStyles.fieldLabel}>CATEGORY</Text>
+                <View style={petCardStyles.genderRow}>
+                  {PET_CATEGORIES.map((c) => {
+                    const active = (autoCategory ?? manualCategory) === c;
+                    return (
+                      <TouchableOpacity
+                        key={c}
+                        style={[petCardStyles.genderChip, active && petCardStyles.genderChipActive, autoCategory && !active && { opacity: 0.45 }]}
+                        disabled={!!autoCategory}
+                        onPress={() => setManualCategory(c)}
+                        activeOpacity={0.8}
+                        accessibilityRole="radio"
+                        accessibilityLabel={`${c} category`}
+                        accessibilityState={{ selected: active, disabled: !!autoCategory }}
+                      >
+                        <Text style={[petCardStyles.genderChipText, active && petCardStyles.genderChipTextActive]}>{c}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={petCardStyles.fieldHelper}>
+                  {autoCategory
+                    ? 'Set automatically from the breed.'
+                    : breed.trim()
+                      ? "We don't recognise this breed. Pick the closest category."
+                      : 'Choose a breed and the category is set automatically.'}
+                </Text>
+              </View>
+            )}
 
             <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.dob = e.nativeEvent.layout.y; }}>
               <Text style={petCardStyles.fieldLabel}>DATE OF BIRTH</Text>
