@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { BREED_NAMES, PET_CATEGORIES, categoryForBreed, type PetCategory } from '../../constants/breedCategory';
+import { useId, useState } from 'react';
+import { PET_CATEGORIES, categoryForBreed, type PetCategory } from '../../constants/breedCategory';
 import { SPECIES_OPTIONS } from './petFormHelpers';
+import { PET_BREED_SUGGESTIONS } from '../../constants/petBreedSuggestions';
 
 export function SpeciesDropdown({ value, onChange, id, className = '' }: {
   value: string; onChange: (v: string) => void; id?: string; className?: string;
@@ -78,47 +79,58 @@ export function SpeciesButtons({ value, onChange, compact = false }: { value: st
   );
 }
 
-/** Breed text box that suggests dog breeds while typing (names that start with, then contain, what was typed). */
-export function BreedInput({ value, onChange, species, id, placeholder, className }: {
+/** Species-aware breed suggestions. A typed breed can always be kept as a custom entry. */
+export function BreedInput({ value, onChange, species, id, placeholder, className, required, invalid, describedBy, extraSuggestions = [] }: {
   value: string; onChange: (v: string) => void; species: string; id?: string; placeholder?: string; className: string;
+  required?: boolean; invalid?: boolean; describedBy?: string; extraSuggestions?: readonly string[];
 }) {
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const listId = useId();
   const q = value.trim().toLowerCase();
-  let suggestions: string[] = [];
-  if (open && species.toLowerCase() === 'dog' && q.length >= 1 && !BREED_NAMES.some((n) => n.toLowerCase() === q)) {
-    const starts = BREED_NAMES.filter((n) => n.toLowerCase().startsWith(q));
-    const has = BREED_NAMES.filter((n) => !n.toLowerCase().startsWith(q) && n.toLowerCase().includes(q));
-    suggestions = [...starts, ...has].slice(0, 7);
-  }
+  const names = [...new Map([...(PET_BREED_SUGGESTIONS[species.toLowerCase()] || []), ...extraSuggestions]
+    .filter((name) => name.trim()).map((name) => [name.toLowerCase(), name])).values()];
+  const suggestions = [
+    ...names.filter((name) => name.toLowerCase().startsWith(q)),
+    ...names.filter((name) => !name.toLowerCase().startsWith(q) && name.toLowerCase().includes(q)),
+  ].slice(0, 7);
+  const choose = (name: string) => { onChange(name); setOpen(false); setActiveIndex(-1); };
+
   return (
     <div className="relative">
       <input
-        type="text"
-        id={id}
-        value={value}
-        autoComplete="off"
-        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
-        placeholder={placeholder}
-        className={className}
-        role="combobox"
-        aria-expanded={suggestions.length > 0}
-        aria-autocomplete="list"
+        type="text" id={id} value={value} required={required} autoComplete="off"
+        onChange={(e) => { onChange(e.target.value); setOpen(true); setActiveIndex(-1); }}
+        onFocus={() => { setOpen(true); setActiveIndex(-1); }}
+        onBlur={() => { setOpen(false); setActiveIndex(-1); }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') { e.preventDefault(); setOpen(false); setActiveIndex(-1); }
+          if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && suggestions.length) {
+            e.preventDefault();
+            setOpen(true);
+            const next = e.key === 'ArrowDown' ? (activeIndex + 1) % suggestions.length : (activeIndex <= 0 ? suggestions.length - 1 : activeIndex - 1);
+            setActiveIndex(next);
+            requestAnimationFrame(() => document.getElementById(`${listId}-${next}`)?.scrollIntoView({ block: 'nearest' }));
+          }
+          if (e.key === 'Enter' && open && activeIndex >= 0 && suggestions[activeIndex]) {
+            e.preventDefault(); choose(suggestions[activeIndex]);
+          }
+        }}
+        placeholder={placeholder} className={className} role="combobox"
+        aria-expanded={open && suggestions.length > 0} aria-controls={open && suggestions.length ? listId : undefined}
+        aria-activedescendant={open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
+        aria-autocomplete="list" aria-invalid={invalid || undefined} aria-describedby={describedBy}
       />
-      {suggestions.length > 0 && (
-        <ul role="listbox" className="absolute z-20 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-paper border border-cardboard rounded-sm shadow-lg">
-          {suggestions.map((n) => (
-            <li key={n} role="option" aria-selected={false}>
+      {open && suggestions.length > 0 && (
+        <ul id={listId} role="listbox" aria-label={`${species} breed suggestions`} className="absolute z-30 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-cardboard rounded-lg shadow-lg">
+          {suggestions.map((name, index) => (
+            <li key={name} id={`${listId}-${index}`} role="option" aria-selected={activeIndex === index}>
               <button
-                type="button"
-                // mouse down (not click) so the choice lands before the box loses focus and closes the list
-                onMouseDown={(e) => { e.preventDefault(); onChange(n); setOpen(false); }}
-                className="w-full text-left px-3 py-2 font-body text-sm text-ink hover:bg-paperLight cursor-pointer"
-              >
-                {n}
-              </button>
+                type="button" tabIndex={-1}
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => choose(name)}
+                className={`w-full min-h-11 text-left px-3 py-2 font-body text-sm text-ink hover:bg-paper ${activeIndex === index ? 'bg-paper font-bold' : ''}`}
+              >{name}</button>
             </li>
           ))}
         </ul>

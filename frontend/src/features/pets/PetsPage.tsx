@@ -16,13 +16,12 @@ import {
   ArrowLeft, PawPrint, 
   Trash2, Scale, Loader2, AlertCircle,
   Heart, Award, Cake, Save, FileText, X, Activity,
-  Plus, Camera, Scan, CheckCircle2, RefreshCw, Database, ArrowRight, Cpu
+  Plus, Camera, RefreshCw, Database, ArrowRight, Cpu
 } from 'lucide-react';
 import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
-import { PetHeritagePassport } from '../../components/PetHeritagePassport';
-import { PetBreedScanUpload } from './PetBreedScanUpload';
+import { AddPetWizard, type PetDraft } from './AddPetWizard';
 import { VaccinationsPanel } from './VaccinationsPanel';
-import { BreedInput, DogCategoryField, SpeciesButtons, SpeciesDropdown } from './PetFormFields';
+import { BreedInput, DogCategoryField, SpeciesDropdown } from './PetFormFields';
 import { canonSpecies, resolveCategory } from './petFormHelpers';
 import { categoryForBreed, type PetCategory } from '../../constants/breedCategory';
 import { VaccinationHistoryModal } from './VaccinationHistoryModal';
@@ -63,7 +62,6 @@ export const PetsPage: React.FC = () => {
   const [registrationStep, setRegistrationStep] = useState<number>(1);
 
   // Form State
-  const [registrationMode, setRegistrationMode] = useState<'scan' | 'manual'>('scan');
   const [name, setName] = useState('');
   const [species, setSpecies] = useState('Dog');
   const [category, setCategory] = useState<PetCategory | null>(null);
@@ -82,7 +80,6 @@ export const PetsPage: React.FC = () => {
   const [isUploadingRegImage, setIsUploadingRegImage] = useState(false);
   const [editPetImageUrl, setEditPetImageUrl] = useState('');
   const [isUploadingEditImage, setIsUploadingEditImage] = useState(false);
-  const regFileInputRef = React.useRef<HTMLInputElement>(null);
   const editFileInputRef = React.useRef<HTMLInputElement>(null);
 
   // AI Vision Breed Scanner states
@@ -92,8 +89,16 @@ export const PetsPage: React.FC = () => {
   const [previewScanUrl, setPreviewScanUrl] = useState<string | null>(null);
   const [selectedScanFile, setSelectedScanFile] = useState<File | null>(null);
   const scanVersionRef = React.useRef(0);
+  const scanOnSelectionRef = React.useRef(false);
   const cameraInputRef = React.useRef<HTMLInputElement>(null);
   const galleryInputRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const inputs = [galleryInputRef.current, cameraInputRef.current].filter((input): input is HTMLInputElement => !!input);
+    const cancel = () => { scanOnSelectionRef.current = false; };
+    inputs.forEach((input) => input.addEventListener('cancel', cancel));
+    return () => inputs.forEach((input) => input.removeEventListener('cancel', cancel));
+  }, [activeSection]);
 
   // Live Interactive Camera Viewfinder states
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
@@ -196,19 +201,21 @@ export const PetsPage: React.FC = () => {
   }, [previewScanUrl]);
 
   const resetScan = () => {
+    scanOnSelectionRef.current = false;
     scanVersionRef.current += 1;
     setPreviewScanUrl(null);
     setSelectedScanFile(null);
     setPetImageUrl('');
     setVisionResult(null);
     setVisionError(null);
-    setBreed('');
     setIsUploadingRegImage(false);
     if (cameraInputRef.current) cameraInputRef.current.value = '';
     if (galleryInputRef.current) galleryInputRef.current.value = '';
   };
 
   const selectScanImage = (file: File) => {
+    const scanAfterSelection = scanOnSelectionRef.current;
+    scanOnSelectionRef.current = false;
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       setVisionError('Please choose a JPG, PNG or WebP photo.');
       return;
@@ -216,6 +223,7 @@ export const PetsPage: React.FC = () => {
     resetScan();
     setSelectedScanFile(file);
     setPreviewScanUrl(URL.createObjectURL(file));
+    if (scanAfterSelection) void handleScanImage(file);
   };
 
   const handleScanImage = async (file: File) => {
@@ -232,6 +240,8 @@ export const PetsPage: React.FC = () => {
       if (res.success && res.is_pet) {
         if (res.species) setSpecies(canonSpecies(res.species));
         if (res.primary_breed) setBreed(res.primary_breed);
+        if (res.primary_breed) setCategory(resolveCategory(res.species || species, res.primary_breed, null));
+        if (name.trim()) setRegistrationStep(2);
         // Concurrently upload to avatar storage in background
         setIsUploadingRegImage(true);
         uploadAvatarImage(file)
@@ -389,7 +399,8 @@ export const PetsPage: React.FC = () => {
     },
     onError: (err: any) => {
       console.error('Failed to create pet:', err);
-      setFormError(err.response?.data?.detail || 'Failed to register pet profile.');
+      const detail = err.response?.data?.detail;
+      setFormError(typeof detail === 'string' ? detail : Array.isArray(detail) ? detail.map((item: { msg?: string }) => item.msg || 'Check the entered details.').join(' ') : 'We couldn’t save your pet. Please try again.');
     }
   });
 
@@ -513,6 +524,12 @@ export const PetsPage: React.FC = () => {
       return;
     }
 
+    if (!breed.trim() || !dob) {
+      setFormError('Breed and date of birth are required. Please add them in Details.');
+      setRegistrationStep(2);
+      return;
+    }
+
     const chipProblem = microchipProblem(microchip);
     if (chipProblem) {
       setFormError(chipProblem);
@@ -522,22 +539,36 @@ export const PetsPage: React.FC = () => {
     setIsSubmitting(true);
     setFormError('');
 
+    let profileImageUrl = petImageUrl;
+    if (selectedScanFile && !profileImageUrl) {
+      setIsUploadingRegImage(true);
+      try {
+        const uploaded = await uploadAvatarImage(selectedScanFile);
+        profileImageUrl = uploaded.url;
+        setPetImageUrl(profileImageUrl);
+      } catch {
+        setFormError('We couldn’t upload your pet’s photo. Try saving again, or remove the photo in Meet your pet.');
+        setIsSubmitting(false);
+        return;
+      } finally {
+        setIsUploadingRegImage(false);
+      }
+    }
+
     const petPayload = {
-      name,
+      name: name.trim(),
       species,
       breed: breed.trim() || null,
       gender: gender || null,
       date_of_birth: dob || null,
       weight: weight ? parseFloat(weight) : null,
-      profile_image_url: petImageUrl || null,
+      profile_image_url: profileImageUrl || null,
       microchip_number: cleanMicrochip(microchip) || null,
       category: resolveCategory(species, breed, category)
     };
 
     createMutation.mutate(petPayload, {
-      onSettled: () => {
-        setIsSubmitting(false);
-      }
+      onSettled: () => { setIsSubmitting(false); }
     });
   };
 
@@ -586,16 +617,16 @@ export const PetsPage: React.FC = () => {
         {/* Back Link */}
         <div className="mb-6 text-left">
           <button
-            onClick={() => navigate('/shop/app')}
+            onClick={() => navigate('/')}
             className="font-mono text-[10px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1.5 transition-opacity"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Return to Fresh Meal Store</span>
+            <span>Return to Home</span>
           </button>
         </div>
 
         {/* Section Header */}
-        <div className="space-y-1 text-left mb-8">
+        {activeSection === 'ledger' && <div className="space-y-1 text-left mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="font-display font-black text-2xl sm:text-4xl text-ink tracking-tight">
@@ -622,7 +653,7 @@ export const PetsPage: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Tab Navigation */}
         <div className="flex border-b border-cardboard border-opacity-35 mb-8 font-mono text-xs uppercase tracking-wider font-bold overflow-x-auto custom-scrollbar">
@@ -803,779 +834,62 @@ export const PetsPage: React.FC = () => {
           </div>
         )}
 
-        {/* REGISTRATION STEPPER SECTION - ARTISANAL NOTEBOOK DOSSIER */}
         {activeSection === 'register' && (
-          <div className="max-w-6xl mx-auto space-y-6 text-left animate-fade-in pb-16">
-            {/* Top Bar: Back to Ledger + Architectural Step Nav */}
-            <div className="bg-paperLight border border-cardboard border-opacity-60 p-4 sm:p-5 rounded-sm shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center space-x-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveSection('ledger');
-                    setRegistrationStep(1);
-                  }}
-                  className="h-9 px-3 border border-cardboard hover:bg-paper text-ink font-mono font-bold text-xs uppercase tracking-wider rounded-sm cursor-pointer transition-colors flex items-center space-x-1.5 shadow-xs"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Ledger</span>
-                </button>
-                <div className="h-5 w-px bg-cardboard/60 hidden sm:block" />
-                <div>
-                  <span className="font-mono text-[9px] uppercase font-bold text-paprika block">REGISTRATION DOSSIER</span>
-                  <h2 className="font-display font-black text-lg text-ink leading-tight">New Companion Profile</h2>
-                </div>
-              </div>
-
-              {/* Mode Toggle: AI Fast-Track Scan vs Manual Form */}
-              <div className="flex items-center space-x-1.5 bg-paper p-1 rounded-sm border border-cardboard font-mono text-xs uppercase font-bold">
-                <button
-                  type="button"
-                  onClick={() => setRegistrationMode('scan')}
-                  className={`px-3 py-1.5 rounded-sm transition-all flex items-center space-x-1.5 cursor-pointer ${
-                    registrationMode === 'scan'
-                      ? 'bg-ink text-turmeric shadow-xs font-black'
-                      : 'text-ink/60 hover:text-ink hover:bg-paperLight'
-                  }`}
-                >
-                  <Camera className="w-3.5 h-3.5 text-turmeric" />
-                  <span>AI breed scan</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRegistrationMode('manual')}
-                  className={`px-3 py-1.5 rounded-sm transition-all flex items-center space-x-1.5 cursor-pointer ${
-                    registrationMode === 'manual'
-                      ? 'bg-ink text-turmeric shadow-xs font-black'
-                      : 'text-ink/60 hover:text-ink hover:bg-paperLight'
-                  }`}
-                >
-                  <FileText className="w-3.5 h-3.5 text-paprika" />
-                  <span>Manual form</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Hidden file inputs for Camera and Gallery */}
+          <>
             <input
               ref={cameraInputRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               capture="environment"
               className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) selectScanImage(file);
-                e.target.value = '';
-              }}
+              onChange={(e) => { const file = e.target.files?.[0]; if (file) selectScanImage(file); else scanOnSelectionRef.current = false; e.target.value = ''; }}
             />
             <input
               ref={galleryInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
               className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) selectScanImage(file);
-                e.target.value = '';
-              }}
+              onChange={(e) => { const file = e.target.files?.[0]; if (file) selectScanImage(file); else scanOnSelectionRef.current = false; e.target.value = ''; }}
             />
-
-            {/* VIEW 1: DEDICATED HORIZONTAL AI HERITAGE SCANNER */}
-            {registrationMode === 'scan' && (
-              <div className="max-w-6xl mx-auto space-y-6 text-left animate-fade-in">
-                <div className="bg-paperLight border border-cardboard border-opacity-60 p-6 sm:p-8 rounded-[18px] shadow-sm relative overflow-hidden space-y-6">
-                  {/* Top Bar / Header */}
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-cardboard/40 pb-5">
-                    <div>
-                      <h3 className="font-display font-semibold text-2xl sm:text-3xl text-ink tracking-tight">
-                        Discover your pet’s breed
-                      </h3>
-                      <p className="font-body text-xs sm:text-sm text-ink opacity-75 mt-1 max-w-2xl leading-relaxed">
-                        Get an AI breed estimate from a photo, explore breed traits, and start your companion’s profile.
-                      </p>
-                    </div>
-
-                    {/* Show Live Camera & Upload buttons in the top header ONLY after an image is uploaded/scanned */}
-                    {visionResult?.success && visionResult.is_pet && (
-                      <div className="flex items-center gap-2 shrink-0 animate-fade-in">
-                        <button
-                          type="button"
-                          onClick={() => startCamera('environment')}
-                          disabled={isClassifying}
-                          className="h-10 px-3.5 bg-ink hover:bg-ink/90 text-turmeric font-mono font-bold text-xs uppercase tracking-wider rounded-[8px] flex items-center space-x-2 cursor-pointer transition-colors shadow-sm active:scale-98 disabled:opacity-50"
-                        >
-                          <Camera className="w-3.5 h-3.5 text-turmeric" />
-                          <span>Use camera</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => galleryInputRef.current?.click()}
-                          disabled={isClassifying}
-                          className="h-10 px-3.5 border-2 border-cardboard hover:bg-paper text-ink font-mono font-bold text-xs uppercase tracking-wider rounded-[8px] flex items-center space-x-2 cursor-pointer transition-colors shadow-xs active:scale-98 disabled:opacity-50"
-                        >
-                          <Scan className="w-3.5 h-3.5 text-paprika" />
-                          <span>Change photo</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Error Notification */}
-                  {visionError && !isClassifying && (
-                    <div role="alert" className="p-4 bg-rose-50 border border-rose-200 rounded-[10px] text-xs sm:text-sm text-rose-800 flex items-start space-x-2.5 font-body">
-                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                      <span>{visionError}</span>
-                    </div>
-                  )}
-
-                  {(!visionResult?.success || !visionResult.is_pet || isClassifying) && (
-                    <PetBreedScanUpload
-                      previewUrl={previewScanUrl}
-                      fileName={selectedScanFile?.name}
-                      isScanning={isClassifying}
-                      onUpload={() => galleryInputRef.current?.click()}
-                      onCamera={() => startCamera('environment')}
-                      onSelect={selectScanImage}
-                      onScan={() => { if (selectedScanFile) void handleScanImage(selectedScanFile); }}
-                    />
-                  )}
-                  <p className="font-body text-xs leading-relaxed text-ink/60 border-t border-cardboard/50 pt-4">
-                    A photo provides an estimate, not a genetic ancestry test. You can edit the suggested breed before saving your profile.
-                  </p>
-
-                  {/* HORIZONTAL POST-SCAN WORKSPACE: PASSPORT (LEFT) + REGISTRATION FORM (RIGHT) */}
-                  {visionResult?.success && visionResult.is_pet && !isClassifying && (
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start pt-2">
-                      {/* Left Column: Full Official Heritage Passport (7 cols) */}
-                      <div className="lg:col-span-7 space-y-4">
-                        {!visionResult.heritage && (previewScanUrl || petImageUrl) && (
-                          <img
-                            src={previewScanUrl || petImageUrl}
-                            alt="Your pet’s scanned photo"
-                            className="w-full max-h-96 rounded-xl border border-cardboard object-contain bg-paper"
-                          />
-                        )}
-                        {visionResult?.heritage && (
-                          <PetHeritagePassport
-                            petName={name}
-                            breedName={visionResult.primary_breed || breed || 'Companion'}
-                            species={visionResult.species || species || 'Dog'}
-                            photoUrl={previewScanUrl || petImageUrl || undefined}
-                            heritage={visionResult.heritage}
-                          />
-                        )}
-                      </div>
-
-                      {/* Right Column: Fast-Track Identity & Confirm Pod (5 cols) */}
-                      <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-4">
-                        <form onSubmit={handleAddPet} className="bg-paper p-5 sm:p-6 rounded-[18px] border border-cardboard space-y-4 shadow-sm">
-                          {/* Top Detection Pill */}
-                          <div className="border-b border-cardboard/40 pb-3 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <span className="font-mono text-[10px] uppercase font-bold text-herb tracking-widest block">
-                                  AI BREED ESTIMATE
-                                </span>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className="font-display font-black text-lg text-ink">
-                                    {breed || visionResult?.primary_breed || 'Companion'}
-                                  </span>
-                                  {visionResult?.confidence && (
-                                    <span className="font-mono text-[10px] font-bold text-paprika bg-herb/15 border border-herb/40 px-2 py-0.5 rounded-sm">
-                                      {Math.round(visionResult.confidence * 100)}% confidence
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={resetScan}
-                                className="font-mono text-xs text-ink/60 hover:text-rose-600 transition-colors flex items-center gap-1 cursor-pointer"
-                                title="Scan different photo"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                                <span>New scan</span>
-                              </button>
-                            </div>
-
-                            {/* Candidate Breed Possibilities & Accuracy Selection Chips */}
-                            {visionResult?.top_matches && visionResult.top_matches.length > 0 && (
-                              <div className="pt-2 border-t border-dashed border-cardboard/60 space-y-1.5">
-                                <span className="font-mono text-[10px] uppercase font-bold text-ink/70 flex items-center justify-between">
-                                  <span>AI Candidate Matches (Tap to Select):</span>
-                                </span>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {visionResult.top_matches.map((m, idx) => {
-                                    const isSelected = (breed || visionResult.primary_breed)?.toLowerCase() === m.breed.toLowerCase();
-                                    return (
-                                      <button
-                                        key={idx}
-                                        type="button"
-                                        onClick={() => {
-                                          setBreed(m.breed);
-                                          if (m.species) setSpecies(canonSpecies(m.species));
-                                        }}
-                                        className={`px-2.5 py-1 rounded-sm border font-mono text-[11px] uppercase transition-all cursor-pointer flex items-center space-x-1.5 ${
-                                          isSelected
-                                            ? 'bg-paprika text-white border-paprika font-bold shadow-xs'
-                                            : 'bg-paperLight hover:bg-paper border-cardboard text-ink hover:border-turmeric'
-                                        }`}
-                                      >
-                                        <span>{m.breed}</span>
-                                        <span className={`text-[9px] font-bold ${isSelected ? 'text-white/90' : 'text-herb'}`}>
-                                          {Math.round(m.confidence * 100)}%
-                                        </span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {formError && (
-                            <div className="text-xs text-rose-800 bg-rose-50 border border-rose-200 p-3 rounded-sm font-body flex items-start space-x-2">
-                              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                              <span>{formError}</span>
-                            </div>
-                          )}
-
-                          <div className="space-y-3.5">
-                            {/* Companion Name */}
-                            <div className="space-y-1">
-                              <label className="font-mono text-xs uppercase font-bold text-paprika block">
-                                Companion Name (Required)*:
-                              </label>
-                              <input
-                                type="text"
-                                value={name}
-                                onChange={(e) => {
-                                  setName(e.target.value);
-                                  if (formError) setFormError('');
-                                }}
-                                placeholder="e.g. Scooby, Puma, Bella"
-                                className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
-                                required
-                                autoFocus
-                              />
-                            </div>
-
-                            {/* Species (dropdown) */}
-                            <div className="space-y-1">
-                              <label className="font-mono text-xs uppercase font-bold text-ink/70 block">
-                                Species:
-                              </label>
-                              <SpeciesButtons compact value={species} onChange={(v) => { setSpecies(v); setCategory(null); }} />
-                            </div>
-
-                            {/* Breed Input Field (editable with accuracy display) */}
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between">
-                                <label className="font-mono text-xs uppercase font-bold text-ink/70 block">
-                                  Breed / Genetic Lineage:
-                                </label>
-                                {visionResult?.confidence && (
-                                  <span className="font-mono text-[10px] font-bold text-herb">
-                                    {Math.round(visionResult.confidence * 100)}% confidence
-                                  </span>
-                                )}
-                              </div>
-                              <BreedInput
-                                value={breed}
-                                onChange={setBreed}
-                                species={species}
-                                placeholder="e.g. Boston Terrier, Golden Retriever"
-                                className="w-full h-10 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
-                              />
-                            </div>
-
-                            <DogCategoryField
-                              species={species}
-                              breed={breed}
-                              value={category}
-                              onChange={setCategory}
-                              labelClass="font-mono text-xs uppercase font-bold text-ink/70 block"
-                            />
-
-                            <div className="space-y-1">
-                              <label className="font-mono text-[11px] uppercase font-bold text-ink/70 block">
-                                Microchip number (optional):
-                              </label>
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                maxLength={30}
-                                value={microchip}
-                                onChange={(e) => setMicrochip(cleanMicrochip(e.target.value))}
-                                placeholder="e.g. 985112345678901"
-                                className="w-full h-10 px-3 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
-                              />
-                            </div>
-
-                            <div className="space-y-1">
-                              <label className="font-mono text-[11px] uppercase font-bold text-ink/70 block">
-                                Date of Birth:
-                              </label>
-                              <input
-                                type="date"
-                                value={dob}
-                                onChange={(e) => setDob(e.target.value)}
-                                className="w-full h-10 px-2.5 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
-                              />
-                            </div>
-
-                            {/* Gender Selector */}
-                            <div className="space-y-1">
-                              <label className="font-mono text-xs uppercase font-bold text-ink/70 block">
-                                Gender:
-                              </label>
-                              <div className="grid grid-cols-3 gap-2">
-                                {['Male', 'Female', 'Unknown'].map((g) => (
-                                  <button
-                                    key={g}
-                                    type="button"
-                                    onClick={() => setGender(g)}
-                                    className={`h-9 rounded-sm border font-mono text-xs uppercase font-bold transition-all cursor-pointer ${
-                                      gender === g
-                                        ? 'bg-ink text-turmeric border-ink shadow-xs'
-                                        : 'bg-paperLight hover:bg-paper border-cardboard text-ink'
-                                    }`}
-                                  >
-                                    {g}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div className="space-y-1">
-                              <label className="font-mono text-[11px] uppercase font-bold text-ink/70 block">
-                                Weight in KG:
-                              </label>
-                              <input
-                                type="number"
-                                step="0.1"
-                                value={weight}
-                                onChange={(e) => setWeight(e.target.value)}
-                                placeholder="e.g. 24.5"
-                                className="w-full h-10 px-3 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
-                              />
-                            </div>
-
-                            {/* Scooby's Recipe Nutrition Preview */}
-                            {visionResult?.care_insights && (
-                              <div className="p-3 bg-paperLight border border-cardboard rounded-[10px] space-y-1">
-                                <div className="flex items-center justify-between font-mono text-[10px] uppercase font-bold">
-                                  <span className="text-paprika">🥗 Tailored Nutrition</span>
-                                  <span className="text-herb">{visionResult.care_insights.adult_size_category || 'Balanced'}</span>
-                                </div>
-                                <div className="font-display font-bold text-xs text-ink">
-                                  {visionResult.care_insights.recommended_recipe}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Submit Action */}
-                          <div className="pt-2 space-y-2.5">
-                            <button
-                              type="submit"
-                              disabled={isSubmitting || isUploadingRegImage || !name.trim()}
-                              className="w-full h-12 bg-herb hover:bg-herb/90 text-white font-body font-bold text-xs uppercase tracking-wider rounded-sm shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50 active:scale-98"
-                            >
-                              {isSubmitting ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  <span>Saving Companion Dossier...</span>
-                                </>
-                              ) : (
-                                <span>Complete Registration with Passport 🐾</span>
-                              )}
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => setRegistrationMode('manual')}
-                              className="w-full text-center font-mono text-[11px] text-ink/60 hover:text-turmeric uppercase font-bold transition-colors cursor-pointer"
-                            >
-                              Switch to Manual 3-Step Form &rarr;
-                            </button>
-                          </div>
-                        </form>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* VIEW 2: DEDICATED 3-STEP MANUAL REGISTRATION FORM */}
-            {registrationMode === 'manual' && (
-              <div className="max-w-3xl mx-auto space-y-6 text-left animate-fade-in">
-                {/* Stepper Header */}
-                <div className="flex justify-between items-center bg-paper p-3 sm:p-4 rounded-sm border border-cardboard">
-                  <span className="font-mono text-xs uppercase font-bold text-paprika">
-                    Step 0{registrationStep} of 03
-                  </span>
-                  
-                  <div className="flex items-center space-x-1 font-mono text-xs uppercase tracking-wider">
-                    {[
-                      { step: 1, label: '01. Identity' },
-                      { step: 2, label: '02. Pedigree' },
-                      { step: 3, label: '03. Photo & Review' },
-                    ].map((item, idx) => {
-                      const isCurrent = registrationStep === item.step;
-                      const isDone = registrationStep > item.step;
-                      const canNav = item.step === 1 || name.trim().length > 0;
-                      return (
-                        <React.Fragment key={item.step}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (canNav) setRegistrationStep(item.step);
-                            }}
-                            disabled={!canNav}
-                            className={`px-3 py-1.5 rounded-sm border transition-all text-xs font-bold ${
-                              isCurrent
-                                ? 'border-turmeric bg-paperLight text-ink font-black shadow-xs cursor-default'
-                                : isDone
-                                ? 'border-cardboard bg-paperLight text-herb hover:border-turmeric cursor-pointer'
-                                : 'border-transparent text-ink/40 cursor-not-allowed'
-                            }`}
-                          >
-                            <span className="flex items-center space-x-1.5">
-                              {isDone && <CheckCircle2 className="w-3.5 h-3.5 text-herb shrink-0" />}
-                              <span>{item.label}</span>
-                            </span>
-                          </button>
-                          {idx < 2 && <span className="text-cardboard font-bold select-none">/</span>}
-                        </React.Fragment>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="bg-paperLight border border-cardboard border-opacity-60 p-6 sm:p-8 rounded-[18px] shadow-sm space-y-6 relative overflow-hidden">
-                  <div className="border-b border-cardboard/40 pb-3">
-                    <span className="font-mono text-[10px] uppercase font-bold text-paprika block">
-                      STEP 0{registrationStep} OF 03
-                    </span>
-                    <h3 className="font-display font-black text-xl sm:text-2xl text-ink tracking-tight mt-0.5">
-                      {registrationStep === 1 && 'Companion Identity'}
-                      {registrationStep === 2 && 'Pedigree & Biometrics'}
-                      {registrationStep === 3 && 'Official Photo & Review'}
-                    </h3>
-                  </div>
-
-                  {formError && (
-                    <div className="text-xs text-rose-800 bg-rose-50 border border-rose-200 p-3 rounded-sm font-body flex items-start space-x-2">
-                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                      <span>{formError}</span>
-                    </div>
-                  )}
-
-                  {/* STEP 1: Companion Identity */}
-                  {registrationStep === 1 && (
-                    <div className="space-y-5 animate-fade-in">
-                      <div className="space-y-1 text-left">
-                        <label htmlFor="name" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider">
-                          Pet Name (required)*:
-                        </label>
-                        <input
-                          type="text"
-                          id="name"
-                          value={name}
-                          onChange={(e) => {
-                            setName(e.target.value);
-                            if (formError) setFormError('');
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              if (name.trim()) setRegistrationStep(2);
-                            }
-                          }}
-                          placeholder="e.g. Scooby"
-                          className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
-                          required
-                          autoFocus
-                        />
-                      </div>
-
-                      <div className="space-y-1.5 text-left">
-                        <span className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider">
-                          Species:
-                        </span>
-                        <SpeciesButtons value={species} onChange={(v) => { setSpecies(v); setCategory(null); }} />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* STEP 2: Pedigree & Measurements */}
-                  {registrationStep === 2 && (
-                    <div className="space-y-5 animate-fade-in">
-                      <div className="space-y-1 text-left">
-                        <label htmlFor="breed" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider">
-                          Breed / Genetic Lineage (optional):
-                        </label>
-                        <BreedInput
-                          id="breed"
-                          value={breed}
-                          onChange={setBreed}
-                          species={species}
-                          placeholder="e.g. Golden Retriever, Indian Pariah / Indie"
-                          className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
-                        />
-                      </div>
-
-                      <DogCategoryField
-                        species={species}
-                        breed={breed}
-                        value={category}
-                        onChange={setCategory}
-                        labelClass="font-mono text-xs uppercase font-bold text-paprika block tracking-wider"
-                      />
-
-                      <div className="space-y-1 text-left">
-                        <label htmlFor="microchip" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider flex items-center space-x-1">
-                          <Cpu className="w-3.5 h-3.5" />
-                          <span>Microchip number (optional):</span>
-                        </label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          maxLength={30}
-                          id="microchip"
-                          value={microchip}
-                          onChange={(e) => setMicrochip(cleanMicrochip(e.target.value))}
-                          placeholder="e.g. 985112345678901"
-                          className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
-                        />
-                      </div>
-
-                      <div className="text-left">
-                      <div className="space-y-1">
-                        <label htmlFor="dob" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider flex items-center space-x-1">
-                          <Cake className="w-3.5 h-3.5" />
-                          <span>Birthday (optional):</span>
-                        </label>
-                        <input
-                          type="date"
-                          id="dob"
-                          value={dob}
-                          onChange={(e) => setDob(e.target.value)}
-                          className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors cursor-pointer"
-                        />
-                      </div>
-                      </div>
-
-                      <div className="space-y-1.5 text-left">
-                        <span className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider">
-                          Gender:
-                        </span>
-                        <div className="grid grid-cols-3 gap-2">
-                          {['Male', 'Female', 'Unknown'].map((g) => (
-                            <button
-                              key={g}
-                              type="button"
-                              onClick={() => setGender(g)}
-                              className={`py-2.5 px-3 border text-center font-mono text-xs uppercase font-bold rounded-sm transition-colors cursor-pointer ${
-                                gender === g
-                                  ? 'bg-ink text-turmeric border-ink shadow-xs font-black'
-                                  : 'bg-paperLight hover:bg-paper border-cardboard text-ink'
-                              }`}
-                            >
-                              {g} {g === 'Male' && '♂'}{g === 'Female' && '♀'}{g === 'Unknown' && '🐾'}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="text-left">
-                      <div className="space-y-1">
-                        <label htmlFor="weight" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider flex items-center space-x-1">
-                          <Scale className="w-3.5 h-3.5" />
-                          <span>Weight (kg):</span>
-                        </label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          id="weight"
-                          value={weight}
-                          onChange={(e) => setWeight(e.target.value)}
-                          placeholder="e.g. 14.5"
-                          className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
-                          min="0.1"
-                        />
-                      </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* STEP 3: Companion Photo & Review */}
-                  {registrationStep === 3 && (
-                    <form onSubmit={handleAddPet} className="space-y-5 animate-fade-in text-left">
-                      {isPhotoUploadEnabled && (
-                        <div className="space-y-2">
-                          <label className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider">
-                            Pet Portrait Photo (Optional):
-                          </label>
-                          <div className="flex items-center space-x-4">
-                            <div className="w-16 h-16 rounded-sm border border-cardboard overflow-hidden bg-paper shrink-0 shadow-xs flex items-center justify-center">
-                              {petImageUrl || previewScanUrl ? (
-                                <img 
-                                  src={petImageUrl || previewScanUrl!} 
-                                  alt={name || 'Companion'} 
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <PawPrint className="w-8 h-8 text-cardboard" />
-                              )}
-                            </div>
-                            <div className="space-y-1">
-                              <input
-                                ref={regFileInputRef}
-                                type="file"
-                                accept="image/jpeg,image/png,image/webp"
-                                className="hidden"
-                                onChange={async (e) => {
-                                  const file = e.target.files?.[0];
-                                  if (!file) return;
-                                  setIsUploadingRegImage(true);
-                                  try {
-                                    const res = await uploadAvatarImage(file);
-                                    setPetImageUrl(res.url);
-                                  } catch (err: any) {
-                                    alert(`Image upload failed: ${err?.response?.data?.detail || err.message}`);
-                                  } finally {
-                                    setIsUploadingRegImage(false);
-                                  }
-                                }}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => regFileInputRef.current?.click()}
-                                disabled={isUploadingRegImage}
-                                className="h-9 px-3 border border-cardboard hover:bg-paper text-ink font-mono text-xs uppercase font-bold rounded-sm cursor-pointer transition-colors shadow-xs flex items-center space-x-1.5 disabled:opacity-50"
-                              >
-                                {isUploadingRegImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5 text-turmeric" />}
-                                <span>{petImageUrl || previewScanUrl ? 'Change Photo' : 'Upload Photo'}</span>
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Summary Review Ledger Table */}
-                      <div className="border border-cardboard border-opacity-60 bg-paper/40 p-4 rounded-sm space-y-2">
-                        <div className="flex items-center justify-between border-b border-cardboard border-opacity-40 pb-1.5">
-                          <span className="font-mono text-[10px] uppercase font-bold text-paprika tracking-wider">
-                            DOSSIER REGISTRY VERIFICATION
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setRegistrationStep(1)}
-                            className="font-mono text-[10px] uppercase text-ink/60 hover:text-paprika font-bold cursor-pointer underline underline-offset-2"
-                          >
-                            Edit Fields
-                          </button>
-                        </div>
-
-                        <div className="space-y-1.5 font-mono text-xs uppercase text-ink pr-1">
-                          <div className="flex justify-between items-center py-1 border-b border-cardboard border-dashed border-opacity-30">
-                            <span className="text-herb font-bold flex items-center">
-                              <PawPrint className="w-3.5 h-3.5 text-turmeric mr-2" />
-                              <span>NAME</span>
-                            </span>
-                            <span className="font-bold text-ink">{name || 'UNNAMED'}</span>
-                          </div>
-                          <div className="flex justify-between items-center py-1 border-b border-cardboard border-dashed border-opacity-30">
-                            <span className="text-herb font-bold flex items-center">
-                              <PawPrint className="w-3.5 h-3.5 text-turmeric mr-2" />
-                              <span>SPECIES</span>
-                            </span>
-                            <span className="font-bold text-ink">{species}</span>
-                          </div>
-                          <div className="flex justify-between items-center py-1 border-b border-cardboard border-dashed border-opacity-30">
-                            <span className="text-herb font-bold flex items-center">
-                              <Award className="w-3.5 h-3.5 text-turmeric mr-2" />
-                              <span>BREED</span>
-                            </span>
-                            <span className="font-bold text-ink">{breed || 'MIXED BREED'}</span>
-                          </div>
-                          <div className="flex justify-between items-center py-1 border-b border-cardboard border-dashed border-opacity-30">
-                            <span className="text-herb font-bold flex items-center">
-                              <Heart className="w-3.5 h-3.5 text-paprika mr-2" />
-                              <span>GENDER</span>
-                            </span>
-                            <span className="font-bold text-ink">{gender}</span>
-                          </div>
-                          <div className="flex justify-between items-center py-1 border-b border-cardboard border-dashed border-opacity-30">
-                            <span className="text-herb font-bold flex items-center">
-                              <Scale className="w-3.5 h-3.5 text-herb mr-2" />
-                              <span>WEIGHT</span>
-                            </span>
-                            <span className="font-bold text-ink">{weight ? `${weight} KG` : 'NOT SET'}</span>
-                          </div>
-                          <div className="flex justify-between items-center py-1">
-                            <span className="text-herb font-bold flex items-center">
-                              <Cpu className="w-3.5 h-3.5 text-herb mr-2" />
-                              <span>MICROCHIP</span>
-                            </span>
-                            <span className="font-bold text-ink">{cleanMicrochip(microchip) || 'NOT SET'}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={isSubmitting || isUploadingRegImage}
-                        className="w-full h-12 bg-herb hover:bg-herb/90 text-white font-body font-bold text-xs uppercase tracking-wider rounded-sm shadow-md transition-colors flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50 active:scale-98"
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Saving Companion Dossier...</span>
-                          </>
-                        ) : (
-                          <span>Complete Registration 🐾</span>
-                        )}
-                      </button>
-                    </form>
-                  )}
-
-                  {/* Stepper Navigation buttons */}
-                  <div className="flex justify-between items-center pt-4 border-t border-cardboard border-opacity-40 mt-4">
-                    {registrationStep > 1 ? (
-                      <button
-                        type="button"
-                        onClick={() => setRegistrationStep(registrationStep - 1)}
-                        className="h-10 px-4 border border-cardboard hover:bg-paper text-ink font-mono text-xs uppercase font-bold rounded-sm cursor-pointer transition-colors flex items-center space-x-1.5 shadow-xs"
-                      >
-                        <ArrowLeft className="w-3.5 h-3.5" />
-                        <span>Previous Step</span>
-                      </button>
-                    ) : (
-                      <div />
-                    )}
-                    {registrationStep < 3 && (
-                      <button
-                        type="button"
-                        disabled={registrationStep === 1 && !name.trim()}
-                        onClick={() => setRegistrationStep(registrationStep + 1)}
-                        className="h-10 px-6 bg-ink hover:bg-ink/90 text-paperLight font-mono text-xs uppercase font-bold rounded-sm cursor-pointer transition-colors shadow-xs active:scale-98 disabled:opacity-50 flex items-center space-x-1.5"
-                      >
-                        <span>Next Step</span>
-                        <span>➔</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+            <AddPetWizard
+              value={{ name, species, breed, category, gender, dob, weight, microchip }}
+              onChange={(patch: Partial<PetDraft>) => {
+                if (patch.name !== undefined) setName(patch.name);
+                if (patch.species !== undefined) setSpecies(patch.species);
+                if (patch.breed !== undefined) setBreed(patch.breed);
+                if (patch.category !== undefined) setCategory(patch.category);
+                if (patch.gender !== undefined) setGender(patch.gender);
+                if (patch.dob !== undefined) setDob(patch.dob);
+                if (patch.weight !== undefined) setWeight(patch.weight);
+                if (patch.microchip !== undefined) setMicrochip(patch.microchip);
+                setFormError('');
+              }}
+              step={registrationStep}
+              onStepChange={setRegistrationStep}
+              onCancel={() => setActiveSection('ledger')}
+              photoUrl={previewScanUrl || petImageUrl || null}
+              fileName={selectedScanFile?.name}
+              knownBreeds={(pets || []).filter((pet) => pet.species.toLowerCase() === species.toLowerCase()).map((pet) => pet.breed || '')}
+              canUpload={isPhotoUploadEnabled}
+              isScanning={isClassifying}
+              isUploading={isUploadingRegImage}
+              isSaving={isSubmitting}
+              scanResult={visionResult}
+              scanError={visionError}
+              saveError={formError}
+              onUpload={() => { scanOnSelectionRef.current = false; galleryInputRef.current?.click(); }}
+              onCamera={() => { scanOnSelectionRef.current = false; void startCamera('environment'); }}
+              onSelectPhoto={(file) => { scanOnSelectionRef.current = false; selectScanImage(file); }}
+              onRemovePhoto={resetScan}
+              onScan={() => {
+                if (selectedScanFile) void handleScanImage(selectedScanFile);
+                else { scanOnSelectionRef.current = true; galleryInputRef.current?.click(); }
+              }}
+              onScanUpload={() => { scanOnSelectionRef.current = true; galleryInputRef.current?.click(); }}
+              onScanCamera={() => { scanOnSelectionRef.current = true; void startCamera('environment'); }}
+              onSave={handleAddPet}
+            />
+          </>
         )}
 
       </main>
@@ -1595,7 +909,8 @@ export const PetsPage: React.FC = () => {
               </div>
               <button
                 type="button"
-                onClick={stopCamera}
+                onClick={() => { scanOnSelectionRef.current = false; stopCamera(); }}
+                aria-label="Close camera"
                 className="w-7 h-7 rounded-sm border border-cardboard hover:bg-cardboard/30 flex items-center justify-center text-ink transition-colors cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
