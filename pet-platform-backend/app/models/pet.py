@@ -59,9 +59,9 @@ class Pet(Base):
         nullable=True,
     )
 
-    # ISO 11784/11785 chips are 15 digits; older chips use 9 or 10.
+    # Digits only, up to 30 (ISO 11784/11785 chips are 15 digits; older ones 9 or 10).
     microchip_number: Mapped[str | None] = mapped_column(
-        String(15),
+        String(30),
         nullable=True,
     )
 

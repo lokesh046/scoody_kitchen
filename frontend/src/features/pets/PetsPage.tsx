@@ -44,12 +44,12 @@ const mapRecordType = (type: string | undefined | null): string => {
   return 'general';
 };
 
-// Microchip numbers are 15 digits (older chips 9 or 10); spaces and dashes are allowed when typing.
-const cleanMicrochip = (value: string) => value.replace(/[\s-]/g, '');
+// Microchip numbers: digits only, 9 to 30 of them. Anything that isn't a digit is dropped as you type or paste.
+const cleanMicrochip = (value: string) => value.replace(/\D/g, '').slice(0, 30);
 const microchipProblem = (value: string): string | null => {
   const digits = cleanMicrochip(value);
-  return digits && !/^\d{9,15}$/.test(digits)
-    ? 'Microchip number must be 9 to 15 digits (the number printed on the chip card).'
+  return digits && !/^\d{9,30}$/.test(digits)
+    ? 'Microchip number must be 9 to 30 digits (numbers only, as printed on the chip card).'
     : null;
 };
 
@@ -1107,9 +1107,9 @@ export const PetsPage: React.FC = () => {
                               <input
                                 type="text"
                                 inputMode="numeric"
-                                maxLength={19}
+                                maxLength={30}
                                 value={microchip}
-                                onChange={(e) => setMicrochip(e.target.value)}
+                                onChange={(e) => setMicrochip(cleanMicrochip(e.target.value))}
                                 placeholder="e.g. 985112345678901"
                                 className="w-full h-10 px-3 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
                               />
@@ -1346,10 +1346,10 @@ export const PetsPage: React.FC = () => {
                         <input
                           type="text"
                           inputMode="numeric"
-                          maxLength={19}
+                          maxLength={30}
                           id="microchip"
                           value={microchip}
-                          onChange={(e) => setMicrochip(e.target.value)}
+                          onChange={(e) => setMicrochip(cleanMicrochip(e.target.value))}
                           placeholder="e.g. 985112345678901"
                           className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
                         />
@@ -1810,9 +1810,9 @@ export const PetsPage: React.FC = () => {
                       <input
                         type="text"
                         inputMode="numeric"
-                        maxLength={19}
+                        maxLength={30}
                         value={editMicrochip}
-                        onChange={(e) => setEditMicrochip(e.target.value)}
+                        onChange={(e) => setEditMicrochip(cleanMicrochip(e.target.value))}
                         placeholder="e.g. 985112345678901"
                         className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
                       />

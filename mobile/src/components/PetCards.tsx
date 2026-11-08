@@ -673,9 +673,9 @@ export const PetDossierModal = memo(function PetDossierModal({
       return;
     }
 
-    const microchipDigits = microchip.replace(/[\s-]/g, '');
-    if (microchipDigits && !/^\d{9,15}$/.test(microchipDigits)) {
-      setError('Microchip number must be 9 to 15 digits (the number printed on the chip card).');
+    const microchipDigits = microchip.replace(/\D/g, '');
+    if (microchipDigits && !/^\d{9,30}$/.test(microchipDigits)) {
+      setError('Microchip number must be 9 to 30 digits (numbers only, as printed on the chip card).');
       return;
     }
 
@@ -990,14 +990,14 @@ export const PetDossierModal = memo(function PetDossierModal({
                   placeholder="985112345678901"
                   placeholderTextColor={COLORS.textLight}
                   value={microchip}
-                  onChangeText={setMicrochip}
+                  onChangeText={(t) => setMicrochip(t.replace(/\D/g, '').slice(0, 30))}
                   keyboardType="number-pad"
-                  maxLength={19}
+                  maxLength={30}
                   accessibilityLabel="Microchip number, optional"
                 />
               </View>
               <Text style={petCardStyles.fieldHelper}>
-                The 15-digit number on your pet's chip card, if they have one
+                Numbers only (up to 30 digits), as on your pet's chip card
               </Text>
             </View>
 

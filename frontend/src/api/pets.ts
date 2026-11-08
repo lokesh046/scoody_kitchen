@@ -8,7 +8,7 @@ export interface PetCreate {
   date_of_birth?: string | null; // ISO Date YYYY-MM-DD
   weight?: number | null;
   profile_image_url?: string | null;
-  microchip_number?: string | null; // 9-15 digits; null clears it
+  microchip_number?: string | null; // digits only, 9-30; null clears it
   category?: string | null; // dogs only: Working, Hound, Sporting, Companion
 }
 

@@ -7,14 +7,14 @@ from pydantic import BaseModel, Field, field_validator
 
 
 def _clean_microchip(value: str | None) -> str | None:
-    """Accepts the number as printed on the chip card (spaces or dashes allowed); blank means none."""
+    """Digits only, 9 to 30 of them (spaces or dashes from a pasted number are dropped); blank means none."""
     if value is None:
         return None
     digits = re.sub(r"[\s-]", "", value)
     if not digits:
         return None
-    if not re.fullmatch(r"\d{9,15}", digits):
-        raise ValueError("Microchip number must be 9 to 15 digits")
+    if not re.fullmatch(r"\d{9,30}", digits):
+        raise ValueError("Microchip number must be digits only, 9 to 30 of them")
     return digits
 
 
