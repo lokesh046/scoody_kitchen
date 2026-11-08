@@ -14,7 +14,6 @@ import {
   LogOut 
 } from 'lucide-react';
 import { useFeatureFlag, useFeatureFlags, useFlagEntry, useVetAccess } from '../hooks/useFeatureFlag';
-import { hasSeenLanding, type LandingKey } from '../utils/landingSeen';
 
 interface HeaderProps {
   activeTab?: 'shop' | 'calculator' | 'pets' | 'consultations' | 'orders' | 'assistant' | 'profile' | 'admin' | 'doctor' | 'apply-doctor' | 'support' | 'blog';
@@ -117,22 +116,18 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
   const calculatorEntry = useFlagEntry('shop_meal_planner');
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
 
-  // `seen` + `featurePath`: for a signed-in visitor, the first click opens the landing page (`path`); once that landing
-  // page has been opened on this device, it goes straight to the feature.
-  const navLinks: { id: string; label: string; path: string; badge?: string | null; seen?: LandingKey; featurePath?: string }[] = [
-    ...(isKnowYourPetEnabled ? [{ id: 'pets', label: 'Know Your Pet', path: '/pets', seen: 'pets' as const, featurePath: '/pets/app' }] : []),
-    ...(vetAccess.navVisible ? [{ id: 'consultations', label: 'Vet Consult', path: '/consultations', badge: vetAccess.navLabel, seen: 'vet' as const, featurePath: '/consultations/app' }] : []),
-    ...(shopEntry.visible ? [{ id: 'shop', label: 'Shop', path: '/shop', badge: shopEntry.label, seen: 'shop' as const, featurePath: '/shop/app' }] : []),
-    ...(calculatorEntry.visible ? [{ id: 'calculator', label: 'Count The Calories', path: '/recipe-calculator', badge: calculatorEntry.label, seen: 'calculator' as const, featurePath: '/recipe-calculator#fit-calculator' }] : []),
+  // Header links always open the feature's landing page (`path`). The home page cards' main button goes straight to the feature.
+  const navLinks: { id: string; label: string; path: string; badge?: string | null }[] = [
+    ...(isKnowYourPetEnabled ? [{ id: 'pets', label: 'Know Your Pet', path: '/pets' }] : []),
+    ...(vetAccess.navVisible ? [{ id: 'consultations', label: 'Vet Consult', path: '/consultations', badge: vetAccess.navLabel }] : []),
+    ...(shopEntry.visible ? [{ id: 'shop', label: 'Shop', path: '/shop', badge: shopEntry.label }] : []),
+    ...(calculatorEntry.visible ? [{ id: 'calculator', label: 'Count The Calories', path: '/recipe-calculator', badge: calculatorEntry.label }] : []),
     { id: 'orders', label: 'My Orders', path: '/orders' },
     ...(isMealPlannerEnabled ? [{ id: 'onboarding', label: 'Meal Planner', path: '/onboarding' }] : []),
     ...(isChatbotEnabled ? [{ id: 'assistant', label: 'AI Assistant', path: '/assistant' }] : []),
   ];
 
-  // Only for signed-in visitors: the first click opens the landing page, later clicks go straight to the feature.
-  // A signed-out visitor always gets the landing page.
-  const linkTarget = (link: (typeof navLinks)[number]) =>
-    user && link.seen && link.featurePath && hasSeenLanding(link.seen) ? link.featurePath : link.path;
+  const linkTarget = (link: (typeof navLinks)[number]) => link.path;
 
   return (
     <>
