@@ -22,6 +22,9 @@ import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFl
 import { PetHeritagePassport } from '../../components/PetHeritagePassport';
 import { PetBreedScanUpload } from './PetBreedScanUpload';
 import { VaccinationsPanel } from './VaccinationsPanel';
+import { DogCategoryField, SpeciesDropdown } from './PetFormFields';
+import { canonSpecies, resolveCategory } from './petFormHelpers';
+import { categoryForBreed, type PetCategory } from '../../constants/breedCategory';
 import { VaccinationHistoryModal } from './VaccinationHistoryModal';
 import { fetchVaccinations, type VaccinationOverview } from '../../api/vaccinations';
 
@@ -63,6 +66,7 @@ export const PetsPage: React.FC = () => {
   const [registrationMode, setRegistrationMode] = useState<'scan' | 'manual'>('scan');
   const [name, setName] = useState('');
   const [species, setSpecies] = useState('Dog');
+  const [category, setCategory] = useState<PetCategory | null>(null);
   const [breed, setBreed] = useState('');
   const [gender, setGender] = useState('Male');
   const [dob, setDob] = useState('');
@@ -226,7 +230,7 @@ export const PetsPage: React.FC = () => {
       setVisionResult(res);
 
       if (res.success && res.is_pet) {
-        if (res.species) setSpecies(res.species);
+        if (res.species) setSpecies(canonSpecies(res.species));
         if (res.primary_breed) setBreed(res.primary_breed);
         // Concurrently upload to avatar storage in background
         setIsUploadingRegImage(true);
@@ -274,6 +278,7 @@ export const PetsPage: React.FC = () => {
   const [editWeight, setEditWeight] = useState('');
   const [editMicrochip, setEditMicrochip] = useState('');
   const [editSpecies, setEditSpecies] = useState('');
+  const [editCategory, setEditCategory] = useState<PetCategory | null>(null);
   const [isUpdatingPet, setIsUpdatingPet] = useState(false);
   const [updateError, setUpdateError] = useState('');
 
@@ -368,6 +373,7 @@ export const PetsPage: React.FC = () => {
       // Reset all form inputs and AI scan vision state for next pet
       setName('');
       setSpecies('Dog');
+      setCategory(null);
       setBreed('');
       setGender('Male');
       setDob('');
@@ -422,7 +428,8 @@ export const PetsPage: React.FC = () => {
         setEditDob(petData.date_of_birth || '');
         setEditWeight(petData.weight ? petData.weight.toString() : '');
         setEditMicrochip(petData.microchip_number || '');
-        setEditSpecies(petData.species);
+        setEditSpecies(canonSpecies(petData.species));
+        setEditCategory((['Working', 'Hound', 'Sporting', 'Companion'] as const).find((c) => c === petData.category) ?? null);
         setEditPetImageUrl(petData.profile_image_url || '');
       } catch (err) {
         console.error('Failed to load pet profile detail ledger:', err);
@@ -482,7 +489,8 @@ export const PetsPage: React.FC = () => {
       weight: editWeight ? parseFloat(editWeight) : null,
       species: editSpecies,
       profile_image_url: editPetImageUrl || null,
-      microchip_number: cleanMicrochip(editMicrochip) || null
+      microchip_number: cleanMicrochip(editMicrochip) || null,
+      category: resolveCategory(editSpecies, editBreed, editCategory)
     };
 
     try {
@@ -522,7 +530,8 @@ export const PetsPage: React.FC = () => {
       date_of_birth: dob || null,
       weight: weight ? parseFloat(weight) : null,
       profile_image_url: petImageUrl || null,
-      microchip_number: cleanMicrochip(microchip) || null
+      microchip_number: cleanMicrochip(microchip) || null,
+      category: resolveCategory(species, breed, category)
     };
 
     createMutation.mutate(petPayload, {
@@ -737,6 +746,15 @@ export const PetsPage: React.FC = () => {
                           </span>
                           <span className="font-bold text-ink">{pet.species}</span>
                         </div>
+                        {pet.species?.toLowerCase() === 'dog' && (pet.category || categoryForBreed(pet.breed)) && (
+                          <div className="flex justify-between items-center py-1 border-b border-cardboard border-dashed border-opacity-30">
+                            <span className="text-herb font-bold flex items-center">
+                              <Award className="w-3.5 h-3.5 text-turmeric mr-2" />
+                              <span>CATEGORY</span>
+                            </span>
+                            <span className="font-bold text-ink">{pet.category || categoryForBreed(pet.breed)}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between items-center py-1 border-b border-cardboard border-dashed border-opacity-30">
                           <span className="text-herb font-bold flex items-center">
                             <Award className="w-3.5 h-3.5 text-turmeric mr-2" />
@@ -998,7 +1016,7 @@ export const PetsPage: React.FC = () => {
                                         type="button"
                                         onClick={() => {
                                           setBreed(m.breed);
-                                          if (m.species) setSpecies(m.species);
+                                          if (m.species) setSpecies(canonSpecies(m.species));
                                         }}
                                         className={`px-2.5 py-1 rounded-sm border font-mono text-[11px] uppercase transition-all cursor-pointer flex items-center space-x-1.5 ${
                                           isSelected
@@ -1045,6 +1063,14 @@ export const PetsPage: React.FC = () => {
                               />
                             </div>
 
+                            {/* Species (dropdown) */}
+                            <div className="space-y-1">
+                              <label className="font-mono text-xs uppercase font-bold text-ink/70 block">
+                                Species:
+                              </label>
+                              <SpeciesDropdown value={species} onChange={(v) => { setSpecies(v); setCategory(null); }} className="!h-10" />
+                            </div>
+
                             {/* Breed Input Field (editable with accuracy display) */}
                             <div className="space-y-1">
                               <div className="flex items-center justify-between">
@@ -1066,27 +1092,24 @@ export const PetsPage: React.FC = () => {
                               />
                             </div>
 
-                            {/* Species Selector */}
+                            <DogCategoryField
+                              species={species}
+                              breed={breed}
+                              value={category}
+                              onChange={setCategory}
+                              labelClass="font-mono text-xs uppercase font-bold text-ink/70 block"
+                            />
+
                             <div className="space-y-1">
-                              <label className="font-mono text-xs uppercase font-bold text-ink/70 block">
-                                Species:
+                              <label className="font-mono text-[11px] uppercase font-bold text-ink/70 block">
+                                Date of Birth:
                               </label>
-                              <div className="grid grid-cols-4 gap-1.5">
-                                {['Dog', 'Cat', 'Bird', 'Rabbit'].map((s) => (
-                                  <button
-                                    key={s}
-                                    type="button"
-                                    onClick={() => setSpecies(s)}
-                                    className={`h-9 rounded-sm border font-mono text-[11px] uppercase font-bold transition-all cursor-pointer ${
-                                      species === s
-                                        ? 'bg-herb text-white border-herb shadow-xs'
-                                        : 'bg-paperLight hover:bg-paper border-cardboard text-ink'
-                                    }`}
-                                  >
-                                    {s}
-                                  </button>
-                                ))}
-                              </div>
+                              <input
+                                type="date"
+                                value={dob}
+                                onChange={(e) => setDob(e.target.value)}
+                                className="w-full h-10 px-2.5 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                              />
                             </div>
 
                             {/* Gender Selector */}
@@ -1112,33 +1135,18 @@ export const PetsPage: React.FC = () => {
                               </div>
                             </div>
 
-                            {/* Weight & DOB side-by-side */}
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-1">
-                                <label className="font-mono text-[11px] uppercase font-bold text-ink/70 block">
-                                  Weight in KG:
-                                </label>
-                                <input
-                                  type="number"
-                                  step="0.1"
-                                  value={weight}
-                                  onChange={(e) => setWeight(e.target.value)}
-                                  placeholder="e.g. 24.5"
-                                  className="w-full h-10 px-3 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
-                                />
-                              </div>
-
-                              <div className="space-y-1">
-                                <label className="font-mono text-[11px] uppercase font-bold text-ink/70 block">
-                                  Date of Birth:
-                                </label>
-                                <input
-                                  type="date"
-                                  value={dob}
-                                  onChange={(e) => setDob(e.target.value)}
-                                  className="w-full h-10 px-2.5 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
-                                />
-                              </div>
+                            <div className="space-y-1">
+                              <label className="font-mono text-[11px] uppercase font-bold text-ink/70 block">
+                                Weight in KG:
+                              </label>
+                              <input
+                                type="number"
+                                step="0.1"
+                                value={weight}
+                                onChange={(e) => setWeight(e.target.value)}
+                                placeholder="e.g. 24.5"
+                                className="w-full h-10 px-3 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                              />
                             </div>
 
                             <div className="space-y-1">
@@ -1297,25 +1305,53 @@ export const PetsPage: React.FC = () => {
                       </div>
 
                       <div className="space-y-1.5 text-left">
-                        <span className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider">
-                          Species Classification:
-                        </span>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                          {['Dog', 'Cat', 'Bird', 'Rabbit'].map((s) => (
-                            <button
-                              key={s}
-                              type="button"
-                              onClick={() => setSpecies(s)}
-                              className={`py-2.5 px-3 border text-center font-mono text-xs uppercase font-bold rounded-sm transition-colors cursor-pointer ${
-                                species === s
-                                  ? 'bg-herb text-white border-herb shadow-xs font-black'
-                                  : 'bg-paperLight hover:bg-paper border-cardboard text-ink'
-                              }`}
-                            >
-                              {s} {s === 'Dog' && '🐶'}{s === 'Cat' && '🐱'}{s === 'Bird' && '🦜'}{s === 'Rabbit' && '🐰'}
-                            </button>
-                          ))}
-                        </div>
+                        <label htmlFor="species" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider">
+                          Species:
+                        </label>
+                        <SpeciesDropdown id="species" value={species} onChange={(v) => { setSpecies(v); setCategory(null); }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 2: Pedigree & Measurements */}
+                  {registrationStep === 2 && (
+                    <div className="space-y-5 animate-fade-in">
+                      <div className="space-y-1 text-left">
+                        <label htmlFor="breed" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider">
+                          Breed / Genetic Lineage (optional):
+                        </label>
+                        <input
+                          type="text"
+                          id="breed"
+                          value={breed}
+                          onChange={(e) => setBreed(e.target.value)}
+                          placeholder="e.g. Golden Retriever, Indian Pariah / Indie"
+                          className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
+                        />
+                      </div>
+
+                      <DogCategoryField
+                        species={species}
+                        breed={breed}
+                        value={category}
+                        onChange={setCategory}
+                        labelClass="font-mono text-xs uppercase font-bold text-paprika block tracking-wider"
+                      />
+
+                      <div className="text-left">
+                      <div className="space-y-1">
+                        <label htmlFor="dob" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider flex items-center space-x-1">
+                          <Cake className="w-3.5 h-3.5" />
+                          <span>Birthday (optional):</span>
+                        </label>
+                        <input
+                          type="date"
+                          id="dob"
+                          value={dob}
+                          onChange={(e) => setDob(e.target.value)}
+                          className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors cursor-pointer"
+                        />
+                      </div>
                       </div>
 
                       <div className="space-y-1.5 text-left">
@@ -1339,56 +1375,24 @@ export const PetsPage: React.FC = () => {
                           ))}
                         </div>
                       </div>
-                    </div>
-                  )}
 
-                  {/* STEP 2: Pedigree & Measurements */}
-                  {registrationStep === 2 && (
-                    <div className="space-y-5 animate-fade-in">
-                      <div className="space-y-1 text-left">
-                        <label htmlFor="breed" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider">
-                          Breed / Genetic Lineage (optional):
+                      <div className="text-left">
+                      <div className="space-y-1">
+                        <label htmlFor="weight" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider flex items-center space-x-1">
+                          <Scale className="w-3.5 h-3.5" />
+                          <span>Weight (kg):</span>
                         </label>
                         <input
-                          type="text"
-                          id="breed"
-                          value={breed}
-                          onChange={(e) => setBreed(e.target.value)}
-                          placeholder="e.g. Golden Retriever, Indian Pariah / Indie"
+                          type="number"
+                          step="0.1"
+                          id="weight"
+                          value={weight}
+                          onChange={(e) => setWeight(e.target.value)}
+                          placeholder="e.g. 14.5"
                           className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
+                          min="0.1"
                         />
                       </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-                        <div className="space-y-1">
-                          <label htmlFor="dob" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider flex items-center space-x-1">
-                            <Cake className="w-3.5 h-3.5" />
-                            <span>Birthday (optional):</span>
-                          </label>
-                          <input
-                            type="date"
-                            id="dob"
-                            value={dob}
-                            onChange={(e) => setDob(e.target.value)}
-                            className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors cursor-pointer"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label htmlFor="weight" className="font-mono text-xs uppercase font-bold text-paprika block tracking-wider flex items-center space-x-1">
-                            <Scale className="w-3.5 h-3.5" />
-                            <span>Weight (kg):</span>
-                          </label>
-                          <input
-                            type="number"
-                            step="0.1"
-                            id="weight"
-                            value={weight}
-                            onChange={(e) => setWeight(e.target.value)}
-                            placeholder="e.g. 14.5"
-                            className="w-full h-11 px-3.5 border border-cardboard rounded-sm bg-paperLight font-body text-sm text-ink focus:outline-none focus:border-turmeric transition-colors placeholder:text-ink/30"
-                            min="0.1"
-                          />
-                        </div>
                       </div>
 
                       <div className="space-y-1 text-left">
@@ -1763,43 +1767,55 @@ export const PetsPage: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Name</label>
-                        <input
-                          type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Breed</label>
-                        <input
-                          type="text"
-                          value={editBreed}
-                          onChange={(e) => setEditBreed(e.target.value)}
-                          className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
-                        />
-                      </div>
+                    <div className="space-y-1">
+                      <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Name</label>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                        required
+                      />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Species</label>
-                        <select
-                          value={editSpecies}
-                          onChange={(e) => setEditSpecies(e.target.value)}
-                          className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
-                        >
-                          <option value="Dog">Dog</option>
-                          <option value="Cat">Cat</option>
-                          <option value="Bird">Bird</option>
-                          <option value="Rabbit">Rabbit</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
+                    <div className="space-y-1">
+                      <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Species</label>
+                      <SpeciesDropdown
+                        value={editSpecies}
+                        onChange={(v) => { setEditSpecies(v); setEditCategory(null); }}
+                        className="!h-auto !px-3 !py-2 !bg-paper !text-xs"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Breed</label>
+                      <input
+                        type="text"
+                        value={editBreed}
+                        onChange={(e) => setEditBreed(e.target.value)}
+                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
+                      />
+                    </div>
+
+                    <DogCategoryField
+                      species={editSpecies}
+                      breed={editBreed}
+                      value={editCategory}
+                      onChange={setEditCategory}
+                      labelClass="font-mono text-[9px] uppercase font-bold text-paprika block"
+                    />
+
+                    <div className="space-y-1">
+                      <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Birthday</label>
+                      <input
+                        type="date"
+                        value={editDob}
+                        onChange={(e) => setEditDob(e.target.value)}
+                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Gender</label>
                         <select
@@ -1822,16 +1838,6 @@ export const PetsPage: React.FC = () => {
                           className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors"
                         />
                       </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Birthday</label>
-                      <input
-                        type="date"
-                        value={editDob}
-                        onChange={(e) => setEditDob(e.target.value)}
-                        className="w-full px-3 py-2 border border-cardboard rounded-sm bg-paper font-body text-xs text-ink focus:outline-none focus:border-turmeric transition-colors cursor-pointer"
-                      />
                     </div>
 
                     <div className="space-y-1">
