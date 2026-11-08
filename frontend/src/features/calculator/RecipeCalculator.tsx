@@ -94,7 +94,7 @@ export function RecipeCalculator() {
 
   return (
     <section
-      className="bg-paper pt-10 pb-20 md:pt-12 md:pb-28 px-4 sm:px-6 md:px-8 relative scroll-mt-20 md:scroll-mt-24"
+      className="bg-paper py-8 md:py-10 px-4 sm:px-6 md:px-8 relative scroll-mt-20 md:scroll-mt-24"
       id="fit-calculator"
       style={{
         backgroundImage: 'radial-gradient(rgba(208,158,107,0.18) 1.2px, transparent 1.2px)',
@@ -102,7 +102,7 @@ export function RecipeCalculator() {
       }}
     >
       <div className="max-w-6xl mx-auto text-left relative z-10">
-      <h2 className="mb-8 md:mb-10 font-script font-normal text-4xl sm:text-6xl lg:text-7xl tracking-normal text-ink leading-tight whitespace-nowrap">
+      <h2 className="mb-8 md:mb-10 font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] tracking-normal text-ink leading-snug">
         Count The Calories
       </h2>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">

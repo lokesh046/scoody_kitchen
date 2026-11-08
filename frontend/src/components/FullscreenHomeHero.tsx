@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react';
 import { withoutHeadingFullStops } from '../utils/headings';
 import { HeroScrollHint } from './HeroScrollHint';
 import React, { useState, useEffect, useRef } from 'react';
@@ -6,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchActiveBanners } from '../api/banners';
-import { HERO_TITLE_IMAGES, heroTitleKey } from '../constants/heroTitleImages';
 
 // Same real banner images used by the normal contained carousel, so the
 // full-screen hero shows genuine content rather than placeholder art even
@@ -52,7 +50,6 @@ export const FullscreenHomeHero: React.FC = () => {
   // than the built-in banners, which would flash and then be swapped out.
   const slides = isLoading ? [] : banners && banners.length > 0 ? banners : fallbackBanners;
   const slide = slides[index % Math.max(slides.length, 1)];
-  const titleImage = slide?.title ? HERO_TITLE_IMAGES[heroTitleKey(slide.title)] : undefined;
 
   useEffect(() => {
     if (slides.length <= 1 || isHovered) {
@@ -99,24 +96,8 @@ export const FullscreenHomeHero: React.FC = () => {
       <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-28 sm:pb-28 max-w-5xl">
         <div className="max-w-2xl space-y-4 text-left animate-fade-in-up">
           {slide.title && (
-            <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
-              {/* Known banner titles are drawn as pictures in the brand display font, so the font file itself is never
-                  served; any new or edited title falls back to the script text. */}
-              {titleImage ? (
-                <picture>
-                  <source media="(min-width: 640px)" srcSet={`/images/hero-titles/${titleImage.slug}-wide.webp`} width={titleImage.wide[0]} height={titleImage.wide[1]} />
-                  <img
-                    src={`/images/hero-titles/${titleImage.slug}-narrow.webp`}
-                    alt={withoutHeadingFullStops(slide.title ?? '')}
-                    width={titleImage.narrow[0]}
-                    height={titleImage.narrow[1]}
-                    className="block h-auto w-[min(100%,var(--hero-n))] sm:w-[min(100%,var(--hero-w))] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
-                    style={{ '--hero-n': `${titleImage.narrow[0]}px`, '--hero-w': `${titleImage.wide[0]}px` } as CSSProperties}
-                  />
-                </picture>
-              ) : (
-                withoutHeadingFullStops(slide.title)
-              )}
+            <h1 className="font-script font-normal text-4xl sm:text-5xl md:text-6xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
+              {withoutHeadingFullStops(slide.title)}
             </h1>
           )}
           {slide.subtitle && (

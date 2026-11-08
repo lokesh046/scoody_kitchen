@@ -14,7 +14,7 @@ function StepPreview({ step }: { step: number }) {
   const row = 'flex items-center justify-between gap-2 rounded-sm border border-cardboard bg-paperLight px-3 py-2.5';
 
   return (
-    <div aria-hidden="true" className="flex h-[210px] sm:h-[230px] items-center justify-center overflow-hidden rounded-[24px] border border-paper/10 bg-paper p-4 xl:p-5">
+    <div aria-hidden="true" className="mx-auto flex h-[350px] w-full max-w-[300px] items-center justify-center overflow-hidden rounded-[24px] border border-paper/10 bg-paper p-4 xl:p-5">
       {step === 0 && (
         <div className="w-full space-y-3">
           <div className="mb-4 flex items-center gap-2.5 text-ink">

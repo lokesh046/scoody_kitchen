@@ -162,8 +162,8 @@ export default function HomePage() {
         {isFullscreenHeroEnabled && (
           <>
             {/* Why Hearth & One */}
-            <section className="relative bg-gradient-to-b from-midnight via-midnightCard to-midnightCard py-20 md:py-28 px-4 sm:px-6 md:px-8">
-              <div className="max-w-7xl mx-auto text-left space-y-16">
+            <section className="relative bg-gradient-to-b from-midnight via-midnightCard to-midnightCard py-12 md:py-20 px-4 sm:px-6 md:px-8">
+              <div className="max-w-7xl mx-auto text-left space-y-10">
                 <div className="text-center space-y-3">
                   <p className="font-script font-normal text-2xl sm:text-3xl lg:text-4xl tracking-normal text-turmeric leading-snug">
                     Why Hearth &amp; One
@@ -202,8 +202,8 @@ export default function HomePage() {
             </section>
 
             {/* Pet-care toolkit teaser */}
-            <section className="relative bg-gradient-to-b from-midnightCard to-midnight py-20 md:py-28 px-4 sm:px-6 md:px-8">
-              <div className="max-w-7xl mx-auto text-center space-y-16">
+            <section className="relative bg-gradient-to-b from-midnightCard to-midnight pt-4 pb-12 md:pt-6 md:pb-20 px-4 sm:px-6 md:px-8">
+              <div className="max-w-7xl mx-auto text-center space-y-10">
                 <div className="max-w-2xl mx-auto space-y-3">
                   <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal">
                     Your pet-care toolkit
@@ -287,7 +287,7 @@ export default function HomePage() {
             </section>
 
             {/* Hearth & Hound -- coming soon */}
-            <section id="hearth-hound" className="relative bg-obsidian pt-20 pb-8 md:pt-28 md:pb-10 px-4 sm:px-6 md:px-8">
+            <section id="hearth-hound" className="relative bg-obsidian pt-12 pb-6 md:pt-20 md:pb-10 px-4 sm:px-6 md:px-8">
               <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
                 <div className="order-2 lg:order-1">
                   <HoundPortalReveal />
@@ -314,7 +314,7 @@ export default function HomePage() {
             </section>
 
             {/* Signature Recipes -- Black & Gold restyle */}
-            <section className="relative bg-obsidian pt-8 pb-20 md:pt-10 md:pb-28 px-4 sm:px-6 md:px-8">
+            <section className="relative bg-obsidian pt-6 pb-12 md:pt-10 md:pb-20 px-4 sm:px-6 md:px-8">
               <div className="max-w-7xl mx-auto space-y-10">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-ink border-opacity-10 pb-6">
                   <div className="space-y-2">

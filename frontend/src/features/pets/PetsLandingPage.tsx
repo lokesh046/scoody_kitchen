@@ -1,13 +1,9 @@
 import { HeroScrollHint } from '../../components/HeroScrollHint';
-import { useState, useEffect, type CSSProperties } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
   ArrowRight,
-  Sparkles,
-  ClipboardList,
-  BookOpen,
-  FileHeart,
   Plus,
   Minus,
 } from 'lucide-react';
@@ -16,7 +12,6 @@ import { SiteFooter } from '../../components/SiteFooter';
 import { ToolCarousel } from '../../components/ToolCarousel';
 import { Header } from '../../components/Header';
 import { CartDrawer } from '../../components/CartDrawer';
-import { PetHorizontalTimeline } from './PetHorizontalTimeline';
 import { useFeatureFlag, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
@@ -24,13 +19,6 @@ import { useLandingFaqs, useLandingHero } from '../../hooks/useAdminContent';
 import { markLandingSeen } from '../../utils/landingSeen';
 
 const DEFAULT_HERO_IMAGE = '/images/hero/hero-2.webp';
-
-const CLOSER_LOOK = [
-  { icon: Sparkles, iconSrc: '/images/timeline-icons/traits.svg', iconTone: 'color' as const, image: '/images/pet-timeline/traits.webp', imageAlt: 'A Doberman tilting its head with a hand resting gently on its neck', title: 'Understand their traits', text: "Learn about characteristics associated with your pet's species and breed." },
-  { icon: ClipboardList, iconSrc: '/images/timeline-icons/details.svg', iconTone: 'mono' as const, image: '/images/pet-timeline/details.webp', imageAlt: "A vaccination booklet, brass dog tag, pen and phone on a wooden table, with a Doberman's muzzle at the edge", title: 'Keep their details organised', text: 'Create a profile with essential information about your companion.' },
-  { icon: BookOpen, title: 'Explore useful pet knowledge', text: 'Access available information about breed characteristics and everyday needs.', image: '/images/pet-timeline/explore-knowledge.webp', imageAlt: 'A curious dog looking down at an open book' },
-  { icon: FileHeart, iconSrc: '/images/timeline-icons/records.svg', iconTone: 'mono' as const, image: '/images/pet-timeline/records.webp', imageAlt: "A vet in a green coat listening to a calm Doberman's chest with a stethoscope", title: 'Keep relevant records', text: 'Maintain important health information using the records supported by the app.' },
-];
 
 const PROFILE_DETAILS = [
   { icon: '/images/pet-icons/rfid.svg', label: 'Microchip ID', value: 'RFID', position: 'lg:col-start-1 lg:row-start-1', side: 1 },
@@ -108,7 +96,7 @@ function OtherToolsSection() {
             Explore the tools designed to support different parts of the pet-parent journey.
           </p>
         </div>
-        <ToolCarousel items={tools} />
+        <ToolCarousel items={tools} matchStepCards />
       </div>
     </section>
   );
@@ -173,24 +161,8 @@ export function PetsLandingPage() {
 
         <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-28 sm:pb-28 max-w-5xl">
           <div className={`max-w-2xl space-y-4 text-left animate-fade-in-up ${hero.ready ? '' : 'invisible'}`}>
-            <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
-              {/* The default headline is a picture drawn in the brand display font, so the font file itself is never served;
-                  a title set from the admin panel falls back to the script text. */}
-              {hero.title === DEFAULT_HERO.title ? (
-                <picture>
-                  <source media="(min-width: 640px)" srcSet="/images/hero-titles/pets-wide.webp" width={605} height={133} />
-                  <img
-                    src="/images/hero-titles/pets-narrow.webp"
-                    alt={hero.title}
-                    width={329}
-                    height={75}
-                    className="block h-auto w-[min(100%,var(--hero-n))] sm:w-[min(100%,var(--hero-w))] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
-                    style={{ '--hero-n': '329px', '--hero-w': '605px' } as CSSProperties}
-                  />
-                </picture>
-              ) : (
-                hero.title
-              )}
+            <h1 className="font-script font-normal text-4xl sm:text-5xl md:text-6xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
+              {hero.title}
             </h1>
             <p className="font-body text-xs sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
               {hero.subtitle}
@@ -209,45 +181,19 @@ export function PetsLandingPage() {
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-40 md:h-56 bg-gradient-to-t from-midnight via-midnight/70 to-transparent" />
         <HeroScrollHint />
     </section>
-
-      {/* A closer look -- horizontal cards with a connected gold step indicator */}
-      <section className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-gradient-to-b from-midnight via-midnightCard to-midnight">
-        <div className="max-w-7xl mx-auto">
-          <div className="max-w-2xl mx-auto text-center space-y-3 mb-8">
-            <h2 className="font-script font-normal text-[clamp(1.125rem,4.6vw,2.5rem)] whitespace-nowrap tracking-normal leading-snug text-turmeric">
-              <span className="sr-only">Get to know them, beyond the basics</span>
-              <span aria-hidden="true">
-                {'Get to know them, beyond the basics'.split(' ').map((word, index) => (
-                  <span key={index}>
-                    {index > 0 ? ' ' : ''}
-                    <span className="pet-profile-heading-word inline-block" style={{ animationDelay: `${index * 160}ms` }}>
-                      {word}
-                    </span>
-                  </span>
-                ))}
-              </span>
-            </h2>
-            <p className="font-body text-sm text-paper opacity-90 leading-relaxed">
-              Every pet has their own traits, background, and needs. Here's what you can discover and keep track of with Know Your Pet.
-            </p>
-          </div>
-          <PetHorizontalTimeline steps={CLOSER_LOOK} />
-        </div>
-      </section>
-
       {/* Pet profile overview: compact profile details around a future pet portrait. */}
       <section aria-labelledby="pet-profile-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-midnight text-paper">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-2xl mx-auto text-center space-y-4 mb-8">
             <p className="font-script font-normal text-[clamp(1.125rem,4.6vw,2.5rem)] whitespace-nowrap tracking-normal leading-snug text-turmeric">Your Pet's Profile</p>
-            <h2 id="pet-profile-heading" className="font-body font-normal text-lg sm:text-xl tracking-normal leading-snug">
+            <h2 id="pet-profile-heading" className="font-body font-normal text-base sm:text-lg text-paper opacity-90 tracking-normal leading-relaxed">
               <span className="sr-only">A clearer picture of the companion you know by heart</span>
               <span aria-hidden="true">
                 {'A clearer picture of the companion you know by heart'.split(' ').map((word, index) => (
                   <span key={index}>
                     {index > 0 ? ' ' : ''}
                     <span
-                      className={`pet-profile-heading-word inline-block ${index >= 7 ? 'text-turmeric' : ''}`}
+                      className="pet-profile-heading-word inline-block"
                       style={{ animationDelay: `${index * 160}ms` }}
                     >
                       {word}

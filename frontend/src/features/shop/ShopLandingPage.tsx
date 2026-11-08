@@ -1,5 +1,5 @@
 import { HeroScrollHint } from '../../components/HeroScrollHint';
-import { useState, type CSSProperties, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
@@ -189,24 +189,8 @@ export function ShopLandingPage() {
 
         <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-28 sm:pb-28 max-w-5xl">
           <div className={`max-w-2xl space-y-4 text-left animate-fade-in-up ${hero.ready ? '' : 'invisible'}`}>
-            <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
-              {/* The default headline is a picture drawn in the brand display font, so the font file itself is never served;
-                  a title set from the admin panel falls back to the script text. */}
-              {hero.title === DEFAULT_HERO.title ? (
-                <picture>
-                  <source media="(min-width: 640px)" srcSet="/images/hero-titles/shop-wide.webp" width={604} height={137} />
-                  <img
-                    src="/images/hero-titles/shop-narrow.webp"
-                    alt={hero.title}
-                    width={329}
-                    height={78}
-                    className="block h-auto w-[min(100%,var(--hero-n))] sm:w-[min(100%,var(--hero-w))] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
-                    style={{ '--hero-n': '329px', '--hero-w': '604px' } as CSSProperties}
-                  />
-                </picture>
-              ) : (
-                hero.title
-              )}
+            <h1 className="font-script font-normal text-4xl sm:text-5xl md:text-6xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
+              {hero.title}
             </h1>
             <p className="font-body text-xs sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
               {hero.subtitle}

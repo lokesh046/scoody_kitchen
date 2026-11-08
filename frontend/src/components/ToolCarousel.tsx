@@ -12,7 +12,7 @@ export interface ToolCarouselItem {
   cta?: string;
 }
 
-function ToolCard({ item, active = true }: { item: ToolCarouselItem; active?: boolean }) {
+function ToolCard({ item, active = true, matchStepCards = false }: { item: ToolCarouselItem; active?: boolean; matchStepCards?: boolean }) {
   return (
     <Link
       to={item.path}
@@ -20,10 +20,10 @@ function ToolCard({ item, active = true }: { item: ToolCarouselItem; active?: bo
       draggable={false}
       aria-label={`Explore ${item.label}`}
       data-active={active ? 'true' : undefined}
-      className="pet-tool-card relative isolate overflow-hidden flex h-full min-h-[330px] rounded-[28px] flex-col items-center border border-paper/15 bg-[#24201B] p-6 text-center text-paper cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-turmeric"
+      className={`pet-tool-card relative isolate overflow-hidden flex ${matchStepCards ? 'h-[350px] min-h-[350px] w-full max-w-[300px] p-4' : 'h-full min-h-[330px] p-6'} rounded-[28px] flex-col items-center border border-paper/15 bg-[#24201B] text-center text-paper cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-turmeric`}
     >
       <div
-        className={`mb-4 flex shrink-0 items-center justify-center ${item.image ? 'h-24 w-24' : 'h-20 w-20 rounded-[20px] border border-dashed border-turmeric/35 bg-midnight/40'}`}
+        className={`${matchStepCards ? 'mb-3' : 'mb-4'} flex shrink-0 items-center justify-center ${item.image ? (matchStepCards ? 'h-20 w-20' : 'h-24 w-24') : 'h-20 w-20 rounded-[20px] border border-dashed border-turmeric/35 bg-midnight/40'}`}
         aria-hidden="true"
       >
         {item.image ? <img src={item.image} alt="" className="h-full w-full object-contain" draggable={false} /> : <ImageIcon className="h-7 w-7 text-turmeric/60" strokeWidth={1.2} />}
@@ -39,9 +39,10 @@ function ToolCard({ item, active = true }: { item: ToolCarouselItem; active?: bo
 
 // Billboard-style orbit: cards stay facing the reader, unlike a rotating cylinder.
 // Motion values update geometry without rendering React on each animation frame.
-function OrbitCard({ item, index, count, rotation, radius, width, active }: {
+function OrbitCard({ item, index, count, rotation, radius, width, active, matchStepCards }: {
   item: ToolCarouselItem; index: number; count: number; rotation: MotionValue<number>;
   radius: number; width: number; active: boolean;
+  matchStepCards: boolean;
 }) {
   const angle = (value: number) => (index * 360 / count + value) * Math.PI / 180;
   const x = useTransform(rotation, value => Math.sin(angle(value)) * radius);
@@ -57,12 +58,12 @@ function OrbitCard({ item, index, count, rotation, radius, width, active }: {
       className="absolute left-1/2 top-20 h-[350px]"
       style={{ x, y, scale, opacity, zIndex, width, marginLeft: -width / 2, pointerEvents: active ? 'auto' : 'none' }}
     >
-      <ToolCard item={item} active={active} />
+      <ToolCard item={item} active={active} matchStepCards={matchStepCards} />
     </motion.div>
   );
 }
 
-function Orbit({ items }: { items: ToolCarouselItem[] }) {
+function Orbit({ items, matchStepCards, stepColumns }: { items: ToolCarouselItem[]; matchStepCards: boolean; stepColumns: 3 | 4 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const inView = useInView(rootRef, { amount: 0.35 });
   const [width, setWidth] = useState(0);
@@ -132,7 +133,11 @@ function Orbit({ items }: { items: ToolCarouselItem[] }) {
     const delta = ((index - active + count + count / 2) % count) - count / 2;
     move(Math.round(delta));
   };
-  const cardWidth = Math.min(300, Math.max(220, width * 0.78));
+  const columns = window.innerWidth >= 1024 ? stepColumns : window.innerWidth >= 640 ? 2 : 1;
+  const stepGap = columns >= 3 ? 24 : 32;
+  const cardWidth = matchStepCards
+    ? Math.max(0, Math.min(300, (width - stepGap * (columns - 1)) / columns - (columns === 1 ? 48 : 0)))
+    : Math.min(300, Math.max(220, width * 0.78));
   const radius = width < 640 ? cardWidth * 0.74 : Math.min(330, width * 0.28);
   const controlClass = 'flex h-11 w-11 items-center justify-center border border-paper/25 text-paper transition-colors hover:border-turmeric hover:text-turmeric focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-turmeric';
 
@@ -185,7 +190,7 @@ function Orbit({ items }: { items: ToolCarouselItem[] }) {
           if (suppressClick.current) { event.preventDefault(); event.stopPropagation(); suppressClick.current = false; }
         }}
       >
-        {items.map((item, index) => <OrbitCard key={item.path} item={item} index={index} count={count} rotation={rotation} radius={radius} width={cardWidth} active={index === active} />)}
+        {items.map((item, index) => <OrbitCard key={item.path} item={item} index={index} count={count} rotation={rotation} radius={radius} width={cardWidth} active={index === active} matchStepCards={matchStepCards} />)}
       </div>
       <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
         <button type="button" aria-label="Previous tool" className={controlClass} onClick={() => { move(-1); }}><ArrowLeft aria-hidden="true" className="h-4 w-4" /></button>
@@ -200,7 +205,7 @@ function Orbit({ items }: { items: ToolCarouselItem[] }) {
   );
 }
 
-export function ToolCarousel({ items }: { items: ToolCarouselItem[] }) {
+export function ToolCarousel({ items, matchStepCards = false, stepColumns = 4 }: { items: ToolCarouselItem[]; matchStepCards?: boolean; stepColumns?: 3 | 4 }) {
   const reducedMotion = useReducedMotion();
   if (!items.length) return null;
   if (reducedMotion || items.length < 3) {
@@ -212,8 +217,9 @@ export function ToolCarousel({ items }: { items: ToolCarouselItem[] }) {
       3: 'max-w-5xl sm:grid-cols-2 lg:grid-cols-3',
       4: 'sm:grid-cols-2 lg:grid-cols-4',
     }[Math.min(items.length, 4) as 1 | 2 | 3 | 4];
-    return <div className={`mx-auto grid grid-cols-1 gap-5 ${grid}`}>{items.map(item => <ToolCard key={item.path} item={item} />)}</div>;
+    const layout = matchStepCards ? `grid-cols-1 gap-8 pl-12 sm:pl-0 sm:grid-cols-2 ${stepColumns === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} lg:gap-6 justify-items-center` : `grid-cols-1 gap-5 ${grid}`;
+    return <div className={`mx-auto grid ${layout}`}>{items.map(item => <ToolCard key={item.path} item={item} matchStepCards={matchStepCards} />)}</div>;
   }
   // Remount when feature flags change so the active index and rotation stay valid.
-  return <Orbit key={items.map(item => item.path).join('|')} items={items} />;
+  return <Orbit key={items.map(item => item.path).join('|')} items={items} matchStepCards={matchStepCards} stepColumns={stepColumns} />;
 }

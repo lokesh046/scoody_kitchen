@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, ArrowUpRight, Plus, Minus, Flame, SlidersHorizontal, Compass } from 'lucide-react';
@@ -230,24 +230,8 @@ export function RecipeCalculatorPage() {
 
         <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-28 sm:pb-28 max-w-5xl">
           <div className={`max-w-2xl space-y-4 text-left animate-fade-in-up ${hero.ready ? '' : 'invisible'}`}>
-            <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
-              {/* The default headline is a picture drawn in the brand display font, so the font file itself is never served;
-                  a title set from the admin panel falls back to the script text. */}
-              {hero.title === DEFAULT_HERO.title ? (
-                <picture>
-                  <source media="(min-width: 640px)" srcSet="/images/hero-titles/calculator-wide.webp" width={606} height={147} />
-                  <img
-                    src="/images/hero-titles/calculator-narrow.webp"
-                    alt={hero.title}
-                    width={330}
-                    height={82}
-                    className="block h-auto w-[min(100%,var(--hero-n))] sm:w-[min(100%,var(--hero-w))] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
-                    style={{ '--hero-n': '330px', '--hero-w': '606px' } as CSSProperties}
-                  />
-                </picture>
-              ) : (
-                hero.title
-              )}
+            <h1 className="font-script font-normal text-4xl sm:text-5xl md:text-6xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
+              {hero.title}
             </h1>
             <p className="font-body text-xs sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
               {hero.subtitle}
@@ -270,10 +254,10 @@ export function RecipeCalculatorPage() {
       </section>
 
       {/* Every pet has their own energy needs */}
-      <section aria-labelledby="calc-needs-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
+      <section aria-labelledby="calc-needs-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
         <div className="max-w-7xl mx-auto">
-          <div className="max-w-5xl mx-auto text-center space-y-3 mb-12">
-            <h2 id="calc-needs-heading" className="font-script font-normal text-3xl sm:text-4xl xl:text-5xl tracking-normal leading-snug lg:whitespace-nowrap">
+          <div className="max-w-5xl mx-auto text-center space-y-3 mb-8">
+            <h2 id="calc-needs-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] tracking-normal leading-snug lg:whitespace-nowrap">
               Every pet has their own energy needs
             </h2>
             <p className="mx-auto max-w-2xl font-body text-sm sm:text-base text-paper/90 leading-relaxed">
@@ -327,9 +311,9 @@ export function RecipeCalculatorPage() {
 
       {/* Hearth & One ecosystem -- the animated tool cards the other landing pages use */}
       {ecosystem.length > 0 && (
-        <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 pt-16 pb-10 md:pt-20 md:pb-12 bg-midnight text-paper">
-          <div className="max-w-7xl mx-auto">
-            <div className="max-w-6xl mx-auto text-center space-y-3 mb-12">
+        <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 pt-12 pb-8 md:pt-14 md:pb-10 bg-midnight text-paper">
+          <div className="max-w-6xl mx-auto">
+            <div className="max-w-6xl mx-auto text-center space-y-3 mb-8">
               <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
                 <span className="sr-only">One companion Different aspects of their care</span>
                 <span aria-hidden="true">
@@ -347,15 +331,15 @@ export function RecipeCalculatorPage() {
                 Explore the tools designed to support different parts of the pet-parent journey.
               </p>
             </div>
-            <ToolCarousel items={ecosystem} />
+            <ToolCarousel items={ecosystem} matchStepCards stepColumns={3} />
           </div>
         </section>
       )}
 
       {/* Closing CTA */}
-      <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 pt-12 sm:pt-14 md:pt-16 pb-10 md:pb-12 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper text-center">
+      <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper text-center">
         <div className="max-w-7xl mx-auto">
-          <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
+          <h2 id="calc-cta-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
             Take the next step towards more informed meals
           </h2>
           <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/90 leading-relaxed">
@@ -373,10 +357,10 @@ export function RecipeCalculatorPage() {
       </section>
 
       {/* FAQ */}
-      <section aria-labelledby="calc-faq-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
+      <section aria-labelledby="calc-faq-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-midnight text-paper">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10 space-y-3">
-            <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl tracking-normal leading-snug">
+            <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] tracking-normal leading-snug">
               Frequently asked questions
             </h2>
           </div>

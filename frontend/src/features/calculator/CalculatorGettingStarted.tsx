@@ -25,7 +25,7 @@ function StepPreview({ step }: { step: number }) {
   const row = 'flex items-center justify-between gap-2 rounded-sm border border-cardboard bg-paperLight px-3 py-2.5';
 
   return (
-    <div aria-hidden="true" className="flex h-[210px] sm:h-[230px] items-center justify-center overflow-hidden rounded-[24px] border border-paper/10 bg-paper p-4 xl:p-5">
+    <div aria-hidden="true" className="mx-auto flex h-[350px] w-full max-w-[300px] items-center justify-center overflow-hidden rounded-[24px] border border-paper/10 bg-paper p-4 xl:p-5">
       {step === 0 && (
         <div className="w-full space-y-2">
           {[['Weight', '28 kg'], ['Activity', 'Active'], ['Sensitivities', 'None selected']].map(([label, value]) => (
@@ -76,10 +76,10 @@ export function CalculatorGettingStarted() {
   }, []);
 
   return (
-    <section aria-labelledby="calc-getting-started-heading" className="bg-midnight text-paper px-4 pt-16 pb-10 sm:px-6 md:px-8 md:pt-20 md:pb-12">
+    <section aria-labelledby="calc-getting-started-heading" className="bg-midnight text-paper px-4 py-8 sm:px-6 md:px-8 md:py-10">
       <div className="mx-auto max-w-6xl">
-        <div className="mx-auto mb-12 max-w-5xl text-center md:mb-16">
-          <h2 id="calc-getting-started-heading" className="font-script text-3xl font-normal tracking-normal leading-snug sm:text-4xl xl:text-5xl lg:whitespace-nowrap">
+        <div className="mx-auto mb-8 max-w-5xl text-center">
+          <h2 id="calc-getting-started-heading" className="font-script text-3xl font-normal tracking-normal leading-snug sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap">
             A clearer starting point, in a few simple steps
           </h2>
           <p className="mx-auto mt-4 max-w-lg font-body text-sm leading-relaxed text-paper/90">
