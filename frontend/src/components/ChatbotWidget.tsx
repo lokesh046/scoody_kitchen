@@ -8,7 +8,7 @@ import {
 } from '../api/chatbot';
 import type { ChatProduct } from '../api/chatbot';
 import { 
-  Sparkles, X, MessageSquare, Send, Mic, MicOff, 
+  PawPrint, X, MessageSquare, Send, Mic, MicOff, 
   Trash2, ShieldAlert, Loader2, Paperclip, User
 } from 'lucide-react';
 import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
@@ -439,7 +439,7 @@ export const ChatbotWidget: React.FC = () => {
           className="bg-cardboard bg-opacity-35 text-ink opacity-60 rounded-l-2xl border border-cardboard border-r-0 shadow-lg cursor-default flex flex-col items-center justify-center py-4 px-2.5 select-none"
           title={chatbotFallback === 'coming_soon' ? 'AI Assistant coming soon' : 'AI Assistant temporarily unavailable'}
         >
-          <Sparkles className="w-3.5 h-3.5 mb-2" />
+          <PawPrint className="w-3.5 h-3.5 mb-2" />
           <span className="font-display font-bold text-[9px] uppercase tracking-widest [writing-mode:vertical-rl] leading-none">
             {chatbotFallback === 'coming_soon' ? 'Coming Soon' : 'Unavailable'}
           </span>
@@ -459,9 +459,9 @@ export const ChatbotWidget: React.FC = () => {
           {/* Panel Header */}
           <div className="border-b border-cardboard p-3.5 bg-paper bg-opacity-40 flex justify-between items-center pl-6">
             <div className="flex items-center space-x-2">
-              <Sparkles className="w-4 h-4 text-turmeric shrink-0" />
+              <PawPrint className="w-4 h-4 text-turmeric shrink-0" />
               <div>
-                <h4 className="font-display font-bold text-xs text-ink">Hearth & One's AI Help</h4>
+                <h4 className="font-display font-bold text-xs text-ink">Talk to Bravo</h4>
                 <div className="flex items-center space-x-1.5">
                   <span className="font-mono text-[7px] uppercase font-bold text-herb">STREAM TOKEN CHAT</span>
                   <span className="font-mono text-[7px] uppercase font-bold tracking-wider flex items-center">
@@ -517,7 +517,7 @@ export const ChatbotWidget: React.FC = () => {
             {messages.length === 0 ? (
               <div className="text-center py-20 space-y-2">
                 <MessageSquare className="w-10 h-10 text-cardboard mx-auto stroke-1" />
-                <h5 className="font-display font-bold text-ink text-xs">Ask Hearth & One AI</h5>
+                <h5 className="font-display font-bold text-ink text-xs">Ask Bravo AI</h5>
                 <p className="font-body text-[10px] text-ink opacity-70 max-w-[200px] mx-auto">
                   Get delivery diagnostics, order status updates, or veterinarian booking timings.
                 </p>
@@ -537,7 +537,7 @@ export const ChatbotWidget: React.FC = () => {
                     </div>
                   ) : (
                     <div className="w-6 h-6 rounded-full border border-cardboard overflow-hidden shadow-sm shrink-0 mr-2 bg-white flex items-center justify-center p-0.5">
-                      <img src="/scooby-avatar-160.webp" alt="Hearth & One AI Logo" className="w-full h-full object-contain" />
+                      <PawPrint className="w-3.5 h-3.5 text-herb" aria-label="Bravo AI" />
                     </div>
                   )}
 
@@ -545,7 +545,7 @@ export const ChatbotWidget: React.FC = () => {
                     <span className={`font-mono text-[9px] uppercase text-cardboard font-bold ${
                       msg.role === 'user' ? 'text-right' : 'text-left'
                     }`}>
-                      {msg.role === 'user' ? 'CUSTOMER' : 'AI'}
+                      {msg.role === 'user' ? 'CUSTOMER' : 'BRAVO AI'}
                     </span>
                     <div className={`p-3 rounded-2xl shadow-sm ${
                       msg.role === 'user' 
@@ -678,7 +678,7 @@ export const ChatbotWidget: React.FC = () => {
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Type help request..."
+                placeholder="Ask Bravo about your pet's care..."
                 className="flex-1 px-2.5 py-1.5 border border-cardboard rounded-xl bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric"
                 disabled={isStreaming}
               />
@@ -716,9 +716,9 @@ export const ChatbotWidget: React.FC = () => {
             onClick={() => { setIsOpen(true); setShowPopMessage(false); }}
             className="bg-turmeric hover:bg-opacity-95 text-ink rounded-l-2xl border border-turmeric border-r-0 shadow-2xl cursor-pointer flex flex-col items-center justify-center py-4 px-2.5 hover:-translate-x-0.5 transition-all duration-200 select-none"
           >
-            <Sparkles className="w-3.5 h-3.5 mb-2 text-paperLight animate-pulse" />
+            <PawPrint className="w-3.5 h-3.5 mb-2 text-paperLight animate-pulse" />
             <span className="font-display font-bold text-[9px] uppercase tracking-widest [writing-mode:vertical-rl] leading-none text-paperLight">
-              Chat Assistant 🐾
+              Talk to Bravo
             </span>
           </button>
         </div>

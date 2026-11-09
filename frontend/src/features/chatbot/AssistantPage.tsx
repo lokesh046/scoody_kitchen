@@ -559,7 +559,7 @@ export const AssistantPage: React.FC = () => {
           {messages.length === 0 ? (
             <div className="text-center py-24 space-y-3">
               <PawPrint className="w-12 h-12 text-cardboard mx-auto stroke-1 animate-float-slow" />
-              <h4 className="font-display font-bold text-ink text-base">Ask Anything About Hearth & One</h4>
+              <h4 className="font-display font-bold text-ink text-base">Ask Bravo Anything</h4>
               <p className="font-body text-xs text-ink opacity-70 max-w-sm mx-auto">
                 Type questions to query inventory, track placed orders, cancel active orders, or get diagnostic recipe advice.
               </p>
@@ -585,7 +585,7 @@ export const AssistantPage: React.FC = () => {
                   <div className="flex flex-col space-y-1">
                     <span className={`font-mono text-[9px] uppercase text-cardboard font-bold ${msg.role === 'user' ? 'text-right' : 'text-left'
                       }`}>
-                      {msg.role === 'user' ? 'CUSTOMER' : 'HEARTH & ONE ASSISTANT'}
+                      {msg.role === 'user' ? 'CUSTOMER' : 'BRAVO AI'}
                     </span>
 
                     <div className={`p-4 border shadow-xs rounded-sm ${
@@ -750,7 +750,7 @@ export const AssistantPage: React.FC = () => {
             <textarea
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder={selectedImage ? "Describe pet symptoms or upload details..." : "Ask Hearth & One's assistant a question..."}
+              placeholder={selectedImage ? "Describe pet symptoms or upload details..." : "Ask Bravo about your pet's care..."}
               className="w-full min-h-[44px] max-h-[140px] resize-none border-0 bg-transparent font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:ring-0 py-1"
               disabled={isStreaming}
               onKeyDown={(e) => {
@@ -813,7 +813,7 @@ export const AssistantPage: React.FC = () => {
 
           {/* Claude style footnote */}
           <p className="mt-3 text-center text-ink opacity-40 font-mono text-[8px] uppercase tracking-wider select-none">
-            Hearth & One AI is an assistant and can make mistakes. Please double-check veterinary diagnoses.
+            Bravo AI is an assistant and can make mistakes. Please double-check veterinary diagnoses.
           </p>
         </div>
 
