@@ -1,0 +1,124 @@
+/* Keep the surrounding profile and record dialogs unchanged. */
+.pet-edit-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.pet-edit-form > * { min-width: 0; }
+.pet-edit-form > .pet-edit-photo,
+.pet-edit-form > .pet-edit-pair,
+.pet-edit-form > div:has(input[role='combobox']),
+.pet-edit-form > div:has([role='radiogroup']),
+.pet-edit-form > button,
+.pet-edit-form > p { grid-column: 1 / -1; }
+
+.pet-edit-photo {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 12px;
+  padding: 12px;
+  border: 1px solid #EBE0D0;
+  border-radius: 4px;
+  background: white;
+}
+.pet-edit-photo > span { grid-column: 2; align-self: end; color: #3F5E4D; }
+.pet-edit-photo > div {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  width: 64px;
+  height: 64px;
+  border-radius: 4px;
+  box-shadow: none;
+}
+.pet-edit-photo > button {
+  grid-column: 2;
+  justify-self: start;
+  align-self: start;
+  min-height: 36px;
+}
+.pet-edit-form label,
+.pet-edit-form > div > span,
+.pet-record-edit label,
+.pet-medical-logs > span {
+  font-family: 'Quicksand', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  line-height: 1.5;
+}
+.pet-edit-form input:not([type='file']),
+.pet-edit-form select,
+.pet-record-edit input,
+.pet-record-edit select,
+.pet-record-edit textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px !important;
+  padding: 9px 12px !important;
+  border-radius: 4px;
+  background: white !important;
+  font-size: 16px !important;
+}
+.pet-edit-form input:focus,
+.pet-edit-form select:focus,
+.pet-record-edit input:focus,
+.pet-record-edit select:focus,
+.pet-record-edit textarea:focus {
+  border-color: #3F5E4D;
+  outline: 2px solid rgb(63 94 77 / 15%);
+  outline-offset: 1px;
+}
+.pet-edit-form button,
+.pet-record-edit button,
+.pet-record-details button {
+  border-radius: 4px;
+  font-family: 'Quicksand', sans-serif;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.pet-edit-form [role='radiogroup'] button { min-height: 44px; height: auto; }
+.pet-edit-form button[type='submit'],
+.pet-record-edit button[type='submit'] {
+  min-height: 44px;
+  background: #3F5E4D;
+  box-shadow: none;
+}
+.pet-edit-form button:focus-visible,
+.pet-record-edit button:focus-visible,
+.pet-record-details button:focus-visible {
+  outline: 2px solid #3F5E4D;
+  outline-offset: 2px;
+}
+.pet-edit-photo > button { color: #3F5E4D; }
+.pet-medical-logs > div,
+.pet-medical-log,
+.pet-record-details .bg-paperLight { border-radius: 4px; }
+.pet-medical-log > div { min-width: 0; flex: 1 1 180px; }
+.pet-medical-log h4,
+.pet-record-details h3 { overflow-wrap: anywhere; }
+.pet-medical-log > div > span,
+.pet-medical-log > div > p {
+  font-family: 'Quicksand', sans-serif;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #3F5E4D;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.pet-medical-log > span { color: #3F5E4D; font-size: 11px; }
+.pet-record-details p { overflow-wrap: anywhere; line-height: 1.6; }
+.pet-record-details > .font-body { font-size: 14px; }
+.pet-record-details .bg-paperLight > span:first-child {
+  font-family: 'Quicksand', sans-serif;
+  font-size: 12px;
+  text-transform: none;
+}
+.pet-record-details button,
+.pet-record-edit button { min-height: 44px; }
+
+@media (min-width: 640px) {
+  .pet-edit-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

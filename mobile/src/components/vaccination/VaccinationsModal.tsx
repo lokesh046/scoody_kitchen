@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Linking, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -33,6 +33,12 @@ export default function VaccinationsModal({ visible, petId, petName, dob, onClos
   const [adding, setAdding] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [cardBusy, setCardBusy] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const cardY = useRef<Record<string, number>>({});
+  const openDose = (code: string) => {
+    setAdding(code);
+    setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max((cardY.current[code] ?? 0) - 8, 0), animated: true }), 50);
+  };
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
@@ -63,7 +69,7 @@ export default function VaccinationsModal({ visible, petId, petName, dob, onClos
           <Text style={styles.title}>{petName}: Vaccinations</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Close vaccinations"><Text style={styles.closeText}>Close</Text></TouchableOpacity>
         </View>
-        <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
           {loading && !data && <ActivityIndicator style={{ marginTop: 40 }} color={COLORS.forestGreen} />}
           {!!error && <Text style={styles.error}>{error}</Text>}
           {data && !data.supported && (
@@ -96,9 +102,11 @@ export default function VaccinationsModal({ visible, petId, petName, dob, onClos
               )}
 
               {data.items.map((item) => (
-                <VaccineCard key={item.code} item={item} open={adding === item.code} petId={petId} dob={dob}
-                  onToggle={() => setAdding(adding === item.code ? null : item.code)}
-                  onSaved={() => { setAdding(null); load(); }} />
+                <View key={item.code} onLayout={(e) => { cardY.current[item.code] = e.nativeEvent.layout.y; }}>
+                  <VaccineCard item={item} open={adding === item.code} petId={petId} dob={dob}
+                    onToggle={() => setAdding(adding === item.code ? null : item.code)}
+                    onSaved={() => { setAdding(null); load(); }} />
+                </View>
               ))}
 
               <View style={styles.recHead}>
@@ -128,7 +136,7 @@ export default function VaccinationsModal({ visible, petId, petName, dob, onClos
                   </TouchableOpacity>
                 </View>
               ))}
-              <VaccineGuide petId={petId} petName={petName} refreshKey={data.records.length} />
+              <VaccineGuide petId={petId} petName={petName} refreshKey={data.records.length} vaccines={data.items} onUpdate={openDose} />
               {data.items.some((i) => !i.vet_reviewed) && (
                 <Text style={styles.disclaimer}>Schedules follow general veterinary guidance (WSAVA) and are pending review by our vets. Always confirm timings with your own vet.</Text>
               )}

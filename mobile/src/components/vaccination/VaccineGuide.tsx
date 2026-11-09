@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '../../theme/colors';
-import { fetchVaccineGuide, type GuideStatus, type VaccineGuide as Guide } from '../../api/vaccinations';
+import { fetchVaccineGuide, type GuideStatus, type VaccineGuide as Guide, type VaccineStatusItem } from '../../api/vaccinations';
 import { prettyDate } from './DateField';
 
 const TABS = [
@@ -41,7 +41,9 @@ function Legend() {
 
 // The species' full vaccine guide: due dates worked out from the birth date, a timeline, the schedule and the rules.
 // `refreshKey` changes whenever the owner records or deletes a dose, so the Done marks stay current.
-export default function VaccineGuide({ petId, petName, refreshKey }: { petId: number; petName: string; refreshKey: number }) {
+export default function VaccineGuide({ petId, petName, refreshKey, vaccines, onUpdate }: {
+  petId: number; petName: string; refreshKey: number; vaccines: VaccineStatusItem[]; onUpdate: (code: string) => void;
+}) {
   const [guide, setGuide] = useState<Guide | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabId>('schedule');
@@ -55,6 +57,21 @@ export default function VaccineGuide({ petId, petName, refreshKey }: { petId: nu
 
   if (loading && !guide) return <ActivityIndicator style={{ marginVertical: 16 }} color={COLORS.forestGreen} />;
   if (!guide || !guide.supported) return null;
+
+  const updateLinks = (codes: string[] = []) => {
+    const matches = vaccines.filter((v) => codes.includes(v.code));
+    if (matches.length === 0) return null;
+    return (
+      <View style={{ alignItems: 'flex-start' }}>
+        {matches.map((v) => (
+          <TouchableOpacity key={v.code} onPress={() => onUpdate(v.code)} style={styles.link} accessibilityRole="button"
+            accessibilityLabel={`Update ${v.name} vaccination`}>
+            <Text style={styles.linkText}>{matches.length === 1 ? 'Update vaccination' : `Update ${v.name}`}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.box} accessibilityLabel="Vaccine guide">
@@ -83,6 +100,7 @@ export default function VaccineGuide({ petId, petName, refreshKey }: { petId: nu
                   <Text style={styles.muted}>{p.dose} · {p.planned_age}</Text>
                   <Text style={styles.muted}>Due {prettyDate(p.due_date)}{p.date_given ? ` · Given ${prettyDate(p.date_given)}` : ''}</Text>
                   {!!p.note && <Text style={styles.note}>{p.note}</Text>}
+                  {updateLinks(p.vaccine_codes)}
                 </View>
                 <View style={[styles.badge, { backgroundColor: col.badge }]}><Text style={[styles.badgeText, { color: col.badgeText }]}>{STATUS_LABEL[p.status]}</Text></View>
               </View>
@@ -123,6 +141,7 @@ export default function VaccineGuide({ petId, petName, refreshKey }: { petId: nu
                   )}
                 </View>
                 <Text style={styles.rowTitle}>{s.vaccine}</Text>
+                {updateLinks(s.vaccine_codes)}
                 {(!!s.last_dose || !!s.next_due) && (
                   <Text style={styles.muted}>
                     {s.last_dose ? `Last dose ${prettyDate(s.last_dose)}` : ''}{s.last_dose && s.next_due ? ' · ' : ''}{s.next_due ? `Next due ${prettyDate(s.next_due)}` : ''}

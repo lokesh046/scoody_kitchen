@@ -20,6 +20,26 @@ def test_unsupported_species_and_unknown_dob():
     assert build_guide("dog", None, {}, TODAY)["planner"] == []
 
 
+def test_update_links_use_exact_vaccine_codes_even_without_birth_date():
+    for dob in (DOB, None):
+        guide = build_guide("dog", dob, {}, TODAY)
+        schedule = guide["schedule"]
+        assert schedule[0]["vaccine_codes"] == []  # No vaccine, no update action.
+        assert schedule[1]["vaccine_codes"] == ["dhppi"]
+        assert set(schedule[3]["vaccine_codes"]) == {"dhppi", "leptospirosis", "rabies"}
+        assert schedule[10]["vaccine_codes"] == ["bordetella"]
+    cat = build_guide("cat", None, {}, TODAY)
+    assert all(row["vaccine_codes"] == ["felv"] for row in cat["schedule"] if row["vaccine"].startswith("FeLV"))
+
+
+def test_update_codes_are_preserved_in_the_guide_response():
+    from app.schemas.vaccination import VaccineGuideResponse
+
+    guide = VaccineGuideResponse(**build_guide("dog", DOB, {}, TODAY))
+    assert guide.planner[0].vaccine_codes == ["dhppi"]
+    assert guide.schedule[1].vaccine_codes == ["dhppi"]
+
+
 def test_dog_planner_dates_match_the_spreadsheet():
     rows = build_planner(load_guide("dog"), DOB, {"dhppi": [date(2026, 10, 20)]}, TODAY)
     assert rows[0]["due_date"] == date(2026, 10, 20) and rows[0]["status"] == "done"

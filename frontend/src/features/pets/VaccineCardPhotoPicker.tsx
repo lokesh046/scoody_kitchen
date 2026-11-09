@@ -48,25 +48,25 @@ export function VaccineCardPhotoPicker({ file, onChange, label = 'Vaccine card p
   };
 
   return (
-    <div className="font-body text-xs text-ink">
-      <div className="mb-1">{label} <span className="text-paprika">*</span></div>
+    <div className="font-body text-sm text-ink">
+      <div className="mb-2">{label} <span className="text-paprika">*</span></div>
       {file && preview ? (
-        <div className="flex items-center gap-3 border border-cardboard rounded-sm p-2 bg-paper">
-          <img src={preview} alt="Vaccine card" className="w-14 h-14 object-cover rounded-sm border border-cardboard" />
+        <div className="flex items-center gap-3 border border-cardboard rounded-[12px] p-3 bg-white">
+          <img src={preview} alt="Vaccine card" className="w-14 h-14 object-cover rounded-[10px] border border-cardboard" />
           <div className="min-w-0 flex-1 truncate">{file.name}</div>
           <button type="button" onClick={() => onChange(null)} aria-label="Remove photo"
-            className="w-8 h-8 border border-cardboard rounded-sm flex items-center justify-center cursor-pointer hover:bg-paperLight">
+            className="w-11 h-11 shrink-0 border border-cardboard rounded-[12px] flex items-center justify-center cursor-pointer hover:bg-paperLight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paprika">
             <X className="w-4 h-4" />
           </button>
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => uploadRef.current?.click()}
-            className="h-9 px-3 border border-dashed border-cardboard rounded-sm bg-paper flex items-center gap-2 cursor-pointer hover:bg-paperLight">
+            className="min-h-11 px-4 border border-dashed border-herb/40 rounded-[12px] bg-white text-paprika font-semibold flex items-center justify-center gap-2 cursor-pointer hover:bg-herb/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paprika">
             <ImagePlus className="w-4 h-4" /> Upload photo
           </button>
           <button type="button" onClick={takePhoto}
-            className="h-9 px-3 border border-dashed border-cardboard rounded-sm bg-paper flex items-center gap-2 cursor-pointer hover:bg-paperLight">
+            className="min-h-11 px-4 border border-dashed border-herb/40 rounded-[12px] bg-white text-paprika font-semibold flex items-center justify-center gap-2 cursor-pointer hover:bg-herb/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paprika">
             <Camera className="w-4 h-4" /> Take photo
           </button>
         </div>
@@ -133,7 +133,7 @@ function WebcamCapture({ onCapture, onClose }: { onCapture: (f: File) => void; o
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="h-9 px-3 border border-cardboard rounded-sm font-mono text-[10px] uppercase font-bold cursor-pointer">Cancel</button>
           {!error && (
-            <button type="button" disabled={!ready} onClick={snap} className="h-9 px-4 bg-herb text-white rounded-sm font-mono text-[10px] uppercase font-bold cursor-pointer disabled:opacity-50 flex items-center gap-2">
+            <button type="button" disabled={!ready} onClick={snap} className="h-9 px-4 bg-paprika text-white rounded-sm font-mono text-[10px] uppercase font-bold cursor-pointer disabled:opacity-50 flex items-center gap-2">
               <Camera className="w-4 h-4" /> Capture
             </button>
           )}

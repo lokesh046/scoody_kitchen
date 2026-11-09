@@ -88,6 +88,7 @@ class VaccinationOverviewResponse(BaseModel):
 class GuidePlannerItem(BaseModel):
     dose: str
     vaccine: str
+    vaccine_codes: list[str] = []
     planned_age: str
     due_date: date
     date_given: date | None = None
@@ -99,6 +100,7 @@ class GuideScheduleRow(BaseModel):
     sno: int
     age: str
     vaccine: str
+    vaccine_codes: list[str] = []
     protects: str | None = None
     notes: str | None = None
     status: str | None = None  # same values as the planner, plus info | optional; None when the birth date is unknown

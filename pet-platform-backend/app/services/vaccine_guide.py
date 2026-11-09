@@ -81,6 +81,7 @@ def build_planner(guide: dict, dob: date | None, records_by_code: dict[str, list
         out.append({
             "dose": row["dose"],
             "vaccine": row["vaccine"],
+            "vaccine_codes": list(codes),
             "planned_age": row["planned_age"],
             "due_date": row["due_date"],
             "date_given": max(given_dates) if done else None,
@@ -100,6 +101,12 @@ def build_schedule(guide: dict, planner: list[dict]) -> list[dict]:
     for n, row in enumerate(guide["schedule"], start=1):
         item = {"sno": n, "age": row["age"], "vaccine": row["vaccine"], "protects": row.get("protects"),
                 "notes": row.get("notes"), "status": None, "last_dose": None, "next_due": None}
+        item["vaccine_codes"] = list(dict.fromkeys(
+            row.get("codes", []) + [
+                code for ref in row.get("planner_refs", [])
+                for code in guide["planner"][ref]["codes"]
+            ]
+        ))
         if planner:
             refs = [planner[i] for i in row.get("planner_refs", []) if i < len(planner)]
             real = [r for r in refs if r["status"] != "optional"]

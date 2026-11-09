@@ -21,6 +21,7 @@ import {
 import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
 import { AddPetWizard, type PetDraft } from './AddPetWizard';
 import { VaccinationsPanel } from './VaccinationsPanel';
+import './PetProfileDetails.css';
 import { BreedInput, DogCategoryField, SpeciesDropdown } from './PetFormFields';
 import { canonSpecies, resolveCategory } from './petFormHelpers';
 import { categoryForBreed, type PetCategory } from '../../constants/breedCategory';
@@ -987,8 +988,8 @@ export const PetsPage: React.FC = () => {
                 <span className="font-mono text-[10px] uppercase text-herb font-bold">Reading clinical profile...</span>
               </div>
             ) : inspectingPet ? (
-              <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-cardboard border-opacity-35 pb-4 gap-4">
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-cardboard border-opacity-35 pb-3 gap-3">
                   <div>
                     <span className="font-mono text-[9px] uppercase tracking-wider text-paprika font-bold block">PATIENT FILE #{inspectingPet.id}</span>
                     <h3 className="font-display font-black text-2xl text-ink mt-0.5">
@@ -997,7 +998,7 @@ export const PetsPage: React.FC = () => {
                   </div>
 
                   {/* Tabs */}
-                  <div className="flex bg-paperLight p-1 border border-cardboard border-opacity-40 rounded-sm font-mono text-[9px] uppercase">
+                  <div className="flex flex-wrap gap-1 bg-paperLight p-1 border border-cardboard border-opacity-40 rounded-sm font-mono text-[9px] uppercase">
                     <button
                       type="button"
                       onClick={() => setActiveTab('profile')}
@@ -1031,9 +1032,9 @@ export const PetsPage: React.FC = () => {
                 </div>
 
                 {activeTab === 'profile' ? (
-                  <form onSubmit={handleUpdatePet} className="space-y-4">
+                  <form onSubmit={handleUpdatePet} className="pet-edit-form">
                     {/* Avatar Upload */}
-                    <div className="flex flex-col items-center space-y-2 border border-cardboard border-dashed border-opacity-40 p-4 rounded-sm bg-paperLight">
+                    <div className="pet-edit-photo">
                       <span className="font-mono text-[8px] uppercase tracking-wider text-herb font-bold">CHANGE PET PROFILE PHOTO</span>
                       <input 
                         type="file" 
@@ -1143,7 +1144,7 @@ export const PetsPage: React.FC = () => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="pet-edit-pair grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1">
                         <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Gender</label>
                         <select
@@ -1194,7 +1195,7 @@ export const PetsPage: React.FC = () => {
                   <VaccinationsPanel petId={inspectingPet.id} petName={inspectingPet.name} dob={inspectingPet.date_of_birth ?? null} />
                 ) : (
                   /* Medical History & Logs */
-                  <div className="space-y-4">
+                  <div className="pet-medical-logs space-y-3">
                     <span className="font-mono text-[9px] uppercase font-bold text-paprika block">📋 Patient Clinical Records</span>
                     {healthRecords.length === 0 ? (
                       <div className="border border-cardboard border-dashed border-opacity-35 p-8 text-center bg-paperLight rounded-sm">
@@ -1204,12 +1205,12 @@ export const PetsPage: React.FC = () => {
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
+                      <div className="space-y-2">
                         {healthRecords.map((rec) => (
                           <div
                             key={rec.id}
                             onClick={() => setSelectedRecordId(rec.id)}
-                            className="border border-cardboard border-opacity-35 p-4 bg-paperLight hover:bg-paper cursor-pointer rounded-sm flex justify-between items-center transition-colors"
+                            className="pet-medical-log border border-cardboard p-3 bg-paperLight hover:bg-paper cursor-pointer flex flex-wrap justify-between items-center gap-3 transition-colors"
                           >
                             <div className="space-y-1">
                               <span className="font-mono text-[8px] uppercase font-bold text-herb tracking-wide block">
@@ -1267,7 +1268,7 @@ export const PetsPage: React.FC = () => {
               </div>
             ) : selectedRecord ? (
               isEditingRecord ? (
-                <form onSubmit={handleUpdateRecordSubmit} className="space-y-3.5 font-body text-xs text-ink">
+                <form onSubmit={handleUpdateRecordSubmit} className="pet-record-edit space-y-3 font-body text-sm text-ink">
                   <div className="space-y-1">
                     <label className="font-mono text-[9px] uppercase font-bold text-paprika block">Log Title:</label>
                     <input
@@ -1380,7 +1381,7 @@ export const PetsPage: React.FC = () => {
                   </div>
                 </form>
               ) : (
-                <div className="space-y-5">
+                <div className="pet-record-details space-y-3">
                   <div className="space-y-1">
                     <span className="font-mono text-[9px] uppercase font-bold text-paprika block">
                       Case File #{selectedRecord.id} ({selectedRecord.record_type})

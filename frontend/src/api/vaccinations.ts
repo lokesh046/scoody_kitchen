@@ -110,9 +110,9 @@ export interface VaccineGuide {
   rules_title: string | null;
   subtitle: string | null;
   date_of_birth_known: boolean;
-  planner: { dose: string; vaccine: string; planned_age: string; due_date: string; date_given: string | null; status: GuideStatus; note: string | null }[];
+  planner: { dose: string; vaccine: string; vaccine_codes?: string[]; planned_age: string; due_date: string; date_given: string | null; status: GuideStatus; note: string | null }[];
   planner_note: string | null;
-  schedule: { sno: number; age: string; vaccine: string; protects: string | null; notes: string | null; status: GuideStatus | null; last_dose: string | null; next_due: string | null }[];
+  schedule: { sno: number; age: string; vaccine: string; vaccine_codes?: string[]; protects: string | null; notes: string | null; status: GuideStatus | null; last_dose: string | null; next_due: string | null }[];
   timeline: { stage: number; age: string; what: string }[];
   rules: { topic: string; guidance: string }[];
   about: { label: string; text: string }[];

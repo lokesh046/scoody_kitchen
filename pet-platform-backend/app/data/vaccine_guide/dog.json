@@ -127,6 +127,7 @@
   {
    "age": "Every year (optional)",
    "vaccine": "Kennel cough (Bordetella + parainfluenza)",
+   "codes": ["bordetella"],
    "protects": "Kennel cough",
    "notes": "For dogs that go to boarding, grooming, dog parks or shows.",
    "planner_refs": []
@@ -134,6 +135,7 @@
   {
    "age": "Senior (7+ years; giant breeds 5-6+)",
    "vaccine": "Continue rabies + lepto yearly; core by titre or every 3 years",
+   "codes": ["rabies", "leptospirosis", "dhppi"],
    "protects": "Same",
    "notes": "Do not stop vaccinating older dogs. Add twice-yearly check-ups and blood work.",
    "planner_refs": []
