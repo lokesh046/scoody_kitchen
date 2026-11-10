@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request
 import httpx
+import re
 import logging
 
 from app.core.cache import cache
@@ -127,29 +128,46 @@ async def reverse_geocode(lat: float, lon: float):
     return {"error": "Unable to resolve coordinates", "lat": lat, "lon": lon}
 
 
+def _looks_like_postal_code(code: str) -> bool:
+    """A postal code is short, has at least one digit and only letters/digits/space/hyphen (560038, SW1A 1AA)."""
+    return bool(re.fullmatch(r"[A-Z0-9][A-Z0-9 \-]{2,9}", code)) and any(ch.isdigit() for ch in code)
+
+
+async def _nominatim_search(client: httpx.AsyncClient, params: dict) -> list:
+    res = await client.get(
+        "https://nominatim.openstreetmap.org/search",
+        params={**params, "format": "json", "limit": 1},
+        headers={"User-Agent": "ScoobyPetsPlatform/1.0 (support@scoobypets.com)"},
+    )
+    return res.json() if res.status_code == 200 else []
+
+
 @router.get("/pincode")
 async def pincode_lookup(code: str):
     """
-    Pincode search with Redis caching.
+    Location search with Redis caching. Takes a postal code (e.g. 560038) or, for countries without
+    common postal codes such as the UAE, a place name (e.g. "Dubai Marina"). A postal-code-shaped
+    value is tried as a postal code first and falls back to a place search.
     """
-    clean_code = code.strip().upper()
+    clean_code = code.strip().upper()[:100]
+    if not clean_code:
+        return []
     cache_key = f"geo:pin:{clean_code}"
 
     cached = cache.get(cache_key)
-    if cached is not None:
+    if cached:
         return cached
 
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            res = await client.get(
-                "https://nominatim.openstreetmap.org/search",
-                params={"postalcode": clean_code, "format": "json", "limit": 1},
-                headers={"User-Agent": "ScoobyPetsPlatform/1.0 (support@scoobypets.com)"},
-            )
-            if res.status_code == 200:
-                data = res.json()
-                cache.set(cache_key, data, ttl_seconds=604800)  # 7-day TTL
-                return data
+            data: list = []
+            if _looks_like_postal_code(clean_code):
+                data = await _nominatim_search(client, {"postalcode": clean_code})
+            if not data:
+                data = await _nominatim_search(client, {"q": code.strip()[:100]})
+            if data:
+                cache.set(cache_key, data, ttl_seconds=604800)  # 7-day TTL, only for hits
+            return data
     except Exception as e:
         logger.warning("Pincode lookup error for %s: %s", clean_code, e)
 

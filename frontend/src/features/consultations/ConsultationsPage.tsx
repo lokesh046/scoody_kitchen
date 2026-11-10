@@ -454,7 +454,7 @@ export const ConsultationsPage: React.FC = () => {
   const handlePincodeSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pincodeQuery.trim()) {
-      setSearchError('Please enter a Pincode / Zip Code to search.');
+      setSearchError('Please enter a pincode, zip code or place name to search.');
       return;
     }
 
@@ -468,7 +468,7 @@ export const ConsultationsPage: React.FC = () => {
         updateMapPin(lat, lng);
         await runNearbySearch(lat, lng, searchRadius);
       } else {
-        setSearchError('Pincode / Zip Code not found. Try dragging the pin instead.');
+        setSearchError('Place not found. Try another name or pincode, or drag the pin instead.');
       }
     } catch (err) {
       console.error('Pincode lookup failed:', err);
@@ -824,7 +824,7 @@ export const ConsultationsPage: React.FC = () => {
                       <Search className="w-3.5 h-3.5 text-ink/35 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                       <input
                         type="text"
-                        placeholder="Search Pincode / Zip Code"
+                        placeholder="Search pincode, zip code or place"
                         value={pincodeQuery}
                         onChange={(e) => setPincodeQuery(e.target.value)}
                         className="w-full pl-9 pr-3 py-1.5 border border-cardboard rounded-sm bg-paperLight text-ink text-xs focus:outline-none focus:border-turmeric"

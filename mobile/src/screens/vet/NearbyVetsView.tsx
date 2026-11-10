@@ -304,7 +304,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult, compact, chr
     try {
       const results = await lookupPincode(pincode.trim());
       if (results.length === 0) {
-        setError('Could not find that pincode. Try dragging the pin instead.');
+        setError('Could not find that place. Try another name or pincode, or drag the pin instead.');
         return;
       }
       const lat = parseFloat(results[0].lat);
@@ -626,7 +626,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult, compact, chr
                         <MapPin size={14} color={COLORS.textMuted} />
                         <TextInput
                           style={styles.pincodeInput}
-                          placeholder="Search pincode / zip code"
+                          placeholder="Search pincode, zip code or place"
                           placeholderTextColor={COLORS.textMuted}
                           value={pincode}
                           onChangeText={setPincode}
