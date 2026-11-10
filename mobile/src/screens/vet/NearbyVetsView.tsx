@@ -630,7 +630,9 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult, compact, chr
                           placeholderTextColor={COLORS.textMuted}
                           value={pincode}
                           onChangeText={setPincode}
-                          keyboardType="number-pad"
+                          keyboardType="default"
+                          autoCapitalize="words"
+                          autoCorrect={false}
                           returnKeyType="search"
                           onSubmitEditing={handlePincodeSearch}
                         />
