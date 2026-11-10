@@ -107,7 +107,7 @@ export function RecipeCalculator() {
       </h2>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
         <div className="lg:col-span-5 space-y-5">
-          <p className="font-body text-base lg:text-lg text-ink opacity-80 leading-relaxed">
+          <p className="font-body text-base sm:text-lg text-ink opacity-80 leading-relaxed">
             Pet nutrition is directly proportional to body mass and daily energy output. Pick your dog's size or enter their exact weight to calculate targeted caloric requirements in real time.
           </p>
 

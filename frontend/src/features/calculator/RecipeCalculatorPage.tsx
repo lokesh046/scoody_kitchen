@@ -339,7 +339,7 @@ export function RecipeCalculatorPage() {
       {/* Closing CTA */}
       <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper text-center">
         <div className="max-w-7xl mx-auto">
-          <h2 id="calc-cta-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
+          <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug lg:whitespace-nowrap">
             Take the next step towards more informed meals
           </h2>
           <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg text-paper/90 leading-relaxed">
@@ -360,7 +360,7 @@ export function RecipeCalculatorPage() {
       <section aria-labelledby="calc-faq-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-midnight text-paper">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10 space-y-3">
-            <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] tracking-normal leading-snug">
+            <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
               Frequently asked questions
             </h2>
           </div>
