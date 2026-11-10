@@ -175,7 +175,7 @@ function OtherToolsSection() {
   const tools = [
     ...(isShopEnabled ? [{ label: 'Shop Recipes', image: '/images/toolkit/shop-recipes.webp', text: 'Human-grade meals built around what your pet actually needs.', path: '/shop' }] : []),
     ...(isKnowYourPetEnabled ? [{ label: 'Know Your Pet', image: '/images/toolkit/know-your-pet.webp', text: "Understand your pet's characteristics and keep their profile information organised.", path: '/pets' }] : []),
-    ...(isMealPlannerEnabled ? [{ label: 'Count The Calories', image: '/images/toolkit/meal-planner.webp', text: "Estimate your pet's daily energy needs from their profile.", path: '/recipe-calculator#fit-calculator' }] : []),
+    ...(isMealPlannerEnabled ? [{ label: 'Count Their Calories', image: '/images/toolkit/meal-planner.webp', text: "Estimate your pet's daily energy needs from their profile.", path: '/recipe-calculator#fit-calculator' }] : []),
     ...(isChatbotEnabled ? [{ label: 'AI Assistant', image: '/images/toolkit/ai-assistant.webp', text: 'Ask questions about nutrition and everyday pet care.', path: '/assistant' }] : []),
   ];
 

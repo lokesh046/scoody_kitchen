@@ -45,7 +45,7 @@ export function SiteFooter({ className = 'bg-midnight' }: { className?: string }
                 <li><button onClick={() => navigate('/consultations')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Locate Your Vet</button></li>
               )}
               {isMealPlannerEnabled && (
-                <li><button onClick={() => navigate('/recipe-calculator')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Count The Calories</button></li>
+                <li><button onClick={() => navigate('/recipe-calculator')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Count Their Calories</button></li>
               )}
               {journalEntry.visible && (
                 <li><button onClick={() => navigate('/blog')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Journal &amp; Resources{journalEntry.label ? ` · ${journalEntry.label}` : ''}</button></li>

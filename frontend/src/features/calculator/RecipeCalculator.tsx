@@ -20,7 +20,7 @@ const DOG_PRESETS: QuickPreset[] = [
   { label: 'Working / Giant (90 lbs)', weight: 90, activity: 'very_active' },
 ];
 
-// The calculator section (Count The Calories). It used to be a section of the home page; it now lives on its own
+// The calculator section (Count Their Calories). It used to be a section of the home page; it now lives on its own
 // page (/recipe-calculator). The maths and the wording are unchanged from the home page version.
 export function RecipeCalculator() {
   const ordering = useRecipeOrdering();
@@ -103,7 +103,7 @@ export function RecipeCalculator() {
     >
       <div className="max-w-6xl mx-auto text-left relative z-10">
       <h2 className="mb-8 md:mb-10 font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] tracking-normal text-ink leading-snug">
-        Count The Calories
+        Count Their Calories
       </h2>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
         <div className="lg:col-span-5 space-y-5">

@@ -16,10 +16,10 @@ import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingHero } from '../../hooks/useAdminContent';
 import { markLandingSeen } from '../../utils/landingSeen';
 
-const PAGE_TITLE = 'Count The Calories';
+const PAGE_TITLE = 'Count Their Calories';
 const PAGE_DESCRIPTION = "Understand your dog's daily energy requirements and get a more informed starting point for planning their meals.";
 
-// The top image, headline and text can be changed in Admin > Banners ("Count The Calories page - top
+// The top image, headline and text can be changed in Admin > Banners ("Count Their Calories page - top
 // image"); anything left empty there keeps these defaults.
 const DEFAULT_HERO = {
   image: '/images/hero/calculator-1.webp',
@@ -56,8 +56,8 @@ const ENERGY_STEPS = [
 // (cats, new questions, a meal plan, pricing), update these with it.
 const FAQS = [
   {
-    q: 'What does Count The Calories do?',
-    a: "Count The Calories estimates your dog's daily energy requirements using the details you provide. The result can help you make more informed decisions when planning their meals.",
+    q: 'What does Count Their Calories do?',
+    a: "Count Their Calories estimates your dog's daily energy requirements using the details you provide. The result can help you make more informed decisions when planning their meals.",
   },
   {
     q: 'What information do I need to provide?',
@@ -92,7 +92,7 @@ const FAQS = [
     a: "Your pet's energy requirements may change as they grow, age, become more or less active, or experience changes in health or body condition. Reassess their needs when appropriate and seek veterinary guidance if unsure.",
   },
   {
-    q: 'Is Count The Calories free to use?',
+    q: 'Is Count Their Calories free to use?',
     a: "Calculating your dog's estimate is free, and the calculator on this page works without an account. You will be asked to sign in or create an account to continue to the meal planner or to add a recipe to your cart. Buying a recipe is a separate step.",
   },
 ];
@@ -201,7 +201,7 @@ export function RecipeCalculatorPage() {
       <RouteUnavailable
         variant={entry.variant}
         activeTab="calculator"
-        title={entry.variant === 'coming_soon' ? 'Count The Calories: Coming soon' : 'Count The Calories: Unavailable'}
+        title={entry.variant === 'coming_soon' ? 'Count Their Calories: Coming soon' : 'Count Their Calories: Unavailable'}
         actionLabel="Back to Home"
         actionPath="/"
       />
@@ -233,7 +233,7 @@ export function RecipeCalculatorPage() {
             <h1 className="font-script font-normal text-4xl sm:text-5xl md:text-6xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
               {hero.title}
             </h1>
-            <p className="font-body text-xs sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
+            <p className="font-body text-base sm:text-lg text-paperLight opacity-90 leading-relaxed max-w-xl">
               {hero.subtitle}
             </p>
             <div className="pt-2">
@@ -260,7 +260,7 @@ export function RecipeCalculatorPage() {
             <h2 id="calc-needs-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] tracking-normal leading-snug lg:whitespace-nowrap">
               Every pet has their own energy needs
             </h2>
-            <p className="mx-auto max-w-2xl font-body text-sm sm:text-base text-paper/90 leading-relaxed">
+            <p className="mx-auto max-w-2xl font-body text-base sm:text-lg text-paper/90 leading-relaxed">
               The right amount of energy helps support your pet's everyday activities, from resting and playing to growing and staying active. Understanding their daily energy requirements can give you a useful starting point when planning their meals.
             </p>
           </div>
@@ -294,7 +294,7 @@ export function RecipeCalculatorPage() {
                     <Icon aria-hidden="true" className="h-5 w-5 shrink-0 text-turmeric" strokeWidth={1.6} />
                     <h3 className="font-display text-lg font-bold leading-snug text-paper">{title}</h3>
                   </div>
-                  <p className="font-body text-sm leading-relaxed text-paper/90">{text}</p>
+                  <p className="font-body text-base sm:text-lg leading-relaxed text-paper/90">{text}</p>
                 </div>
               </motion.li>
             ))}
@@ -327,7 +327,7 @@ export function RecipeCalculatorPage() {
                   ))}
                 </span>
               </h2>
-              <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-sm text-paper opacity-90 leading-relaxed">
+              <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-base sm:text-lg text-paper opacity-90 leading-relaxed">
                 Explore the tools designed to support different parts of the pet-parent journey.
               </p>
             </div>
@@ -342,7 +342,7 @@ export function RecipeCalculatorPage() {
           <h2 id="calc-cta-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
             Take the next step towards more informed meals
           </h2>
-          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/90 leading-relaxed">
+          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg text-paper/90 leading-relaxed">
             Estimate your pet's daily energy requirements and use the result as a starting point for making informed feeding decisions.
           </p>
           <button

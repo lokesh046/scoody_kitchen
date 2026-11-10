@@ -39,7 +39,7 @@ const STATIC_PAGES = [
   // Locate Your Vet's public explainer (App.tsx) — the real, auth-gated
   // tool lives at /consultations/app and stays out of the sitemap.
   { path: '/consultations/', changefreq: 'monthly', priority: '0.6' },
-  // The Count The Calories public landing page (App.tsx).
+  // The Count Their Calories public landing page (App.tsx).
   { path: '/recipe-calculator/', changefreq: 'monthly', priority: '0.6' },
 ];
 
