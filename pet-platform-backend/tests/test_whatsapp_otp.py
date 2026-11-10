@@ -305,3 +305,18 @@ def test_otp_status_when_all_codes_used_says_when_to_retry(auth_override):
 def test_otp_status_requires_auth():
     res = client.get("/auth/whatsapp/otp-status", params={"phone_number": TEST_PHONE})
     assert res.status_code == 401
+
+
+def test_verified_phone_is_saved_with_plus_and_country_code(auth_override, db_override):
+    """The saved number must be E.164 (+<country><number>) so the apps show the right country, not India."""
+    nz_phone = "+64212345678"
+    code = "123456"
+    code_hash = hmac.new(settings.WHATSAPP_OTP_SECRET.encode(), code.encode(), hashlib.sha256).hexdigest()
+    mock_redis = MockRedisStore()
+    mock_redis.set(f"wa_otp:{nz_phone}", json.dumps({"hash": code_hash, "attempts": 0}), ex=600)
+
+    with patch("app.api.auth.rate_limit_redis_client", mock_redis):
+        res = client.post("/auth/whatsapp/verify-otp", json={"phone_number": nz_phone, "code": code})
+
+    assert res.status_code == 200
+    assert res.json()["phone"] == nz_phone

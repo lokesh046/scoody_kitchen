@@ -63,7 +63,7 @@ export const ProfilePage: React.FC = () => {
   // chopping off the last 10 digits (which broke for any non-Indian number).
   const parsePhoneForState = (rawPhone?: string | null) => {
     if (!rawPhone) return { country: DEFAULT_COUNTRY_ISO2, digits: '' };
-    const parsed = parsePhoneNumberFromString(rawPhone, DEFAULT_COUNTRY_ISO2 as any);
+    const parsed = parsePhoneNumberFromString(/^\d{11,}$/.test(rawPhone) ? `+${rawPhone}` : rawPhone, DEFAULT_COUNTRY_ISO2 as any);
     if (parsed && parsed.country) {
       return { country: parsed.country, digits: parsed.nationalNumber };
     }
