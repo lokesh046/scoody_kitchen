@@ -9,6 +9,7 @@ from auth.dependencies import get_current_chat_user, validate_session_ownership
 from schemas.chat import ChatResponse
 from graph.workflow import chatbot_graph
 from memory.redis_memory import session_memory
+from utils.llm_text import content_to_text
 from utils.guardrails import redact_pii_text, validate_prompt_safety
 from utils.rate_limiter import enforce_rate_limit, enforce_token_budget
 
@@ -50,7 +51,7 @@ async def voice_chat_endpoint(
                 {"type": "media", "mime_type": mime_type, "data": b64_audio},
             ])
             res = llm.invoke([msg])
-            transcribed_text = str(res.content) if hasattr(res, "content") else str(res)
+            transcribed_text = content_to_text(res.content if hasattr(res, "content") else res)
         except Exception:
             transcribed_text = "What is your return policy for unopened items?"
     else:
@@ -87,7 +88,7 @@ async def voice_chat_endpoint(
     try:
         final_state = await chatbot_graph.ainvoke(initial_state)
         messages = final_state.get("messages", [])
-        raw_reply = messages[-1]["content"] if messages else "No response generated."
+        raw_reply = content_to_text(messages[-1]["content"]) if messages else "No response generated."
         bot_reply = redact_pii_text(raw_reply)
         sources = final_state.get("sources", [])
 

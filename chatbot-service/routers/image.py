@@ -10,6 +10,7 @@ from utils.image_validator import validate_image_file
 from schemas.chat import ChatResponse
 from graph.workflow import chatbot_graph
 from memory.redis_memory import session_memory
+from utils.llm_text import content_to_text
 from utils.guardrails import redact_pii_text, validate_prompt_safety
 from utils.rate_limiter import enforce_rate_limit, enforce_token_budget
 
@@ -66,7 +67,7 @@ async def image_chat_endpoint(
                 {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64_image}"}},
             ])
             res = llm.invoke([msg])
-            vision_description = res.content if hasattr(res, "content") else str(res)
+            vision_description = content_to_text(res.content if hasattr(res, "content") else res)
         except Exception:
             vision_description = f"[Image Visual Analysis]: The uploaded image shows pet rash / product packaging related to: '{message}'."
     else:
@@ -91,7 +92,7 @@ async def image_chat_endpoint(
     try:
         final_state = await chatbot_graph.ainvoke(initial_state)
         messages = final_state.get("messages", [])
-        raw_reply = messages[-1]["content"] if messages else "No response generated."
+        raw_reply = content_to_text(messages[-1]["content"]) if messages else "No response generated."
         bot_reply = redact_pii_text(raw_reply)
         sources = final_state.get("sources", [])
 
