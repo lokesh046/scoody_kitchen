@@ -365,7 +365,7 @@ export const ConsultationsPage: React.FC = () => {
       setNearbyRadiusUsed(data.radius_km_used);
       setNearbyFallback(data.fallback_to_registered_only);
       if (data.results.length === 0) {
-        setSearchError(category === 'pharmacy' ? 'No pharmacies found within the specified radius.' : 'No clinics or specialists found within the specified radius.');
+        setSearchError(category === 'pharmacy' ? 'No pharmacies or pet shops found within the specified radius.' : 'No clinics or specialists found within the specified radius.');
       }
     } catch (err: any) {
       console.error('Nearby search failed:', err);
@@ -747,7 +747,7 @@ export const ConsultationsPage: React.FC = () => {
           }`}
         >
           <Pill className="w-3.5 h-3.5" />
-          Apothecary &amp; Pharmacies
+          Pharmacy &amp; pet shop
           {nearbyCategory === 'pharmacy' && hasSearchedNearby && <span className="opacity-80">({nearbyClinics.length})</span>}
         </button>
       </div>

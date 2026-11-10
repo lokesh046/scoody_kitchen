@@ -218,7 +218,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult, compact, chr
         fetchedAt: Date.now(),
       });
       if (data.results.length === 0) {
-        setError(cat === 'pharmacy' ? 'No pharmacies found within the specified radius.' : 'No clinics or specialists found within the specified radius.');
+        setError(cat === 'pharmacy' ? 'No pharmacies or pet shops found within the specified radius.' : 'No clinics or specialists found within the specified radius.');
       }
     } catch (err: any) {
       console.error('Nearby search failed:', err);
@@ -289,7 +289,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult, compact, chr
       setRadiusUsed(cached.radiusUsed);
       setFallback(cached.fallback);
       if (cached.results.length === 0) {
-        setError(cached.category === 'pharmacy' ? 'No pharmacies found within the specified radius.' : 'No clinics or specialists found within the specified radius.');
+        setError(cached.category === 'pharmacy' ? 'No pharmacies or pet shops found within the specified radius.' : 'No clinics or specialists found within the specified radius.');
       }
       return;
     }
@@ -496,7 +496,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult, compact, chr
                 onPress={() => handleChangeCategory('pharmacy')}
               >
                 <PillBottle size={14} color={category === 'pharmacy' ? '#FFFFFF' : COLORS.textMuted} />
-                <Text style={[styles.categoryChipText, category === 'pharmacy' && styles.categoryChipTextActive]}>Pharmacy</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.categoryChipText, { flexShrink: 1 }, category === 'pharmacy' && styles.categoryChipTextActive]}>Pharmacy & pet shop</Text>
               </TouchableOpacity>
               <TouchableOpacity
                   style={styles.compactDistance}

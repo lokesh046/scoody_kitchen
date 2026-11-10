@@ -25,8 +25,12 @@ PLACE_TYPE_BY_CATEGORY = {
 # Search + includedTypes, which is accurate as-is (veterinary_care has no
 # such ambiguity).
 TEXT_QUERY_BY_CATEGORY = {
-    "pharmacy": "pet pharmacy OR veterinary pharmacy OR animal pharmacy",
+    "pharmacy": "pet shop OR pet store OR pet pharmacy OR veterinary pharmacy OR animal pharmacy",
 }
+
+# The Pharmacy tab shows pet shops / pet pharmacies first. Only when none are found within the search
+# radius does it fall back to ordinary pharmacies (Google's generic "pharmacy" type).
+PET_SHOP_TYPE = "pet_store"
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +59,7 @@ def _grid_cache_key(latitude: float, longitude: float, radius_km: float, categor
     # Nearby Search to a pet-focused Text Search query -- without it, a
     # pharmacy search done just before this shipped would keep being
     # served its old (generic drugstore) cached result for up to 24h.
-    cache_variant = f"{category}v2" if category in TEXT_QUERY_BY_CATEGORY else category
+    cache_variant = f"{category}v3" if category in TEXT_QUERY_BY_CATEGORY else category
     return f"vets:nearby:{cache_variant}:{grid_lat}:{grid_lng}:{radius_km}"
 
 
@@ -109,58 +113,64 @@ async def search_nearby_vet_clinics(
         "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location",
     }
 
-    type_body = {
-        "includedTypes": [PLACE_TYPE_BY_CATEGORY.get(category, "veterinary_care")],
-        "maxResultCount": max_results,
-        "locationRestriction": {"circle": location_circle},
-    }
+    def _type_request(place_type: str):
+        body = {
+            "includedTypes": [place_type],
+            "maxResultCount": max_results,
+            "locationRestriction": {"circle": location_circle},
+        }
+        return _run_places_request(PLACES_SEARCH_URL, body, headers)
+
+    def _merge(responses: list) -> dict[str, dict]:
+        # Deduped by place_id since the same place often appears in both the type and the text results.
+        merged: dict[str, dict] = {}
+        for data in responses:
+            if data is None:
+                continue
+            for place in data.get("places", []):
+                loc = place.get("location") or {}
+                place_lat = loc.get("latitude")
+                place_lng = loc.get("longitude")
+                place_id = place.get("id")
+                if place_lat is None or place_lng is None or not place_id or place_id in merged:
+                    continue
+                merged[place_id] = {
+                    "place_id": place_id,
+                    "name": (place.get("displayName") or {}).get("text"),
+                    "address": place.get("formattedAddress"),
+                    "distance_km": round(_haversine_km(latitude, longitude, place_lat, place_lng), 2),
+                    "latitude": place_lat,
+                    "longitude": place_lng,
+                }
+        return merged
 
     text_query = TEXT_QUERY_BY_CATEGORY.get(category)
-    requests_to_run = [_run_places_request(PLACES_SEARCH_URL, type_body, headers)]
     if text_query:
+        # Pharmacy tab: pet shops / pet pharmacies first (type search + text search together)...
         text_body = {
             "textQuery": text_query,
             "maxResultCount": max_results,
-            # Restriction (hard filter), not bias, so these stay within the
-            # radius the user actually picked, same as the type-based call.
+            # Restriction (hard filter), not bias, so these stay within the radius the user picked.
             "locationRestriction": {"circle": location_circle},
         }
-        requests_to_run.append(_run_places_request(PLACES_TEXT_SEARCH_URL, text_body, headers))
+        responses = list(await asyncio.gather(
+            _type_request(PET_SHOP_TYPE),
+            _run_places_request(PLACES_TEXT_SEARCH_URL, text_body, headers),
+        ))
+        merged = _merge(responses)
+        if not merged:
+            # ...and ordinary pharmacies only when there is no pet shop in range.
+            fallback = await _type_request(PLACE_TYPE_BY_CATEGORY["pharmacy"])
+            responses.append(fallback)
+            merged = _merge([fallback])
+    else:
+        responses = [await _type_request(PLACE_TYPE_BY_CATEGORY.get(category, "veterinary_care"))]
+        merged = _merge(responses)
 
-    responses = await asyncio.gather(*requests_to_run)
-
-    # Both calls failing outright (not just "found nothing") is the only
-    # case callers should treat as a Places API outage. If the pet-pharmacy
-    # text search is the one that fails while the plain pharmacy type
-    # search succeeds, that's not an outage -- still show what we have
-    # rather than discarding real, successful results.
+    # Every call failing outright (not just "found nothing") is the only case callers should treat as a
+    # Places API outage.
     if all(r is None for r in responses):
         return None
-
-    # Merge: show every normal pharmacy/clinic, plus any pet-pharmacy-named
-    # place the text search found that the type search missed (places don't
-    # always carry Google's generic "pharmacy" type even when they sell pet
-    # medication) -- deduped by place_id since the same place often appears
-    # in both result sets.
-    merged: dict[str, dict] = {}
-    for data in responses:
-        if data is None:
-            continue
-        for place in data.get("places", []):
-            loc = place.get("location") or {}
-            place_lat = loc.get("latitude")
-            place_lng = loc.get("longitude")
-            place_id = place.get("id")
-            if place_lat is None or place_lng is None or not place_id or place_id in merged:
-                continue
-            merged[place_id] = {
-                "place_id": place_id,
-                "name": (place.get("displayName") or {}).get("text"),
-                "address": place.get("formattedAddress"),
-                "distance_km": round(_haversine_km(latitude, longitude, place_lat, place_lng), 2),
-                "latitude": place_lat,
-                "longitude": place_lng,
-            }
 
     results = sorted(merged.values(), key=lambda r: r["distance_km"])[:max_results]
 
