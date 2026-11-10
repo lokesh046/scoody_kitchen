@@ -92,7 +92,7 @@ function OtherToolsSection() {
               ))}
             </span>
           </h2>
-          <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-sm text-paper opacity-90 leading-relaxed">
+          <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-base sm:text-lg text-paper opacity-90 leading-relaxed">
             Explore the tools designed to support different parts of the pet-parent journey.
           </p>
         </div>
@@ -164,7 +164,7 @@ export function PetsLandingPage() {
             <h1 className="font-script font-normal text-4xl sm:text-5xl md:text-6xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
               {hero.title}
             </h1>
-            <p className="font-body text-xs sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
+            <p className="font-body text-base sm:text-lg text-paperLight opacity-90 leading-relaxed max-w-xl">
               {hero.subtitle}
             </p>
             <div className="pt-2">
@@ -273,7 +273,7 @@ export function PetsLandingPage() {
           <h2 id="pet-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug lg:whitespace-nowrap">
             Get to know them a little better
           </h2>
-          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/90 leading-relaxed">
+          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg text-paper/90 leading-relaxed">
             Start building a clearer picture of your pet, one detail at a time.
           </p>
           <button
