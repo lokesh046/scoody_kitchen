@@ -17,6 +17,7 @@ import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingFaqs, useLandingHero } from '../../hooks/useAdminContent';
 import { markLandingSeen } from '../../utils/landingSeen';
+import { getOptimizedImageUrl, IMAGE_WIDTH, originalOnError } from '../../utils/cloudinaryImage';
 
 const DEFAULT_HERO_IMAGE = '/images/hero/hero-2.webp';
 
@@ -151,7 +152,8 @@ export function PetsLandingPage() {
           anchored bottom-left over it. */}
       <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-midnight">
         <img
-          src={hero.image}
+          src={getOptimizedImageUrl(hero.image, IMAGE_WIDTH.hero)}
+          onError={originalOnError(hero.image)}
           alt="A Doberman resting against its owner, who gently rests a hand on its shoulder"
           className={`absolute inset-0 w-full h-full object-cover object-[68%_center] md:object-center transition-opacity duration-500 ${hero.ready ? 'opacity-100' : 'opacity-0'}`}
           loading="eager"

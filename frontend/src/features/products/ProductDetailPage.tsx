@@ -19,6 +19,7 @@ import type { ProductReview } from '../../api/reviews';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
+import { getOptimizedImageUrl, IMAGE_WIDTH } from '../../utils/cloudinaryImage';
 
 export const ProductDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -437,7 +438,7 @@ export const ProductDetailPage: React.FC = () => {
                     }`}
                   >
                     <img 
-                      src={product.image_url} 
+                      src={getOptimizedImageUrl(product.image_url, IMAGE_WIDTH.thumb)} 
                       alt="Main thumbnail" 
                       className="w-full h-full object-cover"
                     />
@@ -455,7 +456,7 @@ export const ProductDetailPage: React.FC = () => {
                     }`}
                   >
                     <img 
-                      src={img.image_url} 
+                      src={getOptimizedImageUrl(img.image_url, IMAGE_WIDTH.thumb)} 
                       alt="Gallery thumbnail" 
                       className="w-full h-full object-cover"
                     />

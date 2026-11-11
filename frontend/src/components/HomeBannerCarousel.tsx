@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchActiveBanners } from '../api/banners';
 import { useFeatureFlag, useVetEntryEnabled } from '../hooks/useFeatureFlag';
+import { getOptimizedImageUrl, IMAGE_WIDTH, originalOnError } from '../utils/cloudinaryImage';
 
 // Default fallback banners matching the user's custom designs with 4K ultra-high resolution
 const fallbackBanners: any[] = [
@@ -322,7 +323,8 @@ export const HomeBannerCarousel: React.FC = () => {
                 <div className="relative w-full h-[320px] sm:h-[440px] md:h-[540px] lg:h-[600px] bg-[#3d2314] rounded-[24px] overflow-hidden border border-cardboard shadow-md hover:shadow-xl transition-shadow duration-300">
                   {/* Background Image Banner */}
                   <img
-                    src={slide.image_url}
+                    src={getOptimizedImageUrl(slide.image_url, IMAGE_WIDTH.banner)}
+                    onError={originalOnError(slide.image_url)}
                     alt={slide.title || 'Featured Banner'}
                     className="w-full h-full object-cover select-none pointer-events-none rounded-[24px]"
                     draggable={false}

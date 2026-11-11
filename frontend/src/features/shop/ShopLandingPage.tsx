@@ -21,6 +21,7 @@ import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingFaqs, useLandingHero } from '../../hooks/useAdminContent';
 import { markLandingSeen } from '../../utils/landingSeen';
+import { getOptimizedImageUrl, IMAGE_WIDTH, originalOnError } from '../../utils/cloudinaryImage';
 
 const DEFAULT_HERO_IMAGE = 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg';
 
@@ -179,7 +180,8 @@ export function ShopLandingPage() {
           gradients, copy anchored bottom-left. */}
       <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-midnight">
         <img
-          src={hero.image}
+          src={getOptimizedImageUrl(hero.image, IMAGE_WIDTH.hero)}
+          onError={originalOnError(hero.image)}
           alt="A Hearth &amp; Hound recipe bag beside the fire"
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${hero.ready ? 'opacity-100' : 'opacity-0'}`}
           loading="eager"

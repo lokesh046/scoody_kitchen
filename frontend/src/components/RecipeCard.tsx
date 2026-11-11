@@ -3,6 +3,7 @@ import type { ProductResponse } from '../types/product';
 import { IngredientLedger, getIngredientsForProduct } from './IngredientLedger';
 import { Bone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getOptimizedImageUrl, IMAGE_WIDTH, originalOnError } from '../utils/cloudinaryImage';
 
 interface RecipeCardProps {
   product: ProductResponse;
@@ -57,7 +58,8 @@ export const RecipeCard: React.FC<RecipeCardProps> = React.memo(({ product, onAd
         className="torn-edge relative w-full aspect-[4/3] bg-paper overflow-hidden border-b border-cardboard cursor-pointer"
       >
         <img
-          src={imageUrl}
+          src={getOptimizedImageUrl(imageUrl, IMAGE_WIDTH.card)}
+          onError={originalOnError(imageUrl)}
           alt={product.name}
           className={`w-full h-full object-cover transition-all duration-300 ${
             !product.is_active ? 'grayscale opacity-50' : 'hover:scale-[1.03]'

@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchActiveBanners } from '../api/banners';
+import { getOptimizedImageUrl, IMAGE_WIDTH, originalOnError } from '../utils/cloudinaryImage';
 
 // Same real banner images used by the normal contained carousel, so the
 // full-screen hero shows genuine content rather than placeholder art even
@@ -79,7 +80,8 @@ export const FullscreenHomeHero: React.FC = () => {
       {slides.map((s, i) => (
         <img
           key={s.id}
-          src={s.image_url}
+          src={getOptimizedImageUrl(s.image_url, IMAGE_WIDTH.hero)}
+          onError={originalOnError(s.image_url)}
           alt=""
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
             i === index % slides.length ? 'opacity-100' : 'opacity-0'

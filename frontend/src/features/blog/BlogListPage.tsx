@@ -9,6 +9,7 @@ import { NewsletterSignup } from '../../components/NewsletterSignup';
 import { BlogOrbitGallery } from '../../components/BlogOrbitGallery';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
+import { getOptimizedImageUrl, IMAGE_WIDTH, originalOnError } from '../../utils/cloudinaryImage';
 
 const FALLBACK_COVER =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260" viewBox="0 0 400 260"><rect width="400" height="260" fill="%23FAF6EC"/><path d="M 0,30 L 400,30 M 0,60 L 400,60 M 0,90 L 400,90 M 0,120 L 400,120 M 0,150 L 400,150 M 0,180 L 400,180 M 0,210 L 400,210" stroke="%23C9BB9C" stroke-width="0.5" stroke-dasharray="2,2"/><text x="50%" y="52%" font-family="monospace" font-size="13" font-weight="bold" fill="%232E2418" dominant-baseline="middle" text-anchor="middle">🐾 HEARTH & ONE 🐾</text><text x="50%" y="62%" font-family="monospace" font-size="9" fill="%234B6B3A" dominant-baseline="middle" text-anchor="middle">Journal Entry</text></svg>';
@@ -103,7 +104,8 @@ export const BlogListPage: React.FC = () => {
                 >
                   <div className="w-full aspect-[16/10] overflow-hidden bg-paper border-b border-cardboard border-opacity-60 relative">
                     <img
-                      src={post.cover_image_url || FALLBACK_COVER}
+                      src={getOptimizedImageUrl(post.cover_image_url, IMAGE_WIDTH.card) || FALLBACK_COVER}
+                      onError={originalOnError(post.cover_image_url)}
                       alt={post.title}
                       loading="lazy"
                       className="w-full h-full object-contain group-hover:scale-[1.03] transition-transform duration-300"
