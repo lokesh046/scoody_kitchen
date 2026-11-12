@@ -33,24 +33,22 @@ import { BrandFullLogo, BRAND_CREAM } from './src/components/BrandLogo';
 const Stack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
 
-// Same size and position as the native launch splash image (172dp, centred), so the
-// hand-off from the OS splash to this screen is invisible.
-const SPLASH_LOGO_SIZE = 172;
-// The logo is drawn at its final (larger) size so it is always sharp, and starts scaled
-// down to the splash size; one shared value keeps the loading screen and the cross-fade
-// overlay on exactly the same frame, so there is no jump between them.
-const LOGO_FULL_SIZE = 250;
-const logoScale = new Animated.Value(SPLASH_LOGO_SIZE / LOGO_FULL_SIZE);
-let logoGrowStarted = false;
-function startLogoGrow() {
-  if (logoGrowStarted) return;
-  logoGrowStarted = true;
-  Animated.timing(logoScale, { toValue: 1, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-}
+// The OS launch splash is a plain cream screen (no logo of its own), so there is only
+// ever ONE logo: this one, at its full size, fading in as soon as the app starts. A
+// shared value keeps the loading screen and the cross-fade overlay on the same frame.
+const LOGO_FULL_SIZE = 280;
+const logoOpacity = new Animated.Value(0);
+let logoFadeStarted = false;
+let logoShownAt = 0;
 function SplashLogo() {
-  useEffect(() => { startLogoGrow(); }, []);
+  useEffect(() => {
+    if (logoFadeStarted) return;
+    logoFadeStarted = true;
+    logoShownAt = Date.now();
+    Animated.timing(logoOpacity, { toValue: 1, duration: 450, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+  }, []);
   return (
-    <Animated.View style={{ transform: [{ scale: logoScale }] }}>
+    <Animated.View style={{ opacity: logoOpacity }}>
       <BrandFullLogo size={LOGO_FULL_SIZE} />
     </Animated.View>
   );
@@ -69,7 +67,9 @@ function CrossFadeIn({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     const handle = InteractionManager.runAfterInteractions(() => {
       if (cancelled) return;
-      Animated.timing(opacity, { toValue: 0, duration: 500, delay: 450, useNativeDriver: true }).start(
+      // keep the logo on screen for at least ~1.3s so it is actually seen
+      const hold = Math.max(450, 1300 - (logoShownAt ? Date.now() - logoShownAt : 0));
+      Animated.timing(opacity, { toValue: 0, duration: 500, delay: hold, useNativeDriver: true }).start(
         () => setGone(true),
       );
     });
