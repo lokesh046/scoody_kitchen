@@ -41,6 +41,7 @@ import {
   HealthRecord,
 } from '../api/pets';
 import { uploadAvatarImage } from '../api/auth';
+import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 import { useAuthStore } from '../store/authStore';
 import { usePetStore } from '../store/petStore';
 import { tabPrefetchCache } from '../services/tabPrefetch';
@@ -472,9 +473,10 @@ export default function PetsScreen({ navigation, route }: any) {
                   >
                     {p.profile_image_url ? (
                       <Image
-                        source={{ uri: p.profile_image_url }}
+                        source={{ uri: getOptimizedImageUrl(p.profile_image_url, IMAGE_SIZE.avatarThumb) }}
                         style={styles.rosterAvatarImg}
                         contentFit="cover"
+                        cachePolicy="memory-disk"
                       />
                     ) : (
                       <View style={styles.rosterAvatarFallback}>

@@ -37,4 +37,8 @@ export const IMAGE_SIZE = {
   chatCard: 200, // chatbot product-suggestion cards
   reviewCard: 400, // review photo cards
   productCard: 500, // product catalog grid cards
+  avatarThumb: 120, // small round avatars (header, roster)
+  petThumb: 160, // pet selector chips
+  petAvatar: 240, // pet card avatar
+  petPhoto: 480, // pet photo preview in the add/edit form
 } as const;

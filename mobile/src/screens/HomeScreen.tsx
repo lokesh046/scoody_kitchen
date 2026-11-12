@@ -15,6 +15,7 @@ import {
   Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
@@ -815,7 +816,7 @@ export default function HomeScreen({ navigation }: any) {
             accessibilityLabel="Profile"
           >
             {user?.profile_image_url ? (
-              <Image source={{ uri: user.profile_image_url }} style={styles.avatarImg} />
+              <Image source={{ uri: getOptimizedImageUrl(user.profile_image_url, IMAGE_SIZE.avatarThumb) }} style={styles.avatarImg} cachePolicy="memory-disk" />
             ) : (
               <View style={styles.avatarFallback}>
                 <Text style={styles.avatarInitial}>

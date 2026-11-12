@@ -963,7 +963,7 @@ export default function KitchenScreen({ navigation, route }: any) {
             accessibilityLabel="Open your profile"
           >
             {user?.profile_image_url ? (
-              <Image source={{ uri: user.profile_image_url }} style={styles.avatarImg} />
+              <Image source={{ uri: getOptimizedImageUrl(user.profile_image_url, IMAGE_SIZE.avatarThumb) }} style={styles.avatarImg} cachePolicy="memory-disk" />
             ) : (
               <View style={styles.avatarFallback}>
                 <Text style={styles.avatarInitial}>

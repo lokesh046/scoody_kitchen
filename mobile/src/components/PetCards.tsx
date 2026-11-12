@@ -42,6 +42,7 @@ import { LEDGER_MONO } from '../theme/typography';
 import { PetProfile } from '../types';
 import { HealthRecord } from '../api/pets';
 import { uploadAvatarImage } from '../api/auth';
+import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
@@ -141,8 +142,9 @@ export const CompanionSelectorTab = memo(function CompanionSelectorTab({
       <View style={petCardStyles.petSelectorThumbWrapper}>
         {pet.profile_image_url ? (
           <Image
-            source={{ uri: pet.profile_image_url }}
+            source={{ uri: getOptimizedImageUrl(pet.profile_image_url, IMAGE_SIZE.petThumb) }}
             style={petCardStyles.petSelectorThumb}
+            cachePolicy="memory-disk"
           />
         ) : (
           <View style={[petCardStyles.petSelectorThumbFallback, isSelected && petCardStyles.petSelectorThumbActive]}>
@@ -204,9 +206,10 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
             <View style={petCardStyles.avatarFrame}>
               {pet.profile_image_url ? (
                 <Image
-                  source={{ uri: pet.profile_image_url }}
+                  source={{ uri: getOptimizedImageUrl(pet.profile_image_url, IMAGE_SIZE.petAvatar) }}
                   style={petCardStyles.avatarImg}
                   contentFit="cover"
+                  cachePolicy="memory-disk"
                 />
               ) : (
                 <View style={petCardStyles.avatarFallback}>
@@ -813,7 +816,7 @@ export const PetDossierModal = memo(function PetDossierModal({
             <View style={petCardStyles.photoPickerSection}>
               <View style={petCardStyles.photoPreviewWrapper}>
                 {imageUri ? (
-                  <Image source={{ uri: imageUri }} style={petCardStyles.photoPreviewImage} />
+                  <Image source={{ uri: getOptimizedImageUrl(imageUri, IMAGE_SIZE.petPhoto) }} style={petCardStyles.photoPreviewImage} cachePolicy="memory-disk" />
                 ) : (
                   <View style={petCardStyles.photoPlaceholderCircle}>
                     <PawPrint size={32} color={COLORS.brandGold} fill={COLORS.brandGold} />
