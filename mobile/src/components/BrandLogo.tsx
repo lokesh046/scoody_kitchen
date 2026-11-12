@@ -14,7 +14,7 @@ import { COLORS } from '../theme/colors';
 import { FONT_DISPLAY } from '../theme/typography';
 
 // Local asset reference for the Hearth & One logo mark
-const SCOOBY_LOGO_IMG = require('../../assets/scooby-logo-256.png');
+const SCOOBY_LOGO_IMG = require('../../assets/scooby-mark-512.png');
 // Native pixel dimensions of the source artwork, used to keep the mark crisp and unsquished at any size.
 const LOGO_ASPECT_RATIO = 1;
 
