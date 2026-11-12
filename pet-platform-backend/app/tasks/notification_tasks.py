@@ -157,6 +157,20 @@ def cleanup_unverified_users_task() -> int:
         db.close()
 
 
+@celery_app.task(name="app.tasks.notification_tasks.send_vaccination_reminders_task")
+def send_vaccination_reminders_task() -> int:
+    """Daily: remind owners a week before a vaccine is due, and once when it turns overdue."""
+    from app.services.vaccination_service import send_due_reminders
+    db = SessionLocal()
+    try:
+        return int(send_due_reminders(db) or 0)
+    except Exception as e:
+        logger.error(f"Error in send_vaccination_reminders_task: {e}", exc_info=True)
+        return 0
+    finally:
+        db.close()
+
+
 @celery_app.task(name="app.tasks.notification_tasks.purge_deleted_accounts_task")
 def purge_deleted_accounts_task() -> int:
     """Daily: permanently remove accounts whose deletion grace period is over (archive written first)."""

@@ -1,0 +1,741 @@
+{
+ "species": "goat",
+ "rules_title": "Rules & care",
+ "title": "Goat vaccine schedule: kid to adult (India)",
+ "subtitle": "Based on the ICAR-IVRI goat vaccination schedule. Follow your local veterinary dispensary and government campaign dates.",
+ "schedule": [
+  {
+   "age": "Birth (first hours)",
+   "vaccine": "No vaccine",
+   "protects": "Antibodies from the mother",
+   "notes": "Kids must drink colostrum within the first hours of birth.",
+   "planner_refs": []
+  },
+  {
+   "age": "1st week (only if mother was not vaccinated)",
+   "vaccine": "Enterotoxaemia (ET)",
+   "protects": "Enterotoxaemia (overeating disease)",
+   "notes": "If the doe was vaccinated, wait until 4 months instead.",
+   "planner_refs": []
+  },
+  {
+   "age": "3 months",
+   "vaccine": "FMD, 1st dose",
+   "protects": "Foot-and-mouth disease",
+   "notes": "Booster 3-4 weeks later. Given free in government campaigns.",
+   "planner_refs": [
+    0
+   ]
+  },
+  {
+   "age": "3-5 months",
+   "vaccine": "HS (haemorrhagic septicaemia), 1st dose",
+   "protects": "Haemorrhagic septicaemia",
+   "notes": "Booster 3-4 weeks later.",
+   "planner_refs": [
+    1
+   ]
+  },
+  {
+   "age": "3-6 months (endemic areas only)",
+   "vaccine": "Anthrax",
+   "protects": "Anthrax",
+   "notes": "Only where your vet reports anthrax.",
+   "planner_refs": [
+    2
+   ]
+  },
+  {
+   "age": "About 4 months",
+   "vaccine": "FMD booster + HS booster",
+   "protects": "FMD, HS",
+   "notes": "3-4 weeks after the first doses.",
+   "planner_refs": [
+    3,
+    4
+   ]
+  },
+  {
+   "age": "4 months",
+   "vaccine": "PPR",
+   "protects": "Peste des petits ruminants (goat plague)",
+   "notes": "Annual repeat recommended by ICAR-IVRI. A combined PPR + goat pox vaccine is available.",
+   "planner_refs": [
+    5
+   ]
+  },
+  {
+   "age": "4 months",
+   "vaccine": "Goat pox",
+   "protects": "Goat pox",
+   "notes": "Annual repeat recommended.",
+   "planner_refs": [
+    6
+   ]
+  },
+  {
+   "age": "4 months (if mother vaccinated)",
+   "vaccine": "Enterotoxaemia, 1st dose",
+   "protects": "Enterotoxaemia",
+   "notes": "Booster 3-4 weeks later.",
+   "planner_refs": [
+    7,
+    8
+   ]
+  },
+  {
+   "age": "4 months (optional)",
+   "vaccine": "ORF",
+   "protects": "Contagious ecthyma (orf, scabby mouth)",
+   "notes": "Repeat every 6 months where orf is common.",
+   "planner_refs": []
+  },
+  {
+   "age": "Every 6 months",
+   "vaccine": "FMD",
+   "protects": "Foot-and-mouth disease",
+   "notes": "Government rounds; record each round in the passport.",
+   "planner_refs": [
+    9,
+    10,
+    13,
+    14,
+    17,
+    18,
+    21,
+    22,
+    25,
+    26,
+    29,
+    30,
+    33,
+    34
+   ]
+  },
+  {
+   "age": "Every year, before monsoon (May)",
+   "vaccine": "Enterotoxaemia + HS",
+   "protects": "Enterotoxaemia, HS",
+   "notes": "Pregnant does: 2 ET doses 15 days apart, at least 1 month before kidding.",
+   "planner_refs": [
+    12,
+    16,
+    20,
+    24,
+    28,
+    32,
+    36
+   ]
+  },
+  {
+   "age": "Every year",
+   "vaccine": "PPR, goat pox (+ anthrax in endemic areas)",
+   "protects": "PPR, goat pox, anthrax",
+   "notes": "Anthrax every 6 months where exposure continues.",
+   "planner_refs": [
+    11,
+    15,
+    19,
+    23,
+    27,
+    31,
+    35
+   ]
+  }
+ ],
+ "timeline": [
+  {
+   "stage": 1,
+   "age": "Birth",
+   "what": "Colostrum in the first hours; ET in week 1 only if the doe was not vaccinated"
+  },
+  {
+   "stage": 2,
+   "age": "3 months",
+   "what": "1st FMD; 1st HS (3-5 months); anthrax in endemic areas"
+  },
+  {
+   "stage": 3,
+   "age": "About 4 months",
+   "what": "FMD and HS boosters"
+  },
+  {
+   "stage": 4,
+   "age": "4 months",
+   "what": "PPR, goat pox, 1st ET (+ optional orf)"
+  },
+  {
+   "stage": 5,
+   "age": "About 5 months",
+   "what": "ET booster"
+  },
+  {
+   "stage": 6,
+   "age": "Every 6 months",
+   "what": "FMD (government rounds)"
+  },
+  {
+   "stage": 7,
+   "age": "Every year, May",
+   "what": "ET and HS before the monsoon"
+  },
+  {
+   "stage": 8,
+   "age": "Every year",
+   "what": "PPR, goat pox (+ anthrax where endemic)"
+  }
+ ],
+ "rules": [
+  {
+   "topic": "Pregnant does",
+   "guidance": "Enterotoxaemia: 2 doses 15 days apart, at least 1 month before kidding. Ask the vet before any live vaccine in late pregnancy."
+  },
+  {
+   "topic": "Government campaigns",
+   "guidance": "FMD (every 6 months) and PPR are given free by the Animal Husbandry Department; record each round."
+  },
+  {
+   "topic": "New animals",
+   "guidance": "Isolate goats bought from markets for 2-3 weeks and vaccinate before mixing with the herd."
+  },
+  {
+   "topic": "Sick animals",
+   "guidance": "Do not vaccinate sick or very weak animals; treat first."
+  },
+  {
+   "topic": "Deworming",
+   "guidance": "Kids from about 1 month; then every 3-4 months, and before the monsoon. Rotate drugs as advised by the vet."
+  },
+  {
+   "topic": "Ear tag",
+   "guidance": "Each goat should carry its 12-digit Pashu Aadhaar ear tag so vaccinations are recorded on Bharat Pashudhan."
+  }
+ ],
+ "planner": [
+  {
+   "dose": "Kid",
+   "vaccine": "FMD, 1st dose",
+   "planned_age": "3 months",
+   "offset_unit": "months",
+   "offset_value": 3,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Free in government rounds"
+  },
+  {
+   "dose": "Kid",
+   "vaccine": "HS, 1st dose",
+   "planned_age": "3 months (3-5)",
+   "offset_unit": "months",
+   "offset_value": 3,
+   "codes": [
+    "hs"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": null
+  },
+  {
+   "dose": "Kid",
+   "vaccine": "Anthrax (endemic areas)",
+   "planned_age": "3 months (3-6)",
+   "offset_unit": "months",
+   "offset_value": 3,
+   "codes": [
+    "anthrax"
+   ],
+   "optional": true,
+   "fillable": true,
+   "note": "Only where your vet reports it"
+  },
+  {
+   "dose": "Kid",
+   "vaccine": "FMD booster",
+   "planned_age": "16 weeks",
+   "offset_unit": "weeks",
+   "offset_value": 16,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "3-4 weeks after 1st dose"
+  },
+  {
+   "dose": "Kid",
+   "vaccine": "HS booster",
+   "planned_age": "16 weeks",
+   "offset_unit": "weeks",
+   "offset_value": 16,
+   "codes": [
+    "hs"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "3-4 weeks after 1st dose"
+  },
+  {
+   "dose": "Kid",
+   "vaccine": "PPR",
+   "planned_age": "4 months",
+   "offset_unit": "months",
+   "offset_value": 4,
+   "codes": [
+    "ppr"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Or combined PPR + goat pox"
+  },
+  {
+   "dose": "Kid",
+   "vaccine": "Goat pox",
+   "planned_age": "4 months",
+   "offset_unit": "months",
+   "offset_value": 4,
+   "codes": [
+    "goat_pox"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": null
+  },
+  {
+   "dose": "Kid",
+   "vaccine": "Enterotoxaemia, 1st dose",
+   "planned_age": "4 months",
+   "offset_unit": "months",
+   "offset_value": 4,
+   "codes": [
+    "enterotoxaemia"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in week 1 instead if the doe was not vaccinated"
+  },
+  {
+   "dose": "Kid",
+   "vaccine": "Enterotoxaemia booster",
+   "planned_age": "20 weeks",
+   "offset_unit": "weeks",
+   "offset_value": 20,
+   "codes": [
+    "enterotoxaemia"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "3-4 weeks after 1st dose"
+  },
+  {
+   "dose": "FMD round 1",
+   "vaccine": "FMD",
+   "planned_age": "0.8 years",
+   "offset_unit": "months",
+   "offset_value": 10,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "FMD round 2",
+   "vaccine": "FMD",
+   "planned_age": "1.3 years",
+   "offset_unit": "months",
+   "offset_value": 16,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 1",
+   "vaccine": "PPR + goat pox",
+   "planned_age": "1 year 4 months",
+   "offset_unit": "months",
+   "offset_value": 16,
+   "codes": [
+    "ppr",
+    "goat_pox"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Annual"
+  },
+  {
+   "dose": "Year 1",
+   "vaccine": "Enterotoxaemia + HS",
+   "planned_age": "1 year 4 months",
+   "offset_unit": "months",
+   "offset_value": 16,
+   "codes": [
+    "hs",
+    "enterotoxaemia"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 3",
+   "vaccine": "FMD",
+   "planned_age": "1.8 years",
+   "offset_unit": "months",
+   "offset_value": 22,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "FMD round 4",
+   "vaccine": "FMD",
+   "planned_age": "2.3 years",
+   "offset_unit": "months",
+   "offset_value": 28,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 2",
+   "vaccine": "PPR + goat pox",
+   "planned_age": "2 years 4 months",
+   "offset_unit": "months",
+   "offset_value": 28,
+   "codes": [
+    "ppr",
+    "goat_pox"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Annual"
+  },
+  {
+   "dose": "Year 2",
+   "vaccine": "Enterotoxaemia + HS",
+   "planned_age": "2 years 4 months",
+   "offset_unit": "months",
+   "offset_value": 28,
+   "codes": [
+    "hs",
+    "enterotoxaemia"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 5",
+   "vaccine": "FMD",
+   "planned_age": "2.8 years",
+   "offset_unit": "months",
+   "offset_value": 34,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "FMD round 6",
+   "vaccine": "FMD",
+   "planned_age": "3.3 years",
+   "offset_unit": "months",
+   "offset_value": 40,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 3",
+   "vaccine": "PPR + goat pox",
+   "planned_age": "3 years 4 months",
+   "offset_unit": "months",
+   "offset_value": 40,
+   "codes": [
+    "ppr",
+    "goat_pox"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Annual"
+  },
+  {
+   "dose": "Year 3",
+   "vaccine": "Enterotoxaemia + HS",
+   "planned_age": "3 years 4 months",
+   "offset_unit": "months",
+   "offset_value": 40,
+   "codes": [
+    "hs",
+    "enterotoxaemia"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 7",
+   "vaccine": "FMD",
+   "planned_age": "3.8 years",
+   "offset_unit": "months",
+   "offset_value": 46,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "FMD round 8",
+   "vaccine": "FMD",
+   "planned_age": "4.3 years",
+   "offset_unit": "months",
+   "offset_value": 52,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 4",
+   "vaccine": "PPR + goat pox",
+   "planned_age": "4 years 4 months",
+   "offset_unit": "months",
+   "offset_value": 52,
+   "codes": [
+    "ppr",
+    "goat_pox"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Annual"
+  },
+  {
+   "dose": "Year 4",
+   "vaccine": "Enterotoxaemia + HS",
+   "planned_age": "4 years 4 months",
+   "offset_unit": "months",
+   "offset_value": 52,
+   "codes": [
+    "hs",
+    "enterotoxaemia"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 9",
+   "vaccine": "FMD",
+   "planned_age": "4.8 years",
+   "offset_unit": "months",
+   "offset_value": 58,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "FMD round 10",
+   "vaccine": "FMD",
+   "planned_age": "5.3 years",
+   "offset_unit": "months",
+   "offset_value": 64,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 5",
+   "vaccine": "PPR + goat pox",
+   "planned_age": "5 years 4 months",
+   "offset_unit": "months",
+   "offset_value": 64,
+   "codes": [
+    "ppr",
+    "goat_pox"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Annual"
+  },
+  {
+   "dose": "Year 5",
+   "vaccine": "Enterotoxaemia + HS",
+   "planned_age": "5 years 4 months",
+   "offset_unit": "months",
+   "offset_value": 64,
+   "codes": [
+    "hs",
+    "enterotoxaemia"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 11",
+   "vaccine": "FMD",
+   "planned_age": "5.8 years",
+   "offset_unit": "months",
+   "offset_value": 70,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "FMD round 12",
+   "vaccine": "FMD",
+   "planned_age": "6.3 years",
+   "offset_unit": "months",
+   "offset_value": 76,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 6",
+   "vaccine": "PPR + goat pox",
+   "planned_age": "6 years 4 months",
+   "offset_unit": "months",
+   "offset_value": 76,
+   "codes": [
+    "ppr",
+    "goat_pox"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Annual"
+  },
+  {
+   "dose": "Year 6",
+   "vaccine": "Enterotoxaemia + HS",
+   "planned_age": "6 years 4 months",
+   "offset_unit": "months",
+   "offset_value": 76,
+   "codes": [
+    "hs",
+    "enterotoxaemia"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 13",
+   "vaccine": "FMD",
+   "planned_age": "6.8 years",
+   "offset_unit": "months",
+   "offset_value": 82,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "FMD round 14",
+   "vaccine": "FMD",
+   "planned_age": "7.3 years",
+   "offset_unit": "months",
+   "offset_value": 88,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 7",
+   "vaccine": "PPR + goat pox",
+   "planned_age": "7 years 4 months",
+   "offset_unit": "months",
+   "offset_value": 88,
+   "codes": [
+    "ppr",
+    "goat_pox"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Annual"
+  },
+  {
+   "dose": "Year 7",
+   "vaccine": "Enterotoxaemia + HS",
+   "planned_age": "7 years 4 months",
+   "offset_unit": "months",
+   "offset_value": 88,
+   "codes": [
+    "hs",
+    "enterotoxaemia"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May, before the monsoon, if closer"
+  }
+ ],
+ "planner_note": "Annual vaccines are shown by age; in practice give ET and HS in May before the monsoon, and match FMD and PPR to government rounds.",
+ "about": [
+  {
+   "label": "Vaccine Schedule",
+   "text": "The full table from birth to adult, with age, vaccine, what it protects against and notes. Its status colours follow your animal's records."
+  },
+  {
+   "label": "Timeline",
+   "text": "The 8 stages at a glance."
+  },
+  {
+   "label": "Due Date Planner",
+   "text": "Uses your kid's date of birth to work out the due date for every dose up to 7 years 4 months. When you record a vaccine as given, its status changes to Done (green). Otherwise it shows Due soon (orange, within 30 days), Overdue (red) or Upcoming. Vaccines only some animals need (endemic areas, crossbred cattle, female calves) show Optional until you record them."
+  },
+  {
+   "label": "Rules & Care",
+   "text": "Government campaigns, pregnancy, new animals, sick animals, deworming and the ear tag."
+  },
+  {
+   "label": "Sources",
+   "text": "ICAR-IVRI, with links."
+  }
+ ],
+ "sources": [
+  {
+   "title": "ICAR-IVRI: goat vaccination schedule (Extension literature 2025)",
+   "url": "https://ivri.nic.in/Extension/Download/Literature_2025_10.pdf"
+  }
+ ],
+ "disclaimer": "This schedule is general guidance. Follow the local veterinary dispensary and state Animal Husbandry Department: FMD, brucellosis, PPR and other campaign vaccines are given free by government field staff on their own dates."
+}

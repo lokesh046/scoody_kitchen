@@ -669,7 +669,7 @@ def verify_whatsapp_otp_endpoint(
 
     redis_client.delete(otp_record_key)
 
-    current_user.phone = normalize_phone_to_whatsapp_format(payload.phone_number)
+    current_user.phone = f"+{normalize_phone_to_whatsapp_format(payload.phone_number)}"
     current_user.is_phone_verified = True
     db.commit()
     db.refresh(current_user)

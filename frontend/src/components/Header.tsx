@@ -116,15 +116,18 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
   const calculatorEntry = useFlagEntry('shop_meal_planner');
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
 
+  // Header links always open the feature's landing page (`path`). The home page cards' main button goes straight to the feature.
   const navLinks: { id: string; label: string; path: string; badge?: string | null }[] = [
     ...(isKnowYourPetEnabled ? [{ id: 'pets', label: 'Know Your Pet', path: '/pets' }] : []),
     ...(vetAccess.navVisible ? [{ id: 'consultations', label: 'Vet Consult', path: '/consultations', badge: vetAccess.navLabel }] : []),
     ...(shopEntry.visible ? [{ id: 'shop', label: 'Shop', path: '/shop', badge: shopEntry.label }] : []),
-    ...(calculatorEntry.visible ? [{ id: 'calculator', label: 'Count The Calories', path: '/recipe-calculator', badge: calculatorEntry.label }] : []),
+    ...(calculatorEntry.visible ? [{ id: 'calculator', label: 'Count Their Calories', path: '/recipe-calculator', badge: calculatorEntry.label }] : []),
     { id: 'orders', label: 'My Orders', path: '/orders' },
     ...(isMealPlannerEnabled ? [{ id: 'onboarding', label: 'Meal Planner', path: '/onboarding' }] : []),
     ...(isChatbotEnabled ? [{ id: 'assistant', label: 'AI Assistant', path: '/assistant' }] : []),
   ];
+
+  const linkTarget = (link: (typeof navLinks)[number]) => link.path;
 
   return (
     <>
@@ -165,9 +168,6 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
               <h1 className={`font-display font-black text-base sm:text-xl lg:text-2xl tracking-tight ${headerTextClass} group-hover:text-turmeric transition-colors leading-tight truncate`}>
                 Hearth & One
               </h1>
-              <p className="font-mono text-[8px] sm:text-[9px] uppercase tracking-wider text-turmeric opacity-90 hidden sm:block truncate">
-                Human-Grade Pet Cooking
-              </p>
             </div>
           </Link>
 
@@ -176,7 +176,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
             {navLinks.map((link) => (
               <button
                 key={link.id}
-                onClick={() => navigate(link.path)}
+                onClick={() => navigate(linkTarget(link))}
                 className={`hover:text-turmeric transition-colors pb-1 ${
                   activeTab === link.id ? 'text-turmeric font-bold border-b-2 border-turmeric' : ''
                 }`}
@@ -353,7 +353,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
                   key={link.id}
                   onClick={() => {
                     setIsMobileMenuOpen(false);
-                    navigate(link.path);
+                    navigate(linkTarget(link));
                   }}
                   className={`w-full text-left py-2 px-3 text-xs font-mono font-bold uppercase tracking-wider border transition-all ${
                     activeTab === link.id

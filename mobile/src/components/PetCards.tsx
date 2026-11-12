@@ -33,6 +33,7 @@ import {
   Award,
   Cake,
   Cpu,
+  ChevronDown,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -45,6 +46,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsive } from '../hooks/useResponsive';
 import { useKeyboardHeight } from '../hooks/useKeyboardHeight';
 import { useFeatureFlag } from '../hooks/useFeatureFlag';
+import { PET_CATEGORIES, categoryForBreed, type PetCategory } from '../utils/breedCategory';
+import { BREED_DATA } from '../constants/breedData';
 
 // DESIGN.md's brand faces: Outfit for display/headings, Quicksand for body
 // copy. Duplicated from PetsScreen.tsx (which also needs these same string
@@ -276,6 +279,17 @@ export const CompanionLedgerCard = memo(function CompanionLedgerCard({
             </Text>
           </View>
 
+          {/* Category: worked out from the breed (dogs only) */}
+          {(pet.species || '').toLowerCase() === 'dog' && (pet.category || categoryForBreed(pet.breed)) && (
+            <View style={petCardStyles.ledgerRow}>
+              <View style={petCardStyles.ledgerKeyGroup}>
+                <Award size={16} color={COLORS.forestGreen} />
+                <Text style={petCardStyles.ledgerKeyText}>CATEGORY</Text>
+              </View>
+              <Text style={petCardStyles.ledgerValText}>{(pet.category || categoryForBreed(pet.breed) || '').toUpperCase()}</Text>
+            </View>
+          )}
+
           {/* Gender */}
           <View style={petCardStyles.ledgerRow}>
             <View style={petCardStyles.ledgerKeyGroup}>
@@ -444,9 +458,18 @@ interface PetDossierModalProps {
     date_of_birth?: string;
     profile_image_url?: string;
     microchip_number?: string | null;
+    category?: string | null;
   }) => Promise<void>;
   onOpenVision: () => void;
 }
+
+// Species the add/edit form offers. A pet already saved with another species keeps it (shown as an extra option).
+const SPECIES_OPTIONS = ['Dog', 'Cat', 'Bird', 'Reptile', 'Goat', 'Cattle', 'Buffalo'];
+const canonSpecies = (value?: string | null): string => {
+  const v = (value || '').trim();
+  if (!v) return 'Dog';
+  return SPECIES_OPTIONS.find((o) => o.toLowerCase() === v.toLowerCase()) ?? v;
+};
 
 export const PetDossierModal = memo(function PetDossierModal({
   visible,
@@ -474,6 +497,7 @@ export const PetDossierModal = memo(function PetDossierModal({
   };
   const onFieldFocus = (key: string) => {
     focusedField.current = key;
+    if (key !== 'breed') setShowBreedSuggestions(false);
     setTimeout(() => scrollToField(key), 60);
   };
   useEffect(() => {
@@ -482,7 +506,24 @@ export const PetDossierModal = memo(function PetDossierModal({
   const isPhotoUploadEnabled = useFeatureFlag('pets_photo_upload', true);
   const [name, setName] = useState('');
   const [species, setSpecies] = useState('Dog');
+  const [speciesOpen, setSpeciesOpen] = useState(false);
+  const [showBreedSuggestions, setShowBreedSuggestions] = useState(false);
+  // Where the breed text box sits inside its field group, so the suggestion list can float right under it.
+  const breedInputBox = useRef({ y: 0, h: 44 });
+  // Only used when the breed isn't recognised (mixed breed, typed-in name); not saved.
+  const [manualCategory, setManualCategory] = useState<PetCategory | null>(null);
   const [breed, setBreed] = useState('');
+  const autoCategory = species === 'Dog' ? categoryForBreed(breed) : null;
+  // Breed suggestions while typing (dogs): names that start with, then contain, what was typed.
+  const breedSuggestions = (() => {
+    const q = breed.trim().toLowerCase();
+    if (species !== 'Dog' || q.length < 1) return [] as string[];
+    const names = BREED_DATA.map((b) => b.name);
+    if (names.some((n) => n.toLowerCase() === q)) return [];
+    const starts = names.filter((n) => n.toLowerCase().startsWith(q));
+    const has = names.filter((n) => !n.toLowerCase().startsWith(q) && n.toLowerCase().includes(q));
+    return [...starts, ...has].slice(0, 6);
+  })();
   const [microchip, setMicrochip] = useState('');
   const [showIosDatePicker, setShowIosDatePicker] = useState(false);
   // True while the weight is only the scan's estimate for a typical adult of the breed.
@@ -509,7 +550,7 @@ export const PetDossierModal = memo(function PetDossierModal({
     setError(null);
     if (mode === 'edit' && initialPet) {
       setName(initialPet.name || '');
-      setSpecies(initialPet.species || 'Dog');
+      setSpecies(canonSpecies(initialPet.species));
       setBreed(initialPet.breed || '');
       setWeight(
         initialPet.weight
@@ -522,17 +563,19 @@ export const PetDossierModal = memo(function PetDossierModal({
       setGender(initialPet.gender || 'Male');
       setDob(initialPet.date_of_birth ? initialPet.date_of_birth.split('T')[0] : '');
       setMicrochip(initialPet.microchip_number || '');
+      setManualCategory((PET_CATEGORIES as readonly string[]).includes(initialPet.category || '') ? (initialPet.category as PetCategory) : null);
       setImageUri(initialPet.profile_image_url || null);
     } else {
       // Add mode
       setName('');
-      setSpecies(initialVisionDetails?.species || 'Dog');
+      setSpecies(canonSpecies(initialVisionDetails?.species));
       setBreed(initialVisionDetails?.breed || '');
       setWeight(initialVisionDetails?.weight ? String(initialVisionDetails.weight) : '15');
       setWeightIsEstimate(!!initialVisionDetails?.weight);
       setGender('Male');
       setDob('');
       setMicrochip('');
+      setManualCategory(null);
       setImageUri(initialVisionDetails?.imageUrl || null);
     }
     // sessionId is the deliberate trigger; mode/initialPet/initialVisionDetails
@@ -549,7 +592,7 @@ export const PetDossierModal = memo(function PetDossierModal({
     if (!visible || !initialVisionDetails) return;
     if (initialVisionDetails === lastAppliedVisionRef.current) return;
     lastAppliedVisionRef.current = initialVisionDetails;
-    setSpecies(initialVisionDetails.species || 'Dog');
+    setSpecies(canonSpecies(initialVisionDetails.species));
     setBreed(initialVisionDetails.breed || '');
     if (initialVisionDetails.imageUrl) setImageUri(initialVisionDetails.imageUrl);
     // Only replace the weight while it is still the untouched default, never one the person typed.
@@ -645,9 +688,9 @@ export const PetDossierModal = memo(function PetDossierModal({
       return;
     }
 
-    const microchipDigits = microchip.replace(/[\s-]/g, '');
-    if (microchipDigits && !/^\d{9,15}$/.test(microchipDigits)) {
-      setError('Microchip number must be 9 to 15 digits (the number printed on the chip card).');
+    const microchipDigits = microchip.replace(/\D/g, '');
+    if (microchipDigits && !/^\d{9,30}$/.test(microchipDigits)) {
+      setError('Microchip number must be 9 to 30 digits (numbers only, as printed on the chip card).');
       return;
     }
 
@@ -668,7 +711,7 @@ export const PetDossierModal = memo(function PetDossierModal({
       }
       await onSave({
         name: name.trim(),
-        species: species.trim() || 'Dog',
+        species: canonSpecies(species),
         breed: breed.trim() || undefined,
         gender,
         weight: parsedWeight,
@@ -676,6 +719,8 @@ export const PetDossierModal = memo(function PetDossierModal({
         profile_image_url: photoUrl,
         // Blank clears the number when editing; omitted when adding.
         microchip_number: microchipDigits || (mode === 'edit' ? null : undefined),
+        // Dogs only. The server sets it from the breed when it recognises it; otherwise it keeps this choice.
+        category: species === 'Dog' ? (autoCategory ?? manualCategory) : null,
       });
     } catch (err: any) {
       const detail = err?.response?.data?.detail || 'Failed to save pet to backend.';
@@ -741,6 +786,29 @@ export const PetDossierModal = memo(function PetDossierModal({
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={petCardStyles.modalBody}
           >
+            {/* Floating breed suggestions: absolutely positioned inside the scroll content (so touches work on
+                Android) and drawn above the fields underneath, instead of pushing them down. */}
+            {showBreedSuggestions && breedSuggestions.length > 0 && (
+              <View
+                pointerEvents="box-none"
+                style={[petCardStyles.breedFloat, { top: (fieldY.current.breed ?? 0) + breedInputBox.current.y + breedInputBox.current.h + 4 }]}
+              >
+                <View style={petCardStyles.breedFloatList} accessibilityRole="menu">
+                  {breedSuggestions.map((name) => (
+                    <TouchableOpacity
+                      key={name}
+                      style={petCardStyles.speciesOption}
+                      onPress={() => { setBreed(name); setShowBreedSuggestions(false); }}
+                      accessibilityRole="menuitem"
+                      accessibilityLabel={name}
+                    >
+                      <Text style={petCardStyles.speciesOptionText}>{name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
             {/* Pet Photo Section */}
             <View style={petCardStyles.photoPickerSection}>
               <View style={petCardStyles.photoPreviewWrapper}>
@@ -859,28 +927,51 @@ export const PetDossierModal = memo(function PetDossierModal({
 
             <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.species = e.nativeEvent.layout.y; }}>
               <Text style={petCardStyles.fieldLabel}>SPECIES</Text>
-              <View style={petCardStyles.inputContainer}>
-                <TextInput
-                  onFocus={() => onFieldFocus('species')}
-                  style={petCardStyles.textInput}
-                  placeholder="Dog"
-                  placeholderTextColor={COLORS.textLight}
-                  value={species}
-                  onChangeText={setSpecies}
-                />
-              </View>
+              <TouchableOpacity
+                style={petCardStyles.inputContainer}
+                onPress={() => setSpeciesOpen((o) => !o)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Species ${species}. Tap to change`}
+                accessibilityState={{ expanded: speciesOpen }}
+              >
+                <PawPrint size={15} color={COLORS.textLight} />
+                <Text style={petCardStyles.dobValueText}>{species}</Text>
+                <ChevronDown size={16} color={COLORS.forestGreen} style={speciesOpen ? { transform: [{ rotate: '180deg' }] } : undefined} />
+              </TouchableOpacity>
+              {speciesOpen && (
+                <View style={petCardStyles.speciesList} accessibilityRole="menu">
+                  {(SPECIES_OPTIONS.includes(species) ? SPECIES_OPTIONS : [...SPECIES_OPTIONS, species]).map((opt) => (
+                    <TouchableOpacity
+                      key={opt}
+                      style={[petCardStyles.speciesOption, opt === species && petCardStyles.speciesOptionActive]}
+                      onPress={() => { setSpecies(opt); setSpeciesOpen(false); }}
+                      accessibilityRole="menuitem"
+                      accessibilityState={{ selected: opt === species }}
+                      accessibilityLabel={opt}
+                    >
+                      <Text style={[petCardStyles.speciesOptionText, opt === species && petCardStyles.speciesOptionTextActive]}>{opt}</Text>
+                      {opt === species && <Check size={15} color={COLORS.forestGreen} />}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
 
             <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.breed = e.nativeEvent.layout.y; }}>
               <Text style={petCardStyles.fieldLabel}>BREED</Text>
-              <View style={petCardStyles.inputContainer}>
+              <View
+                style={petCardStyles.inputContainer}
+                onLayout={(e) => { breedInputBox.current = { y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height }; }}
+              >
                 <TextInput
                   onFocus={() => onFieldFocus('breed')}
                   style={petCardStyles.textInput}
                   placeholder="e.g. Golden Retriever, Beagle"
                   placeholderTextColor={COLORS.textLight}
                   value={breed}
-                  onChangeText={setBreed}
+                  onChangeText={(t) => { setBreed(t); setShowBreedSuggestions(true); }}
+                  autoCorrect={false}
                 />
                 <TouchableOpacity
                   style={petCardStyles.breedScanBtn}
@@ -897,6 +988,86 @@ export const PetDossierModal = memo(function PetDossierModal({
               <Text style={petCardStyles.fieldHelper}>
                 Not sure of the breed? Tap Scan and take a photo of your pet.
               </Text>
+            </View>
+
+            {species === 'Dog' && (
+              <View style={petCardStyles.fieldGroup}>
+                <Text style={petCardStyles.fieldLabel}>CATEGORY</Text>
+                <View style={petCardStyles.genderRow}>
+                  {PET_CATEGORIES.map((c) => {
+                    const active = (autoCategory ?? manualCategory) === c;
+                    return (
+                      <TouchableOpacity
+                        key={c}
+                        style={[petCardStyles.genderChip, active && petCardStyles.genderChipActive, autoCategory && !active && { opacity: 0.45 }]}
+                        disabled={!!autoCategory}
+                        onPress={() => setManualCategory(c)}
+                        activeOpacity={0.8}
+                        accessibilityRole="radio"
+                        accessibilityLabel={`${c} category`}
+                        accessibilityState={{ selected: active, disabled: !!autoCategory }}
+                      >
+                        <Text style={[petCardStyles.genderChipText, active && petCardStyles.genderChipTextActive]}>{c}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={petCardStyles.fieldHelper}>
+                  {autoCategory
+                    ? 'Set automatically from the breed.'
+                    : breed.trim()
+                      ? "We don't recognise this breed. Pick the closest category."
+                      : 'Choose a breed and the category is set automatically.'}
+                </Text>
+              </View>
+            )}
+
+            <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.microchip = e.nativeEvent.layout.y; }}>
+              <Text style={petCardStyles.fieldLabel}>MICROCHIP NUMBER (OPTIONAL)</Text>
+              <View style={petCardStyles.inputContainer}>
+                <Cpu size={15} color={COLORS.textLight} />
+                <TextInput
+                  onFocus={() => onFieldFocus('microchip')}
+                  style={petCardStyles.textInput}
+                  placeholder="985112345678901"
+                  placeholderTextColor={COLORS.textLight}
+                  value={microchip}
+                  onChangeText={(t) => setMicrochip(t.replace(/\D/g, '').slice(0, 30))}
+                  keyboardType="number-pad"
+                  maxLength={30}
+                  accessibilityLabel="Microchip number, optional"
+                />
+              </View>
+              <Text style={petCardStyles.fieldHelper}>
+                Numbers only (up to 30 digits), as on your pet's chip card
+              </Text>
+            </View>
+
+            <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.dob = e.nativeEvent.layout.y; }}>
+              <Text style={petCardStyles.fieldLabel}>DATE OF BIRTH</Text>
+              <TouchableOpacity
+                style={petCardStyles.inputContainer}
+                onPress={openDobPicker}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={dob ? `Date of birth ${formatBirthday(dob)}. Tap to change` : 'Choose date of birth'}
+              >
+                <Cake size={15} color={COLORS.textLight} />
+                <Text style={[petCardStyles.dobValueText, !dob && petCardStyles.dobPlaceholderText]}>
+                  {dob ? formatBirthday(dob) : 'Select date of birth'}
+                </Text>
+                {!!dob && (
+                  <TouchableOpacity
+                    onPress={() => setDob('')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear date of birth"
+                  >
+                    <X size={15} color={COLORS.textLight} />
+                  </TouchableOpacity>
+                )}
+                <CalendarIcon size={16} color={COLORS.forestGreen} />
+              </TouchableOpacity>
             </View>
 
             {/* Gender Selector Chips */}
@@ -951,54 +1122,6 @@ export const PetDossierModal = memo(function PetDossierModal({
                 {weightIsEstimate
                   ? "Estimated from the breed's typical adult size. Please enter your pet's actual weight."
                   : 'Used directly to calculate daily kCal & protein quotas'}
-              </Text>
-            </View>
-
-            <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.dob = e.nativeEvent.layout.y; }}>
-              <Text style={petCardStyles.fieldLabel}>DATE OF BIRTH</Text>
-              <TouchableOpacity
-                style={petCardStyles.inputContainer}
-                onPress={openDobPicker}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={dob ? `Date of birth ${formatBirthday(dob)}. Tap to change` : 'Choose date of birth'}
-              >
-                <Cake size={15} color={COLORS.textLight} />
-                <Text style={[petCardStyles.dobValueText, !dob && petCardStyles.dobPlaceholderText]}>
-                  {dob ? formatBirthday(dob) : 'Select date of birth'}
-                </Text>
-                {!!dob && (
-                  <TouchableOpacity
-                    onPress={() => setDob('')}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    accessibilityRole="button"
-                    accessibilityLabel="Clear date of birth"
-                  >
-                    <X size={15} color={COLORS.textLight} />
-                  </TouchableOpacity>
-                )}
-                <CalendarIcon size={16} color={COLORS.forestGreen} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.microchip = e.nativeEvent.layout.y; }}>
-              <Text style={petCardStyles.fieldLabel}>MICROCHIP NUMBER (OPTIONAL)</Text>
-              <View style={petCardStyles.inputContainer}>
-                <Cpu size={15} color={COLORS.textLight} />
-                <TextInput
-                  onFocus={() => onFieldFocus('microchip')}
-                  style={petCardStyles.textInput}
-                  placeholder="985112345678901"
-                  placeholderTextColor={COLORS.textLight}
-                  value={microchip}
-                  onChangeText={setMicrochip}
-                  keyboardType="number-pad"
-                  maxLength={19}
-                  accessibilityLabel="Microchip number, optional"
-                />
-              </View>
-              <Text style={petCardStyles.fieldHelper}>
-                The 15-digit number on your pet's chip card, if they have one
               </Text>
             </View>
 
@@ -1619,6 +1742,13 @@ export const petCardStyles = StyleSheet.create({
     paddingVertical: 6,
   },
   breedScanText: { fontSize: 11, fontWeight: '800', color: '#FFFFFF', fontFamily: FONT_BODY_BOLD },
+  breedFloat: { position: 'absolute', left: 0, right: 0, zIndex: 50, elevation: 12 },
+  breedFloatList: { borderWidth: 1, borderColor: COLORS.kraftBorder, borderRadius: 8, backgroundColor: '#FFFFFF', overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 10, elevation: 12 },
+  speciesList: { borderWidth: 1, borderColor: COLORS.kraftBorder, borderRadius: 8, backgroundColor: '#FFFFFF', overflow: 'hidden', marginTop: 4 },
+  speciesOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.kraftBorder },
+  speciesOptionActive: { backgroundColor: COLORS.cardAlt },
+  speciesOptionText: { fontSize: 13, color: COLORS.textCoffee, fontFamily: FONT_BODY },
+  speciesOptionTextActive: { fontWeight: '800', fontFamily: FONT_BODY_BOLD },
   dobValueText: { flex: 1, fontSize: 13, color: COLORS.textCoffee, fontWeight: '600', fontFamily: FONT_BODY_BOLD },
   dobPlaceholderText: { color: COLORS.textLight, fontWeight: '400', fontFamily: FONT_BODY },
   datePickerBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },

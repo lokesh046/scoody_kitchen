@@ -13,10 +13,39 @@ import { Image } from 'expo-image';
 import { COLORS } from '../theme/colors';
 import { FONT_DISPLAY } from '../theme/typography';
 
-// Local asset reference for the authentic Scooby Mascot Logo
-const SCOOBY_LOGO_IMG = require('../../assets/scooby-logo-256.png');
+// Local asset reference for the Hearth & One logo mark
+// Pre-sized sources: a 1024px image shrunk ~10x on the phone looks jagged, so each
+// display size uses the file closest to its real pixel size.
+const MARK_IMGS: Record<string, number> = {
+  xs: require('../../assets/scooby-logo-64.png'), // 128px
+  sm: require('../../assets/scooby-logo-64.png'),
+  md: require('../../assets/scooby-logo-128.png'), // 256px
+  lg: require('../../assets/scooby-logo-192.png'), // 384px
+  xl: require('../../assets/scooby-logo-256.png'), // 512px
+};
 // Native pixel dimensions of the source artwork, used to keep the mark crisp and unsquished at any size.
-const LOGO_ASPECT_RATIO = 256 / 322;
+const LOGO_ASPECT_RATIO = 1;
+
+// Full logo: dog, gate and the "HEARTH & ONE" name, on the brand cream (#F8F5EF).
+const FULL_LOGO_IMG = require('../../assets/scooby-logo.png');
+export const BRAND_CREAM = '#F8F5EF';
+
+/** Logo with the name under it, for the loading screen and sign-in / sign-up. */
+export const BrandFullLogo = memo(function BrandFullLogo({
+  size = 220,
+  style,
+}: {
+  size?: number;
+  style?: StyleProp<ImageStyle>;
+}) {
+  return (
+    <Image
+      source={FULL_LOGO_IMG}
+      style={[{ width: size, height: size }, style]}
+      contentFit="contain"
+    />
+  );
+});
 
 export type MedallionSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
@@ -49,7 +78,7 @@ export const BrandMedallion = memo(function BrandMedallion({
 
   const content = (
     <Image
-      source={SCOOBY_LOGO_IMG}
+      source={MARK_IMGS[size] || MARK_IMGS.md}
       style={[{ width, height }, style]}
       contentFit="contain"
     />

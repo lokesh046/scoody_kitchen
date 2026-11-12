@@ -1,5 +1,5 @@
 import { HeroScrollHint } from '../../components/HeroScrollHint';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
@@ -20,6 +20,8 @@ import { useFeatureFlag, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingFaqs, useLandingHero } from '../../hooks/useAdminContent';
+import { markLandingSeen } from '../../utils/landingSeen';
+import { getOptimizedImageUrl, IMAGE_WIDTH, originalOnError } from '../../utils/cloudinaryImage';
 
 const DEFAULT_HERO_IMAGE = 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg';
 
@@ -66,7 +68,7 @@ const SAMPLE_LEDGER = [
 
 const DEFAULT_HERO = {
   image: DEFAULT_HERO_IMAGE,
-  title: 'Food you can read, start to finish.',
+  title: 'Food you can read, start to finish',
   subtitle: 'Human-grade recipes cooked in small batches, with every ingredient and its percentage published for you to check.',
 };
 
@@ -109,7 +111,7 @@ function OtherToolsSection() {
   const tools = [
     ...(isKnowYourPetEnabled ? [{ label: 'Know Your Pet', image: '/images/toolkit/know-your-pet.webp', text: "Keep your companion's details and health records in one place.", path: '/pets' }] : []),
     ...(isConsultationsEnabled ? [{ label: 'Vet Consults', image: '/images/toolkit/vet-consults.webp', text: 'Book time with a veterinarian when something needs a professional look.', path: '/consultations' }] : []),
-    ...(isMealPlannerEnabled ? [{ label: 'Count The Calories', image: '/images/toolkit/meal-planner.webp', text: "Estimate your pet's daily energy needs from their profile.", path: '/recipe-calculator#fit-calculator' }] : []),
+    ...(isMealPlannerEnabled ? [{ label: 'Count Their Calories', image: '/images/toolkit/meal-planner.webp', text: "Estimate your pet's daily energy needs from their profile.", path: '/recipe-calculator#fit-calculator' }] : []),
     ...(isChatbotEnabled ? [{ label: 'AI Assistant', image: '/images/toolkit/ai-assistant.webp', text: 'Ask questions about nutrition and everyday pet care.', path: '/assistant' }] : []),
   ];
 
@@ -120,9 +122,9 @@ function OtherToolsSection() {
       <div className="max-w-7xl mx-auto">
         <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
           <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
-            Good food is one part of their care.
+            Good food is one part of their care
           </h2>
-          <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
+          <p className="font-body text-sm text-paper opacity-90 leading-relaxed">
             Explore the tools designed to support different parts of the pet-parent journey.
           </p>
         </div>
@@ -133,6 +135,11 @@ function OtherToolsSection() {
 }
 
 export function ShopLandingPage() {
+  // Remember that this landing page has been opened, so the header link can go straight to the shop next time.
+  useEffect(() => {
+    markLandingSeen('shop');
+  }, []);
+
   const reduceMotion = useReducedMotion();
   const navigate = useNavigate();
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -173,7 +180,8 @@ export function ShopLandingPage() {
           gradients, copy anchored bottom-left. */}
       <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-midnight">
         <img
-          src={hero.image}
+          src={getOptimizedImageUrl(hero.image, IMAGE_WIDTH.hero)}
+          onError={originalOnError(hero.image)}
           alt="A Hearth &amp; Hound recipe bag beside the fire"
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${hero.ready ? 'opacity-100' : 'opacity-0'}`}
           loading="eager"
@@ -183,25 +191,10 @@ export function ShopLandingPage() {
 
         <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-28 sm:pb-28 max-w-5xl">
           <div className={`max-w-2xl space-y-4 text-left animate-fade-in-up ${hero.ready ? '' : 'invisible'}`}>
-            <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
-              {/* The default headline is a picture drawn in the brand display font, so the font file itself is never served;
-                  a title set from the admin panel falls back to the script text. */}
-              {hero.title === DEFAULT_HERO.title ? (
-                <picture>
-                  <source media="(min-width: 640px)" srcSet="/images/hero-titles/shop-wide.webp" width={608} height={173} />
-                  <img
-                    src="/images/hero-titles/shop-narrow.webp"
-                    alt={hero.title}
-                    width={338}
-                    height={171}
-                    className="block h-auto w-[min(100%,338px)] sm:w-[min(100%,608px)] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
-                  />
-                </picture>
-              ) : (
-                hero.title
-              )}
+            <h1 className="font-script font-normal text-4xl sm:text-5xl md:text-6xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
+              {hero.title}
             </h1>
-            <p className="font-body text-sm sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
+            <p className="font-body text-xs sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
               {hero.subtitle}
             </p>
             <div className="pt-2">
@@ -225,9 +218,9 @@ export function ShopLandingPage() {
               <span>A closer look</span>
             </div>
             <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug text-paper">
-              What you can expect from the catalogue.
+              What you can expect from the catalogue
             </h2>
-            <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
+            <p className="font-body text-sm text-paper opacity-90 leading-relaxed">
               Every recipe is listed with the same detail, so comparing two of them is a matter of reading, not guessing.
             </p>
           </div>
@@ -241,9 +234,9 @@ export function ShopLandingPage() {
           <div className="max-w-2xl mx-auto text-center space-y-4 mb-10 md:mb-12">
             <p className="font-mono text-sm sm:text-base uppercase tracking-widest text-turmeric">The Ingredient Ledger</p>
             <h2 id="shop-ledger-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
-              Percentages, not promises.
+              Percentages, not promises
             </h2>
-            <p className="font-body text-sm text-paper/75 leading-relaxed">
+            <p className="font-body text-sm text-paper/90 leading-relaxed">
               Most labels tell you what went in. Each of our recipes tells you how much of it went in.
             </p>
           </div>
@@ -293,7 +286,7 @@ export function ShopLandingPage() {
         <div className="mx-auto max-w-4xl">
           <div className="mx-auto mb-12 max-w-2xl text-center">
             <h2 id="shop-getting-started" className="font-script text-3xl font-normal tracking-normal leading-snug text-ink sm:text-4xl lg:text-5xl">
-              Finding the right recipe.
+              Finding the right recipe
             </h2>
             <p className="mx-auto mt-4 max-w-lg font-body text-sm leading-relaxed text-ink/75">
               Four steps from the catalogue to a bowl you understand.
@@ -350,9 +343,9 @@ export function ShopLandingPage() {
       <section aria-labelledby="shop-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 bg-gradient-to-b from-midnightCard to-midnight text-paper text-center">
         <div className="max-w-4xl mx-auto">
           <h2 id="shop-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
-            See what is in the bowl.
+            See what is in the bowl
           </h2>
-          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">
+          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/90 leading-relaxed">
             Browse the recipes and read every one of them all the way down.
           </p>
           <button

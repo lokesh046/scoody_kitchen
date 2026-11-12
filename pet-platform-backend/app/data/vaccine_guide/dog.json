@@ -1,0 +1,591 @@
+{
+ "species": "dog",
+ "title": "Dog vaccine schedule: birth to senior (India)",
+ "subtitle": "Based on WSAVA 2024 guidelines and common Indian veterinary practice. Your vet decides the final schedule.",
+ "schedule": [
+  {
+   "age": "Birth to 48 hours",
+   "vaccine": "No vaccine",
+   "protects": "Antibodies from the mother",
+   "notes": "Make sure every puppy suckles colostrum. These antibodies also block early vaccines, which is why several doses are needed.",
+   "planner_refs": []
+  },
+  {
+   "age": "6-8 weeks",
+   "vaccine": "DHPP, 1st dose (some vets start with a \"puppy DP\")",
+   "protects": "Distemper, adenovirus (hepatitis), parvovirus, parainfluenza",
+   "notes": "Deworm about a week before. Keep the puppy away from unknown dogs until the course is complete.",
+   "planner_refs": [
+    0
+   ]
+  },
+  {
+   "age": "9-11 weeks",
+   "vaccine": "DHPP + L, 2nd dose",
+   "protects": "Above + leptospirosis",
+   "notes": "Leptospirosis needs 2 doses 2-4 weeks apart to start.",
+   "planner_refs": [
+    1
+   ]
+  },
+  {
+   "age": "12-14 weeks",
+   "vaccine": "DHPP + L, 3rd dose + Rabies, 1st dose",
+   "protects": "Above + rabies",
+   "notes": "Most rabies vaccine labels say no earlier than 12 weeks.",
+   "planner_refs": [
+    2,
+    3
+   ]
+  },
+  {
+   "age": "16 weeks or later",
+   "vaccine": "DHPP, final puppy dose (+ 2nd rabies dose, as many Indian vets give)",
+   "protects": "Distemper, hepatitis, parvovirus",
+   "notes": "Critical: the last puppy dose must be at 16 weeks or older, or it may not work.",
+   "planner_refs": [
+    4,
+    5
+   ]
+  },
+  {
+   "age": "26 weeks (6 months)",
+   "vaccine": "DHPP booster",
+   "protects": "Core diseases",
+   "notes": "WSAVA 2024 advice, to cover any puppy whose early doses did not take. Many Indian vets give this booster at 12 months instead.",
+   "planner_refs": [
+    6
+   ]
+  },
+  {
+   "age": "12 months",
+   "vaccine": "Rabies booster + Lepto booster (+ DHPP if the 6-month booster was not given)",
+   "protects": "Rabies, leptospirosis",
+   "notes": "Start of the adult schedule.",
+   "planner_refs": [
+    7
+   ]
+  },
+  {
+   "age": "Every year (adult)",
+   "vaccine": "Rabies",
+   "protects": "Rabies",
+   "notes": "Yearly in India, as most labels state; city pet licences (such as Chennai) require a valid certificate.",
+   "planner_refs": [
+    7,
+    8,
+    9,
+    11,
+    12,
+    13,
+    15,
+    16,
+    17,
+    19,
+    20,
+    21,
+    23,
+    24,
+    25
+   ]
+  },
+  {
+   "age": "Every year (adult)",
+   "vaccine": "Leptospirosis",
+   "protects": "Leptospirosis",
+   "notes": "Protection lasts only about a year. Very important in the monsoon and in waterlogged areas.",
+   "planner_refs": [
+    7,
+    8,
+    9,
+    11,
+    12,
+    13,
+    15,
+    16,
+    17,
+    19,
+    20,
+    21,
+    23,
+    24,
+    25
+   ]
+  },
+  {
+   "age": "Every 3 years (adult)",
+   "vaccine": "DHPP",
+   "protects": "Core diseases",
+   "notes": "Modern core vaccines last for years. A blood antibody (titre) test can show whether a dose is needed.",
+   "planner_refs": [
+    10,
+    14,
+    18,
+    22
+   ]
+  },
+  {
+   "age": "Every year (optional)",
+   "vaccine": "Kennel cough (Bordetella + parainfluenza)",
+   "codes": ["bordetella"],
+   "protects": "Kennel cough",
+   "notes": "For dogs that go to boarding, grooming, dog parks or shows.",
+   "planner_refs": []
+  },
+  {
+   "age": "Senior (7+ years; giant breeds 5-6+)",
+   "vaccine": "Continue rabies + lepto yearly; core by titre or every 3 years",
+   "codes": ["rabies", "leptospirosis", "dhppi"],
+   "protects": "Same",
+   "notes": "Do not stop vaccinating older dogs. Add twice-yearly check-ups and blood work.",
+   "planner_refs": []
+  }
+ ],
+ "timeline": [
+  {
+   "stage": 1,
+   "age": "Birth to 6 weeks",
+   "what": "Mother's first milk (colostrum) gives early protection"
+  },
+  {
+   "stage": 2,
+   "age": "6-8 weeks",
+   "what": "1st core vaccine (DHPP)"
+  },
+  {
+   "stage": 3,
+   "age": "9-11 weeks",
+   "what": "2nd core + 1st leptospirosis"
+  },
+  {
+   "stage": 4,
+   "age": "12-14 weeks",
+   "what": "3rd core + 2nd leptospirosis + 1st rabies"
+  },
+  {
+   "stage": 5,
+   "age": "16 weeks or later",
+   "what": "Final puppy core dose (+ 2nd rabies, as many Indian vets give)"
+  },
+  {
+   "stage": 6,
+   "age": "26 weeks (6 months)",
+   "what": "Core booster"
+  },
+  {
+   "stage": 7,
+   "age": "1 year",
+   "what": "Rabies + leptospirosis booster"
+  },
+  {
+   "stage": 8,
+   "age": "1-7 years",
+   "what": "Rabies and leptospirosis every year; core every 3 years"
+  },
+  {
+   "stage": 9,
+   "age": "7+ years (5+ for giant breeds)",
+   "what": "Same vaccines, plus twice-yearly health checks"
+  }
+ ],
+ "rules": [
+  {
+   "topic": "Pregnant females",
+   "guidance": "Do not give live vaccines during pregnancy. Bring her vaccines up to date before breeding."
+  },
+  {
+   "topic": "Bite or rabies exposure",
+   "guidance": "See the vet at once for a rabies booster, even if the dog is vaccinated."
+  },
+  {
+   "topic": "Sick or recovering dogs",
+   "guidance": "Wait until the vet confirms the dog is well (for example, after tick fever)."
+  },
+  {
+   "topic": "Deworming: puppies",
+   "guidance": "At 2, 4, 6 and 8 weeks; about 5-7 days before each puppy vaccine."
+  },
+  {
+   "topic": "Deworming: 2-6 months",
+   "guidance": "Monthly."
+  },
+  {
+   "topic": "Deworming: adults",
+   "guidance": "Every 3 months."
+  },
+  {
+   "topic": "Titre testing",
+   "guidance": "A blood antibody test at least 4 weeks after the last puppy dose can show whether core boosters are needed."
+  }
+ ],
+ "planner": [
+  {
+   "dose": "Puppy 1",
+   "vaccine": "DHPP",
+   "planned_age": "7 weeks (6-8)",
+   "offset_unit": "weeks",
+   "offset_value": 7,
+   "codes": [
+    "dhppi"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Puppy 2",
+   "vaccine": "DHPP + Leptospirosis",
+   "planned_age": "10 weeks (9-11)",
+   "offset_unit": "weeks",
+   "offset_value": 10,
+   "codes": [
+    "dhppi",
+    "leptospirosis"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Puppy 3",
+   "vaccine": "DHPP + Leptospirosis",
+   "planned_age": "13 weeks (12-14)",
+   "offset_unit": "weeks",
+   "offset_value": 13,
+   "codes": [
+    "dhppi",
+    "leptospirosis"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Puppy 3",
+   "vaccine": "Rabies, 1st dose",
+   "planned_age": "13 weeks (12-14)",
+   "offset_unit": "weeks",
+   "offset_value": 13,
+   "codes": [
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Puppy 4",
+   "vaccine": "DHPP, final puppy dose",
+   "planned_age": "16 weeks or later",
+   "offset_unit": "weeks",
+   "offset_value": 16,
+   "codes": [
+    "dhppi"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Puppy 4",
+   "vaccine": "Rabies, 2nd dose (common in India)",
+   "planned_age": "16 weeks",
+   "offset_unit": "weeks",
+   "offset_value": 16,
+   "codes": [
+    "rabies"
+   ],
+   "optional": true,
+   "note": null
+  },
+  {
+   "dose": "Booster",
+   "vaccine": "DHPP",
+   "planned_age": "26 weeks",
+   "offset_unit": "weeks",
+   "offset_value": 26,
+   "codes": [
+    "dhppi"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Booster",
+   "vaccine": "Rabies + Leptospirosis",
+   "planned_age": "12 months",
+   "offset_unit": "months",
+   "offset_value": 12,
+   "codes": [
+    "leptospirosis",
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 2",
+   "vaccine": "Rabies + Leptospirosis",
+   "planned_age": "2 years",
+   "offset_unit": "months",
+   "offset_value": 24,
+   "codes": [
+    "leptospirosis",
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 3",
+   "vaccine": "Rabies + Leptospirosis",
+   "planned_age": "3 years",
+   "offset_unit": "months",
+   "offset_value": 36,
+   "codes": [
+    "leptospirosis",
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Adult core",
+   "vaccine": "DHPP (or titre test)",
+   "planned_age": "3.5 years",
+   "offset_unit": "months",
+   "offset_value": 42,
+   "codes": [
+    "dhppi"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 4",
+   "vaccine": "Rabies + Leptospirosis",
+   "planned_age": "4 years",
+   "offset_unit": "months",
+   "offset_value": 48,
+   "codes": [
+    "leptospirosis",
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 5",
+   "vaccine": "Rabies + Leptospirosis",
+   "planned_age": "5 years",
+   "offset_unit": "months",
+   "offset_value": 60,
+   "codes": [
+    "leptospirosis",
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 6",
+   "vaccine": "Rabies + Leptospirosis",
+   "planned_age": "6 years",
+   "offset_unit": "months",
+   "offset_value": 72,
+   "codes": [
+    "leptospirosis",
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Adult core",
+   "vaccine": "DHPP (or titre test)",
+   "planned_age": "6.5 years",
+   "offset_unit": "months",
+   "offset_value": 78,
+   "codes": [
+    "dhppi"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 7",
+   "vaccine": "Rabies + Leptospirosis",
+   "planned_age": "7 years",
+   "offset_unit": "months",
+   "offset_value": 84,
+   "codes": [
+    "leptospirosis",
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 8",
+   "vaccine": "Rabies + Leptospirosis",
+   "planned_age": "8 years",
+   "offset_unit": "months",
+   "offset_value": 96,
+   "codes": [
+    "leptospirosis",
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 9",
+   "vaccine": "Rabies + Leptospirosis",
+   "planned_age": "9 years",
+   "offset_unit": "months",
+   "offset_value": 108,
+   "codes": [
+    "leptospirosis",
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Adult core",
+   "vaccine": "DHPP (or titre test)",
+   "planned_age": "9.5 years",
+   "offset_unit": "months",
+   "offset_value": 114,
+   "codes": [
+    "dhppi"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 10",
+   "vaccine": "Rabies + Leptospirosis",
+   "planned_age": "10 years",
+   "offset_unit": "months",
+   "offset_value": 120,
+   "codes": [
+    "leptospirosis",
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 11",
+   "vaccine": "Rabies + Leptospirosis",
+   "planned_age": "11 years",
+   "offset_unit": "months",
+   "offset_value": 132,
+   "codes": [
+    "leptospirosis",
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 12",
+   "vaccine": "Rabies + Leptospirosis",
+   "planned_age": "12 years",
+   "offset_unit": "months",
+   "offset_value": 144,
+   "codes": [
+    "leptospirosis",
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Adult core",
+   "vaccine": "DHPP (or titre test)",
+   "planned_age": "12.5 years",
+   "offset_unit": "months",
+   "offset_value": 150,
+   "codes": [
+    "dhppi"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 13",
+   "vaccine": "Rabies + Leptospirosis",
+   "planned_age": "13 years",
+   "offset_unit": "months",
+   "offset_value": 156,
+   "codes": [
+    "leptospirosis",
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 14",
+   "vaccine": "Rabies + Leptospirosis",
+   "planned_age": "14 years",
+   "offset_unit": "months",
+   "offset_value": 168,
+   "codes": [
+    "leptospirosis",
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  },
+  {
+   "dose": "Year 15",
+   "vaccine": "Rabies + Leptospirosis",
+   "planned_age": "15 years",
+   "offset_unit": "months",
+   "offset_value": 180,
+   "codes": [
+    "leptospirosis",
+    "rabies"
+   ],
+   "optional": false,
+   "note": null
+  }
+ ],
+ "planner_note": "Planned ages use the middle of each recommended range. Adult DHPP every 3 years after the 26-week booster; a titre test can replace a dose. Add kennel cough yearly if the dog boards or socialises.",
+ "sources": [
+  {
+   "title": "WSAVA 2024 Guidelines for the Vaccination of Dogs and Cats",
+   "url": "https://wsava.org/wp-content/uploads/2024/05/2024-Guidelines-for-the-Vaccination-of-Dogs-and-Cats.pdf"
+  },
+  {
+   "title": "Virbac India: dog vaccination guide",
+   "url": "https://in.virbac.com/every-advice/dog-vaccination-guide.html"
+  },
+  {
+   "title": "Hemopet: review of the 2024 WSAVA guidelines",
+   "url": "https://hemopet.org/dr-jean-dodds-reviews-the-2024-wsava-vaccination-guidelines/"
+  }
+ ],
+ "disclaimer": "This schedule is general guidance. The treating veterinarian decides the final schedule based on the vaccine brand and the individual dog.",
+ "about": [
+  {
+   "label": "Vaccine Schedule",
+   "text": "The full table from birth to senior, with age, vaccine, what it protects against and notes. Its status colours follow your dog's records."
+  },
+  {
+   "label": "Timeline",
+   "text": "The 9 stages at a glance."
+  },
+  {
+   "label": "Due Date Planner",
+   "text": "Uses your puppy's date of birth to work out the due date for every dose up to 15 years. When you record a vaccine as given, its status changes to Done (green). Otherwise it shows Due soon (orange, within 30 days), Overdue (red) or Upcoming. It is the same Green/Amber/Red idea as a vaccine passport."
+  },
+  {
+   "label": "Rules & Deworming",
+   "text": "Pregnancy, bites, sick animals, deworming and antibody (titre) tests."
+  },
+  {
+   "label": "Sources",
+   "text": "WSAVA 2024, Virbac India and Hemopet, with links."
+  }
+ ],
+ "rules_title": "Rules & deworming"
+}

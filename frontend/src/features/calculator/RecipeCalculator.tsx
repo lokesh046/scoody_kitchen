@@ -5,6 +5,7 @@ import { Activity, Check } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { fetchProducts } from '../../api/products';
+import { useRecipeOrdering } from '../../hooks/useRecipeOrdering';
 
 interface QuickPreset {
   label: string;
@@ -19,9 +20,10 @@ const DOG_PRESETS: QuickPreset[] = [
   { label: 'Working / Giant (90 lbs)', weight: 90, activity: 'very_active' },
 ];
 
-// The calculator section (Count The Calories). It used to be a section of the home page; it now lives on its own
+// The calculator section (Count Their Calories). It used to be a section of the home page; it now lives on its own
 // page (/recipe-calculator). The maths and the wording are unchanged from the home page version.
 export function RecipeCalculator() {
+  const ordering = useRecipeOrdering();
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const addItem = useCartStore((state) => state.addItem);
@@ -92,7 +94,7 @@ export function RecipeCalculator() {
 
   return (
     <section
-      className="bg-paper pt-10 pb-20 md:pt-12 md:pb-28 px-4 sm:px-6 md:px-8 relative scroll-mt-20 md:scroll-mt-24"
+      className="bg-paper py-8 md:py-10 px-4 sm:px-6 md:px-8 relative scroll-mt-20 md:scroll-mt-24"
       id="fit-calculator"
       style={{
         backgroundImage: 'radial-gradient(rgba(208,158,107,0.18) 1.2px, transparent 1.2px)',
@@ -100,12 +102,12 @@ export function RecipeCalculator() {
       }}
     >
       <div className="max-w-6xl mx-auto text-left relative z-10">
-      <h2 className="mb-8 md:mb-10 font-script font-normal text-4xl sm:text-6xl lg:text-7xl tracking-normal text-ink leading-tight whitespace-nowrap">
-        Count The Calories
+      <h2 className="mb-8 md:mb-10 font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] tracking-normal text-ink leading-snug">
+        Count Their Calories
       </h2>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
         <div className="lg:col-span-5 space-y-5">
-          <p className="font-body text-base lg:text-lg text-ink opacity-80 leading-relaxed">
+          <p className="font-body text-base sm:text-lg text-ink opacity-80 leading-relaxed">
             Pet nutrition is directly proportional to body mass and daily energy output. Pick your dog's size or enter their exact weight to calculate targeted caloric requirements in real time.
           </p>
 
@@ -212,7 +214,12 @@ export function RecipeCalculator() {
                   <span className="font-mono text-xs sm:text-sm uppercase font-bold text-turmeric block">
                     RECOMMENDED RECIPE FORMULATION:
                   </span>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border border-ink border-opacity-15 p-4 gap-4 rounded-[14px] hover:border-turmeric transition-colors">
+                  <div className="relative">
+                  <div
+                    className={`flex flex-col sm:flex-row items-start sm:items-center justify-between border border-ink border-opacity-15 p-4 gap-4 rounded-[14px] hover:border-turmeric transition-colors ${
+                      ordering === 'teaser' ? 'pointer-events-none select-none opacity-70 blur-[3px]' : ''
+                    }`}
+                  >
                     <div className="flex items-center space-x-3 text-left">
                       <img
                         src={calcResult.recommendedProduct.image_url || 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&q=80&w=200'}
@@ -231,11 +238,11 @@ export function RecipeCalculator() {
                     </div>
                     <button
                       onClick={() => {
-                        if (calcResult.recommendedProduct) {
+                        if (calcResult.recommendedProduct && ordering === 'on') {
                           handleAddRecommended(calcResult.recommendedProduct.id);
                         }
                       }}
-                      disabled={isAddingRecommended}
+                      disabled={isAddingRecommended || ordering !== 'on'}
                       className={`min-h-[44px] font-mono text-xs sm:text-sm font-bold uppercase px-5 py-3 rounded-[8px] transition-all cursor-pointer flex items-center space-x-1.5 shrink-0 ${
                         isAddedRecommended
                           ? 'bg-emerald-600 text-white'
@@ -248,9 +255,20 @@ export function RecipeCalculator() {
                           <span>Added!</span>
                         </>
                       ) : (
-                        <span>Add Recommended</span>
+                        <span>{ordering === 'unavailable' ? 'Unavailable' : 'Add Recommended'}</span>
                       )}
                     </button>
+                  </div>
+                  {ordering === 'teaser' && (
+                    <div
+                      aria-label={`${calcResult.recommendedProduct.name}: Coming soon`}
+                      className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-[14px] text-center"
+                    >
+                      <div className="w-full border-y border-turmeric/40 bg-midnight/90 px-6 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.25)]">
+                        <p className="font-script text-2xl sm:text-3xl font-normal text-turmeric">Coming soon</p>
+                      </div>
+                    </div>
+                  )}
                   </div>
                 </div>
               )}

@@ -1,11 +1,12 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useFeatureFlag, useVetEntryEnabled } from '../hooks/useFeatureFlag';
+import { useFeatureFlag, useFlagEntry, useVetEntryEnabled } from '../hooks/useFeatureFlag';
 
 export function SiteFooter({ className = 'bg-midnight' }: { className?: string }) {
   const navigate = useNavigate();
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
   const isConsultationsEnabled = useVetEntryEnabled();
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
+  const journalEntry = useFlagEntry('journal');
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
 
   const goToHomeSection = (id: string) => {
@@ -44,9 +45,11 @@ export function SiteFooter({ className = 'bg-midnight' }: { className?: string }
                 <li><button onClick={() => navigate('/consultations')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Locate Your Vet</button></li>
               )}
               {isMealPlannerEnabled && (
-                <li><button onClick={() => navigate('/recipe-calculator')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Count The Calories</button></li>
+                <li><button onClick={() => navigate('/recipe-calculator')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Count Their Calories</button></li>
               )}
-              <li><button onClick={() => navigate('/blog')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Journal &amp; Resources</button></li>
+              {journalEntry.visible && (
+                <li><button onClick={() => navigate('/blog')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Journal &amp; Resources{journalEntry.label ? ` · ${journalEntry.label}` : ''}</button></li>
+              )}
             </ul>
           </div>
     

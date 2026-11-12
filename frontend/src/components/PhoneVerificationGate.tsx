@@ -65,7 +65,7 @@ export const PhoneVerificationGate: React.FC = () => {
   // replaced).
   useEffect(() => {
     if (!user?.phone) return;
-    const parsed = parsePhoneNumberFromString(user.phone, DEFAULT_COUNTRY_ISO2 as any);
+    const parsed = parsePhoneNumberFromString(/^\d{11,}$/.test(user.phone) ? `+${user.phone}` : user.phone, DEFAULT_COUNTRY_ISO2 as any);
     if (parsed && parsed.country) {
       setCountry(parsed.country);
       setPhone(parsed.nationalNumber);

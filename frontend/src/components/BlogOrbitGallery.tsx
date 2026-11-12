@@ -166,7 +166,7 @@ export function BlogOrbitGallery({ posts }: { posts: BlogPostListItem[] }) {
       <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-5 sm:p-7">
         <div>
           <p className="font-mono text-sm sm:text-base uppercase tracking-[0.28em] text-turmeric">From The Journal</p>
-          <h2 className="font-script font-normal text-2xl sm:text-3xl text-paper mt-1">A look inside.</h2>
+          <h2 className="font-script font-normal text-2xl sm:text-3xl text-paper mt-1">A look inside</h2>
         </div>
         <div className="hidden sm:block rounded-full border border-paper border-opacity-15 bg-ink bg-opacity-40 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-paper text-opacity-60">
           {items.length} entries

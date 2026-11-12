@@ -32,7 +32,7 @@ import {
 import { COLORS } from '../theme/colors';
 import { FONT_DISPLAY_SEMIBOLD, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO } from '../theme/typography';
 import { useAuthStore } from '../store/authStore';
-import { BrandMedallion } from '../components/BrandLogo';
+import { BrandFullLogo } from '../components/BrandLogo';
 import apiClient from '../api/client';
 import { captureApiError } from '../services/sentry';
 import ResponsiveContainer from '../components/ResponsiveContainer';
@@ -355,7 +355,7 @@ export default function AuthScreen({ onSuccess, onCancel }: AuthScreenProps) {
 
           {/* Hero Branding Section */}
           <View style={styles.heroSection}>
-            <BrandMedallion size="xl" style={{ marginBottom: 14 }} />
+            <BrandFullLogo size={230} style={{ marginBottom: 6 }} />
           </View>
 
           {/* Main Auth Container */}

@@ -14,7 +14,7 @@ def _get_base_email_template(title: str, content_html: str) -> str:
     Features the mascot logo in a warm porcelain seal medallion.
     """
     frontend_base = settings.FRONTEND_URL.rstrip("/")
-    logo_url = f"{frontend_base}/scooby-logo.png"
+    logo_url = f"{frontend_base}/scooby-logo-256.png"
 
     return f"""<!DOCTYPE html>
 <html lang="en">

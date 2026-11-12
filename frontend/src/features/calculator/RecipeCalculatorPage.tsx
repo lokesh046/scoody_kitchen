@@ -14,15 +14,17 @@ import { useFeatureFlag, useFlagEntry, useVetEntryEnabled } from '../../hooks/us
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingHero } from '../../hooks/useAdminContent';
+import { markLandingSeen } from '../../utils/landingSeen';
+import { getOptimizedImageUrl, IMAGE_WIDTH, originalOnError } from '../../utils/cloudinaryImage';
 
-const PAGE_TITLE = 'Count The Calories';
+const PAGE_TITLE = 'Count Their Calories';
 const PAGE_DESCRIPTION = "Understand your dog's daily energy requirements and get a more informed starting point for planning their meals.";
 
-// The top image, headline and text can be changed in Admin > Banners ("Count The Calories page - top
+// The top image, headline and text can be changed in Admin > Banners ("Count Their Calories page - top
 // image"); anything left empty there keeps these defaults.
 const DEFAULT_HERO = {
   image: '/images/hero/calculator-1.webp',
-  title: 'A little more clarity in every meal.',
+  title: 'A little more clarity in every meal',
   subtitle: "Understand your pet's daily energy requirements and get a more informed starting point for planning their meals.",
 };
 
@@ -55,8 +57,8 @@ const ENERGY_STEPS = [
 // (cats, new questions, a meal plan, pricing), update these with it.
 const FAQS = [
   {
-    q: 'What does Count The Calories do?',
-    a: "Count The Calories estimates your dog's daily energy requirements using the details you provide. The result can help you make more informed decisions when planning their meals.",
+    q: 'What does Count Their Calories do?',
+    a: "Count Their Calories estimates your dog's daily energy requirements using the details you provide. The result can help you make more informed decisions when planning their meals.",
   },
   {
     q: 'What information do I need to provide?',
@@ -91,12 +93,17 @@ const FAQS = [
     a: "Your pet's energy requirements may change as they grow, age, become more or less active, or experience changes in health or body condition. Reassess their needs when appropriate and seek veterinary guidance if unsure.",
   },
   {
-    q: 'Is Count The Calories free to use?',
+    q: 'Is Count Their Calories free to use?',
     a: "Calculating your dog's estimate is free, and the calculator on this page works without an account. You will be asked to sign in or create an account to continue to the meal planner or to add a recipe to your cart. Buying a recipe is a separate step.",
   },
 ];
 
 export function RecipeCalculatorPage() {
+  // Remember that this landing page has been opened, so the home-page card can go straight to the feature next time.
+  useEffect(() => {
+    markLandingSeen('calculator');
+  }, []);
+
   const { hash } = useLocation();
   const reduceMotion = useReducedMotion();
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -195,7 +202,7 @@ export function RecipeCalculatorPage() {
       <RouteUnavailable
         variant={entry.variant}
         activeTab="calculator"
-        title={entry.variant === 'coming_soon' ? 'Count The Calories: Coming soon' : 'Count The Calories: Unavailable'}
+        title={entry.variant === 'coming_soon' ? 'Count Their Calories: Coming soon' : 'Count Their Calories: Unavailable'}
         actionLabel="Back to Home"
         actionPath="/"
       />
@@ -210,7 +217,8 @@ export function RecipeCalculatorPage() {
           anchored bottom-left. The photo, headline and text come from Admin > Banners. */}
       <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-midnight">
         <img
-          src={hero.image}
+          src={getOptimizedImageUrl(hero.image, IMAGE_WIDTH.hero)}
+          onError={originalOnError(hero.image)}
           alt=""
           aria-hidden="true"
           className={`absolute inset-0 w-full h-full object-cover ${
@@ -224,10 +232,10 @@ export function RecipeCalculatorPage() {
 
         <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-28 sm:pb-28 max-w-5xl">
           <div className={`max-w-2xl space-y-4 text-left animate-fade-in-up ${hero.ready ? '' : 'invisible'}`}>
-            <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
+            <h1 className="font-script font-normal text-4xl sm:text-5xl md:text-6xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
               {hero.title}
             </h1>
-            <p className="font-body text-sm sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
+            <p className="font-body text-base sm:text-lg text-paperLight opacity-90 leading-relaxed max-w-xl">
               {hero.subtitle}
             </p>
             <div className="pt-2">
@@ -248,13 +256,13 @@ export function RecipeCalculatorPage() {
       </section>
 
       {/* Every pet has their own energy needs */}
-      <section aria-labelledby="calc-needs-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
+      <section aria-labelledby="calc-needs-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
         <div className="max-w-7xl mx-auto">
-          <div className="max-w-5xl mx-auto text-center space-y-3 mb-12">
-            <h2 id="calc-needs-heading" className="font-script font-normal text-3xl sm:text-4xl xl:text-5xl tracking-normal leading-snug lg:whitespace-nowrap">
-              Every pet has their own energy needs.
+          <div className="max-w-5xl mx-auto text-center space-y-3 mb-8">
+            <h2 id="calc-needs-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] tracking-normal leading-snug lg:whitespace-nowrap">
+              Every pet has their own energy needs
             </h2>
-            <p className="mx-auto max-w-2xl font-body text-sm sm:text-base text-paper/90 leading-relaxed">
+            <p className="mx-auto max-w-2xl font-body text-base sm:text-lg text-paper/90 leading-relaxed">
               The right amount of energy helps support your pet's everyday activities, from resting and playing to growing and staying active. Understanding their daily energy requirements can give you a useful starting point when planning their meals.
             </p>
           </div>
@@ -288,7 +296,7 @@ export function RecipeCalculatorPage() {
                     <Icon aria-hidden="true" className="h-5 w-5 shrink-0 text-turmeric" strokeWidth={1.6} />
                     <h3 className="font-display text-lg font-bold leading-snug text-paper">{title}</h3>
                   </div>
-                  <p className="font-body text-sm leading-relaxed text-paper/75">{text}</p>
+                  <p className="font-body text-base sm:text-lg leading-relaxed text-paper/90">{text}</p>
                 </div>
               </motion.li>
             ))}
@@ -303,46 +311,15 @@ export function RecipeCalculatorPage() {
           the footer and the other landing pages can open it directly (/recipe-calculator#fit-calculator). */}
       <RecipeCalculator />
 
-      {/* FAQ */}
-      <section aria-labelledby="calc-faq-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-10 space-y-3">
-            <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl tracking-normal leading-snug text-ink">
-              Frequently asked questions.
-            </h2>
-          </div>
-          <div className="space-y-3">
-            {FAQS.map((faq, index) => {
-              const isOpen = openFaq === index;
-              return (
-                <div key={faq.q} className="border border-cardboard border-opacity-40 bg-paperLight rounded-sm overflow-hidden">
-                  <button
-                    onClick={() => setOpenFaq(isOpen ? null : index)}
-                    aria-expanded={isOpen}
-                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left cursor-pointer"
-                  >
-                    <span className="font-body font-bold text-sm text-ink">{faq.q}</span>
-                    {isOpen ? <Minus aria-hidden="true" className="w-5 h-5 shrink-0 text-black" /> : <Plus aria-hidden="true" className="w-5 h-5 shrink-0 text-black" />}
-                  </button>
-                  {isOpen && (
-                    <div className="px-5 pb-4 font-body text-sm leading-relaxed text-ink opacity-80">{faq.a}</div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
       {/* Hearth & One ecosystem -- the animated tool cards the other landing pages use */}
       {ecosystem.length > 0 && (
-        <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 pt-16 pb-10 md:pt-20 md:pb-12 bg-midnight text-paper">
-          <div className="max-w-7xl mx-auto">
-            <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
-              <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
-                <span className="sr-only">One companion. Different aspects of their care.</span>
+        <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 pt-12 pb-8 md:pt-14 md:pb-10 bg-midnight text-paper">
+          <div className="max-w-6xl mx-auto">
+            <div className="max-w-6xl mx-auto text-center space-y-3 mb-8">
+              <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
+                <span className="sr-only">One companion Different aspects of their care</span>
                 <span aria-hidden="true">
-                  {'One companion. Different aspects of their care.'.split(' ').map((word, index) => (
+                  {'One companion Different aspects of their care'.split(' ').map((word, index) => (
                     <span key={index}>
                       {index > 0 ? ' ' : ''}
                       <span className="pet-profile-heading-word inline-block" style={{ animationDelay: `${index * 160}ms` }}>
@@ -352,22 +329,22 @@ export function RecipeCalculatorPage() {
                   ))}
                 </span>
               </h2>
-              <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
+              <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-base sm:text-lg text-paper opacity-90 leading-relaxed">
                 Explore the tools designed to support different parts of the pet-parent journey.
               </p>
             </div>
-            <ToolCarousel items={ecosystem} />
+            <ToolCarousel items={ecosystem} matchStepCards stepColumns={3} />
           </div>
         </section>
       )}
 
       {/* Closing CTA */}
-      <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 pt-12 sm:pt-14 md:pt-16 pb-10 md:pb-12 bg-midnight text-paper text-center">
-        <div className="max-w-4xl mx-auto">
-          <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
-            Take the next step towards more informed meals.
+      <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper text-center">
+        <div className="max-w-7xl mx-auto">
+          <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug lg:whitespace-nowrap">
+            Take the next step towards more informed meals
           </h2>
-          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">
+          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg text-paper/90 leading-relaxed">
             Estimate your pet's daily energy requirements and use the result as a starting point for making informed feeding decisions.
           </p>
           <button
@@ -378,6 +355,37 @@ export function RecipeCalculatorPage() {
             <span className="relative">Calculate Their Needs</span>
             <ArrowRight aria-hidden="true" className="relative w-5 h-5 shrink-0 motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:translate-x-1" />
           </button>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section aria-labelledby="calc-faq-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-midnight text-paper">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-10 space-y-3">
+            <h2 id="calc-faq-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
+              Frequently asked questions
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {FAQS.map((faq, index) => {
+              const isOpen = openFaq === index;
+              return (
+                <div key={faq.q} className="border border-paper/10 bg-midnightCard rounded-sm overflow-hidden">
+                  <button
+                    onClick={() => setOpenFaq(isOpen ? null : index)}
+                    aria-expanded={isOpen}
+                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left cursor-pointer"
+                  >
+                    <span className="font-body font-bold text-sm text-paper">{faq.q}</span>
+                    {isOpen ? <Minus aria-hidden="true" className="w-5 h-5 shrink-0 text-paper" /> : <Plus aria-hidden="true" className="w-5 h-5 shrink-0 text-paper" />}
+                  </button>
+                  {isOpen && (
+                    <div className="px-5 pb-4 font-body text-sm leading-relaxed text-paper/80">{faq.a}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 

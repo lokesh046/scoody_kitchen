@@ -25,7 +25,7 @@ export const usePetStore = create<PetState>((set, get) => ({
 
   addPet: (createdPet) => {
     set((state) => ({
-      pets: [...state.pets, createdPet],
+      pets: [createdPet, ...state.pets], // newest first, same as the server's list
       activePetId: createdPet.id,
     }));
   },

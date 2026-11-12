@@ -1,0 +1,978 @@
+{
+ "species": "cattle",
+ "rules_title": "Rules & care",
+ "title": "Cattle and buffalo vaccine schedule: calf to adult (India)",
+ "subtitle": "Based on the NDDB schedule and the national disease control programme. Follow your local veterinary dispensary and government campaign dates.",
+ "schedule": [
+  {
+   "age": "Birth (first 2 hours)",
+   "vaccine": "No vaccine",
+   "protects": "Antibodies from the mother",
+   "notes": "Calves must drink colostrum within the first hours of birth.",
+   "planner_refs": []
+  },
+  {
+   "age": "3 months (crossbred and exotic cattle only)",
+   "vaccine": "Theileriosis",
+   "protects": "Theileriosis (tick fever)",
+   "notes": "Once in a lifetime. Not needed for indigenous cattle or buffalo.",
+   "planner_refs": [
+    0
+   ]
+  },
+  {
+   "age": "4 months",
+   "vaccine": "FMD, 1st dose",
+   "protects": "Foot-and-mouth disease",
+   "notes": "Booster 1 month later. Free under the National Animal Disease Control Programme.",
+   "planner_refs": [
+    1
+   ]
+  },
+  {
+   "age": "4 months (endemic areas only)",
+   "vaccine": "Anthrax",
+   "protects": "Anthrax",
+   "notes": "Then annually, only where your vet reports anthrax.",
+   "planner_refs": [
+    2
+   ]
+  },
+  {
+   "age": "4-8 months (female calves only)",
+   "vaccine": "Brucellosis",
+   "protects": "Brucellosis",
+   "notes": "Once in a lifetime. Free in government campaigns.",
+   "planner_refs": [
+    4
+   ]
+  },
+  {
+   "age": "5 months",
+   "vaccine": "FMD booster",
+   "protects": "Foot-and-mouth disease",
+   "notes": "1 month after the first dose.",
+   "planner_refs": [
+    3
+   ]
+  },
+  {
+   "age": "6 months",
+   "vaccine": "HS (haemorrhagic septicaemia)",
+   "protects": "Haemorrhagic septicaemia",
+   "notes": "Then annually in endemic areas, before the monsoon.",
+   "planner_refs": [
+    5
+   ]
+  },
+  {
+   "age": "6 months",
+   "vaccine": "BQ (black quarter)",
+   "protects": "Black quarter",
+   "notes": "Then annually in endemic areas, before the monsoon.",
+   "planner_refs": [
+    6
+   ]
+  },
+  {
+   "age": "As per state campaign",
+   "vaccine": "Lumpy skin disease (LSD)",
+   "protects": "Lumpy skin disease",
+   "notes": "Annual mass vaccination since 2021-22, with goat pox or the indigenous LSD vaccine. Follow your state department.",
+   "planner_refs": [
+    8,
+    12,
+    16,
+    20,
+    24,
+    28,
+    32,
+    36,
+    40,
+    44,
+    48,
+    52
+   ]
+  },
+  {
+   "age": "Every 6 months",
+   "vaccine": "FMD",
+   "protects": "Foot-and-mouth disease",
+   "notes": "Government rounds; record each round in the passport.",
+   "planner_refs": [
+    7,
+    9,
+    11,
+    13,
+    15,
+    17,
+    19,
+    21,
+    23,
+    25,
+    27,
+    29,
+    31,
+    33,
+    35,
+    37,
+    39,
+    41,
+    43,
+    45,
+    47,
+    49,
+    51
+   ]
+  },
+  {
+   "age": "Every year, before monsoon",
+   "vaccine": "HS + BQ (+ anthrax in endemic areas)",
+   "protects": "HS, BQ, anthrax",
+   "notes": "May-June in most of India.",
+   "planner_refs": [
+    10,
+    14,
+    18,
+    22,
+    26,
+    30,
+    34,
+    38,
+    42,
+    46,
+    50,
+    53
+   ]
+  },
+  {
+   "age": "After a dog or animal bite",
+   "vaccine": "Rabies (post-bite only)",
+   "protects": "Rabies",
+   "notes": "Doses on the day of the bite, then days 3, 7, 14 and 28 (optional day 90). Call the vet at once.",
+   "planner_refs": []
+  }
+ ],
+ "timeline": [
+  {
+   "stage": 1,
+   "age": "Birth",
+   "what": "Colostrum within the first hours"
+  },
+  {
+   "stage": 2,
+   "age": "3 months",
+   "what": "Theileriosis (crossbred and exotic cattle only, once)"
+  },
+  {
+   "stage": 3,
+   "age": "4 months",
+   "what": "1st FMD; anthrax in endemic areas"
+  },
+  {
+   "stage": 4,
+   "age": "4-8 months",
+   "what": "Brucellosis (female calves only, once)"
+  },
+  {
+   "stage": 5,
+   "age": "5 months",
+   "what": "FMD booster"
+  },
+  {
+   "stage": 6,
+   "age": "6 months",
+   "what": "HS and BQ"
+  },
+  {
+   "stage": 7,
+   "age": "Every 6 months",
+   "what": "FMD (government rounds)"
+  },
+  {
+   "stage": 8,
+   "age": "Every year",
+   "what": "HS, BQ before the monsoon; LSD per state campaign; anthrax where endemic"
+  }
+ ],
+ "rules": [
+  {
+   "topic": "Government campaigns",
+   "guidance": "FMD (every 6 months), brucellosis and LSD are given free by the Animal Husbandry Department; record each round on Bharat Pashudhan."
+  },
+  {
+   "topic": "Pregnant cows",
+   "guidance": "Ask the vet before any vaccine in late pregnancy; avoid stress and handling close to calving."
+  },
+  {
+   "topic": "New animals",
+   "guidance": "Isolate animals bought from markets for 2-3 weeks and vaccinate before mixing with the herd."
+  },
+  {
+   "topic": "Sick animals",
+   "guidance": "Do not vaccinate sick or very weak animals; treat first."
+  },
+  {
+   "topic": "Deworming",
+   "guidance": "Calves at 10 days, then monthly to 6 months; adults every 3-4 months or as advised. Control ticks to prevent theileriosis."
+  },
+  {
+   "topic": "Ear tag",
+   "guidance": "Each animal should carry its 12-digit Pashu Aadhaar ear tag so vaccinations are recorded on Bharat Pashudhan."
+  },
+  {
+   "topic": "IBR",
+   "guidance": "A vaccine schedule exists (3 months, booster at 1 month, then every 6 months), but NDDB notes it is not currently produced in India."
+  }
+ ],
+ "planner": [
+  {
+   "dose": "Calf",
+   "vaccine": "Theileriosis (crossbred/exotic only)",
+   "planned_age": "3 months",
+   "offset_unit": "months",
+   "offset_value": 3,
+   "codes": [
+    "theileriosis"
+   ],
+   "optional": true,
+   "fillable": true,
+   "note": "Once in a lifetime. Not needed for indigenous cattle and buffalo"
+  },
+  {
+   "dose": "Calf",
+   "vaccine": "FMD, 1st dose",
+   "planned_age": "4 months",
+   "offset_unit": "months",
+   "offset_value": 4,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Free under NADCP"
+  },
+  {
+   "dose": "Calf",
+   "vaccine": "Anthrax (endemic areas)",
+   "planned_age": "4 months",
+   "offset_unit": "months",
+   "offset_value": 4,
+   "codes": [
+    "anthrax"
+   ],
+   "optional": true,
+   "fillable": true,
+   "note": "Only where your vet reports it"
+  },
+  {
+   "dose": "Calf",
+   "vaccine": "FMD booster",
+   "planned_age": "5 months",
+   "offset_unit": "months",
+   "offset_value": 5,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "1 month after 1st dose"
+  },
+  {
+   "dose": "Calf",
+   "vaccine": "Brucellosis (female calves only)",
+   "planned_age": "6 months (4-8)",
+   "offset_unit": "months",
+   "offset_value": 6,
+   "codes": [
+    "brucellosis"
+   ],
+   "optional": true,
+   "fillable": true,
+   "note": "Once in a lifetime. Not needed for males"
+  },
+  {
+   "dose": "Calf",
+   "vaccine": "HS",
+   "planned_age": "6 months",
+   "offset_unit": "months",
+   "offset_value": 6,
+   "codes": [
+    "hs"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": null
+  },
+  {
+   "dose": "Calf",
+   "vaccine": "BQ",
+   "planned_age": "6 months",
+   "offset_unit": "months",
+   "offset_value": 6,
+   "codes": [
+    "bq"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": null
+  },
+  {
+   "dose": "FMD round 1",
+   "vaccine": "FMD",
+   "planned_age": "0.9 years",
+   "offset_unit": "months",
+   "offset_value": 11,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 1",
+   "vaccine": "Lumpy skin disease",
+   "planned_age": "about 1 year",
+   "offset_unit": "months",
+   "offset_value": 12,
+   "codes": [
+    "lsd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Follow the state campaign date"
+  },
+  {
+   "dose": "FMD round 2",
+   "vaccine": "FMD",
+   "planned_age": "1.4 years",
+   "offset_unit": "months",
+   "offset_value": 17,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 1",
+   "vaccine": "HS + BQ",
+   "planned_age": "1 year 6 months",
+   "offset_unit": "months",
+   "offset_value": 18,
+   "codes": [
+    "hs",
+    "bq"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May-June, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 3",
+   "vaccine": "FMD",
+   "planned_age": "1.9 years",
+   "offset_unit": "months",
+   "offset_value": 23,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 2",
+   "vaccine": "Lumpy skin disease",
+   "planned_age": "about 2 years",
+   "offset_unit": "months",
+   "offset_value": 24,
+   "codes": [
+    "lsd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Follow the state campaign date"
+  },
+  {
+   "dose": "FMD round 4",
+   "vaccine": "FMD",
+   "planned_age": "2.4 years",
+   "offset_unit": "months",
+   "offset_value": 29,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 2",
+   "vaccine": "HS + BQ",
+   "planned_age": "2 years 6 months",
+   "offset_unit": "months",
+   "offset_value": 30,
+   "codes": [
+    "hs",
+    "bq"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May-June, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 5",
+   "vaccine": "FMD",
+   "planned_age": "2.9 years",
+   "offset_unit": "months",
+   "offset_value": 35,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 3",
+   "vaccine": "Lumpy skin disease",
+   "planned_age": "about 3 years",
+   "offset_unit": "months",
+   "offset_value": 36,
+   "codes": [
+    "lsd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Follow the state campaign date"
+  },
+  {
+   "dose": "FMD round 6",
+   "vaccine": "FMD",
+   "planned_age": "3.4 years",
+   "offset_unit": "months",
+   "offset_value": 41,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 3",
+   "vaccine": "HS + BQ",
+   "planned_age": "3 years 6 months",
+   "offset_unit": "months",
+   "offset_value": 42,
+   "codes": [
+    "hs",
+    "bq"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May-June, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 7",
+   "vaccine": "FMD",
+   "planned_age": "3.9 years",
+   "offset_unit": "months",
+   "offset_value": 47,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 4",
+   "vaccine": "Lumpy skin disease",
+   "planned_age": "about 4 years",
+   "offset_unit": "months",
+   "offset_value": 48,
+   "codes": [
+    "lsd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Follow the state campaign date"
+  },
+  {
+   "dose": "FMD round 8",
+   "vaccine": "FMD",
+   "planned_age": "4.4 years",
+   "offset_unit": "months",
+   "offset_value": 53,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 4",
+   "vaccine": "HS + BQ",
+   "planned_age": "4 years 6 months",
+   "offset_unit": "months",
+   "offset_value": 54,
+   "codes": [
+    "hs",
+    "bq"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May-June, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 9",
+   "vaccine": "FMD",
+   "planned_age": "4.9 years",
+   "offset_unit": "months",
+   "offset_value": 59,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 5",
+   "vaccine": "Lumpy skin disease",
+   "planned_age": "about 5 years",
+   "offset_unit": "months",
+   "offset_value": 60,
+   "codes": [
+    "lsd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Follow the state campaign date"
+  },
+  {
+   "dose": "FMD round 10",
+   "vaccine": "FMD",
+   "planned_age": "5.4 years",
+   "offset_unit": "months",
+   "offset_value": 65,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 5",
+   "vaccine": "HS + BQ",
+   "planned_age": "5 years 6 months",
+   "offset_unit": "months",
+   "offset_value": 66,
+   "codes": [
+    "hs",
+    "bq"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May-June, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 11",
+   "vaccine": "FMD",
+   "planned_age": "5.9 years",
+   "offset_unit": "months",
+   "offset_value": 71,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 6",
+   "vaccine": "Lumpy skin disease",
+   "planned_age": "about 6 years",
+   "offset_unit": "months",
+   "offset_value": 72,
+   "codes": [
+    "lsd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Follow the state campaign date"
+  },
+  {
+   "dose": "FMD round 12",
+   "vaccine": "FMD",
+   "planned_age": "6.4 years",
+   "offset_unit": "months",
+   "offset_value": 77,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 6",
+   "vaccine": "HS + BQ",
+   "planned_age": "6 years 6 months",
+   "offset_unit": "months",
+   "offset_value": 78,
+   "codes": [
+    "hs",
+    "bq"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May-June, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 13",
+   "vaccine": "FMD",
+   "planned_age": "6.9 years",
+   "offset_unit": "months",
+   "offset_value": 83,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 7",
+   "vaccine": "Lumpy skin disease",
+   "planned_age": "about 7 years",
+   "offset_unit": "months",
+   "offset_value": 84,
+   "codes": [
+    "lsd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Follow the state campaign date"
+  },
+  {
+   "dose": "FMD round 14",
+   "vaccine": "FMD",
+   "planned_age": "7.4 years",
+   "offset_unit": "months",
+   "offset_value": 89,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 7",
+   "vaccine": "HS + BQ",
+   "planned_age": "7 years 6 months",
+   "offset_unit": "months",
+   "offset_value": 90,
+   "codes": [
+    "hs",
+    "bq"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May-June, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 15",
+   "vaccine": "FMD",
+   "planned_age": "7.9 years",
+   "offset_unit": "months",
+   "offset_value": 95,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 8",
+   "vaccine": "Lumpy skin disease",
+   "planned_age": "about 8 years",
+   "offset_unit": "months",
+   "offset_value": 96,
+   "codes": [
+    "lsd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Follow the state campaign date"
+  },
+  {
+   "dose": "FMD round 16",
+   "vaccine": "FMD",
+   "planned_age": "8.4 years",
+   "offset_unit": "months",
+   "offset_value": 101,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 8",
+   "vaccine": "HS + BQ",
+   "planned_age": "8 years 6 months",
+   "offset_unit": "months",
+   "offset_value": 102,
+   "codes": [
+    "hs",
+    "bq"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May-June, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 17",
+   "vaccine": "FMD",
+   "planned_age": "8.9 years",
+   "offset_unit": "months",
+   "offset_value": 107,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 9",
+   "vaccine": "Lumpy skin disease",
+   "planned_age": "about 9 years",
+   "offset_unit": "months",
+   "offset_value": 108,
+   "codes": [
+    "lsd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Follow the state campaign date"
+  },
+  {
+   "dose": "FMD round 18",
+   "vaccine": "FMD",
+   "planned_age": "9.4 years",
+   "offset_unit": "months",
+   "offset_value": 113,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 9",
+   "vaccine": "HS + BQ",
+   "planned_age": "9 years 6 months",
+   "offset_unit": "months",
+   "offset_value": 114,
+   "codes": [
+    "hs",
+    "bq"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May-June, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 19",
+   "vaccine": "FMD",
+   "planned_age": "9.9 years",
+   "offset_unit": "months",
+   "offset_value": 119,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 10",
+   "vaccine": "Lumpy skin disease",
+   "planned_age": "about 10 years",
+   "offset_unit": "months",
+   "offset_value": 120,
+   "codes": [
+    "lsd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Follow the state campaign date"
+  },
+  {
+   "dose": "FMD round 20",
+   "vaccine": "FMD",
+   "planned_age": "10.4 years",
+   "offset_unit": "months",
+   "offset_value": 125,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 10",
+   "vaccine": "HS + BQ",
+   "planned_age": "10 years 6 months",
+   "offset_unit": "months",
+   "offset_value": 126,
+   "codes": [
+    "hs",
+    "bq"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May-June, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 21",
+   "vaccine": "FMD",
+   "planned_age": "10.9 years",
+   "offset_unit": "months",
+   "offset_value": 131,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 11",
+   "vaccine": "Lumpy skin disease",
+   "planned_age": "about 11 years",
+   "offset_unit": "months",
+   "offset_value": 132,
+   "codes": [
+    "lsd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Follow the state campaign date"
+  },
+  {
+   "dose": "FMD round 22",
+   "vaccine": "FMD",
+   "planned_age": "11.4 years",
+   "offset_unit": "months",
+   "offset_value": 137,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 11",
+   "vaccine": "HS + BQ",
+   "planned_age": "11 years 6 months",
+   "offset_unit": "months",
+   "offset_value": 138,
+   "codes": [
+    "hs",
+    "bq"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May-June, before the monsoon, if closer"
+  },
+  {
+   "dose": "FMD round 23",
+   "vaccine": "FMD",
+   "planned_age": "11.9 years",
+   "offset_unit": "months",
+   "offset_value": 143,
+   "codes": [
+    "fmd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Match to the government round in your village"
+  },
+  {
+   "dose": "Year 12",
+   "vaccine": "Lumpy skin disease",
+   "planned_age": "about 12 years",
+   "offset_unit": "months",
+   "offset_value": 144,
+   "codes": [
+    "lsd"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Follow the state campaign date"
+  },
+  {
+   "dose": "Year 12",
+   "vaccine": "HS + BQ",
+   "planned_age": "12 years 6 months",
+   "offset_unit": "months",
+   "offset_value": 150,
+   "codes": [
+    "hs",
+    "bq"
+   ],
+   "optional": false,
+   "fillable": false,
+   "note": "Give in May-June, before the monsoon, if closer"
+  }
+ ],
+ "planner_note": "Annual vaccines are shown by age; in practice give HS and BQ in May-June before the monsoon, and match FMD and LSD to government rounds.",
+ "about": [
+  {
+   "label": "Vaccine Schedule",
+   "text": "The full table from birth to adult, with age, vaccine, what it protects against and notes. Its status colours follow your animal's records."
+  },
+  {
+   "label": "Timeline",
+   "text": "The 8 stages at a glance."
+  },
+  {
+   "label": "Due Date Planner",
+   "text": "Uses your calf's date of birth to work out the due date for every dose up to 12 years 6 months. When you record a vaccine as given, its status changes to Done (green). Otherwise it shows Due soon (orange, within 30 days), Overdue (red) or Upcoming. Vaccines only some animals need (endemic areas, crossbred cattle, female calves) show Optional until you record them."
+  },
+  {
+   "label": "Rules & Care",
+   "text": "Government campaigns, pregnancy, new animals, sick animals, deworming and the ear tag."
+  },
+  {
+   "label": "Sources",
+   "text": "NDDB and Rural Voice, with links."
+  }
+ ],
+ "sources": [
+  {
+   "title": "NDDB: vaccination schedule for cattle and buffalo",
+   "url": "https://www.nddb.coop/node/1127"
+  },
+  {
+   "title": "Rural Voice: lumpy skin disease vaccination in India (Sep 2026)",
+   "url": "https://eng.ruralvoice.in/lumpy-skin-disease-resurges-in-cattle-most-states-still-rely-on-goatpox-vaccine-despite-lsd-vaccine-availability"
+  }
+ ],
+ "disclaimer": "This schedule is general guidance. Follow the local veterinary dispensary and state Animal Husbandry Department: FMD, brucellosis, PPR and other campaign vaccines are given free by government field staff on their own dates."
+}

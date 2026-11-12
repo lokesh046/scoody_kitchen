@@ -1,10 +1,11 @@
+import { withoutHeadingFullStops } from '../utils/headings';
 import { HeroScrollHint } from './HeroScrollHint';
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchActiveBanners } from '../api/banners';
-import { HERO_TITLE_IMAGES, heroTitleKey } from '../constants/heroTitleImages';
+import { getOptimizedImageUrl, IMAGE_WIDTH, originalOnError } from '../utils/cloudinaryImage';
 
 // Same real banner images used by the normal contained carousel, so the
 // full-screen hero shows genuine content rather than placeholder art even
@@ -20,7 +21,7 @@ const fallbackBanners = [
   },
   {
     id: -2,
-    title: 'Honest Ingredients. Zero Filler.',
+    title: 'Honest Ingredients Zero Filler',
     subtitle:
       'Every single recipe batch contains zero corn, wheat, soy, or rendering byproducts. Certified and tested by pet nutrition specialists.',
     image_url: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg',
@@ -50,7 +51,6 @@ export const FullscreenHomeHero: React.FC = () => {
   // than the built-in banners, which would flash and then be swapped out.
   const slides = isLoading ? [] : banners && banners.length > 0 ? banners : fallbackBanners;
   const slide = slides[index % Math.max(slides.length, 1)];
-  const titleImage = slide?.title ? HERO_TITLE_IMAGES[heroTitleKey(slide.title)] : undefined;
 
   useEffect(() => {
     if (slides.length <= 1 || isHovered) {
@@ -80,7 +80,8 @@ export const FullscreenHomeHero: React.FC = () => {
       {slides.map((s, i) => (
         <img
           key={s.id}
-          src={s.image_url}
+          src={getOptimizedImageUrl(s.image_url, IMAGE_WIDTH.hero)}
+          onError={originalOnError(s.image_url)}
           alt=""
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
             i === index % slides.length ? 'opacity-100' : 'opacity-0'
@@ -97,27 +98,12 @@ export const FullscreenHomeHero: React.FC = () => {
       <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-28 sm:pb-28 max-w-5xl">
         <div className="max-w-2xl space-y-4 text-left animate-fade-in-up">
           {slide.title && (
-            <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
-              {/* Known banner titles are drawn as pictures in the brand display font, so the font file itself is never
-                  served; any new or edited title falls back to the script text. */}
-              {titleImage ? (
-                <picture>
-                  <source media="(min-width: 640px)" srcSet={`/images/hero-titles/${titleImage.slug}-wide.webp`} width={titleImage.wide[0]} height={titleImage.wide[1]} />
-                  <img
-                    src={`/images/hero-titles/${titleImage.slug}-narrow.webp`}
-                    alt={slide.title ?? ''}
-                    width={titleImage.narrow[0]}
-                    height={titleImage.narrow[1]}
-                    className="block h-auto w-[min(100%,338px)] sm:w-[min(100%,608px)] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
-                  />
-                </picture>
-              ) : (
-                slide.title
-              )}
+            <h1 className="font-script font-normal text-4xl sm:text-5xl md:text-6xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
+              {withoutHeadingFullStops(slide.title)}
             </h1>
           )}
           {slide.subtitle && (
-            <p className="font-body text-sm sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
+            <p className="font-body text-xs sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
               {slide.subtitle}
             </p>
           )}
@@ -166,6 +152,8 @@ export const FullscreenHomeHero: React.FC = () => {
           </div>
         </>
       )}
+      {/* Blend the bottom of the banner into the section below so there is no hard edge. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-40 md:h-56 bg-gradient-to-t from-midnight via-midnight/70 to-transparent" />
       <HeroScrollHint />
     </section>
   );

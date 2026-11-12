@@ -20,7 +20,7 @@ import { HoundPortalReveal } from '../../components/HoundPortalReveal';
 import { ReviewsCarousel } from '../../components/ReviewsCarousel';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
-import { useFeatureFlag, useFeatureFlagFallback, useFeatureFlags, useVetEntryEnabled, useVetEntryFallback } from '../../hooks/useFeatureFlag';
+import { useFeatureFlag, useFeatureFlagFallback, useFeatureFlags, useFlagEntry, useVetEntryEnabled, useVetEntryFallback } from '../../hooks/useFeatureFlag';
 import { FeaturePlaceholderCard } from '../../components/FeaturePlaceholderCard';
 import { JournalPreviewSection } from '../../components/JournalPreviewSection';
 import { useToolkitOverrides } from '../../hooks/useAdminContent';
@@ -30,7 +30,7 @@ export default function HomePage() {
   const redirectNavigate = useNavigate();
   useEffect(() => {
     const id = hash.slice(1);
-    // Count The Calories (the old Recipe Calculator) moved to its own page; keep old /#fit-calculator links working.
+    // Count Their Calories (the old Recipe Calculator) moved to its own page; keep old /#fit-calculator links working.
     if (id === 'fit-calculator') {
       redirectNavigate('/recipe-calculator#fit-calculator', { replace: true });
       return;
@@ -85,6 +85,11 @@ export default function HomePage() {
   const consultationsFallback = useVetEntryFallback();
   const chatbotFallback = useFeatureFlagFallback('ai_chatbot');
   const shopFallback = useFeatureFlagFallback('shop_checkout');
+  const journalEntry = useFlagEntry('journal');
+  // The recipe cards show blurred with a "Coming soon" band when the admin teaser switch is on, and also
+  // whenever ordering is hidden or marked coming soon -- so beta and production look the same. ("Unavailable"
+  // keeps the normal cards with their own label.) While flags load the shop counts as on, so nothing flashes.
+  const isRecipeTeaser = isRecipeComingSoonEnabled || (!isShopEnabled && shopFallback !== 'unavailable');
   const knowYourPetFallback = useFeatureFlagFallback('pets_know_your_pet');
 
   // Auth Store
@@ -157,49 +162,34 @@ export default function HomePage() {
         {isFullscreenHeroEnabled && (
           <>
             {/* Why Hearth & One */}
-            <section className="relative bg-gradient-to-b from-midnight via-midnightCard to-midnightCard py-20 md:py-28 px-4 sm:px-6 md:px-8">
-              <div className="max-w-7xl mx-auto text-left space-y-16">
-                <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-10 lg:gap-16 items-center">
-                  <div className="space-y-6">
-                    <div className="space-y-3">
-                      <p className="font-script font-normal text-2xl sm:text-3xl lg:text-4xl tracking-normal text-turmeric leading-snug">
-                        Why Hearth &amp; One
-                      </p>
-                      <h2 className="font-script font-normal text-4xl sm:text-5xl lg:text-6xl text-paper leading-snug max-w-xl">
-                        <span className="sr-only">Bringing the pieces of pet care together.</span>
-                        <span aria-hidden="true">
-                          {['Bringing', 'the', 'pieces', 'of', 'pet care', 'together.'].map((phrase, index) => (
-                            <span key={phrase}>
-                              {index > 0 ? ' ' : ''}
-                              <span className="pet-profile-heading-word inline-block whitespace-nowrap" style={{ animationDelay: `${index * 160}ms` }}>
-                                {phrase}
-                              </span>
-                            </span>
-                          ))}
+            <section className="relative bg-gradient-to-b from-midnight via-midnightCard to-midnightCard py-12 md:py-20 px-4 sm:px-6 md:px-8">
+              <div className="max-w-7xl mx-auto text-left space-y-10">
+                <div className="text-center space-y-3">
+                  <p className="font-script font-normal text-2xl sm:text-3xl lg:text-4xl tracking-normal text-turmeric leading-snug">
+                    Why Hearth &amp; One
+                  </p>
+                  <h2 className="font-script font-normal text-4xl sm:text-5xl lg:text-6xl text-paper leading-snug lg:whitespace-nowrap">
+                    <span className="sr-only">Bringing the pieces of pet care together</span>
+                    <span aria-hidden="true">
+                      {['Bringing', 'the', 'pieces', 'of', 'pet care', 'together'].map((phrase, index) => (
+                        <span key={phrase}>
+                          {index > 0 ? ' ' : ''}
+                          <span className="pet-profile-heading-word inline-block whitespace-nowrap" style={{ animationDelay: `${index * 160}ms` }}>
+                            {phrase}
+                          </span>
                         </span>
-                      </h2>
-                    </div>
-                    <p className="font-body text-base text-paper opacity-70 leading-relaxed max-w-md">
-                      Everything works better when it's <span className="text-turmeric italic">connected.</span>
-                    </p>
-                  </div>
-                  <img
-                    src="/images/why/connected.webp"
-                    alt="A woman at a sunlit kitchen table with her Doberman resting its chin on her knee, a bowl of home-style food and a phone within reach"
-                    width={1600}
-                    height={893}
-                    loading="lazy"
-                    className="block h-[220px] sm:h-[260px] lg:h-[300px] w-full rounded-[4px] object-cover object-[center_45%]"
-                  />
+                      ))}
+                    </span>
+                  </h2>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-paper divide-opacity-10 gap-10 md:gap-0 pt-4">
+                <div className="gold-divided-items grid grid-cols-1 md:grid-cols-3 gap-12 pt-4">
                   {[
                     { img: '/images/why-section/care.webp', title: 'Care', text: "We believe every companion deserves thoughtful attention to their everyday needs, health, and well-being." },
                     { img: '/images/why-section/clarity.webp', title: 'Clarity', text: "We make it easier to find useful information and navigate everyday pet-care decisions with confidence." },
                     { img: '/images/why-section/connection.webp', title: 'Connection', text: "We bring complementary pet-care tools together in one ecosystem, helping pet parents navigate different needs in one place." },
                   ].map(({ img, title, text }) => (
-                    <div key={title} className="flex flex-col items-center text-center space-y-5 md:px-10 pt-8 md:pt-0 first:pt-0">
+                    <div key={title} className="relative flex flex-col items-center text-center space-y-6 px-4 lg:px-8">
                       <div className="w-32 h-32 flex items-center justify-center">
                         <img src={img} alt="" width={256} height={256} loading="lazy" decoding="async" className="w-full h-full object-contain" />
                       </div>
@@ -212,22 +202,22 @@ export default function HomePage() {
             </section>
 
             {/* Pet-care toolkit teaser */}
-            <section className="relative bg-gradient-to-b from-midnightCard to-midnight py-20 md:py-28 px-4 sm:px-6 md:px-8">
-              <div className="max-w-7xl mx-auto text-center space-y-16">
+            <section className="relative bg-gradient-to-b from-midnightCard to-midnight pt-4 pb-12 md:pt-6 md:pb-20 px-4 sm:px-6 md:px-8">
+              <div className="max-w-7xl mx-auto text-center space-y-10">
                 <div className="max-w-2xl mx-auto space-y-3">
-                  <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal text-paper">
-                    Your pet-care toolkit.
+                  <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal">
+                    Your pet-care toolkit
                   </h2>
-                  <p className="font-body text-sm text-paper opacity-60">
+                  <p className="font-body text-sm text-paper opacity-90">
                     Three tools, one ecosystem — built around how pet parents actually care for their companions.
                   </p>
                 </div>
 
                 <div ref={toolkitGridRef} className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   {[
-                    { link: '/pets', image: '/images/toolkit/know-your-pet.webp', title: 'Know Your Pet', text: "Create a dedicated profile for your pet and keep their key details organised and easy to access whenever you need them.", cta: 'Create Their Profile', enabled: isKnowYourPetEnabled, onClick: () => navigate('/pets'), secondaryOnClick: () => navigate('/pets') },
-                    { link: '/consultations', image: '/images/toolkit/locate-vet.webp', title: 'Locate Your Vet', text: "Find veterinary clinics near you, explore available options, and make it easier to know where to turn when your companion needs professional care.", cta: 'Explore Nearby Vets', enabled: isConsultationsEnabled, onClick: () => navigate('/consultations'), secondaryOnClick: () => navigate('/consultations') },
-                    { link: '/onboarding', /* admin override key; the card itself opens /recipe-calculator */ image: '/images/toolkit/meal-planner.webp', title: 'Count The Calories', text: "Explore an estimate of your pet's daily energy needs, helping you better understand the nutritional considerations behind their feeding routine.", cta: 'Estimate Their Needs', enabled: isMealPlannerEnabled, onClick: () => navigate('/recipe-calculator'), secondaryOnClick: () => navigate('/recipe-calculator') },
+                    { link: '/pets', image: '/images/toolkit/know-your-pet.webp', title: 'Know Your Pet', text: "Create a dedicated profile for your pet and keep their key details organised and easy to access whenever you need them.", cta: 'Create Their Profile', enabled: isKnowYourPetEnabled, onClick: () => navigate('/pets/app'), secondaryOnClick: () => navigate('/pets') },
+                    { link: '/consultations', image: '/images/toolkit/locate-vet.webp', title: 'Locate Your Vet', text: "Find veterinary clinics near you, explore available options, and make it easier to know where to turn when your companion needs professional care.", cta: 'Explore Nearby Vets', enabled: isConsultationsEnabled, onClick: () => navigate('/consultations/app'), secondaryOnClick: () => navigate('/consultations') },
+                    { link: '/onboarding', /* admin override key; the card itself opens /recipe-calculator */ image: '/images/toolkit/meal-planner.webp', title: 'Count Their Calories', text: "Explore an estimate of your pet's daily energy needs, helping you better understand the nutritional considerations behind their feeding routine.", cta: 'Estimate Their Needs', enabled: isMealPlannerEnabled, onClick: () => navigate('/recipe-calculator#fit-calculator'), secondaryOnClick: () => navigate('/recipe-calculator') },
                   ].map((card) => {
                     // Image, title and text can be replaced from the admin panel (Banners > "Home page - tool card").
                     const override = toolkitOverrides[card.link];
@@ -271,7 +261,7 @@ export default function HomePage() {
 
                       <div className="p-6 space-y-2 grow text-center">
                         <h3 className="font-display font-bold text-lg text-paper">{title}</h3>
-                        <p className="font-body text-sm text-paper opacity-65 leading-relaxed">{text}</p>
+                        <p className="font-body text-sm text-paper opacity-90 leading-relaxed">{text}</p>
                       </div>
 
                       <div className={`grid grid-cols-1 gap-3 p-6 pt-0 ${enabled ? 'sm:grid-cols-2' : ''}`}>
@@ -297,17 +287,17 @@ export default function HomePage() {
             </section>
 
             {/* Hearth & Hound -- coming soon */}
-            <section id="hearth-hound" className="relative bg-obsidian py-20 md:py-28 px-4 sm:px-6 md:px-8">
+            <section id="hearth-hound" className="relative bg-obsidian pt-12 pb-6 md:pt-20 md:pb-10 px-4 sm:px-6 md:px-8">
               <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
                 <div className="order-2 lg:order-1">
                   <HoundPortalReveal />
                 </div>
                 <div className="space-y-6 order-1 lg:order-2">
-                  <p className="font-script font-normal text-5xl sm:text-6xl lg:text-7xl tracking-normal leading-tight text-turmeric">
+                  <p className="hound-coming-soon-gold font-script font-normal text-5xl sm:text-6xl lg:text-7xl tracking-normal leading-tight">
                     Coming Soon
                   </p>
                   <h2 className="font-script text-3xl sm:text-4xl lg:text-5xl font-normal tracking-normal text-ink leading-snug">
-                    Thoughtfully made for the ones who are <span className="text-turmeric">one of us.</span>
+                    Thoughtfully made for the ones who are <span className="text-turmeric">one of us</span>
                   </h2>
                   <p className="font-body text-sm sm:text-base text-ink opacity-65 leading-relaxed max-w-md">
                     We're preparing a natural, thoughtfully crafted range of pet food with a focus on quality ingredients, sustainable practices, and pesticide-free sourcing.
@@ -324,12 +314,11 @@ export default function HomePage() {
             </section>
 
             {/* Signature Recipes -- Black & Gold restyle */}
-            <section className="relative bg-obsidian py-20 md:py-28 px-4 sm:px-6 md:px-8">
+            <section className="relative bg-obsidian pt-6 pb-12 md:pt-10 md:pb-20 px-4 sm:px-6 md:px-8">
               <div className="max-w-7xl mx-auto space-y-10">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-ink border-opacity-10 pb-6">
                   <div className="space-y-2">
                     <h2 className="font-script font-normal text-4xl sm:text-5xl tracking-normal text-ink">Signature Recipes</h2>
-                    <p className="font-body text-sm text-ink opacity-60">Veterinary-audited small batch recipes, cooked to biological perfection.</p>
                   </div>
                   {isShopEnabled ? (
                     <button
@@ -361,13 +350,13 @@ export default function HomePage() {
                     {featuredProducts.map((product) => (
                       <div key={product.id} className="relative">
                         <div
-                          className={`h-full [&>div]:h-full ${isRecipeComingSoonEnabled ? 'pointer-events-none select-none opacity-70 blur-[3px]' : ''}`}
+                          className={`h-full [&>div]:h-full ${isRecipeTeaser ? 'pointer-events-none select-none opacity-70 blur-[3px]' : ''}`}
                         >
                           <RecipeCard
                             product={product}
-                            onAddToCart={isRecipeComingSoonEnabled ? undefined : handleAddToCart}
+                            onAddToCart={isRecipeTeaser ? undefined : handleAddToCart}
                             orderingDisabledLabel={
-                              isRecipeComingSoonEnabled
+                              isRecipeTeaser
                                 ? 'Coming Soon'
                                 : isShopEnabled
                                 ? undefined
@@ -379,7 +368,7 @@ export default function HomePage() {
                             }
                           />
                         </div>
-                        {isRecipeComingSoonEnabled && (
+                        {isRecipeTeaser && (
                           <div
                             aria-label={`${product.name}: Coming soon`}
                             className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden rounded-[4px] text-center"
@@ -464,9 +453,6 @@ export default function HomePage() {
                 <h2 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl uppercase tracking-tight text-ink">
                   Signature Recipes
                 </h2>
-                <p className="font-body text-sm text-ink opacity-75">
-                  Veterinary-audited small batch recipes, cooked to biological perfection.
-                </p>
               </div>
               {isShopEnabled ? (
                 <button
@@ -616,7 +602,9 @@ export default function HomePage() {
         {/* Let our #Scoobysfam speak for us Carousel */}
         {!isReviewsHidden && <ReviewsCarousel dark={isFullscreenHeroEnabled} />}
 
-        <JournalPreviewSection dark={isFullscreenHeroEnabled} />
+        {journalEntry.visible && (
+          <JournalPreviewSection dark={isFullscreenHeroEnabled} status={journalEntry.blocked ? journalEntry.variant : undefined} />
+        )}
 
         {/* Polished Footer with Navigation Ledger -- default homepage only */}
         {!isFullscreenHeroEnabled && (
@@ -693,9 +681,9 @@ export default function HomePage() {
                   <span>Stay In The Loop</span>
                 </div>
                 <h2 className="font-script font-normal text-3xl sm:text-4xl tracking-normal text-paper">
-                  Good things are worth staying connected to.
+                  Good things are worth staying connected to
                 </h2>
-                <p className="font-body text-sm text-paper opacity-65 leading-relaxed max-w-md">
+                <p className="font-body text-sm text-paper opacity-90 leading-relaxed max-w-md">
                   Stay up to date with what's happening at Hearth &amp; One, from new features and services to useful resources and special updates for pet parents. Only the updates that matter, delivered to your inbox.
                 </p>
               </div>

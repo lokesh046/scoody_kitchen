@@ -49,6 +49,9 @@ import PetVisionModal from '../components/PetVisionModal';
 import { useResponsive } from '../hooks/useResponsive';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import { useFeatureFlag, useFeatureFlagFallback } from '../hooks/useFeatureFlag';
+import VaccinationsModal from '../components/vaccination/VaccinationsModal';
+import VaccinationHistoryModal from '../components/vaccination/VaccinationHistoryModal';
+import { fetchVaccinations, type VaccinationOverview } from '../api/vaccinations';
 import { estimateWeightKg } from '../utils/estimateWeight';
 import { useFocusRefresh } from '../hooks/useFocusRefresh';
 import {
@@ -79,6 +82,7 @@ export default function PetsScreen({ navigation }: any) {
   const { pets, setPets, addPet, updatePet: storeUpdatePet, removePet } = usePetStore();
   const { isTablet } = useResponsive();
   const isPhotoUploadEnabled = useFeatureFlag('pets_photo_upload', true);
+  const isVaccinationsEnabled = useFeatureFlag('pets_vaccinations', false);
   // "Book Vet Consultation" follows the same flag as the Vet tab; the hidden Telemedicine alias route
   // skips the tab's own gate, so the check has to happen here.
   const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
@@ -113,6 +117,9 @@ export default function PetsScreen({ navigation }: any) {
   const [dossierSessionId, setDossierSessionId] = useState(0);
   // Drives the post-registration celebration in place of a plain Alert.
   const [celebratingPet, setCelebratingPet] = useState<PetProfile | null>(null);
+  // Vaccinations: the full screen, and the mandatory history step for an older pet that was just added.
+  const [vaccinationsOpen, setVaccinationsOpen] = useState(false);
+  const [historyGate, setHistoryGate] = useState<{ pet: PetProfile; overview: VaccinationOverview } | null>(null);
   // Drives the branded, type-to-confirm destructive sheet in place of a
   // plain Alert.alert for the one irreversible action on this screen.
   const [pendingDeletePet, setPendingDeletePet] = useState<{ id: number; name: string } | null>(null);
@@ -327,20 +334,34 @@ export default function PetsScreen({ navigation }: any) {
     date_of_birth?: string;
     profile_image_url?: string;
     microchip_number?: string | null;
+    category?: string | null;
   }) => {
     if (modalMode === 'add') {
       const newPet = await createPet(data);
       addPet(newPet);
       setSelectedPetId(newPet.id);
       setIsModalVisible(false);
-      setCelebratingPet(newPet);
+      let gate: { pet: PetProfile; overview: VaccinationOverview } | null = null;
+      if (isVaccinationsEnabled) {
+        try {
+          const overview = await fetchVaccinations(newPet.id);
+          if (overview.supported && overview.history_required && !overview.history_complete) gate = { pet: newPet, overview };
+        } catch { /* if this check fails, don't block adding the pet */ }
+      }
+      if (gate) {
+        // Android drops a Modal that opens while another is still closing, so wait for the form to go.
+        const g = gate;
+        setTimeout(() => setHistoryGate(g), 350);
+      } else {
+        setCelebratingPet(newPet);
+      }
     } else if (modalMode === 'edit' && petToEdit) {
       const updated = await apiUpdatePet(petToEdit.id, data);
       storeUpdatePet(petToEdit.id, updated);
       setIsModalVisible(false);
       Alert.alert('Pet Ledger Updated', `${updated.name}'s details were updated.`);
     }
-  }, [modalMode, petToEdit, addPet, storeUpdatePet]);
+  }, [modalMode, petToEdit, addPet, storeUpdatePet, isVaccinationsEnabled]);
 
   const handleDeletePet = useCallback((petId: number, petName: string) => {
     setPendingDeletePet({ id: petId, name: petName });
@@ -573,23 +594,43 @@ export default function PetsScreen({ navigation }: any) {
                   onPress={handleOpenAIConsult}
                   activeOpacity={0.88}
                   accessibilityRole="button"
-                  accessibilityLabel="Talk to Bravo, the AI assistant"
+                  accessibilityLabel="Ask Bravo"
                 >
                   <View style={styles.aiConsultInner}>
                     <AIDogIcon size={46} />
                     <View style={{ flex: 1 }}>
-                      <View style={styles.aiConsultTitleRow}>
-                        <Text style={styles.aiConsultTitle}>Bravo</Text>
-                        <View style={styles.aiLiveBadge}>
-                          <Text style={styles.aiLiveBadgeText}>AI</Text>
-                        </View>
-                      </View>
+                      <Text style={styles.aiConsultTitle}>Ask Bravo</Text>
                       <Text style={styles.aiConsultSubtitle}>
                         Talk to Bravo and get answers to your pet care questions.
                       </Text>
                     </View>
                   </View>
                 </TouchableOpacity>
+
+                {isVaccinationsEnabled && (
+                  <TouchableOpacity
+                    style={[styles.aiConsultBtn, { marginTop: 12 }]}
+                    onPress={() => setVaccinationsOpen(true)}
+                    activeOpacity={0.88}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Vaccinations for ${currentPet.name}`}
+                  >
+                    <View style={styles.aiConsultInner}>
+                      <RNImage
+                        source={require('../../assets/pet/vaccination.webp')}
+                        style={styles.vaccinationIcon}
+                        resizeMode="contain"
+                        accessibilityIgnoresInvertColors
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.aiConsultTitle}>Vaccinations</Text>
+                        <Text style={styles.aiConsultSubtitle}>
+                          Vaccine schedule, recorded doses with card photos, and a shareable vaccine card.
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                )}
 
                 {/* Clinical Health Records Timeline */}
                 <View style={styles.recordsSection}>
@@ -683,6 +724,30 @@ export default function PetsScreen({ navigation }: any) {
         onClose={handleCloseVisionModal}
         onApplyPetDetails={handleApplyVisionDetails}
       />
+
+      {isVaccinationsEnabled && currentPet && (
+        <VaccinationsModal
+          visible={vaccinationsOpen}
+          petId={currentPet.id}
+          petName={currentPet.name}
+          dob={currentPet.date_of_birth ? currentPet.date_of_birth.split('T')[0] : null}
+          onClose={() => setVaccinationsOpen(false)}
+          onFindVet={() => { setVaccinationsOpen(false); setTimeout(() => navigation.navigate('Consult'), 350); }}
+        />
+      )}
+
+      {/* Mandatory vaccination history for an older pet that was just added (cannot be skipped) */}
+      {historyGate && (
+        <VaccinationHistoryModal
+          visible
+          petId={historyGate.pet.id}
+          petName={historyGate.pet.name}
+          dob={historyGate.pet.date_of_birth ? historyGate.pet.date_of_birth.split('T')[0] : null}
+          items={historyGate.overview.items}
+          dismissible={false}
+          onDone={() => { const p = historyGate.pet; setHistoryGate(null); setTimeout(() => setCelebratingPet(p), 350); }}
+        />
+      )}
 
       {/* Post-Registration Celebration */}
       <PetWelcomeCelebration pet={celebratingPet} onDismiss={handleDismissCelebration} />
@@ -831,6 +896,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
+  vaccinationIcon: { width: 46, height: 46 },
   aiConsultInner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -844,32 +910,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  aiConsultTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 2,
-  },
   aiConsultTitle: {
+    marginBottom: 2,
     fontSize: 14,
     fontWeight: '800',
     color: COLORS.textCoffee,
     fontFamily: FONT_DISPLAY_SEMIBOLD,
-  },
-  aiLiveBadge: {
-    backgroundColor: '#E8F5E9',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 0.5,
-    borderColor: '#C8E6C9',
-  },
-  aiLiveBadgeText: {
-    fontSize: 8.5,
-    fontWeight: '800',
-    color: COLORS.forestGreen,
-    letterSpacing: 0.5,
-    fontFamily: FONT_BODY_BOLD,
   },
   aiConsultSubtitle: {
     fontSize: 11.5,

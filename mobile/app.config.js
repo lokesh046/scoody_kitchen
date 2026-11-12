@@ -38,9 +38,10 @@ module.exports = {
     },
     android: {
       googleServicesFile: "./google-services.json",
+      backgroundColor: "#F8F5EF",
       adaptiveIcon: {
-        foregroundImage: "./assets/icon-1024.png",
-        backgroundColor: "#F9F6F0",
+        foregroundImage: "./assets/adaptive-icon.png",
+        backgroundColor: "#F8F5EF",
       },
       package: "com.scooby.kitchen",
       config: {
@@ -87,9 +88,9 @@ module.exports = {
       [
         "expo-splash-screen",
         {
-          image: "./assets/scooby-logo-512.png",
+          image: "./assets/splash-blank.png",
           resizeMode: "contain",
-          backgroundColor: "#F9F6F0",
+          backgroundColor: "#F8F5EF",
         },
       ],
       [

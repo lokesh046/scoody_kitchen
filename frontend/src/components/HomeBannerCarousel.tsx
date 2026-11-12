@@ -1,3 +1,4 @@
+import { withoutHeadingFullStops } from '../utils/headings';
 import { HeroScrollHint } from './HeroScrollHint';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -5,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchActiveBanners } from '../api/banners';
 import { useFeatureFlag, useVetEntryEnabled } from '../hooks/useFeatureFlag';
+import { getOptimizedImageUrl, IMAGE_WIDTH, originalOnError } from '../utils/cloudinaryImage';
 
 // Default fallback banners matching the user's custom designs with 4K ultra-high resolution
 const fallbackBanners: any[] = [
@@ -22,7 +24,7 @@ const fallbackBanners: any[] = [
   {
     id: -2,
     pretitle: "100% Transparent",
-    title: "Honest Ingredients. Zero Filler.",
+    title: "Honest Ingredients Zero Filler",
     subtitle: "Every single recipe batch contains zero corn, wheat, soy, or rendering byproducts. Certified and tested by pet nutrition specialists.",
     tagline: "Human-grade, small-batch recipes cooked for active pet health.",
     image_url: "https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg",
@@ -321,7 +323,8 @@ export const HomeBannerCarousel: React.FC = () => {
                 <div className="relative w-full h-[320px] sm:h-[440px] md:h-[540px] lg:h-[600px] bg-[#3d2314] rounded-[24px] overflow-hidden border border-cardboard shadow-md hover:shadow-xl transition-shadow duration-300">
                   {/* Background Image Banner */}
                   <img
-                    src={slide.image_url}
+                    src={getOptimizedImageUrl(slide.image_url, IMAGE_WIDTH.banner)}
+                    onError={originalOnError(slide.image_url)}
                     alt={slide.title || 'Featured Banner'}
                     className="w-full h-full object-cover select-none pointer-events-none rounded-[24px]"
                     draggable={false}
@@ -352,7 +355,7 @@ export const HomeBannerCarousel: React.FC = () => {
                         )}
                         {slide.title && (
                           <h3 className="font-display font-black text-lg sm:text-2xl md:text-3xl lg:text-[32px] text-paper uppercase tracking-tight leading-tight">
-                            {slide.title}
+                            {withoutHeadingFullStops(slide.title)}
                           </h3>
                         )}
                       </div>

@@ -137,6 +137,10 @@ export default function HomeScreen({ navigation }: any) {
   const isConsultationsEnabled = useVetEntryEnabled();
   const shopFallback = useFeatureFlagFallback('shop_checkout');
   const consultationsFallback = useVetEntryFallback();
+  // The recipe cards show dimmed behind a "Coming soon" band when the admin teaser is on, and also whenever ordering is
+  // hidden or marked coming soon -- the same rule as the website's home page, so the app and the site agree.
+  // ("Unavailable" keeps the normal cards with their own label.)
+  const isRecipeTeaser = isRecipeComingSoon || (!isShopEnabled && shopFallback !== 'unavailable');
   // The Add button itself always shows a disabled state when ordering is
   // off, whatever the fallback — 'hide' only applies to secondary elements
   // like the "View Full Product Ledger" link below, never to leaving the
@@ -1047,8 +1051,8 @@ export default function HomeScreen({ navigation }: any) {
             {products.map((product) => (
               <View key={product.id}>
                 <View
-                  pointerEvents={isRecipeComingSoon ? 'none' : 'auto'}
-                  style={isRecipeComingSoon ? styles.comingSoonDimmed : undefined}
+                  pointerEvents={isRecipeTeaser ? 'none' : 'auto'}
+                  style={isRecipeTeaser ? styles.comingSoonDimmed : undefined}
                 >
                   <ProductFavoriteCard
                     product={product}
@@ -1059,10 +1063,10 @@ export default function HomeScreen({ navigation }: any) {
                     onUpdateQuantity={handleUpdateQuantity}
                     onRemoveItem={handleRemoveCartItem}
                     onSelectProduct={handleSelectProduct}
-                    orderingDisabledLabel={isRecipeComingSoon ? 'Coming Soon' : shopDisabledLabel}
+                    orderingDisabledLabel={isRecipeTeaser ? 'Coming Soon' : shopDisabledLabel}
                   />
                 </View>
-                {isRecipeComingSoon && (
+                {isRecipeTeaser && (
                   <View pointerEvents="none" style={styles.comingSoonOverlay} accessibilityLabel={`${product.name}: Coming soon`}>
                     <View style={styles.comingSoonBand}>
                       <Text style={styles.comingSoonText}>Coming soon</Text>

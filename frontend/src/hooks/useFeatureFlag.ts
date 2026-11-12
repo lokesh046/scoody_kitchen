@@ -9,6 +9,11 @@ import { fetchPublicFeatures, type FeatureFallbackBehavior } from '../api/featur
 // false there regardless of this file's content.
 const FORCE_FLAGS_ENABLED = import.meta.env.VITE_FORCE_FLAGS_ENABLED === 'true';
 
+// Flags that follow the admin setting even on the beta build, so the beta shows exactly what
+// production would for them (e.g. switching the Journal off really hides it on beta too).
+const ALWAYS_OBEY_FLAGS = new Set(['journal']);
+const isForcedOn = (key: string) => FORCE_FLAGS_ENABLED && !ALWAYS_OBEY_FLAGS.has(key);
+
 export const useFeatureFlags = () => {
   return useQuery({
     queryKey: ['featureFlags'],
@@ -25,7 +30,7 @@ export const useFeatureFlags = () => {
 
 export const useFeatureFlag = (key: string, defaultEnabled = true): boolean => {
   const { data: flags, isError } = useFeatureFlags();
-  if (FORCE_FLAGS_ENABLED) return true;
+  if (isForcedOn(key)) return true;
   if (isError || !flags || flags[key] === undefined) {
     return defaultEnabled;
   }
@@ -38,7 +43,7 @@ export const useFeatureFlag = (key: string, defaultEnabled = true): boolean => {
 // flags haven't loaded yet, so a placeholder never flashes over real content.
 export const useFeatureFlagFallback = (key: string): FeatureFallbackBehavior => {
   const { data: flags, isError } = useFeatureFlags();
-  if (FORCE_FLAGS_ENABLED) return 'hide';
+  if (isForcedOn(key)) return 'hide';
   if (isError || !flags || flags[key] === undefined || flags[key].enabled) {
     return 'hide';
   }
@@ -58,7 +63,7 @@ export type RouteGateResult =
 // page on every load, including when the feature is actually enabled.
 export const useRouteFeatureGate = (key: string): RouteGateResult => {
   const { data: flags, isLoading, isError } = useFeatureFlags();
-  if (FORCE_FLAGS_ENABLED) return { blocked: false };
+  if (isForcedOn(key)) return { blocked: false };
   if (isLoading || isError || !flags || flags[key] === undefined || flags[key].enabled) {
     return { blocked: false };
   }
@@ -92,7 +97,7 @@ const sideState = (
   flags: Record<string, { enabled: boolean; fallback_behavior: FeatureFallbackBehavior }> | undefined,
   key: string,
 ): VetSideState => {
-  if (FORCE_FLAGS_ENABLED || !flags || flags[key] === undefined || flags[key].enabled) return 'on';
+  if (isForcedOn(key) || !flags || flags[key] === undefined || flags[key].enabled) return 'on';
   return flags[key].fallback_behavior;
 };
 

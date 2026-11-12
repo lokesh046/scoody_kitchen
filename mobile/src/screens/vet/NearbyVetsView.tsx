@@ -218,7 +218,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult, compact, chr
         fetchedAt: Date.now(),
       });
       if (data.results.length === 0) {
-        setError(cat === 'pharmacy' ? 'No pharmacies found within the specified radius.' : 'No clinics or specialists found within the specified radius.');
+        setError(cat === 'pharmacy' ? 'No pharmacies or pet shops found within the specified radius.' : 'No clinics or specialists found within the specified radius.');
       }
     } catch (err: any) {
       console.error('Nearby search failed:', err);
@@ -289,7 +289,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult, compact, chr
       setRadiusUsed(cached.radiusUsed);
       setFallback(cached.fallback);
       if (cached.results.length === 0) {
-        setError(cached.category === 'pharmacy' ? 'No pharmacies found within the specified radius.' : 'No clinics or specialists found within the specified radius.');
+        setError(cached.category === 'pharmacy' ? 'No pharmacies or pet shops found within the specified radius.' : 'No clinics or specialists found within the specified radius.');
       }
       return;
     }
@@ -304,7 +304,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult, compact, chr
     try {
       const results = await lookupPincode(pincode.trim());
       if (results.length === 0) {
-        setError('Could not find that pincode. Try dragging the pin instead.');
+        setError('Could not find that place. Try another name or pincode, or drag the pin instead.');
         return;
       }
       const lat = parseFloat(results[0].lat);
@@ -496,7 +496,7 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult, compact, chr
                 onPress={() => handleChangeCategory('pharmacy')}
               >
                 <PillBottle size={14} color={category === 'pharmacy' ? '#FFFFFF' : COLORS.textMuted} />
-                <Text style={[styles.categoryChipText, category === 'pharmacy' && styles.categoryChipTextActive]}>Pharmacy</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.categoryChipText, { flexShrink: 1 }, category === 'pharmacy' && styles.categoryChipTextActive]}>Pharmacy & pet shop</Text>
               </TouchableOpacity>
               <TouchableOpacity
                   style={styles.compactDistance}
@@ -626,11 +626,13 @@ export function NearbyVetsView({ onSelectDoctor, onSwitchToConsult, compact, chr
                         <MapPin size={14} color={COLORS.textMuted} />
                         <TextInput
                           style={styles.pincodeInput}
-                          placeholder="Search pincode / zip code"
+                          placeholder="Search pincode, zip code or place"
                           placeholderTextColor={COLORS.textMuted}
                           value={pincode}
                           onChangeText={setPincode}
-                          keyboardType="number-pad"
+                          keyboardType="default"
+                          autoCapitalize="words"
+                          autoCorrect={false}
                           returnKeyType="search"
                           onSubmitEditing={handlePincodeSearch}
                         />

@@ -50,7 +50,7 @@ const ADDRESS_STORAGE_KEY = 'scooby_saved_shipping_address';
 // number are detected correctly, rather than assuming India.
 const parsePhoneForState = (rawPhone?: string | null): { country: string; digits: string } => {
   if (!rawPhone) return { country: DEFAULT_COUNTRY_ISO2, digits: '' };
-  const parsed = parsePhoneNumberFromString(rawPhone, DEFAULT_COUNTRY_ISO2 as any);
+  const parsed = parsePhoneNumberFromString(/^\d{11,}$/.test(rawPhone) ? `+${rawPhone}` : rawPhone, DEFAULT_COUNTRY_ISO2 as any);
   if (parsed && parsed.country) {
     return { country: parsed.country, digits: parsed.nationalNumber };
   }

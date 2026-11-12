@@ -51,6 +51,8 @@ export interface PetProfile {
   dietary_goals?: string[];
   profile_image_url?: string | null;
   microchip_number?: string | null;
+  // Dogs only: Working, Hound, Sporting or Companion (set from the breed; stored by the server).
+  category?: string | null;
 }
 
 export interface DoctorUser {

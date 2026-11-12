@@ -59,10 +59,18 @@ class Pet(Base):
         nullable=True,
     )
 
-    # ISO 11784/11785 chips are 15 digits; older chips use 9 or 10.
+    # Digits only, up to 30 (ISO 11784/11785 chips are 15 digits; older ones 9 or 10).
     microchip_number: Mapped[str | None] = mapped_column(
-        String(15),
+        String(30),
         nullable=True,
+    )
+
+    # Dogs only: Working, Hound, Sporting or Companion. Set from the breed (see services/breed_category.py);
+    # used to suggest food and care by category.
+    category: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        index=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(

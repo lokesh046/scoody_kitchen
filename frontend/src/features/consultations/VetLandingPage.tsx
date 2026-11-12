@@ -1,5 +1,5 @@
 import { HeroScrollHint } from '../../components/HeroScrollHint';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useInView, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import { ArrowRight, Plus, Minus, PawPrint } from 'lucide-react';
@@ -11,6 +11,8 @@ import { useFeatureFlag } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingFaqs, useLandingHero } from '../../hooks/useAdminContent';
+import { markLandingSeen } from '../../utils/landingSeen';
+import { getOptimizedImageUrl, IMAGE_WIDTH, originalOnError } from '../../utils/cloudinaryImage';
 
 const DEFAULT_HERO_IMAGE = '/images/hero/vet-3.webp';
 
@@ -37,7 +39,7 @@ const STEPS = [
 
 const DEFAULT_HERO = {
   image: DEFAULT_HERO_IMAGE,
-  title: 'The right care starts closer than you think.',
+  title: 'The right care starts closer than you think',
   subtitle: 'Find veterinary clinics in your area and take the next step towards getting your companion the care they need.',
 };
 
@@ -155,7 +157,7 @@ function JourneyStep({ step, index }: { step: typeof STEPS[number]; index: numbe
         <motion.div style={{ opacity: reduceMotion ? 1 : opacity, y: reduceMotion ? 0 : y }} className="relative mt-5 max-w-sm">
           <p className="mb-2 font-mono text-xs sm:text-sm uppercase tracking-wider text-turmeric">{step.stop}</p>
           <h3 className="font-display font-bold text-xl lg:text-2xl leading-snug text-paper">{step.title}</h3>
-          <p className="mt-3 font-body text-sm leading-relaxed text-paper/70">{step.text}</p>
+          <p className="mt-3 font-body text-sm leading-relaxed text-paper/90">{step.text}</p>
         </motion.div>
       </div>
       {index < STEPS.length - 1 && <JourneyTrail reverse={index % 2 === 1} />}
@@ -164,38 +166,40 @@ function JourneyStep({ step, index }: { step: typeof STEPS[number]; index: numbe
 }
 
 function OtherToolsSection() {
+  const isShopEnabled = useFeatureFlag('shop_checkout', true);
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
+  const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
 
+  // Same set and layout as the Know Your Pet page's "One companion" section (every tool except this page's own),
+  // so with three or more tools the cards turn in the same orbit.
   const tools = [
-    ...(isKnowYourPetEnabled
-      ? [{
-          label: 'Know Your Pet', image: '/images/toolkit/know-your-pet.webp',
-          text: "Understand your pet's characteristics and keep their profile information organised.",
-          path: '/pets',
-          cta: 'Explore Know Your Pet',
-        }]
-      : []),
-    ...(isMealPlannerEnabled
-      ? [{
-          label: 'Count The Calories', image: '/images/toolkit/meal-planner.webp',
-          text: "Estimate your pet's daily energy requirements using the details requested by the calculator.",
-          path: '/recipe-calculator#fit-calculator',
-          cta: 'Estimate their daily needs',
-        }]
-      : []),
+    ...(isShopEnabled ? [{ label: 'Shop Recipes', image: '/images/toolkit/shop-recipes.webp', text: 'Human-grade meals built around what your pet actually needs.', path: '/shop' }] : []),
+    ...(isKnowYourPetEnabled ? [{ label: 'Know Your Pet', image: '/images/toolkit/know-your-pet.webp', text: "Understand your pet's characteristics and keep their profile information organised.", path: '/pets' }] : []),
+    ...(isMealPlannerEnabled ? [{ label: 'Count Their Calories', image: '/images/toolkit/meal-planner.webp', text: "Estimate your pet's daily energy needs from their profile.", path: '/recipe-calculator#fit-calculator' }] : []),
+    ...(isChatbotEnabled ? [{ label: 'AI Assistant', image: '/images/toolkit/ai-assistant.webp', text: 'Ask questions about nutrition and everyday pet care.', path: '/assistant' }] : []),
   ];
 
   if (tools.length === 0) return null;
 
   return (
-    <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
+    <section className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-midnight text-paper">
       <div className="max-w-7xl mx-auto">
-        <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
-          <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
-            One companion. Different aspects of their care.
+        <div className="max-w-6xl mx-auto text-center space-y-3 mb-8">
+          <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
+            <span className="sr-only">One companion Different aspects of their care</span>
+            <span aria-hidden="true">
+              {'One companion Different aspects of their care'.split(' ').map((word, index) => (
+                <span key={index}>
+                  {index > 0 ? ' ' : ''}
+                  <span className="pet-profile-heading-word inline-block" style={{ animationDelay: `${index * 160}ms` }}>
+                    {word}
+                  </span>
+                </span>
+              ))}
+            </span>
           </h2>
-          <p className="font-body text-sm text-paper opacity-70 leading-relaxed">
+          <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-base sm:text-lg text-paper opacity-90 leading-relaxed">
             Explore the tools designed to support different parts of the pet-parent journey.
           </p>
         </div>
@@ -206,6 +210,11 @@ function OtherToolsSection() {
 }
 
 export function VetLandingPage() {
+  // Remember that this landing page has been opened, so the home-page card can go straight to the feature next time.
+  useEffect(() => {
+    markLandingSeen('vet');
+  }, []);
+
   const navigate = useNavigate();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -244,7 +253,8 @@ export function VetLandingPage() {
       {/* Hero */}
       <section data-scroll-hero className="relative w-full min-h-[100svh] overflow-hidden bg-midnight">
         <img
-          src={hero.image}
+          src={getOptimizedImageUrl(hero.image, IMAGE_WIDTH.hero)}
+          onError={originalOnError(hero.image)}
           alt="A veterinarian in a green coat gently examining a Doberman"
           className={`absolute inset-0 w-full h-full object-cover object-[78%_center] lg:object-center transition-opacity duration-500 ${hero.ready ? 'opacity-100' : 'opacity-0'}`}
           loading="eager"
@@ -254,25 +264,10 @@ export function VetLandingPage() {
 
         <div className="relative z-10 flex flex-col justify-end min-h-[100svh] px-4 sm:px-8 md:px-12 pb-28 sm:pb-28 max-w-5xl">
           <div className={`max-w-2xl space-y-4 text-left animate-fade-in-up ${hero.ready ? '' : 'invisible'}`}>
-            <h1 className="font-hero font-normal text-5xl sm:text-6xl md:text-7xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
-              {/* The default headline is a picture drawn in the brand display font, so the font file itself is never served;
-                  a title set from the admin panel falls back to the script text. */}
-              {hero.title === DEFAULT_HERO.title ? (
-                <picture>
-                  <source media="(min-width: 640px)" srcSet="/images/hero-titles/vet-wide.webp" width={608} height={252} />
-                  <img
-                    src="/images/hero-titles/vet-narrow.webp"
-                    alt={hero.title}
-                    width={338}
-                    height={171}
-                    className="block h-auto w-[min(100%,338px)] sm:w-[min(100%,608px)] [filter:drop-shadow(0_2px_14px_rgba(0,0,0,0.85))]"
-                  />
-                </picture>
-              ) : (
-                hero.title
-              )}
+            <h1 className="font-script font-normal text-4xl sm:text-5xl md:text-6xl text-paper normal-case tracking-normal leading-[1.1] [text-shadow:0_2px_6px_rgba(0,0,0,0.85),0_4px_28px_rgba(0,0,0,0.8)]">
+              {hero.title}
             </h1>
-            <p className="font-body text-sm sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
+            <p className="font-body text-xs sm:text-base text-paperLight opacity-90 leading-relaxed max-w-xl">
               {hero.subtitle}
             </p>
             <div className="pt-2">
@@ -285,13 +280,15 @@ export function VetLandingPage() {
             </div>
           </div>
         </div>
+        {/* Blend the bottom of the photo into the section below so there is no hard edge. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-40 md:h-56 bg-gradient-to-t from-midnight via-midnight/70 to-transparent" />
         <HeroScrollHint />
     </section>
 
       {/* A connected journey from location search to contacting a clinic. */}
-      <section aria-labelledby="vet-how-it-works" className="px-4 sm:px-6 md:px-8 py-16 md:py-24 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
+      <section aria-labelledby="vet-how-it-works" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center space-y-3 mb-12 md:mb-20">
+          <div className="text-center space-y-3 mb-8">
             <h2 id="vet-how-it-works" className="font-script font-normal text-4xl sm:text-5xl lg:text-6xl tracking-normal text-turmeric leading-snug">How it works</h2>
             <p className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
               Three steps to a clinic near you.
@@ -306,44 +303,13 @@ export function VetLandingPage() {
 
       <OtherToolsSection />
 
-      {/* FAQ */}
-      <section aria-labelledby="vet-faq-heading" className="px-4 sm:px-6 md:px-8 py-16 md:py-20">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 id="vet-faq-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug text-ink">
-              Frequently asked questions
-            </h2>
-          </div>
-          <div className="space-y-3">
-            {FAQS.map((faq, index) => {
-              const isOpen = openFaq === index;
-              return (
-                <div key={faq.q} className="border border-cardboard border-opacity-40 bg-paperLight rounded-sm overflow-hidden">
-                  <button
-                    onClick={() => setOpenFaq(isOpen ? null : index)}
-                    aria-expanded={isOpen}
-                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left cursor-pointer"
-                  >
-                    <span className="font-body font-bold text-sm text-ink">{faq.q}</span>
-                    {isOpen ? <Minus aria-hidden="true" className="w-5 h-5 shrink-0 text-black" /> : <Plus aria-hidden="true" className="w-5 h-5 shrink-0 text-black" />}
-                  </button>
-                  {isOpen && (
-                    <div className="px-5 pb-4 font-body text-sm leading-relaxed text-ink opacity-80">{faq.a}</div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
       {/* Closing CTA */}
-      <section aria-labelledby="vet-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 bg-gradient-to-b from-midnightCard to-midnight text-paper text-center">
-        <div className="max-w-4xl mx-auto">
-          <h2 id="vet-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
-            The right care starts closer than you think.
+      <section aria-labelledby="vet-cta-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper text-center">
+        <div className="max-w-7xl mx-auto">
+          <h2 id="vet-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
+            The right care starts closer than you think
           </h2>
-          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/65 leading-relaxed">
+          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg text-paper/90 leading-relaxed">
             Find the clinics around you and take the next step for your companion.
           </p>
           <button
@@ -354,6 +320,37 @@ export function VetLandingPage() {
             <span className="relative">Find vets near me</span>
             <ArrowRight aria-hidden="true" className="relative w-5 h-5 shrink-0 motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:translate-x-1" />
           </button>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section aria-labelledby="vet-faq-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-midnight text-paper">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 id="vet-faq-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
+              Frequently asked questions
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {FAQS.map((faq, index) => {
+              const isOpen = openFaq === index;
+              return (
+                <div key={faq.q} className="border border-paper/10 bg-midnightCard rounded-sm overflow-hidden">
+                  <button
+                    onClick={() => setOpenFaq(isOpen ? null : index)}
+                    aria-expanded={isOpen}
+                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left cursor-pointer"
+                  >
+                    <span className="font-body font-bold text-sm text-paper">{faq.q}</span>
+                    {isOpen ? <Minus aria-hidden="true" className="w-5 h-5 shrink-0 text-paper" /> : <Plus aria-hidden="true" className="w-5 h-5 shrink-0 text-paper" />}
+                  </button>
+                  {isOpen && (
+                    <div className="px-5 pb-4 font-body text-sm leading-relaxed text-paper/80">{faq.a}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 

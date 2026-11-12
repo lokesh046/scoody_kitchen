@@ -172,6 +172,8 @@ def _delete_external_data(db: Session, user: User) -> None:
     urls = [user.profile_image_url]
     urls += [r[0] for r in db.execute(text("SELECT profile_image_url FROM pets WHERE user_id = :uid"), {"uid": user.id})]
     urls += [r[0] for r in db.execute(text("SELECT image_url FROM product_reviews WHERE user_id = :uid"), {"uid": user.id})]
+    urls += [r[0] for r in db.execute(text(
+        "SELECT v.image_url FROM pet_vaccinations v JOIN pets p ON p.id = v.pet_id WHERE p.user_id = :uid"), {"uid": user.id})]
     try:
         from app.services.storage_service import get_storage_provider
         provider = get_storage_provider()

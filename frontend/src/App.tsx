@@ -1,4 +1,4 @@
-import { HideWhenHidden, HideVetWhenHidden } from './components/HideWhenHidden';
+import { HideWhenHidden, HideVetWhenHidden, FlagRouteGate } from './components/HideWhenHidden';
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './store/auth';
@@ -30,6 +30,7 @@ const AdminDashboard = lazy(() => import('./features/admin/AdminDashboard').then
 const AdminDoctorsPage = lazy(() => import('./features/admin/AdminDoctorsPage').then((m) => ({ default: m.AdminDoctorsPage })));
 const AdminOrdersPage = lazy(() => import('./features/admin/AdminOrdersPage'));
 const AdminSupportPage = lazy(() => import('./features/admin/AdminSupportPage'));
+const AdminVaccineRulesPage = lazy(() => import('./features/admin/AdminVaccineRulesPage'));
 const SupportPage = lazy(() => import('./features/support/SupportPage'));
 const SupportTicketPage = lazy(() => import('./features/support/SupportTicketPage'));
 const DoctorDashboard = lazy(() => import('./features/doctor/DoctorDashboard').then((m) => ({ default: m.DoctorDashboard })));
@@ -203,8 +204,8 @@ export default function App() {
               <Route path="/consultations/room/:id" element={<RequireAuth><VideoCallPage /></RequireAuth>} />
               <Route path="/apply-doctor" element={<RequireAuth><ApplyDoctorPage /></RequireAuth>} />
               <Route path="/onboarding" element={<OnboardingPage />} />
-              <Route path="/blog" element={<BlogListPage />} />
-              <Route path="/blog/:slug" element={<BlogPostPage />} />
+              <Route path="/blog" element={<FlagRouteGate flag="journal" name="Journal" activeTab="blog"><BlogListPage /></FlagRouteGate>} />
+              <Route path="/blog/:slug" element={<FlagRouteGate flag="journal" name="Journal" activeTab="blog"><BlogPostPage /></FlagRouteGate>} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/delete-account" element={<DeleteAccountPage />} />
@@ -215,6 +216,7 @@ export default function App() {
               <Route path="/admin/doctors" element={<RequireAuth adminOnly={true}><AdminDoctorsPage /></RequireAuth>} />
               <Route path="/admin/orders" element={<RequireAuth adminOnly={true}><AdminOrdersPage /></RequireAuth>} />
               <Route path="/admin/support" element={<RequireAuth adminOnly={true}><AdminSupportPage /></RequireAuth>} />
+              <Route path="/admin/vaccine-rules" element={<RequireAuth adminOnly={true}><AdminVaccineRulesPage /></RequireAuth>} />
               <Route path="/doctor" element={<RequireAuth doctorOnly={true}><DoctorDashboard /></RequireAuth>} />
               <Route path="/doctor/dashboard" element={<RequireAuth doctorOnly={true}><DoctorDashboard /></RequireAuth>} />
               <Route path="*" element={<NotFoundPage />} />

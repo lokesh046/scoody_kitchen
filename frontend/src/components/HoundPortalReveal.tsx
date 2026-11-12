@@ -14,7 +14,6 @@ const IMAGES = [
 ];
 const HERO_IMAGE = IMAGES[0];
 
-const PHRASE = 'Coming Soon';
 const LOGO = '/images/brand/hearth-hound-gold.png';
 const REST_WIDTH = 72; // width of the portal slot at rest, just enough to show "&"
 const TOTAL_DURATION = 2900;
@@ -36,7 +35,6 @@ export function HoundPortalReveal() {
   const ampRef = useRef<HTMLSpanElement>(null);
   const bgRef = useRef<HTMLImageElement>(null);
   const gradientRef = useRef<HTMLDivElement>(null);
-  const phraseRef = useRef<HTMLDivElement>(null);
   const imageRefs = useRef<(HTMLImageElement | null)[]>([]);
   const rafRef = useRef<number | null>(null);
   const startRef = useRef<number | null>(null);
@@ -65,7 +63,6 @@ export function HoundPortalReveal() {
       setImagesReady(true);
       if (bgRef.current) bgRef.current.style.opacity = '1';
       if (gradientRef.current) gradientRef.current.style.opacity = '1';
-      if (phraseRef.current) phraseRef.current.style.opacity = '1';
       if (portalRef.current) portalRef.current.style.width = `${restWidthRef.current}px`;
       if (ampRef.current) ampRef.current.style.opacity = '1';
       return;
@@ -153,11 +150,6 @@ export function HoundPortalReveal() {
         if (gradientRef.current) gradientRef.current.style.opacity = String(eased);
       }
 
-      if (t >= 2300) {
-        const p = clamp01((t - 2300) / 500);
-        if (phraseRef.current) phraseRef.current.style.opacity = String(p);
-      }
-
       if (t < TOTAL_DURATION) {
         rafRef.current = requestAnimationFrame(tick);
       } else {
@@ -172,67 +164,60 @@ export function HoundPortalReveal() {
   }, [hasPlayed]);
 
   return (
-    <div
-      ref={sectionRef}
-      className="relative h-[360px] sm:h-[440px] rounded-[4px] overflow-hidden border border-paper border-opacity-10 bg-obsidian flex items-center justify-center px-4"
-    >
-      <img
-        ref={bgRef}
-        src={HERO_IMAGE}
-        alt="Hearth and Hound premium dog food"
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ opacity: 0, filter: 'saturate(0.9)' }}
-        loading="eager"
-        decoding="async"
-      />
+    <div className="hound-photo-frame">
       <div
-        ref={gradientRef}
-        className="absolute inset-0"
-        style={{
-          opacity: 0,
-          background: 'linear-gradient(180deg, rgba(14,11,8,0.3) 0%, rgba(14,11,8,0.45) 45%, rgba(14,11,8,0.8) 100%)',
-        }}
-      />
-
-      <div role="img" aria-label="Hearth & Hound" className="relative z-10 flex items-center justify-center select-none">
-        <span aria-hidden="true" className="block shrink-0" style={{ width: 'calc(var(--wordmark-width) * 0.41)', height: 'calc(var(--wordmark-width) * 0.26425)', backgroundImage: `url(${LOGO})`, backgroundSize: '243.902439% 100%', backgroundPosition: 'left center', backgroundRepeat: 'no-repeat' }} />
-
+        ref={sectionRef}
+        className="relative h-[360px] sm:h-[440px] rounded-[6px] overflow-hidden border border-[#8B6238] bg-obsidian flex items-center justify-center px-4"
+      >
+        <img
+          ref={bgRef}
+          src={HERO_IMAGE}
+          alt="Hearth and Hound premium dog food"
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ opacity: 0, filter: 'saturate(0.9)' }}
+          loading="eager"
+          decoding="async"
+        />
         <div
-          ref={portalRef}
-          className="relative shrink-0 will-change-[width]"
-          style={{ width: REST_WIDTH, height: 1 }}
-        >
-          <span
-            ref={ampRef}
-            aria-hidden="true"
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-            style={{ opacity: 1, width: 'calc(var(--wordmark-width) * 0.18)', height: 'calc(var(--wordmark-width) * 0.26425)', backgroundImage: `url(${LOGO})`, backgroundSize: '555.555556% 100%', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
-          />
-          {IMAGES.map((src, i) => (
-            <img
-              key={src}
-              ref={(el) => { imageRefs.current[i] = el; }}
-              src={src}
-              alt={i === 0 ? 'Hearth and Hound' : ''}
-              className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-24 sm:h-32 object-cover"
-              style={{ opacity: 0 }}
-              loading="eager"
-              decoding="async"
+          ref={gradientRef}
+          className="absolute inset-0"
+          style={{
+            opacity: 0,
+            background: 'linear-gradient(180deg, rgba(14,11,8,0.3) 0%, rgba(14,11,8,0.45) 45%, rgba(14,11,8,0.8) 100%)',
+          }}
+        />
+
+        <div role="img" aria-label="Hearth & Hound" className="relative z-10 flex items-center justify-center select-none">
+          <span aria-hidden="true" className="block shrink-0" style={{ width: 'calc(var(--wordmark-width) * 0.41)', height: 'calc(var(--wordmark-width) * 0.26425)', backgroundImage: `url(${LOGO})`, backgroundSize: '243.902439% 100%', backgroundPosition: 'left center', backgroundRepeat: 'no-repeat' }} />
+
+          <div
+            ref={portalRef}
+            className="relative shrink-0 will-change-[width]"
+            style={{ width: REST_WIDTH, height: 1 }}
+          >
+            <span
+              ref={ampRef}
+              aria-hidden="true"
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+              style={{ opacity: 1, width: 'calc(var(--wordmark-width) * 0.18)', height: 'calc(var(--wordmark-width) * 0.26425)', backgroundImage: `url(${LOGO})`, backgroundSize: '555.555556% 100%', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
             />
-          ))}
+            {IMAGES.map((src, i) => (
+              <img
+                key={src}
+                ref={(el) => { imageRefs.current[i] = el; }}
+                src={src}
+                alt={i === 0 ? 'Hearth and Hound' : ''}
+                className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-24 sm:h-32 object-cover"
+                style={{ opacity: 0 }}
+                loading="eager"
+                decoding="async"
+              />
+            ))}
+          </div>
+
+          <span aria-hidden="true" className="block shrink-0" style={{ width: 'calc(var(--wordmark-width) * 0.41)', height: 'calc(var(--wordmark-width) * 0.26425)', backgroundImage: `url(${LOGO})`, backgroundSize: '243.902439% 100%', backgroundPosition: 'right center', backgroundRepeat: 'no-repeat' }} />
         </div>
 
-        <span aria-hidden="true" className="block shrink-0" style={{ width: 'calc(var(--wordmark-width) * 0.41)', height: 'calc(var(--wordmark-width) * 0.26425)', backgroundImage: `url(${LOGO})`, backgroundSize: '243.902439% 100%', backgroundPosition: 'right center', backgroundRepeat: 'no-repeat' }} />
-      </div>
-
-      <div
-        ref={phraseRef}
-        className="absolute left-1/2 -translate-x-1/2 z-10 flex items-center justify-center"
-        style={{ opacity: 0, top: '70%' }}
-      >
-        <span className="font-mono text-[11px] sm:text-xs uppercase tracking-[0.2em] text-turmeric whitespace-nowrap">
-          {PHRASE}
-        </span>
       </div>
     </div>
   );

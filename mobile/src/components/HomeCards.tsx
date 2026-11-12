@@ -14,8 +14,7 @@ import {
   CheckCircle2,
 } from 'lucide-react-native';
 import { COLORS } from '../theme/colors';
-import { FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO, FONT_SCRIPT } from '../theme/typography';
-import { HERO_TITLE_IMAGES, heroTitleKey } from '../constants/heroTitleImages';
+import { FONT_DISPLAY, FONT_DISPLAY_SEMIBOLD, FONT_BODY, FONT_BODY_BOLD, LEDGER_MONO, FONT_HEADING_SCRIPT } from '../theme/typography';
 import { Product } from '../types';
 import { UnifiedReview } from '../api/reviews';
 
@@ -94,8 +93,7 @@ export const BannerSlideItem = memo(function BannerSlideItem({
     setImgUri(item.bgImage);
   }, [item.bgImage]);
 
-  const titleImage = HERO_TITLE_IMAGES[heroTitleKey(item.title)];
-  const titleWidth = Math.min(190, (cardWidth ?? BANNER_WIDTH) - 36);
+  const title = item.title.replace(/^Hearth & (?:Hound|One):\s*/i, '');
 
   return (
     <View style={[homeCardStyles.bannerSlideWrapper, slideWidth ? { width: slideWidth } : null]}>
@@ -114,28 +112,27 @@ export const BannerSlideItem = memo(function BannerSlideItem({
           }}
         />
         <LinearGradient
-          colors={['rgba(14,11,8,0.35)', 'rgba(14,11,8,0.1)', 'rgba(14,11,8,0.55)', 'rgba(14,11,8,0.94)']}
-          locations={[0, 0.3, 0.65, 1]}
+          colors={['rgba(14,11,8,0)', 'rgba(14,11,8,0.08)', 'rgba(14,11,8,0.6)']}
+          locations={[0, 0.45, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        <LinearGradient
+          colors={['rgba(14,11,8,0.48)', 'rgba(14,11,8,0.16)', 'rgba(14,11,8,0)']}
+          locations={[0, 0.55, 1]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
           style={StyleSheet.absoluteFill}
         />
 
         <View style={homeCardStyles.bannerContent}>
-          {/* Headline: a picture for the known titles, otherwise script text.
-              Banner copy comes from the admin panel, so the text fallback is
-              capped at 3 lines rather than overflowing the slide. */}
-          {titleImage ? (
-            <Image
-              source={titleImage.source}
-              style={{ width: titleWidth, height: (titleWidth * titleImage.height) / titleImage.width }}
-              contentFit="contain"
-              accessibilityLabel={item.title}
-            />
-          ) : (
-            <Text style={homeCardStyles.bannerTitle} numberOfLines={2}>{item.title}</Text>
-          )}
-
-          <Text style={homeCardStyles.bannerSub} numberOfLines={2}>
-            {item.subtitle}
+          <Text
+            style={homeCardStyles.bannerTitle}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+            accessibilityLabel={item.title}
+          >
+            {title}
           </Text>
 
           <TouchableOpacity
@@ -439,21 +436,14 @@ export const homeCardStyles = StyleSheet.create({
   // Padding lives here, not on bannerSlide: a padded parent shrinks the
   // image's 100% width and leaves a dark strip down one side.
   bannerContent: {
-    gap: 8,
+    gap: 6,
     padding: 18,
   },
   bannerTitle: {
-    fontSize: 28,
-    fontFamily: FONT_SCRIPT,
+    fontSize: 20,
+    fontFamily: FONT_HEADING_SCRIPT,
     color: '#F5F1EA',
-    lineHeight: 32,
-  },
-  bannerSub: {
-    fontSize: 11.5,
-    fontFamily: FONT_BODY,
-    color: 'rgba(245,241,234,0.85)',
-    lineHeight: 16,
-    maxWidth: '92%',
+    lineHeight: 28,
   },
   bannerCtaBtn: {
     flexDirection: 'row',

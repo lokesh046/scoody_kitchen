@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { StatusBar, View, Text, TouchableOpacity, ActivityIndicator, AppState } from 'react-native';
+import { StatusBar, View, Text, TouchableOpacity, AppState, InteractionManager, Animated, Easing, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -28,9 +28,67 @@ import OfflineBanner from './src/components/OfflineBanner';
 import { PhoneVerificationGate } from './src/components/PhoneVerificationGate';
 import { COLORS } from './src/theme/colors';
 import { FONT_ASSETS } from './src/theme/typography';
+import { BrandFullLogo, BRAND_CREAM } from './src/components/BrandLogo';
 
 const Stack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
+
+// The OS launch splash is a plain cream screen (no logo of its own), so there is only
+// ever ONE logo: this one, at its full size, fading in as soon as the app starts. A
+// shared value keeps the loading screen and the cross-fade overlay on the same frame.
+const LOGO_FULL_SIZE = 280;
+const logoOpacity = new Animated.Value(0);
+let logoFadeStarted = false;
+let logoShownAt = 0;
+function SplashLogo() {
+  useEffect(() => {
+    if (logoFadeStarted) return;
+    logoFadeStarted = true;
+    logoShownAt = Date.now();
+    Animated.timing(logoOpacity, { toValue: 1, duration: 450, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+  }, []);
+  return (
+    <Animated.View style={{ opacity: logoOpacity }}>
+      <BrandFullLogo size={LOGO_FULL_SIZE} />
+    </Animated.View>
+  );
+}
+
+/**
+ * Fades the real screens in while a copy of the loading logo fades out on top, so
+ * the app never cuts abruptly from the loading screen to its content.
+ */
+function CrossFadeIn({ children }: { children: React.ReactNode }) {
+  const opacity = React.useRef(new Animated.Value(1)).current;
+  const [gone, setGone] = React.useState(false);
+  useEffect(() => {
+    // Wait until the screens have finished their first render before revealing
+    // them, so the fade shows finished content instead of a blank or dark gap.
+    let cancelled = false;
+    const handle = InteractionManager.runAfterInteractions(() => {
+      if (cancelled) return;
+      // keep the logo on screen for at least ~1.3s so it is actually seen
+      const hold = Math.max(450, 1300 - (logoShownAt ? Date.now() - logoShownAt : 0));
+      Animated.timing(opacity, { toValue: 0, duration: 500, delay: hold, useNativeDriver: true }).start(
+        () => setGone(true),
+      );
+    });
+    return () => { cancelled = true; handle.cancel(); };
+  }, [opacity]);
+  return (
+    <View style={{ flex: 1, backgroundColor: BRAND_CREAM }}>
+      {children}
+      {!gone && (
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { opacity, backgroundColor: BRAND_CREAM, alignItems: 'center', justifyContent: 'center' }]}
+        >
+          <SplashLogo />
+        </Animated.View>
+      )}
+    </View>
+  );
+}
 
 function App() {
   const { user, isGuest, isHydrated, hydrateAuth, updateUser } = useAuthStore();
@@ -118,8 +176,8 @@ function App() {
   if (!isHydrated || !fontsLoaded) {
     return (
       <SafeAreaProvider>
-        <View style={{ flex: 1, backgroundColor: COLORS.canvas, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={COLORS.forestGreen} />
+        <View style={{ flex: 1, backgroundColor: BRAND_CREAM, alignItems: 'center', justifyContent: 'center' }}>
+          <SplashLogo />
         </View>
       </SafeAreaProvider>
     );
@@ -129,14 +187,17 @@ function App() {
   if (!user && !isGuest) {
     return (
       <SafeAreaProvider>
-        <OfflineBanner />
-        <AuthScreen />
+        <CrossFadeIn>
+          <OfflineBanner />
+          <AuthScreen />
+        </CrossFadeIn>
       </SafeAreaProvider>
     );
   }
 
   return (
     <SafeAreaProvider>
+      <CrossFadeIn>
       <OfflineBanner />
       <PhoneVerificationGate />
       <NavigationContainer ref={navigationRef}>
@@ -171,6 +232,7 @@ function App() {
           />
         </Stack.Navigator>
       </NavigationContainer>
+      </CrossFadeIn>
     </SafeAreaProvider>
   );
 }
