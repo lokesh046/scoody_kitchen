@@ -14,7 +14,15 @@ import { COLORS } from '../theme/colors';
 import { FONT_DISPLAY } from '../theme/typography';
 
 // Local asset reference for the Hearth & One logo mark
-const SCOOBY_LOGO_IMG = require('../../assets/scooby-mark-512.png');
+// Pre-sized sources: a 1024px image shrunk ~10x on the phone looks jagged, so each
+// display size uses the file closest to its real pixel size.
+const MARK_IMGS: Record<string, number> = {
+  xs: require('../../assets/scooby-logo-64.png'), // 128px
+  sm: require('../../assets/scooby-logo-64.png'),
+  md: require('../../assets/scooby-logo-128.png'), // 256px
+  lg: require('../../assets/scooby-logo-192.png'), // 384px
+  xl: require('../../assets/scooby-logo-256.png'), // 512px
+};
 // Native pixel dimensions of the source artwork, used to keep the mark crisp and unsquished at any size.
 const LOGO_ASPECT_RATIO = 1;
 
@@ -70,7 +78,7 @@ export const BrandMedallion = memo(function BrandMedallion({
 
   const content = (
     <Image
-      source={SCOOBY_LOGO_IMG}
+      source={MARK_IMGS[size] || MARK_IMGS.md}
       style={[{ width, height }, style]}
       contentFit="contain"
     />
