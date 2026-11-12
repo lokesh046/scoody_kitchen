@@ -44,7 +44,7 @@ module.exports = {
         backgroundColor: "#F8F5EF",
       },
       package: "com.scooby.kitchen",
-      versionCode: 2,
+      versionCode: 3,
       config: {
         googleMaps: {
           // Real key lives in .env (gitignored) locally, and in EAS
