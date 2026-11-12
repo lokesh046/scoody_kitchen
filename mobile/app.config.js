@@ -87,9 +87,9 @@ module.exports = {
       [
         "expo-splash-screen",
         {
-          image: "./assets/scooby-logo-512.png",
+          image: "./assets/splash-logo.png",
           resizeMode: "contain",
-          backgroundColor: "#F9F6F0",
+          backgroundColor: "#F8F5EF",
         },
       ],
       [
