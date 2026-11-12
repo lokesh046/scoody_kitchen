@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { StatusBar, View, Text, TouchableOpacity, ActivityIndicator, AppState } from 'react-native';
+import { StatusBar, View, Text, TouchableOpacity, AppState, Animated, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -32,6 +32,37 @@ import { BrandFullLogo, BRAND_CREAM } from './src/components/BrandLogo';
 
 const Stack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
+
+// Same size and position as the native launch splash image (172dp, centred), so the
+// hand-off from the OS splash to this screen is invisible.
+const SPLASH_LOGO_SIZE = 172;
+
+/**
+ * Fades the real screens in while a copy of the loading logo fades out on top, so
+ * the app never cuts abruptly from the loading screen to its content.
+ */
+function CrossFadeIn({ children }: { children: React.ReactNode }) {
+  const opacity = React.useRef(new Animated.Value(1)).current;
+  const [gone, setGone] = React.useState(false);
+  useEffect(() => {
+    Animated.timing(opacity, { toValue: 0, duration: 380, delay: 60, useNativeDriver: true }).start(
+      () => setGone(true),
+    );
+  }, [opacity]);
+  return (
+    <View style={{ flex: 1 }}>
+      {children}
+      {!gone && (
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { opacity, backgroundColor: BRAND_CREAM, alignItems: 'center', justifyContent: 'center' }]}
+        >
+          <BrandFullLogo size={SPLASH_LOGO_SIZE} />
+        </Animated.View>
+      )}
+    </View>
+  );
+}
 
 function App() {
   const { user, isGuest, isHydrated, hydrateAuth, updateUser } = useAuthStore();
@@ -120,8 +151,7 @@ function App() {
     return (
       <SafeAreaProvider>
         <View style={{ flex: 1, backgroundColor: BRAND_CREAM, alignItems: 'center', justifyContent: 'center' }}>
-          <BrandFullLogo size={260} />
-          <ActivityIndicator size="small" color={COLORS.forestGreen} style={{ marginTop: 8 }} />
+          <BrandFullLogo size={SPLASH_LOGO_SIZE} />
         </View>
       </SafeAreaProvider>
     );
@@ -131,14 +161,17 @@ function App() {
   if (!user && !isGuest) {
     return (
       <SafeAreaProvider>
-        <OfflineBanner />
-        <AuthScreen />
+        <CrossFadeIn>
+          <OfflineBanner />
+          <AuthScreen />
+        </CrossFadeIn>
       </SafeAreaProvider>
     );
   }
 
   return (
     <SafeAreaProvider>
+      <CrossFadeIn>
       <OfflineBanner />
       <PhoneVerificationGate />
       <NavigationContainer ref={navigationRef}>
@@ -173,6 +206,7 @@ function App() {
           />
         </Stack.Navigator>
       </NavigationContainer>
+      </CrossFadeIn>
     </SafeAreaProvider>
   );
 }
