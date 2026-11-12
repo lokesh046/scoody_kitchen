@@ -18,6 +18,27 @@ const SCOOBY_LOGO_IMG = require('../../assets/scooby-mark-512.png');
 // Native pixel dimensions of the source artwork, used to keep the mark crisp and unsquished at any size.
 const LOGO_ASPECT_RATIO = 1;
 
+// Full logo: dog, gate and the "HEARTH & ONE" name, on the brand cream (#F8F5EF).
+const FULL_LOGO_IMG = require('../../assets/scooby-logo.png');
+export const BRAND_CREAM = '#F8F5EF';
+
+/** Logo with the name under it, for the loading screen and sign-in / sign-up. */
+export const BrandFullLogo = memo(function BrandFullLogo({
+  size = 220,
+  style,
+}: {
+  size?: number;
+  style?: StyleProp<ImageStyle>;
+}) {
+  return (
+    <Image
+      source={FULL_LOGO_IMG}
+      style={[{ width: size, height: size }, style]}
+      contentFit="contain"
+    />
+  );
+});
+
 export type MedallionSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
 interface BrandMedallionProps {

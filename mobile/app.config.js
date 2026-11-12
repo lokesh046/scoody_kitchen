@@ -40,7 +40,7 @@ module.exports = {
       googleServicesFile: "./google-services.json",
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
-        backgroundColor: "#F9F6F0",
+        backgroundColor: "#F8F5EF",
       },
       package: "com.scooby.kitchen",
       config: {

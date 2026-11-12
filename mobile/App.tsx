@@ -28,6 +28,7 @@ import OfflineBanner from './src/components/OfflineBanner';
 import { PhoneVerificationGate } from './src/components/PhoneVerificationGate';
 import { COLORS } from './src/theme/colors';
 import { FONT_ASSETS } from './src/theme/typography';
+import { BrandFullLogo, BRAND_CREAM } from './src/components/BrandLogo';
 
 const Stack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
@@ -118,8 +119,9 @@ function App() {
   if (!isHydrated || !fontsLoaded) {
     return (
       <SafeAreaProvider>
-        <View style={{ flex: 1, backgroundColor: COLORS.canvas, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={COLORS.forestGreen} />
+        <View style={{ flex: 1, backgroundColor: BRAND_CREAM, alignItems: 'center', justifyContent: 'center' }}>
+          <BrandFullLogo size={260} />
+          <ActivityIndicator size="small" color={COLORS.forestGreen} style={{ marginTop: 8 }} />
         </View>
       </SafeAreaProvider>
     );
