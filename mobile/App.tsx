@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
-import { StatusBar, View, Text, TouchableOpacity, AppState, Animated, StyleSheet } from 'react-native';
+import { StatusBar, View, Text, TouchableOpacity, AppState, InteractionManager, Animated, Easing, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -36,6 +36,25 @@ export const navigationRef = createNavigationContainerRef();
 // Same size and position as the native launch splash image (172dp, centred), so the
 // hand-off from the OS splash to this screen is invisible.
 const SPLASH_LOGO_SIZE = 172;
+// The logo is drawn at its final (larger) size so it is always sharp, and starts scaled
+// down to the splash size; one shared value keeps the loading screen and the cross-fade
+// overlay on exactly the same frame, so there is no jump between them.
+const LOGO_FULL_SIZE = 250;
+const logoScale = new Animated.Value(SPLASH_LOGO_SIZE / LOGO_FULL_SIZE);
+let logoGrowStarted = false;
+function startLogoGrow() {
+  if (logoGrowStarted) return;
+  logoGrowStarted = true;
+  Animated.timing(logoScale, { toValue: 1, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+}
+function SplashLogo() {
+  useEffect(() => { startLogoGrow(); }, []);
+  return (
+    <Animated.View style={{ transform: [{ scale: logoScale }] }}>
+      <BrandFullLogo size={LOGO_FULL_SIZE} />
+    </Animated.View>
+  );
+}
 
 /**
  * Fades the real screens in while a copy of the loading logo fades out on top, so
@@ -45,19 +64,26 @@ function CrossFadeIn({ children }: { children: React.ReactNode }) {
   const opacity = React.useRef(new Animated.Value(1)).current;
   const [gone, setGone] = React.useState(false);
   useEffect(() => {
-    Animated.timing(opacity, { toValue: 0, duration: 380, delay: 60, useNativeDriver: true }).start(
-      () => setGone(true),
-    );
+    // Wait until the screens have finished their first render before revealing
+    // them, so the fade shows finished content instead of a blank or dark gap.
+    let cancelled = false;
+    const handle = InteractionManager.runAfterInteractions(() => {
+      if (cancelled) return;
+      Animated.timing(opacity, { toValue: 0, duration: 500, delay: 450, useNativeDriver: true }).start(
+        () => setGone(true),
+      );
+    });
+    return () => { cancelled = true; handle.cancel(); };
   }, [opacity]);
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: BRAND_CREAM }}>
       {children}
       {!gone && (
         <Animated.View
           pointerEvents="none"
           style={[StyleSheet.absoluteFill, { opacity, backgroundColor: BRAND_CREAM, alignItems: 'center', justifyContent: 'center' }]}
         >
-          <BrandFullLogo size={SPLASH_LOGO_SIZE} />
+          <SplashLogo />
         </Animated.View>
       )}
     </View>
@@ -151,7 +177,7 @@ function App() {
     return (
       <SafeAreaProvider>
         <View style={{ flex: 1, backgroundColor: BRAND_CREAM, alignItems: 'center', justifyContent: 'center' }}>
-          <BrandFullLogo size={SPLASH_LOGO_SIZE} />
+          <SplashLogo />
         </View>
       </SafeAreaProvider>
     );
