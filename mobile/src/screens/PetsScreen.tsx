@@ -74,7 +74,7 @@ const FONT_BODY = 'Quicksand_400Regular';
 const FONT_BODY_BOLD = 'Quicksand_700Bold';
 // --- Main Pets Screen ---
 
-export default function PetsScreen({ navigation }: any) {
+export default function PetsScreen({ navigation, route }: any) {
   // Loads the brand faces once; Text using FONT_DISPLAY/FONT_BODY renders in
   // the system font until this resolves, then re-renders automatically.
   useFonts({ Outfit_700Bold, Outfit_600SemiBold, Quicksand_400Regular, Quicksand_700Bold });
@@ -270,6 +270,16 @@ export default function PetsScreen({ navigation }: any) {
     setIsVisionModalVisible(false);
     setTimeout(() => setIsModalVisible(true), 350);
   }, []);
+
+  // A scan started from the Home screen ("Identify Your Pet") arrives here as route params:
+  // open the Add Pet form pre-filled with the scanned breed, then clear the params so it only runs once.
+  const homeVisionDetails = route?.params?.visionDetails;
+  const homeVisionNonce = route?.params?.visionNonce;
+  useEffect(() => {
+    if (!homeVisionDetails) return;
+    handleApplyVisionDetails(homeVisionDetails);
+    navigation.setParams?.({ visionDetails: undefined, visionNonce: undefined });
+  }, [homeVisionNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveDirectPhoto = useCallback(async (pet: PetProfile, uri: string) => {
     try {

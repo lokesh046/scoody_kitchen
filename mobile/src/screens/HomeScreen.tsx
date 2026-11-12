@@ -1289,9 +1289,10 @@ export default function HomeScreen({ navigation }: any) {
       <PetVisionModal
         visible={petVisionVisible}
         onClose={() => setPetVisionVisible(false)}
-        onApplyPetDetails={() => {
+        onApplyPetDetails={(details) => {
           setPetVisionVisible(false);
-          handleNavigateScreen('Pets');
+          // Hand the scan result to the Pets tab, which opens the Add Pet form pre-filled with it.
+          handleNavigateScreen('Pets', { visionDetails: details, visionNonce: Date.now() });
         }}
       />
 
