@@ -70,13 +70,25 @@ export async function classifyPetPhoto(imageUri: string): Promise<Classification
   } as any);
 
   const baseUrl = getVisionBaseUrl();
-  const response = await axios.post<ClassificationResponse>(`${baseUrl}/api/v1/classify`, formData, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'multipart/form-data',
-    },
-    timeout: 25000,
-  });
+  const send = () =>
+    axios.post<ClassificationResponse>(`${baseUrl}/api/v1/classify`, formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      },
+      // Upload + AI analysis can take a while on a weak mobile connection.
+      timeout: 60000,
+    });
 
-  return response.data;
+  try {
+    return (await send()).data;
+  } catch (err: any) {
+    // A dropped connection ("Network Error", no HTTP response at all) is usually momentary
+    // on mobile data or when the phone switches networks, so try once more before failing.
+    // Real answers from the server (rate limit, bad image) are not retried.
+    if (!err?.response && (err?.message === 'Network Error' || err?.code === 'ERR_NETWORK')) {
+      return (await send()).data;
+    }
+    throw err;
+  }
 }

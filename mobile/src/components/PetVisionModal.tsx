@@ -127,7 +127,7 @@ export default function PetVisionModal({
         const res = await ImagePicker.launchCameraAsync({
           allowsEditing: true,
           aspect: [4, 3],
-          quality: 0.85,
+          quality: 0.6,
         });
         if (!res.canceled && res.assets && res.assets[0]) {
           imageUri = res.assets[0].uri;
@@ -137,7 +137,7 @@ export default function PetVisionModal({
           mediaTypes: ['images'],
           allowsEditing: true,
           aspect: [4, 3],
-          quality: 0.85,
+          quality: 0.6,
         });
         if (!res.canceled && res.assets && res.assets[0]) {
           imageUri = res.assets[0].uri;
