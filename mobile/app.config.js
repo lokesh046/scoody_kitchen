@@ -39,7 +39,7 @@ module.exports = {
     android: {
       googleServicesFile: "./google-services.json",
       adaptiveIcon: {
-        foregroundImage: "./assets/icon-1024.png",
+        foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#F9F6F0",
       },
       package: "com.scooby.kitchen",

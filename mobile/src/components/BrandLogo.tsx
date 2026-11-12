@@ -13,10 +13,10 @@ import { Image } from 'expo-image';
 import { COLORS } from '../theme/colors';
 import { FONT_DISPLAY } from '../theme/typography';
 
-// Local asset reference for the authentic Scooby Mascot Logo
+// Local asset reference for the Hearth & One logo mark
 const SCOOBY_LOGO_IMG = require('../../assets/scooby-logo-256.png');
 // Native pixel dimensions of the source artwork, used to keep the mark crisp and unsquished at any size.
-const LOGO_ASPECT_RATIO = 256 / 322;
+const LOGO_ASPECT_RATIO = 1;
 
 export type MedallionSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
