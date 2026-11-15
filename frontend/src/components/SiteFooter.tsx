@@ -5,9 +5,8 @@ export function SiteFooter({ className = 'bg-midnight' }: { className?: string }
   const navigate = useNavigate();
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
   const isConsultationsEnabled = useVetEntryEnabled();
-  const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
+  const isCalorieCounterEnabled = useFeatureFlag('shop_calorie_counter', true);
   const journalEntry = useFlagEntry('journal');
-  const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
 
   const goToHomeSection = (id: string) => {
     const section = document.getElementById(id);
@@ -44,7 +43,7 @@ export function SiteFooter({ className = 'bg-midnight' }: { className?: string }
               {isConsultationsEnabled && (
                 <li><button onClick={() => navigate('/consultations')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Locate Your Vet</button></li>
               )}
-              {isMealPlannerEnabled && (
+              {isCalorieCounterEnabled && (
                 <li><button onClick={() => navigate('/recipe-calculator')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Count Their Calories</button></li>
               )}
               {journalEntry.visible && (
@@ -54,22 +53,19 @@ export function SiteFooter({ className = 'bg-midnight' }: { className?: string }
           </div>
     
           <div className="space-y-3.5">
-            <p className="font-mono text-xs sm:text-sm uppercase tracking-[0.15em] text-turmeric font-bold">The Brand</p>
+            <p className="font-mono text-xs sm:text-sm uppercase tracking-[0.15em] text-turmeric font-bold">Our Brand</p>
             <ul className="space-y-2.5 font-body text-sm text-paper opacity-80">
               <li><button onClick={() => navigate('/')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Our Story</button></li>
               <li><button onClick={() => goToHomeSection('hearth-hound')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Hearth &amp; Hound · Coming Soon</button></li>
-              <li><button onClick={() => navigate('/support')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">Contact Us</button></li>
             </ul>
           </div>
     
           <div className="space-y-3.5">
             <p className="font-mono text-xs sm:text-sm uppercase tracking-[0.15em] text-turmeric font-bold">Get In Touch</p>
             <ul className="space-y-2.5 font-body text-sm text-paper opacity-80">
+              <li><Link to="/contact" className="hover:text-turmeric hover:opacity-100 transition-colors">Contact Us</Link></li>
               <li><a href="mailto:support@hearthandone.com" className="break-words hover:text-turmeric hover:opacity-100 transition-colors">support@hearthandone.com</a></li>
               <li><a href="https://www.instagram.com/hearth__and__hound/" target="_blank" rel="noopener noreferrer" className="hover:text-turmeric hover:opacity-100 transition-colors">Instagram</a></li>
-              {isChatbotEnabled && (
-                <li><button onClick={() => navigate('/assistant')} className="hover:text-turmeric hover:opacity-100 transition-colors cursor-pointer">AI Assistant</button></li>
-              )}
             </ul>
           </div>
     
@@ -78,7 +74,6 @@ export function SiteFooter({ className = 'bg-midnight' }: { className?: string }
             <ul className="space-y-2.5 font-body text-sm text-paper opacity-80">
               <li><Link to="/privacy" className="hover:text-turmeric hover:opacity-100 transition-colors">Privacy Policy</Link></li>
               <li><Link to="/terms" className="hover:text-turmeric hover:opacity-100 transition-colors">Terms of Use</Link></li>
-              <li><Link to="/terms" className="hover:text-turmeric hover:opacity-100 transition-colors">Veterinary Disclaimer</Link></li>
             </ul>
           </div>
         </div>

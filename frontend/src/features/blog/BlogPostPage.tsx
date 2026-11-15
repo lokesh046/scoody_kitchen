@@ -9,6 +9,7 @@ import { CartDrawer } from '../../components/CartDrawer';
 import { NewsletterSignup } from '../../components/NewsletterSignup';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
+import { CompanionToolsSection } from '../../components/CompanionToolsSection';
 
 function formatDate(iso: string | null): string {
   if (!iso) return '';
@@ -147,6 +148,8 @@ export const BlogPostPage: React.FC = () => {
           <NewsletterSignup source="blog_post" />
         </div>
       </div>
+
+      <CompanionToolsSection />
 
       <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
         <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">

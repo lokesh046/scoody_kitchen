@@ -70,6 +70,8 @@ export default function HomePage() {
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
+  // Count Their Calories has its own switch, separate from the Meal Planner.
+  const isCalorieCounterEnabled = useFeatureFlag('shop_calorie_counter', true);
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
   // Defaults to ON: this is the shipped landing page, and the prerendered HTML and the
   // first paint (before /features/public answers) must already be the dark layout.
@@ -185,7 +187,7 @@ export default function HomePage() {
 
                 <div className="gold-divided-items grid grid-cols-1 md:grid-cols-3 gap-12 pt-4">
                   {[
-                    { img: '/images/why-section/care.webp', title: 'Care', text: "We believe every companion deserves thoughtful attention to their everyday needs, health, and well-being." },
+                    { img: '/images/why-section/care.webp', title: 'Care', text: "We believe every pet deserves thoughtful attention to their everyday needs, health, and well-being." },
                     { img: '/images/why-section/clarity.webp', title: 'Clarity', text: "We make it easier to find useful information and navigate everyday pet-care decisions with confidence." },
                     { img: '/images/why-section/connection.webp', title: 'Connection', text: "We bring complementary pet-care tools together in one ecosystem, helping pet parents navigate different needs in one place." },
                   ].map(({ img, title, text }) => (
@@ -204,20 +206,30 @@ export default function HomePage() {
             {/* Pet-care toolkit teaser */}
             <section className="relative bg-gradient-to-b from-midnightCard to-midnight pt-4 pb-12 md:pt-6 md:pb-20 px-4 sm:px-6 md:px-8">
               <div className="max-w-7xl mx-auto text-center space-y-10">
-                <div className="max-w-2xl mx-auto space-y-3">
-                  <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal">
-                    Your pet-care toolkit
+                <div className="max-w-6xl mx-auto space-y-3">
+                  <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
+                    <span className="sr-only">One companion. Different aspects of their care</span>
+                    <span aria-hidden="true">
+                      {'One companion. Different aspects of their care'.split(' ').map((word, index) => (
+                        <span key={index}>
+                          {index > 0 ? ' ' : ''}
+                          <span className="pet-profile-heading-word inline-block" style={{ animationDelay: `${index * 160}ms` }}>
+                            {word}
+                          </span>
+                        </span>
+                      ))}
+                    </span>
                   </h2>
-                  <p className="font-body text-sm text-paper opacity-90">
-                    Three tools, one ecosystem — built around how pet parents actually care for their companions.
+                  <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-base sm:text-lg text-paper opacity-90 leading-relaxed">
+                    Explore the tools designed to support different parts of the pet-parent journey.
                   </p>
                 </div>
 
                 <div ref={toolkitGridRef} className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   {[
                     { link: '/pets', image: '/images/toolkit/know-your-pet.webp', title: 'Know Your Pet', text: "Create a dedicated profile for your pet and keep their key details organised and easy to access whenever you need them.", cta: 'Create Their Profile', enabled: isKnowYourPetEnabled, onClick: () => navigate('/pets/app'), secondaryOnClick: () => navigate('/pets') },
-                    { link: '/consultations', image: '/images/toolkit/locate-vet.webp', title: 'Locate Your Vet', text: "Find veterinary clinics near you, explore available options, and make it easier to know where to turn when your companion needs professional care.", cta: 'Explore Nearby Vets', enabled: isConsultationsEnabled, onClick: () => navigate('/consultations/app'), secondaryOnClick: () => navigate('/consultations') },
-                    { link: '/onboarding', /* admin override key; the card itself opens /recipe-calculator */ image: '/images/toolkit/meal-planner.webp', title: 'Count Their Calories', text: "Explore an estimate of your pet's daily energy needs, helping you better understand the nutritional considerations behind their feeding routine.", cta: 'Estimate Their Needs', enabled: isMealPlannerEnabled, onClick: () => navigate('/recipe-calculator#fit-calculator'), secondaryOnClick: () => navigate('/recipe-calculator') },
+                    { link: '/consultations', image: '/images/toolkit/locate-vet.webp', title: 'Locate Your Vet', text: "Find veterinary clinics near you, explore available options, and make it easier to know where to turn when your pet needs professional care.", cta: 'Explore Nearby Vets', enabled: isConsultationsEnabled, onClick: () => navigate('/consultations/app'), secondaryOnClick: () => navigate('/consultations') },
+                    { link: '/onboarding', /* admin override key; the card itself opens /recipe-calculator */ image: '/images/toolkit/meal-planner.webp', title: 'Count Their Calories', text: "Explore an estimate of your pet's daily energy needs, helping you better understand the nutritional considerations behind their feeding routine.", cta: 'Estimate Their Needs', enabled: isCalorieCounterEnabled, onClick: () => navigate('/recipe-calculator#fit-calculator'), secondaryOnClick: () => navigate('/recipe-calculator') },
                   ].map((card) => {
                     // Image, title and text can be replaced from the admin panel (Banners > "Home page - tool card").
                     const override = toolkitOverrides[card.link];
@@ -506,7 +518,7 @@ export default function HomePage() {
         <section className="bg-paper py-16 md:py-24 px-4 sm:px-6 md:px-8 border-b border-cardboard border-opacity-35">
           <div className="max-w-7xl mx-auto space-y-12 text-left">
             <div className="max-w-2xl space-y-2">
-              <Eyebrow label="HOLISTIC COMPANION CARE" />
+              <Eyebrow label="HOLISTIC PET CARE" />
               <h2 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl uppercase tracking-tight text-ink">
                 Explore the Ecosystem
               </h2>

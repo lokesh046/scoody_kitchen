@@ -128,7 +128,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                   <div className="space-y-1">
                     <p className="font-display font-bold text-base text-ink">Your Ledger is Empty</p>
                     <p className="font-body text-xs text-ink opacity-70 max-w-xs leading-relaxed">
-                      Your companion's recipe journal is currently blank. Explore our nutritional small-batch catalog to add fresh meals.
+                      Your pet's recipe journal is currently blank. Explore our nutritional small-batch catalog to add fresh meals.
                     </p>
                   </div>
                   <button

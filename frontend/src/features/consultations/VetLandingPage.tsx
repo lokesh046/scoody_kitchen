@@ -4,10 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { motion, useInView, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import { ArrowRight, Plus, Minus, PawPrint } from 'lucide-react';
 import { SiteFooter } from '../../components/SiteFooter';
-import { ToolCarousel } from '../../components/ToolCarousel';
+import { CompanionToolsSection } from '../../components/CompanionToolsSection';
 import { Header } from '../../components/Header';
 import { CartDrawer } from '../../components/CartDrawer';
-import { useFeatureFlag } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingFaqs, useLandingHero } from '../../hooks/useAdminContent';
@@ -40,7 +39,7 @@ const STEPS = [
 const DEFAULT_HERO = {
   image: DEFAULT_HERO_IMAGE,
   title: 'The right care starts closer than you think',
-  subtitle: 'Find veterinary clinics in your area and take the next step towards getting your companion the care they need.',
+  subtitle: 'Find veterinary clinics in your area and take the next step towards getting your pet the care they need.',
 };
 
 const DEFAULT_FAQS = [
@@ -107,11 +106,18 @@ function JourneyIcon({ image, index }: { image: string; index: number }) {
   );
 }
 
-function JourneyPaw({ progress, order, reverse }: { progress: MotionValue<number>; order: number; reverse: boolean }) {
+// The PawPrint icon points up and to the right by default (its toes sit at the top right), about 52 degrees clockwise from straight up.
+const PAW_ICON_HEADING = 52;
+
+function JourneyPaw({ progress, order, reverse, box }: { progress: MotionValue<number>; order: number; reverse: boolean; box: { w: number; h: number } }) {
   const reduceMotion = useReducedMotion();
   const t = (order + 1) / 11;
   const curveX = t * t * (3 - 2 * t);
   const x = (reverse ? 1 - curveX : curveX) * 100;
+  // Turn each print to face along the trail: the way the path is heading at this point (screen pixels, measured from straight up, clockwise).
+  const stepX = 6 * t * (1 - t) * box.w * (reverse ? -1 : 1);
+  const heading = 180 - (Math.atan2(stepX, box.h) * 180) / Math.PI;
+  const rotation = heading - PAW_ICON_HEADING;
   const opacity = useTransform(progress, [Math.max(0, t - 0.06), t], [0.15, 1]);
   const scale = useTransform(progress, [Math.max(0, t - 0.06), t], [0.8, 1]);
   const filter = useTransform(progress, [Math.max(0, t - 0.06), t], ['drop-shadow(0 0 0px #D09E6B00)', 'drop-shadow(0 0 7px #D09E6BAA)']);
@@ -119,7 +125,7 @@ function JourneyPaw({ progress, order, reverse }: { progress: MotionValue<number
   return (
     <motion.span
       className="absolute text-turmeric"
-      style={{ left: `${x}%`, top: `${t * 100}%`, x: order % 2 === 0 ? -18 : 2, y: '-50%', rotate: reverse ? 215 : 145, opacity: reduceMotion ? 1 : opacity, scale: reduceMotion ? 1 : scale, filter: reduceMotion ? 'none' : filter }}
+      style={{ left: `${x}%`, top: `${t * 100}%`, x: order % 2 === 0 ? -18 : 2, y: '-50%', rotate: rotation, opacity: reduceMotion ? 1 : opacity, scale: reduceMotion ? 1 : scale, filter: reduceMotion ? 'none' : filter }}
     >
       <PawPrint className="h-4 w-4 md:h-5 md:w-5" fill="currentColor" strokeWidth={1} />
     </motion.span>
@@ -129,9 +135,19 @@ function JourneyPaw({ progress, order, reverse }: { progress: MotionValue<number
 function JourneyTrail({ reverse }: { reverse: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start 55%', 'end 55%'] });
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setBox({ w: el.offsetWidth, h: el.offsetHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   return (
     <div ref={ref} aria-hidden="true" className="pointer-events-none relative mx-auto my-5 h-40 w-[20%] md:my-7 md:h-48 md:w-[60%]">
-      {Array.from({ length: 10 }, (_, order) => <JourneyPaw key={order} progress={scrollYProgress} order={order} reverse={reverse} />)}
+      {Array.from({ length: 10 }, (_, order) => <JourneyPaw key={order} progress={scrollYProgress} order={order} reverse={reverse} box={box} />)}
     </div>
   );
 }
@@ -165,50 +181,6 @@ function JourneyStep({ step, index }: { step: typeof STEPS[number]; index: numbe
   );
 }
 
-function OtherToolsSection() {
-  const isShopEnabled = useFeatureFlag('shop_checkout', true);
-  const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
-  const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
-  const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
-
-  // Same set and layout as the Know Your Pet page's "One companion" section (every tool except this page's own),
-  // so with three or more tools the cards turn in the same orbit.
-  const tools = [
-    ...(isShopEnabled ? [{ label: 'Shop Recipes', image: '/images/toolkit/shop-recipes.webp', text: 'Human-grade meals built around what your pet actually needs.', path: '/shop' }] : []),
-    ...(isKnowYourPetEnabled ? [{ label: 'Know Your Pet', image: '/images/toolkit/know-your-pet.webp', text: "Understand your pet's characteristics and keep their profile information organised.", path: '/pets' }] : []),
-    ...(isMealPlannerEnabled ? [{ label: 'Count Their Calories', image: '/images/toolkit/meal-planner.webp', text: "Estimate your pet's daily energy needs from their profile.", path: '/recipe-calculator#fit-calculator' }] : []),
-    ...(isChatbotEnabled ? [{ label: 'AI Assistant', image: '/images/toolkit/ai-assistant.webp', text: 'Ask questions about nutrition and everyday pet care.', path: '/assistant' }] : []),
-  ];
-
-  if (tools.length === 0) return null;
-
-  return (
-    <section className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-midnight text-paper">
-      <div className="max-w-7xl mx-auto">
-        <div className="max-w-6xl mx-auto text-center space-y-3 mb-8">
-          <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
-            <span className="sr-only">One companion Different aspects of their care</span>
-            <span aria-hidden="true">
-              {'One companion Different aspects of their care'.split(' ').map((word, index) => (
-                <span key={index}>
-                  {index > 0 ? ' ' : ''}
-                  <span className="pet-profile-heading-word inline-block" style={{ animationDelay: `${index * 160}ms` }}>
-                    {word}
-                  </span>
-                </span>
-              ))}
-            </span>
-          </h2>
-          <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-base sm:text-lg text-paper opacity-90 leading-relaxed">
-            Explore the tools designed to support different parts of the pet-parent journey.
-          </p>
-        </div>
-        <ToolCarousel items={tools} />
-      </div>
-    </section>
-  );
-}
-
 export function VetLandingPage() {
   // Remember that this landing page has been opened, so the home-page card can go straight to the feature next time.
   useEffect(() => {
@@ -224,14 +196,14 @@ export function VetLandingPage() {
 
   useDocumentMetadata(
     'Locate Your Vet',
-    'Find veterinary clinics in your area and take the next step towards getting your companion the care they need.'
+    'Find veterinary clinics in your area and take the next step towards getting your pet the care they need.'
   );
 
   useStructuredData({
     '@context': 'https://schema.org',
     '@type': 'WebPage',
     name: 'Locate Your Vet',
-    description: 'Find veterinary clinics in your area and take the next step towards getting your companion the care they need.',
+    description: 'Find veterinary clinics in your area and take the next step towards getting your pet the care they need.',
     url: window.location.origin + window.location.pathname,
     isPartOf: { '@type': 'WebSite', name: 'Hearth & One', url: window.location.origin },
   });
@@ -301,7 +273,7 @@ export function VetLandingPage() {
         </div>
       </section>
 
-      <OtherToolsSection />
+      <CompanionToolsSection exclude="vet" />
 
       {/* Closing CTA */}
       <section aria-labelledby="vet-cta-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper text-center">
@@ -309,8 +281,8 @@ export function VetLandingPage() {
           <h2 id="vet-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
             The right care starts closer than you think
           </h2>
-          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg text-paper/90 leading-relaxed">
-            Find the clinics around you and take the next step for your companion.
+          <p className="max-w-xl mx-auto mt-7 md:mt-8 font-body text-base sm:text-lg text-paper/90 leading-relaxed">
+            Find the clinics around you and take the next step for your pet.
           </p>
           <button
             type="button"

@@ -11,12 +11,11 @@ import {
   Sprout,
 } from 'lucide-react';
 import { SiteFooter } from '../../components/SiteFooter';
-import { ToolCarousel } from '../../components/ToolCarousel';
+import { CompanionToolsSection } from '../../components/CompanionToolsSection';
 import { Header } from '../../components/Header';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Eyebrow } from '../../components/Eyebrow';
 import { ScrollSpyTimeline } from '../../components/ScrollSpyTimeline';
-import { useFeatureFlag, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingFaqs, useLandingHero } from '../../hooks/useAdminContent';
@@ -101,38 +100,6 @@ const STEPS = [
   { title: 'Choose a weight', text: 'Pick the size that fits your pet and your routine; each one shows its own price and stock.' },
   { title: 'Add to cart and check out', text: 'Add what you need, apply any coupon you have, and complete the order.' },
 ];
-
-function OtherToolsSection() {
-  const isConsultationsEnabled = useVetEntryEnabled();
-  const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
-  const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
-  const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
-
-  const tools = [
-    ...(isKnowYourPetEnabled ? [{ label: 'Know Your Pet', image: '/images/toolkit/know-your-pet.webp', text: "Keep your companion's details and health records in one place.", path: '/pets' }] : []),
-    ...(isConsultationsEnabled ? [{ label: 'Vet Consults', image: '/images/toolkit/vet-consults.webp', text: 'Book time with a veterinarian when something needs a professional look.', path: '/consultations' }] : []),
-    ...(isMealPlannerEnabled ? [{ label: 'Count Their Calories', image: '/images/toolkit/meal-planner.webp', text: "Estimate your pet's daily energy needs from their profile.", path: '/recipe-calculator#fit-calculator' }] : []),
-    ...(isChatbotEnabled ? [{ label: 'AI Assistant', image: '/images/toolkit/ai-assistant.webp', text: 'Ask questions about nutrition and everyday pet care.', path: '/assistant' }] : []),
-  ];
-
-  if (tools.length === 0) return null;
-
-  return (
-    <section className="px-4 sm:px-6 md:px-8 py-16 md:py-20 bg-midnight text-paper">
-      <div className="max-w-7xl mx-auto">
-        <div className="max-w-2xl mx-auto text-center space-y-3 mb-12">
-          <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
-            Good food is one part of their care
-          </h2>
-          <p className="font-body text-sm text-paper opacity-90 leading-relaxed">
-            Explore the tools designed to support different parts of the pet-parent journey.
-          </p>
-        </div>
-        <ToolCarousel items={tools} />
-      </div>
-    </section>
-  );
-}
 
 export function ShopLandingPage() {
   // Remember that this landing page has been opened, so the header link can go straight to the shop next time.
@@ -220,7 +187,7 @@ export function ShopLandingPage() {
             <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug text-paper">
               What you can expect from the catalogue
             </h2>
-            <p className="font-body text-sm text-paper opacity-90 leading-relaxed">
+            <p className="pt-4 md:pt-5 font-body text-base sm:text-lg text-paper opacity-90 leading-relaxed">
               Every recipe is listed with the same detail, so comparing two of them is a matter of reading, not guessing.
             </p>
           </div>
@@ -236,7 +203,7 @@ export function ShopLandingPage() {
             <h2 id="shop-ledger-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-5xl tracking-normal leading-snug">
               Percentages, not promises
             </h2>
-            <p className="font-body text-sm text-paper/90 leading-relaxed">
+            <p className="pt-3 md:pt-4 font-body text-base sm:text-lg text-paper/90 leading-relaxed">
               Most labels tell you what went in. Each of our recipes tells you how much of it went in.
             </p>
           </div>
@@ -288,7 +255,7 @@ export function ShopLandingPage() {
             <h2 id="shop-getting-started" className="font-script text-3xl font-normal tracking-normal leading-snug text-ink sm:text-4xl lg:text-5xl">
               Finding the right recipe
             </h2>
-            <p className="mx-auto mt-4 max-w-lg font-body text-sm leading-relaxed text-ink/75">
+            <p className="mx-auto mt-7 md:mt-8 max-w-2xl font-body text-base sm:text-lg leading-relaxed text-ink/75">
               Four steps from the catalogue to a bowl you understand.
             </p>
           </div>
@@ -337,7 +304,7 @@ export function ShopLandingPage() {
         </div>
       </section>
 
-      <OtherToolsSection />
+      <CompanionToolsSection exclude="shop" />
 
       {/* Closing CTA */}
       <section aria-labelledby="shop-cta-heading" className="px-4 sm:px-6 md:px-8 py-20 sm:py-24 md:py-28 bg-gradient-to-b from-midnightCard to-midnight text-paper text-center">
@@ -345,7 +312,7 @@ export function ShopLandingPage() {
           <h2 id="shop-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug">
             See what is in the bowl
           </h2>
-          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg md:text-xl text-paper/90 leading-relaxed">
+          <p className="max-w-xl mx-auto mt-7 md:mt-8 font-body text-base sm:text-lg text-paper/90 leading-relaxed">
             Browse the recipes and read every one of them all the way down.
           </p>
           <button

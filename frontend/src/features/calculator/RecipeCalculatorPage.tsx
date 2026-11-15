@@ -6,11 +6,11 @@ import { Header } from '../../components/Header';
 import { HeroScrollHint } from '../../components/HeroScrollHint';
 import { SiteFooter } from '../../components/SiteFooter';
 import { CartDrawer } from '../../components/CartDrawer';
-import { ToolCarousel } from '../../components/ToolCarousel';
+import { CompanionToolsSection } from '../../components/CompanionToolsSection';
 import { RouteUnavailable } from '../../components/RouteUnavailable';
 import { CalculatorGettingStarted } from './CalculatorGettingStarted';
 import { RecipeCalculator } from './RecipeCalculator';
-import { useFeatureFlag, useFlagEntry, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
+import { useFlagEntry } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingHero } from '../../hooks/useAdminContent';
@@ -108,14 +108,10 @@ export function RecipeCalculatorPage() {
   const reduceMotion = useReducedMotion();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
-  const isVetEnabled = useVetEntryEnabled();
-  const isShopEnabled = useFeatureFlag('shop_checkout', true);
-  const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
 
-  // The calculator follows the same switch as the rest of the meal planner. While it is off, a
+  // The calculator has its own switch (shop_calorie_counter), separate from the Meal Planner. While it is off, a
   // direct visit shows only its status (Coming soon / Unavailable), like the Shop and Vet pages.
-  const entry = useFlagEntry('shop_meal_planner');
+  const entry = useFlagEntry('shop_calorie_counter');
   const hero = useLandingHero('calculator_hero', DEFAULT_HERO);
 
   useDocumentMetadata(PAGE_TITLE, PAGE_DESCRIPTION);
@@ -156,43 +152,6 @@ export function RecipeCalculatorPage() {
       behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
     });
   };
-
-  const ecosystem = [
-    ...(isKnowYourPetEnabled
-      ? [{
-          label: 'Know Your Pet',
-          image: '/images/toolkit/know-your-pet.webp',
-          text: "Understand your pet's characteristics and keep their profile information organised.",
-          path: '/pets',
-          cta: 'Explore Know Your Pet',
-        }]
-      : []),
-    ...(isVetEnabled
-      ? [{
-          label: 'Locate Your Vet',
-          image: '/images/toolkit/locate-vet.webp',
-          text: 'Find veterinary clinics in your area and take the next step towards their care.',
-          path: '/consultations',
-          cta: 'Explore Locate Your Vet',
-        }]
-      : []),
-    ...(isShopEnabled
-      ? [{
-          label: 'Shop Recipes',
-          image: '/images/toolkit/shop-recipes.webp',
-          text: 'Recipes made in small batches, with each ingredient listed so you can check what goes into the bowl.',
-          path: '/shop',
-        }]
-      : []),
-    ...(isChatbotEnabled
-      ? [{
-          label: 'AI Assistant',
-          image: '/images/toolkit/ai-assistant.webp',
-          text: 'Ask questions about nutrition and everyday pet care.',
-          path: '/assistant',
-        }]
-      : []),
-  ];
 
   // Hidden (not just off) means the page should not exist for visitors, like the other hidden features.
   if (entry.state === 'hide') return <Navigate to="/" replace />;
@@ -262,8 +221,8 @@ export function RecipeCalculatorPage() {
             <h2 id="calc-needs-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] tracking-normal leading-snug lg:whitespace-nowrap">
               Every pet has their own energy needs
             </h2>
-            <p className="mx-auto max-w-2xl font-body text-base sm:text-lg text-paper/90 leading-relaxed">
-              The right amount of energy helps support your pet's everyday activities, from resting and playing to growing and staying active. Understanding their daily energy requirements can give you a useful starting point when planning their meals.
+            <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-base sm:text-lg text-paper/90 leading-relaxed">
+              From playful puppies to ageing companions, nutritional needs evolve at every stage of life.
             </p>
           </div>
           <motion.ol
@@ -311,32 +270,7 @@ export function RecipeCalculatorPage() {
           the footer and the other landing pages can open it directly (/recipe-calculator#fit-calculator). */}
       <RecipeCalculator />
 
-      {/* Hearth & One ecosystem -- the animated tool cards the other landing pages use */}
-      {ecosystem.length > 0 && (
-        <section aria-labelledby="calc-ecosystem-heading" className="px-4 sm:px-6 md:px-8 pt-12 pb-8 md:pt-14 md:pb-10 bg-midnight text-paper">
-          <div className="max-w-6xl mx-auto">
-            <div className="max-w-6xl mx-auto text-center space-y-3 mb-8">
-              <h2 id="calc-ecosystem-heading" className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
-                <span className="sr-only">One companion Different aspects of their care</span>
-                <span aria-hidden="true">
-                  {'One companion Different aspects of their care'.split(' ').map((word, index) => (
-                    <span key={index}>
-                      {index > 0 ? ' ' : ''}
-                      <span className="pet-profile-heading-word inline-block" style={{ animationDelay: `${index * 160}ms` }}>
-                        {word}
-                      </span>
-                    </span>
-                  ))}
-                </span>
-              </h2>
-              <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-base sm:text-lg text-paper opacity-90 leading-relaxed">
-                Explore the tools designed to support different parts of the pet-parent journey.
-              </p>
-            </div>
-            <ToolCarousel items={ecosystem} matchStepCards stepColumns={3} />
-          </div>
-        </section>
-      )}
+      <CompanionToolsSection exclude="calories" />
 
       {/* Closing CTA */}
       <section aria-labelledby="calc-cta-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper text-center">
@@ -344,7 +278,7 @@ export function RecipeCalculatorPage() {
           <h2 id="calc-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug lg:whitespace-nowrap">
             Take the next step towards more informed meals
           </h2>
-          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg text-paper/90 leading-relaxed">
+          <p className="max-w-xl mx-auto mt-7 md:mt-8 font-body text-base sm:text-lg text-paper/90 leading-relaxed">
             Estimate your pet's daily energy requirements and use the result as a starting point for making informed feeding decisions.
           </p>
           <button

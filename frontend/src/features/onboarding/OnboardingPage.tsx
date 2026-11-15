@@ -11,6 +11,7 @@ import { BREED_DATA, type AkcGroup } from '../../constants/breedData';
 
 import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
 import { DRAFT_KEY, parseDraft, toKilograms, displayWeight, estimateCalories, recommendRecipe, progressForStep, type WeightUnit, type ActivityLevel, type Allergy } from './mealPlanner';
+import { CompanionToolsSection } from '../../components/CompanionToolsSection';
 
 // Same 7 real AKC groups mobile's MealPlannerScreen shows, in the same
 // order (Foundation Stock Service / Miscellaneous Class are excluded at
@@ -276,7 +277,7 @@ export const OnboardingPage: React.FC = () => {
                 <h2 className="font-script font-normal text-4xl sm:text-5xl tracking-normal text-ink leading-snug">
                   Find their daily balance
                 </h2>
-                <p className="font-body text-sm text-ink opacity-80 max-w-md mx-auto leading-relaxed">
+                <p className="pt-5 md:pt-6 font-body text-base sm:text-lg text-ink opacity-80 max-w-lg mx-auto leading-relaxed">
                   Tell us about your dog to see a daily calorie estimate and explore recipes that match your preferences.
                 </p>
               </div>
@@ -805,6 +806,7 @@ export const OnboardingPage: React.FC = () => {
           )}
         </div>
       </main>
+      <CompanionToolsSection />
     </div>
   );
 };

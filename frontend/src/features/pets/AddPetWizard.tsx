@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, Camera, Check, ChevronDown, ImagePlus, Loader2, PawPrint, Pencil, ScanLine, Upload, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Camera, Check, ChevronDown, Crop, ImagePlus, Loader2, PawPrint, Pencil, ScanLine, Upload, X } from 'lucide-react';
 import type { ClassificationResponse } from '../../api/vision';
 import { PET_CATEGORIES, categoryForBreed, type PetCategory } from '../../constants/breedCategory';
 import { PetHeritagePassport } from '../../components/PetHeritagePassport';
@@ -37,6 +37,8 @@ interface AddPetWizardProps {
   onCamera: () => void;
   onSelectPhoto: (file: File) => void;
   onRemovePhoto: () => void;
+  /** Opens the move-and-zoom window for the chosen photo. Left out when there is no local photo to adjust. */
+  onAdjustPhoto?: () => void;
   onScan: () => void;
   onScanUpload: () => void;
   onScanCamera: () => void;
@@ -159,7 +161,7 @@ export function AddPetWizard(props: AddPetWizardProps) {
           <fieldset disabled={busy} className="min-w-0 flex-1 p-5 sm:p-8 space-y-6">
             <div>
               <p className="mb-2 font-body text-xs font-bold text-paprika">Step {step} of 3</p>
-              <h3 ref={headingRef} tabIndex={-1} className="font-display text-2xl font-semibold text-ink outline-none">{step === 1 ? 'Let’s meet your companion' : step === 2 ? 'The details that make them unique' : 'Ready to welcome them in?'}</h3>
+              <h3 ref={headingRef} tabIndex={-1} className="font-display text-2xl font-semibold text-ink outline-none">{step === 1 ? 'Let’s meet your pet' : step === 2 ? 'The details that make them unique' : 'Ready to welcome them in?'}</h3>
               {step === 3 && <p className="mt-2 font-body text-sm leading-relaxed text-ink/70">Check the details below. You can edit anything before saving.</p>}
             </div>
 
@@ -187,6 +189,7 @@ export function AddPetWizard(props: AddPetWizardProps) {
                   <div className="mt-4 flex flex-wrap gap-3">
                     <button type="button" onClick={props.onUpload} disabled={busy} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-cardboard bg-white px-4 font-body text-sm font-bold text-ink hover:border-turmeric disabled:opacity-50 ${FOCUS}`}><Upload aria-hidden="true" className="h-4 w-4" />{props.photoUrl ? 'Change photo' : 'Upload photo'}</button>
                     <button type="button" onClick={props.onCamera} disabled={busy} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 font-body text-sm font-bold text-ink hover:bg-cardboard/30 disabled:opacity-50 ${FOCUS}`}><Camera aria-hidden="true" className="h-4 w-4" />Use camera</button>
+                    {props.photoUrl && props.onAdjustPhoto && <button type="button" onClick={props.onAdjustPhoto} disabled={busy} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 font-body text-sm font-bold text-ink hover:bg-cardboard/30 disabled:opacity-50 ${FOCUS}`}><Crop aria-hidden="true" className="h-4 w-4" />Adjust photo</button>}
                   </div>
                 </div>
                 <p className="mt-2 font-body text-xs leading-relaxed text-ink/65">Use a clear, well-lit photo showing one pet’s face and body.</p>
@@ -250,7 +253,7 @@ export function AddPetWizard(props: AddPetWizardProps) {
         <aside aria-label="Pet profile preview" className="hidden lg:flex lg:flex-col min-w-0 rounded-2xl border border-cardboard/80 bg-white p-5 sm:p-8">
           <div className="mb-5 flex items-center gap-2 font-body text-xs font-bold text-paprika"><PawPrint aria-hidden="true" className="h-4 w-4" />Your profile, taking shape</div>
           {props.photoUrl ? <img src={props.photoUrl} alt="Pet profile preview" className="mx-auto h-40 w-40 shrink-0 rounded-full object-cover" /> : <div className="mx-auto h-40 w-40 shrink-0 rounded-full border border-dashed border-cardboard bg-white flex items-center justify-center"><PawPrint aria-hidden="true" className="h-12 w-12 text-turmeric/70" strokeWidth={1.2} /></div>}
-          <h3 className="mt-4 font-display font-semibold text-2xl text-ink break-words">{value.name.trim() || 'Your companion'}</h3><p className="mt-1 font-body text-sm text-ink/70">{value.species}{value.breed ? ` · ${value.breed}` : ''}</p>
+          <h3 className="mt-4 font-display font-semibold text-2xl text-ink break-words">{value.name.trim() || 'Your pet'}</h3><p className="mt-1 font-body text-sm text-ink/70">{value.species}{value.breed ? ` · ${value.breed}` : ''}</p>
           <ReviewRows rows={detailsRows} />
           <p className="mt-auto pt-4 font-body text-xs leading-relaxed text-ink/65">You can keep updating their profile after saving.</p>
         </aside>
@@ -263,7 +266,7 @@ export function AddPetWizard(props: AddPetWizardProps) {
           {scanResult.care_insights && <div><h4 className="font-display text-lg font-semibold text-ink">Care insights</h4><ReviewRows rows={[
             ['Temperament', scanResult.care_insights.temperament], ['Adult size', scanResult.care_insights.adult_size_category], ['Nutritional focus', scanResult.care_insights.nutritional_focus], ['Suggested recipe', scanResult.care_insights.recommended_recipe],
           ]} />{!!scanResult.care_insights.health_watch?.length && <div className="mt-3"><h5 className="font-body text-sm font-bold text-ink">Health considerations</h5><ul className="mt-2 list-disc pl-5 space-y-1 font-body text-sm text-ink/75">{scanResult.care_insights.health_watch.map((item) => <li key={item}>{item}</li>)}</ul></div>}</div>}
-          {scanResult.heritage && <div className="space-y-3"><p className="font-body text-xs text-ink/65">Passport insights are based on the original photo estimate: {primaryBreed || 'Companion'}.</p><PetHeritagePassport petName={value.name} breedName={primaryBreed || 'Companion'} species={scanResult.species || value.species} photoUrl={props.photoUrl || undefined} heritage={scanResult.heritage} /></div>}
+          {scanResult.heritage && <div className="space-y-3"><p className="font-body text-xs text-ink/65">Passport insights are based on the original photo estimate: {primaryBreed || 'Pet'}.</p><PetHeritagePassport petName={value.name} breedName={primaryBreed || 'Pet'} species={scanResult.species || value.species} photoUrl={props.photoUrl || undefined} heritage={scanResult.heritage} /></div>}
         </div>
       </details>}
     </div>

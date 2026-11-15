@@ -258,7 +258,7 @@ export default function ShopPage() {
   const addItem = useCartStore((state) => state.addItem);
   const { user } = useAuthStore();
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
-  const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
+  const isCalorieCounterEnabled = useFeatureFlag('shop_calorie_counter', true);
   const shopFallback = useFeatureFlagFallback('shop_checkout');
   const shopEntry = useFlagEntry('shop_checkout');
 
@@ -361,7 +361,7 @@ export default function ShopPage() {
                 >
                   Explore Shop Recipes
                 </button>
-                {isMealPlannerEnabled && (
+                {isCalorieCounterEnabled && (
                   <button
                     onClick={() => {
                       navigate('/recipe-calculator#fit-calculator');

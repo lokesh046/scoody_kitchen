@@ -107,24 +107,28 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
   }, [flagsLoading]);
 
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
+  // Header-only switches: they hide just the menu link, the pages themselves stay reachable.
+  const showOrdersLink = useFeatureFlag('header_my_orders', true);
+  const showAssistantLink = useFeatureFlag('header_ai_assistant', true);
+  const isDoctorApplyEnabled = useFeatureFlag('doctor_apply', true);
   // The Vet link shows when either the online-consultation or the nearby-clinics side is on, coming
   // soon or unavailable; the tag says which when neither side is on. See useVetAccess.
   const vetAccess = useVetAccess();
   const shopEntry = useFlagEntry('shop_checkout');
   const isShopEnabled = shopEntry.state === 'on'; // the cart icon is only for a working shop
   const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
-  const calculatorEntry = useFlagEntry('shop_meal_planner');
+  const calculatorEntry = useFlagEntry('shop_calorie_counter');
   const isKnowYourPetEnabled = useFeatureFlag('pets_know_your_pet', true);
 
   // Header links always open the feature's landing page (`path`). The home page cards' main button goes straight to the feature.
   const navLinks: { id: string; label: string; path: string; badge?: string | null }[] = [
     ...(isKnowYourPetEnabled ? [{ id: 'pets', label: 'Know Your Pet', path: '/pets' }] : []),
-    ...(vetAccess.navVisible ? [{ id: 'consultations', label: 'Vet Consult', path: '/consultations', badge: vetAccess.navLabel }] : []),
+    ...(vetAccess.navVisible ? [{ id: 'consultations', label: 'Locate Your Vet', path: '/consultations', badge: vetAccess.navLabel }] : []),
     ...(shopEntry.visible ? [{ id: 'shop', label: 'Shop', path: '/shop', badge: shopEntry.label }] : []),
     ...(calculatorEntry.visible ? [{ id: 'calculator', label: 'Count Their Calories', path: '/recipe-calculator', badge: calculatorEntry.label }] : []),
-    { id: 'orders', label: 'My Orders', path: '/orders' },
+    ...(showOrdersLink ? [{ id: 'orders', label: 'My Orders', path: '/orders' }] : []),
     ...(isMealPlannerEnabled ? [{ id: 'onboarding', label: 'Meal Planner', path: '/onboarding' }] : []),
-    ...(isChatbotEnabled ? [{ id: 'assistant', label: 'AI Assistant', path: '/assistant' }] : []),
+    ...(isChatbotEnabled && showAssistantLink ? [{ id: 'assistant', label: 'AI Assistant', path: '/assistant' }] : []),
   ];
 
   const linkTarget = (link: (typeof navLinks)[number]) => link.path;
@@ -174,9 +178,9 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
           {/* Center: Desktop Navigation Menu */}
           <nav className={`hidden lg:flex space-x-4 lg:space-x-6 font-body text-xs font-bold uppercase tracking-wider ${headerTextClass} lg:col-span-6 justify-center transition-opacity duration-300 ${navRevealed ? 'opacity-100' : 'opacity-0'}`}>
             {navLinks.map((link) => (
-              <button
+              <Link
                 key={link.id}
-                onClick={() => navigate(linkTarget(link))}
+                to={linkTarget(link)}
                 className={`hover:text-turmeric transition-colors pb-1 ${
                   activeTab === link.id ? 'text-turmeric font-bold border-b-2 border-turmeric' : ''
                 }`}
@@ -187,37 +191,37 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
                     {link.badge}
                   </span>
                 )}
-              </button>
+              </Link>
             ))}
             {user?.role === 'admin' && (
-              <button
-                onClick={() => navigate('/admin')}
+              <Link
+                to={'/admin'}
                 className={`hover:text-turmeric transition-colors pb-1 ${
                   activeTab === 'admin' ? 'text-turmeric font-bold border-b-2 border-turmeric' : 'text-turmeric'
                 }`}
               >
                 Admin Panel 🛠️
-              </button>
+              </Link>
             )}
             {(user?.role === 'doctor' || user?.role === 'admin') && (
-              <button
-                onClick={() => navigate('/doctor')}
+              <Link
+                to={'/doctor'}
                 className={`hover:text-turmeric transition-colors pb-1 ${
                   activeTab === 'doctor' ? 'text-turmeric font-bold border-b-2 border-turmeric' : 'text-turmeric'
                 }`}
               >
                 Doctor Panel 🩺
-              </button>
+              </Link>
             )}
-            {user?.role === 'customer' && (
-              <button
-                onClick={() => navigate('/apply-doctor')}
+            {user?.role === 'customer' && isDoctorApplyEnabled && (
+              <Link
+                to={'/apply-doctor'}
                 className={`hover:text-turmeric transition-colors pb-1 ${
                   activeTab === 'apply-doctor' ? 'text-turmeric font-bold border-b-2 border-turmeric' : 'text-turmeric'
                 }`}
               >
                 Apply as Doctor 🩺
-              </button>
+              </Link>
             )}
           </nav>
 
@@ -242,8 +246,8 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
             )}
 
             {user && (
-              <button
-                onClick={() => navigate('/profile')}
+              <Link
+                to={'/profile'}
                 className={`p-1.5 sm:p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 ${headerTextClass} flex items-center space-x-1.5 font-mono text-[10px] uppercase font-bold transition-all cursor-pointer ${
                   activeTab === 'profile' ? 'bg-paperLight border-turmeric text-turmeric' : ''
                 }`}
@@ -263,7 +267,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
                 <span className="hidden sm:inline text-turmeric">
                   {user.first_name || 'Profile'}
                 </span>
-              </button>
+              </Link>
             )}
 
             {isShopEnabled && (
@@ -290,13 +294,13 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
                 <span>Log Out</span>
               </button>
             ) : (
-              <button
-                onClick={() => navigate('/login')}
+              <Link
+                to={'/login'}
                 className={`hidden lg:flex p-2 border border-cardboard border-opacity-35 rounded-none hover:bg-paperLight hover:bg-opacity-10 ${headerTextClass} items-center space-x-1.5 font-body text-[10px] font-bold uppercase`}
               >
                 <User className="w-3.5 h-3.5" />
                 <span>Log In</span>
-              </button>
+              </Link>
             )}
  
             {/* Mobile Hamburger toggle */}
@@ -349,13 +353,11 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
 
             <nav className="flex flex-col space-y-3 flex-grow overflow-y-auto">
               {navLinks.map((link) => (
-                <button
+                <Link
                   key={link.id}
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    navigate(linkTarget(link));
-                  }}
-                  className={`w-full text-left py-2 px-3 text-xs font-mono font-bold uppercase tracking-wider border transition-all ${
+                  to={linkTarget(link)}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block w-full text-left py-2 px-3 text-xs font-mono font-bold uppercase tracking-wider border transition-all ${
                     activeTab === link.id
                       ? 'bg-paperLight border-cardboard text-ink font-bold'
                       : 'border-transparent text-ink opacity-75 hover:opacity-100 hover:bg-paperLight'
@@ -367,24 +369,22 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
                       {link.badge}
                     </span>
                   )}
-                </button>
+                </Link>
               ))}
 
               {user?.role === 'admin' && (
                 <div className="space-y-2 border-t border-cardboard border-dashed pt-2">
-                  <button
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      navigate('/admin');
-                    }}
-                    className={`w-full text-left py-2 px-3 text-xs font-mono font-bold uppercase tracking-wider border transition-all ${
+                  <Link
+                    to={'/admin'}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`block w-full text-left py-2 px-3 text-xs font-mono font-bold uppercase tracking-wider border transition-all ${
                       activeTab === 'admin'
                         ? 'bg-paperLight border-cardboard text-ink font-bold'
                         : 'border-transparent text-turmeric opacity-90 hover:opacity-100 hover:bg-paperLight'
                     }`}
                   >
                     Admin Panel 🛠️
-                  </button>
+                  </Link>
                   <button
                     onClick={() => {
                       if (confirm('Delete all unverified user accounts older than 24 hours?')) {
@@ -400,34 +400,30 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
               )}
 
               {(user?.role === 'doctor' || user?.role === 'admin') && (
-                <button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    navigate('/doctor');
-                  }}
-                  className={`w-full text-left py-2 px-3 text-xs font-mono font-bold uppercase tracking-wider border transition-all ${
+                <Link
+                  to={'/doctor'}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block w-full text-left py-2 px-3 text-xs font-mono font-bold uppercase tracking-wider border transition-all ${
                     activeTab === 'doctor'
                       ? 'bg-paperLight border-cardboard text-ink font-bold'
                       : 'border-transparent text-turmeric opacity-90 hover:opacity-100 hover:bg-paperLight'
                   }`}
                 >
                   Doctor Panel 🩺
-                </button>
+                </Link>
               )}
-              {user?.role === 'customer' && (
-                <button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    navigate('/apply-doctor');
-                  }}
-                  className={`w-full text-left py-2 px-3 text-xs font-mono font-bold uppercase tracking-wider border transition-all ${
+              {user?.role === 'customer' && isDoctorApplyEnabled && (
+                <Link
+                  to={'/apply-doctor'}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block w-full text-left py-2 px-3 text-xs font-mono font-bold uppercase tracking-wider border transition-all ${
                     activeTab === 'apply-doctor'
                       ? 'bg-paperLight border-cardboard text-ink font-bold'
                       : 'border-transparent text-turmeric opacity-90 hover:opacity-100 hover:bg-paperLight'
                   }`}
                 >
                   Apply as Doctor 🩺
-                </button>
+                </Link>
               )}
             </nav>
 
@@ -437,11 +433,9 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
                   <div className="px-3 font-mono text-[9px] uppercase text-ink opacity-60">
                     Logged in as: <strong className="text-ink">{user.first_name || 'User'}</strong>
                   </div>
-                  <button
-                    onClick={() => {
-                      setIsMobileMenuOpen(false);
-                      navigate('/profile');
-                    }}
+                  <Link
+                    to={'/profile'}
+                    onClick={() => setIsMobileMenuOpen(false)}
                     className={`w-full py-2 px-3 border flex items-center justify-center space-x-1.5 font-body text-[10px] font-bold uppercase transition-all ${
                       activeTab === 'profile'
                         ? 'bg-paperLight border-cardboard text-ink'
@@ -458,7 +452,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
                       <User className="w-3.5 h-3.5" />
                     )}
                     <span>My Profile</span>
-                  </button>
+                  </Link>
                   <button
                     onClick={handleLogout}
                     className="w-full py-2 px-3 border border-cardboard hover:bg-paperLight text-ink flex items-center justify-center space-x-1.5 font-body text-[10px] font-bold uppercase"
@@ -468,16 +462,14 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, onCartToggle, overlay
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    navigate('/login');
-                  }}
+                <Link
+                  to={'/login'}
+                  onClick={() => setIsMobileMenuOpen(false)}
                   className="w-full py-2 px-3 border border-cardboard hover:bg-paperLight text-ink flex items-center justify-center space-x-1.5 font-body text-[10px] font-bold uppercase"
                 >
                   <User className="w-3.5 h-3.5" />
                   <span>Log In</span>
-                </button>
+                </Link>
               )}
             </div>
           </div>

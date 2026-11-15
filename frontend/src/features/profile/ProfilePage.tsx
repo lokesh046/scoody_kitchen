@@ -5,7 +5,6 @@ import { useAuthStore } from '../../store/auth';
 import { useCartStore } from '../../store/cart';
 import { logoutUser, updateUserProfile, uploadAvatarImage, sendWhatsAppOtp, verifyWhatsAppOtp } from '../../api/auth';
 import { CartDrawer } from '../../components/CartDrawer';
-import { Eyebrow } from '../../components/Eyebrow';
 import { PhoneNumberInput } from '../../components/PhoneNumberInput';
 import { DEFAULT_COUNTRY_ISO2 } from '../../constants/countries';
 import { toE164, isValidForCountry, getCountry } from '../../utils/phone';
@@ -15,9 +14,7 @@ import { fetchMySupportUnreadCount } from '../../api/support';
 import { Header } from '../../components/Header';
 import {
   UserCheck,
-  ArrowLeft,
   Loader2,
-  BookOpen,
   FileText,
   Stethoscope,
   FolderHeart,
@@ -42,6 +39,8 @@ export const ProfilePage: React.FC = () => {
   const { user, accessToken, setAuth, clearAuth } = useAuthStore();
   const clearCart = useCartStore((state) => state.clear);
   const isConsultationsEnabled = useFeatureFlag('consultations_booking', true);
+  const isDoctorApplyEnabled = useFeatureFlag('doctor_apply', true);
+  const showOrdersLink = useFeatureFlag('header_my_orders', true);
   const consultationsFallback = useFeatureFlagFallback('consultations_booking');
 
   const handleNavigateConsultations = () => {
@@ -297,27 +296,10 @@ export const ProfilePage: React.FC = () => {
       {/* Main Content */}
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 md:px-8 py-8 flex flex-col space-y-8">
         
-        {/* Navigation Breadcrumb */}
-        <div className="flex justify-between items-center border-b border-cardboard border-opacity-35 pb-4">
-          <button
-            onClick={() => navigate('/shop/app')}
-            className="flex items-center space-x-1.5 font-mono text-[10px] uppercase font-bold tracking-wider text-ink opacity-75 hover:opacity-100 transition-opacity"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Return to Fresh Meal Store</span>
-          </button>
-          
-          <div className="flex items-center space-x-1.5 font-mono text-[9px] uppercase tracking-wider text-herb font-bold">
-            <BookOpen className="w-4 h-4 text-herb" />
-            <span>Account Registry Ledger</span>
-          </div>
-        </div>
-
         {/* Section Header */}
         <div className="space-y-1 text-left">
-          <Eyebrow label="ACCOUNT & SECURITY REGISTRY" />
           <h1 className="font-display font-black text-2xl sm:text-4xl text-ink tracking-tight">
-            Pet Parent Profile Ledger
+            Pet Parent Profile
           </h1>
           <p className="font-body text-xs sm:text-sm text-ink opacity-75 max-w-2xl mt-1">
             Review your keeper credentials, manage verified phone contacts, and access quick platform operations.
@@ -411,7 +393,7 @@ export const ProfilePage: React.FC = () => {
                 <span className="text-ink opacity-60 uppercase block">Registered Pets</span>
                 <span className="font-bold text-ink flex items-center gap-1">
                   <PawPrint className="w-3.5 h-3.5 text-turmeric" />
-                  {pets?.length || 0} Companions
+                  {pets?.length || 0} Pets
                 </span>
               </div>
             </div>
@@ -601,7 +583,8 @@ export const ProfilePage: React.FC = () => {
               </button>
             )}
 
-            {/* View Orders */}
+            {/* View Orders: follows the same My Orders switch as the header link */}
+            {showOrdersLink && (
             <button
               onClick={() => navigate('/orders')}
               className="flex items-center space-x-3 p-4 border border-cardboard border-opacity-35 hover:border-turmeric bg-paper hover:bg-paperLight rounded-sm transition-all text-ink text-left cursor-pointer shadow-xs"
@@ -614,6 +597,7 @@ export const ProfilePage: React.FC = () => {
                 <span className="font-mono text-[9px] uppercase opacity-70 text-ink">Tracking & History</span>
               </div>
             </button>
+            )}
 
             {/* Support */}
             <button
@@ -661,7 +645,7 @@ export const ProfilePage: React.FC = () => {
                   <span className="font-mono text-[9px] uppercase opacity-70 text-ink">Platform Management</span>
                 </div>
               </button>
-            ) : (
+            ) : isDoctorApplyEnabled ? (
               <button
                 onClick={() => navigate('/apply-doctor')}
                 className="flex items-center space-x-3 p-4 border border-cardboard border-opacity-35 hover:border-turmeric bg-paper hover:bg-paperLight rounded-sm transition-all text-ink text-left cursor-pointer shadow-xs"
@@ -674,7 +658,7 @@ export const ProfilePage: React.FC = () => {
                   <span className="font-mono text-[9px] uppercase opacity-70 text-ink">Join Vet Roster</span>
                 </div>
               </button>
-            )}
+            ) : null}
 
             {/* Logout */}
             <button

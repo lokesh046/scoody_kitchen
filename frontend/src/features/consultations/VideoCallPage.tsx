@@ -816,7 +816,7 @@ export const VideoCallPage: React.FC = () => {
                 activeTab === 'patient' ? 'bg-paper text-paprika font-bold' : 'text-ink opacity-70 hover:bg-paper'
               }`}
             >
-              🐾 Patient companion
+              🐾 Patient pet
             </button>
             <button
               onClick={() => setActiveTab('notes')}
@@ -984,7 +984,7 @@ export const VideoCallPage: React.FC = () => {
               <h3 className="font-display font-bold text-xl text-ink">Consultation Concluded!</h3>
               <p className="text-xs text-ink opacity-70">
                 Dr. {consultation.doctor?.user?.last_name || 'Specialist'} has concluded the video review session. 
-                We hope your pet companion is doing well. Please take a second to rate your experience:
+                We hope your pet is doing well. Please take a second to rate your experience:
               </p>
             </div>
 

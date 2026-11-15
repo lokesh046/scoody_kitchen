@@ -6,7 +6,7 @@ import { createPet } from '../../api/pets';
 import { DRAFT_KEY, pendingPetWeightKg } from '../onboarding/mealPlanner';
 import { Eyebrow } from '../../components/Eyebrow';
 import { Key, Mail, User, CheckCircle2, ArrowLeft } from 'lucide-react';
-import { DogViewer3D } from '../../components/DogViewer3D';
+import { LoginDogsVideo } from '../../components/LoginDogsVideo';
 
 declare global {
   interface Window {
@@ -279,7 +279,7 @@ export const AuthPage: React.FC = () => {
             text: 'continue_with',
             shape: 'rectangular',
             logo_alignment: 'left',
-            width: 320,
+            width: Math.min(400, Math.max(200, Math.floor(btnContainer.clientWidth || 320))),
           });
         }
       }
@@ -397,25 +397,19 @@ export const AuthPage: React.FC = () => {
       <div className="absolute left-6 md:left-10 top-0 bottom-0 border-l border-dashed border-cardboard opacity-50 hidden md:block z-10"></div>
 
       {/* Left Column: Form Section */}
-      <div className="w-full md:w-1/2 min-h-screen flex items-center justify-center p-6 md:p-12 relative z-20">
-        <div className="w-full max-w-md bg-paperLight border border-cardboard p-8 rounded-sm shadow-md space-y-6 relative overflow-hidden animate-fade-in-up">
-        {/* Brand Logo & Intro */}
-        <div className="text-center space-y-2 flex flex-col items-center">
-          <div className="w-20 h-20 sm:w-24 sm:h-24 logo-medallion flex items-center justify-center p-1 overflow-hidden mb-1 shadow-md">
-            <img
-              src="/scooby-logo-256.webp"
-              alt="Hearth & One Logo"
-              width={96}
-              height={96}
-              className="w-full h-full object-contain select-none"
-            />
-          </div>
-          <div>
-            <h2 className="font-display font-black text-2xl text-ink">Hearth & One</h2>
-            <p className="font-mono text-[9px] uppercase tracking-wider text-herb font-bold">
-              Recipe Notebook Security Ledger
-            </p>
-          </div>
+      <div className="w-full md:w-1/2 min-h-screen flex items-center justify-center p-6 md:p-8 lg:p-12 relative z-20">
+        <div className="w-full max-w-[440px] bg-paperLight border border-cardboard p-5 sm:p-7 rounded-sm shadow-md space-y-5 relative overflow-hidden animate-fade-in-up">
+        {/* Brand logo: just the full logo (dog + name), big, no circle -- same as the app */}
+        <div className="flex flex-col items-center">
+          <h2 className="sr-only">Hearth & One</h2>
+          <img
+            src="/hearth-and-one-logo-640.webp"
+            alt=""
+            width={640}
+            height={640}
+            className="w-40 h-40 sm:w-48 sm:h-48 -my-4 object-contain select-none mix-blend-multiply"
+            draggable={false}
+          />
         </div>
 
         {errorMsg && (
@@ -443,7 +437,7 @@ export const AuthPage: React.FC = () => {
                   setErrorMsg(null);
                   setSuccessMsg(null);
                 }}
-                className={`flex-1 pb-2 font-display text-base font-bold transition-colors ${
+                className={`flex-1 pb-2 font-display text-xl font-bold transition-colors ${
                   !isRegister
                     ? 'text-ink'
                     : 'text-cardboard hover:text-ink'
@@ -458,7 +452,7 @@ export const AuthPage: React.FC = () => {
                   setErrorMsg(null);
                   setSuccessMsg(null);
                 }}
-                className={`flex-1 pb-2 font-display text-base font-bold transition-colors ${
+                className={`flex-1 pb-2 font-display text-xl font-bold transition-colors ${
                   isRegister
                     ? 'text-ink'
                     : 'text-cardboard hover:text-ink'
@@ -480,34 +474,34 @@ export const AuthPage: React.FC = () => {
                 <div className="space-y-4 animate-fade-in-up">
                   {/* First Name */}
                   <div className="space-y-1 animate-fade-in-up" style={{ animationDelay: '50ms', animationFillMode: 'both' }}>
-                    <label className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold block">
+                    <label className="font-mono text-xs uppercase tracking-wider text-herb font-bold block">
                       First Name
                     </label>
                     <div className="relative">
-                      <User className="w-3.5 h-3.5 text-cardboard absolute left-3 top-1/2 -translate-y-1/2" />
+                      <User className="w-4 h-4 text-cardboard absolute left-4 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                         placeholder="John"
-                        className="w-full pl-9 pr-4 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                        className="w-full pl-11 pr-4 py-3.5 border border-cardboard rounded-sm bg-paperLight font-body !text-base text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                       />
                     </div>
                   </div>
 
                   {/* Last Name */}
                   <div className="space-y-1 animate-fade-in-up" style={{ animationDelay: '100ms', animationFillMode: 'both' }}>
-                    <label className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold block">
+                    <label className="font-mono text-xs uppercase tracking-wider text-herb font-bold block">
                       Last Name
                     </label>
                     <div className="relative">
-                      <User className="w-3.5 h-3.5 text-cardboard absolute left-3 top-1/2 -translate-y-1/2" />
+                      <User className="w-4 h-4 text-cardboard absolute left-4 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                         placeholder="Doe"
-                        className="w-full pl-9 pr-4 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                        className="w-full pl-11 pr-4 py-3.5 border border-cardboard rounded-sm bg-paperLight font-body !text-base text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                       />
                     </div>
                   </div>
@@ -516,18 +510,18 @@ export const AuthPage: React.FC = () => {
 
               {/* Email (Required for both) */}
               <div className="space-y-1 animate-fade-in-up" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
-                <label className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold block">
+                <label className="font-mono text-xs uppercase tracking-wider text-herb font-bold block">
                   Email Address
                 </label>
                 <div className="relative">
-                  <Mail className="w-3.5 h-3.5 text-cardboard absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-4 h-4 text-cardboard absolute left-4 top-1/2 -translate-y-1/2" />
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full pl-9 pr-4 py-2 border border-cardboard rounded-sm bg-paperLight font-body text-xs text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                    className="w-full pl-11 pr-4 py-3.5 border border-cardboard rounded-sm bg-paperLight font-body !text-base text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                   />
                 </div>
               </div>
@@ -535,7 +529,7 @@ export const AuthPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs py-3 rounded-sm tracking-wide uppercase transition-colors shadow-sm disabled:opacity-50 mt-2 hover-bounce"
+                className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-sm py-4 rounded-sm tracking-wide uppercase transition-colors shadow-sm disabled:opacity-50 mt-2 hover-bounce"
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center space-x-2">
@@ -555,7 +549,7 @@ export const AuthPage: React.FC = () => {
             <div className="space-y-4 flex flex-col items-center">
               <div className="w-full flex items-center space-x-2">
                 <span className="flex-grow h-[1px] bg-cardboard opacity-55"></span>
-                <span className="font-mono text-[9px] uppercase tracking-wider text-cardboard">Or</span>
+                <span className="font-mono text-[11px] uppercase tracking-wider text-cardboard">Or</span>
                 <span className="flex-grow h-[1px] bg-cardboard opacity-55"></span>
               </div>
 
@@ -565,7 +559,7 @@ export const AuthPage: React.FC = () => {
                   type="button"
                   onClick={handleAppleSignIn}
                   disabled={isLoading}
-                  className="w-[320px] max-w-full h-[40px] flex items-center justify-center gap-2 rounded-[4px] bg-black text-white font-sans text-[14px] font-medium hover:bg-neutral-800 disabled:opacity-60"
+                  className="w-[400px] max-w-full h-[40px] flex items-center justify-center gap-2 rounded-[4px] bg-black text-white font-sans text-[14px] font-medium hover:bg-neutral-800 disabled:opacity-60"
                 >
                   <svg width="16" height="18" viewBox="0 0 814 1000" fill="currentColor" aria-hidden="true">
                     <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105.6-57-155.5-127C46.7 790.7 0 663 0 541.8c0-194.4 126.4-297.5 250.8-297.5 66.1 0 121.2 43.4 162.7 43.4 39.5 0 101.1-46 176.3-46 28.5 0 130.9 2.6 198.3 99.2zm-234-181.5c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/>
@@ -580,7 +574,7 @@ export const AuthPage: React.FC = () => {
           <div className="space-y-6 animate-fade-in-up">
             <button
               onClick={() => setIsOtpMode(false)}
-              className="font-mono text-[9px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1"
+              className="font-mono text-[11px] uppercase tracking-wider text-ink opacity-70 hover:opacity-100 flex items-center space-x-1"
             >
               <ArrowLeft className="w-3 h-3" />
               <span>Back to Forms</span>
@@ -597,11 +591,11 @@ export const AuthPage: React.FC = () => {
 
             <form onSubmit={handleVerifyOtp} className="space-y-4 text-left">
               <div className="space-y-1 animate-fade-in-up" style={{ animationDelay: '100ms', animationFillMode: 'both' }}>
-                <label className="font-mono text-[10px] uppercase tracking-wider text-herb font-bold block">
+                <label className="font-mono text-xs uppercase tracking-wider text-herb font-bold block">
                   6-Digit OTP Code
                 </label>
                 <div className="relative">
-                  <Key className="w-3.5 h-3.5 text-cardboard absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Key className="w-4 h-4 text-cardboard absolute left-4 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     required
@@ -610,7 +604,7 @@ export const AuthPage: React.FC = () => {
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                     placeholder="123456"
-                    className="w-full pl-9 pr-4 py-3 border border-cardboard rounded-sm bg-paperLight font-mono text-center tracking-[0.5em] text-lg text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
+                    className="w-full pl-11 pr-4 py-4 border border-cardboard rounded-sm bg-paperLight font-mono text-center tracking-[0.5em] text-lg text-ink placeholder-cardboard focus:outline-none focus:border-turmeric focus:ring-1 focus:ring-turmeric transition-colors"
                   />
                 </div>
               </div>
@@ -618,7 +612,7 @@ export const AuthPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-xs py-3 rounded-sm tracking-wide uppercase transition-colors shadow-sm disabled:opacity-50 hover-bounce"
+                className="w-full bg-turmeric hover:bg-opacity-95 text-ink font-body font-bold text-sm py-4 rounded-sm tracking-wide uppercase transition-colors shadow-sm disabled:opacity-50 hover-bounce"
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center space-x-2">
@@ -638,22 +632,11 @@ export const AuthPage: React.FC = () => {
       </div>
       </div>
 
-      {/* Right Column: Interactive 3D Dog Viewer (Technical Blueprint Grid) */}
-      <div className="hidden md:flex md:w-1/2 min-h-screen bg-paper bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:16px_24px] items-center justify-center relative overflow-hidden border-l border-cardboard border-opacity-30">
-        {/* Technical Coordinate Overlay markings */}
-        <div className="absolute top-6 left-6 font-mono text-[9px] text-cardboard tracking-wider select-none space-y-0.5 opacity-60">
-          <div>MODEL: SHIBA.UNIT_V2</div>
-          <div>COORD: X.042 Y.118 Z.000</div>
+      {/* The portrait film fills the companion panel on larger screens. */}
+      <div className="hidden md:block md:w-1/2 min-h-screen py-8 pr-8 lg:py-12 lg:pr-12">
+        <div className="sticky top-8 h-[calc(100svh-4rem)] min-h-[480px] lg:top-12 lg:h-[calc(100svh-6rem)]">
+          <LoginDogsVideo />
         </div>
-        <div className="absolute top-6 right-6 font-mono text-[9px] text-cardboard tracking-wider select-none opacity-60">
-          <div>ZOOM: ORBIT_ENABLED</div>
-        </div>
-        <div className="absolute bottom-6 right-6 font-mono text-[9px] text-cardboard tracking-wider select-none space-y-0.5 opacity-60 text-right">
-          <div>RENDER: THREE.WEBGL</div>
-          <div>FPS: 60 / LOCK</div>
-        </div>
-
-        <DogViewer3D />
       </div>
     </div>
   );

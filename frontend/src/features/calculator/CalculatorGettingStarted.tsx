@@ -28,7 +28,7 @@ function StepPreview({ step }: { step: number }) {
     <div aria-hidden="true" className="mx-auto flex h-[350px] w-full max-w-[300px] items-center justify-center overflow-hidden rounded-[24px] border border-paper/10 bg-paper p-4 xl:p-5">
       {step === 0 && (
         <div className="w-full space-y-2">
-          {[['Weight', '28 kg'], ['Activity', 'Active'], ['Sensitivities', 'None selected']].map(([label, value]) => (
+          {[['Weight', '28 kg'], ['Activity', 'Active']].map(([label, value]) => (
             <div key={label} className={row}>
               <div className="min-w-0"><p className="text-[10px] text-ink/60">{label}</p><p className="font-display text-sm font-semibold text-ink">{value}</p></div>
               <Check className="h-4 w-4 shrink-0 text-paprika" />
@@ -54,7 +54,6 @@ function StepPreview({ step }: { step: number }) {
             <div><p className="font-display font-semibold text-ink">Daily estimate</p><p className="text-[10px] text-ink/60">A starting point</p></div>
           </div>
           <div className={row}><span className="text-xs text-ink/80">Estimated energy</span><span className="font-mono text-sm font-bold text-ink">1,196 kcal</span></div>
-          <div className={row}><span className="text-xs text-ink/80">Sample figures only</span><Check className="h-4 w-4 shrink-0 text-paprika" /></div>
         </div>
       )}
     </div>
@@ -82,7 +81,7 @@ export function CalculatorGettingStarted() {
           <h2 id="calc-getting-started-heading" className="font-script text-3xl font-normal tracking-normal leading-snug sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap">
             A clearer starting point, in a few simple steps
           </h2>
-          <p className="mx-auto mt-4 max-w-lg font-body text-sm leading-relaxed text-paper/90">
+          <p className="mx-auto mt-7 md:mt-8 max-w-2xl font-body text-base sm:text-lg leading-relaxed text-paper/90">
             Enter the relevant details, calculate their estimated energy needs, and use the result as a guide when planning their meals.
           </p>
         </div>

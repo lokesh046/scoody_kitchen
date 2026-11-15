@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Camera, FileDown, Loader2, MapPin, Plus, Syringe, Trash2 } from 'lucide-react';
+import { Camera, FileDown, Loader2, MapPin, Minus, Plus, Syringe, Trash2 } from 'lucide-react';
 import { useVetAccess } from '../../hooks/useFeatureFlag';
 import {
   addVaccination, deleteVaccination, fetchVaccinationCardHtml, fetchVaccinations, uploadVaccinationImage,
@@ -32,6 +32,17 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 const fmt = (iso: string | null) =>
   iso ? new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
+// "Max needs a DHPPi vaccination." / "Max needs DHPPi and Rabies vaccinations." plus what to do next.
+const vaccineArticle = (name: string) => (/^[aeiou]/i.test(name) || /^[FHLMNRSX][A-Z]{2,}/.test(name) ? 'an' : 'a');
+const joinNames = (names: string[]) => (names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`);
+function vaccinationNeedMessage(petName: string, names: string[]) {
+  const one = names.length === 1;
+  return {
+    lead: one ? `${petName} needs ${vaccineArticle(names[0])} ${names[0]} vaccination.` : `${petName} needs ${joinNames(names)} vaccinations.`,
+    rest: one ? 'Consult your veterinarian to schedule the vaccination and update the record.' : 'Consult your veterinarian to schedule the vaccinations and update the records.',
+  };
+}
+
 export function VaccinationsPanel({ petId, petName, dob }: { petId: number; petName: string; dob: string | null }) {
   const qc = useQueryClient();
   const { data, isLoading, isError } = useQuery({
@@ -42,6 +53,7 @@ export function VaccinationsPanel({ petId, petName, dob }: { petId: number; petN
   const vet = useVetAccess();
   const [adding, setAdding] = useState<string | null>(null); // vaccine code with the form open
   const [showHistory, setShowHistory] = useState(false);
+  const [view, setView] = useState<'status' | 'doses' | 'guide'>('status');
   const [cardBusy, setCardBusy] = useState(false);
   const [cardError, setCardError] = useState('');
   const openCard = async () => {
@@ -76,14 +88,14 @@ export function VaccinationsPanel({ petId, petName, dob }: { petId: number; petN
   // Core vaccines that are overdue (incl. "not vaccinated / don't know") or have no record and no birth date to work from.
   const needsVet = data.items.filter((i) => i.category === 'core' && (i.status === 'overdue' || i.status === 'not_started'));
   const nearbyOn = vet.gps === 'on';
+  const needMessage = vaccinationNeedMessage(petName, needsVet.map((i) => i.name.replace(/\s*\(.*\)$/, '')));
 
   return (
     <div className="space-y-6">
       {needsVet.length > 0 && (
         <div className="border border-red-200 bg-red-50 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between" role="status">
           <div className="min-w-0 font-body text-sm leading-relaxed text-red-900">
-            <strong>{petName} needs a vet visit</strong> for {needsVet.map((i) => i.name.replace(/\s*\(.*\)$/, '')).join(', ')}.
-            A vet can vaccinate and note it on the card.
+            <strong>{needMessage.lead}</strong> {needMessage.rest}
           </div>
           {nearbyOn ? (
             <button type="button" onClick={() => navigate('/consultations/app')}
@@ -99,6 +111,18 @@ export function VaccinationsPanel({ petId, petName, dob }: { petId: number; petN
         </div>
       )}
 
+      <div role="tablist" aria-label="Vaccination sections" className="grid grid-cols-3 gap-1.5 rounded-[14px] bg-paper p-1.5">
+        {([['status', 'Vaccines'], ['doses', `Recorded doses (${data.records.length})`], ['guide', 'Schedule & guide']] as const).map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)}
+            className={`min-h-11 px-2 sm:px-4 font-body text-xs sm:text-sm font-semibold rounded-[10px] border cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paprika ${
+              view === id ? 'bg-paprika text-white border-herb' : 'bg-transparent text-ink/80 border-transparent hover:bg-white hover:border-cardboard'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'status' && (
+        <div className="space-y-6">
       {data.history_required && !data.history_complete && (
         <div className="border border-amber-200 bg-amber-50 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
           <span className="min-w-0 font-body text-sm leading-relaxed text-amber-900">
@@ -124,7 +148,11 @@ export function VaccinationsPanel({ petId, petName, dob }: { petId: number; petN
         ))}
       </div>
 
-      <div className="border-t border-cardboard/60 pt-6">
+        </div>
+      )}
+
+      {view === 'doses' && (
+      <div>
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h4 className="font-display text-base text-ink font-bold">Recorded doses ({data.records.length})</h4>
           <button type="button" onClick={openCard} disabled={cardBusy}
@@ -144,14 +172,20 @@ export function VaccinationsPanel({ petId, petName, dob }: { petId: number; petN
         )}
       </div>
 
+      )}
+
+      {view === 'guide' && (
       <VaccineGuide petId={petId} petName={petName} vaccines={data.items} onUpdate={(code) => {
         setAdding(code);
-        requestAnimationFrame(() => {
+        setView('status');
+        window.setTimeout(() => {
           const card = document.getElementById(`vaccine-${petId}-${code}`);
           card?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
           card?.querySelector<HTMLInputElement>('input[type="date"]')?.focus({ preventScroll: true });
-        });
+        }, 60);
       }} />
+
+      )}
 
       {anyDraft && (
         <p className="font-body text-sm text-ink/75 leading-relaxed">
@@ -228,7 +262,7 @@ function VaccineCard({ item, open, onToggle, petId, dob, onSaved }: {
           {item.description && <div className="font-body text-sm leading-relaxed text-ink/70 mt-1">{item.description}</div>}
         </div>
         <button type="button" onClick={onToggle} className="min-h-11 px-4 font-body text-sm font-semibold rounded-[12px] cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paprika border border-herb/30 bg-herb/5 hover:bg-herb/10 text-paprika flex items-center justify-center gap-2 shrink-0 w-full sm:w-auto self-start sm:self-center">
-          <Plus className="w-3.5 h-3.5" /> {open ? 'Cancel' : 'Add dose'}
+          {open ? <Minus className="w-3.5 h-3.5" aria-hidden="true" /> : <Plus className="w-3.5 h-3.5" aria-hidden="true" />} {open ? 'Cancel' : 'Add dose'}
         </button>
       </div>
 
