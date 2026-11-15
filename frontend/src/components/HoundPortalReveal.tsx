@@ -7,10 +7,12 @@ import { useEffect, useRef, useState } from 'react';
 // everything and stays there permanently. Plays once when scrolled into
 // view, never loops.
 
+// Served from the website itself (public/images/hound), so they cannot disappear with the Cloudinary copies the first
+// version used (those were deleted there). The reveal cuts through three slots, so the first picture comes round again.
 const IMAGES = [
-  'https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg',
-  'https://res.cloudinary.com/utnenyxi/image/upload/v1788521361/scooby_kitchen/zfmzprttuoojru2qleeh.jpg',
-  'https://res.cloudinary.com/utnenyxi/image/upload/v1788521315/scooby_kitchen/nji85annhntaovsycm9q.jpg',
+  '/images/hound/hound-1.webp',
+  '/images/hound/hound-2.webp',
+  '/images/hound/hound-1.webp',
 ];
 const HERO_IMAGE = IMAGES[0];
 
@@ -203,7 +205,7 @@ export function HoundPortalReveal() {
             />
             {IMAGES.map((src, i) => (
               <img
-                key={src}
+                key={`${src}-${i}`}
                 ref={(el) => { imageRefs.current[i] = el; }}
                 src={src}
                 alt={i === 0 ? 'Hearth and Hound' : ''}
