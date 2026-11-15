@@ -157,6 +157,22 @@ def cleanup_unverified_users_task() -> int:
         db.close()
 
 
+@celery_app.task(name="app.tasks.notification_tasks.prune_old_login_tokens_task")
+def prune_old_login_tokens_task() -> dict:
+    """Daily: delete expired or used-up login tokens (older than 7 days) so the tables stay small."""
+    from app.services.auth_service import prune_old_login_tokens
+    db = SessionLocal()
+    try:
+        removed = prune_old_login_tokens(db, keep_days=7)
+        logger.info(f"prune_old_login_tokens_task removed: {removed}")
+        return removed
+    except Exception as e:
+        logger.error(f"Error in prune_old_login_tokens_task: {e}", exc_info=True)
+        return {}
+    finally:
+        db.close()
+
+
 @celery_app.task(name="app.tasks.notification_tasks.send_vaccination_reminders_task")
 def send_vaccination_reminders_task() -> int:
     """Daily: remind owners a week before a vaccine is due, and once when it turns overdue."""

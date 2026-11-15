@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, F
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select, func
 
-from app.core.cache import cache
+from app.core.cache import cache, cached_once
 from app.core.database import get_db
 from app.core.limiter import limiter
 from app.dependencies.auth import require_roles, get_current_user
@@ -139,7 +139,7 @@ def get_doctor_reviews(
     status_code=status.HTTP_201_CREATED,
 )
 @limiter.limit("10/minute")
-async def create_product_review(
+def create_product_review(
     request: Request,
     product_id: int,
     rating: int = Form(..., ge=1, le=5),
@@ -185,7 +185,7 @@ async def create_product_review(
     image_url = None
     if image:
         provider = get_storage_provider()
-        file_bytes = await image.read()
+        file_bytes = image.file.read()
         validate_image_file(image, file_bytes)
         image_url = provider.upload_image(
             file_bytes,
@@ -330,11 +330,11 @@ def get_recent_reviews(
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    cache_key = f"reviews:recent:{limit}"
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
+    # One request rebuilds the list when it is empty; the others wait and share the result.
+    return cached_once(f"reviews:recent:{limit}", lambda: _build_recent_reviews(limit, db), ttl_seconds=86400)
 
+
+def _build_recent_reviews(limit: int, db: Session) -> dict:
     from app.models.doctor import Doctor
     # 1. Fetch recent product reviews
     product_reviews = db.scalars(
@@ -401,9 +401,7 @@ def get_recent_reviews(
 
     # Sort unified list by created_at desc
     unified.sort(key=lambda x: x["created_at"] or "", reverse=True)
-    result = {"reviews": unified[:limit]}
-    cache.set(cache_key, result, ttl_seconds=86400)
-    return result
+    return {"reviews": unified[:limit]}
 
 
 @router.delete(

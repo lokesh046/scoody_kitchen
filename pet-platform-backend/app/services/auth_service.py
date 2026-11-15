@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import random
 import secrets
-from sqlalchemy import select
+from sqlalchemy import and_, delete, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -364,6 +364,30 @@ def cleanup_unverified_users(db: Session, max_age_hours: int = 24) -> int:
         db.commit()
 
     return count
+
+
+def prune_old_login_tokens(db: Session, keep_days: int = 7, batch_size: int = 5000) -> dict[str, int]:
+    """Deletes login records that can never be used again, so these tables do not grow forever.
+
+    - refresh tokens: expired, or replaced/revoked, and older than `keep_days`
+    - magic-link (email code) tokens: expired, or already used, and older than `keep_days`
+    A token that is still valid is never touched. Done in batches so a big backlog does not lock the table.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=keep_days)
+    removed = {"refresh_tokens": 0, "magic_link_tokens": 0}
+    rules = [
+        ("refresh_tokens", RefreshToken, or_(RefreshToken.expires_at < cutoff, and_(RefreshToken.revoked.is_(True), RefreshToken.created_at < cutoff))),
+        ("magic_link_tokens", MagicLinkToken, or_(MagicLinkToken.expires_at < cutoff, and_(MagicLinkToken.used.is_(True), MagicLinkToken.created_at < cutoff))),
+    ]
+    for name, model, condition in rules:
+        while True:
+            ids = db.scalars(select(model.id).where(condition).limit(batch_size)).all()
+            if not ids:
+                break
+            db.execute(delete(model).where(model.id.in_(ids)))
+            db.commit()
+            removed[name] += len(ids)
+    return removed
 
 
 def update_user_profile(db: Session, user: User, update_data: UserUpdate) -> User:

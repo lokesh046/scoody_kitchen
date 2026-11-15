@@ -1,6 +1,8 @@
 import json
 from datetime import date
 
+from starlette.concurrency import run_in_threadpool
+
 from fastapi.responses import HTMLResponse
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from pydantic import ValidationError
@@ -96,8 +98,14 @@ async def save_vaccination_history(
     """The step shown when adding an older pet. Multipart form: an `answers` field (JSON list of
     {vaccine_code, answer: given|not_vaccinated|unknown, date_given, clinic_name}) and, for every
     "given" answer, a vaccine card photo in the file field `photo_<vaccine_code>` (mandatory)."""
-    pet = _own_pet(db, pet_id, current_user)
     form = await request.form()
+    # Everything below talks to the database and the photo store, which wait on the network. Running it in a worker
+    # thread keeps the server free for everyone else while one person's photos upload.
+    return await run_in_threadpool(_save_history_blocking, db, current_user, pet_id, form)
+
+
+def _save_history_blocking(db: Session, current_user: User, pet_id: int, form):
+    pet = _own_pet(db, pet_id, current_user)
     try:
         parsed = VaccinationHistoryRequest(answers=json.loads(str(form.get("answers") or "[]")))
     except (ValueError, ValidationError):
@@ -114,7 +122,7 @@ async def save_vaccination_history(
             if rule is None:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown vaccine for this pet's species")
             file = form.get(f"photo_{a.vaccine_code}")
-            data, upload = await _read_photo(file if hasattr(file, "read") else None, rule.name)
+            data, upload = _read_photo(file if hasattr(file, "read") else None, rule.name)
             # Validate everything cheap first; upload only once the rest of the request is sound.
             photos[a.vaccine_code] = (data, upload)
         try:
@@ -134,11 +142,11 @@ async def save_vaccination_history(
     return build_overview(db, pet)
 
 
-async def _read_photo(upload: UploadFile | None, label: str) -> tuple[bytes, UploadFile]:
+def _read_photo(upload: UploadFile | None, label: str) -> tuple[bytes, UploadFile]:
     """A vaccine card photo is mandatory for every recorded dose."""
     if upload is None or not getattr(upload, "filename", None):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Add a photo of the vaccine card for {label}")
-    data = await upload.read()
+    data = upload.file.read()
     validate_image_file(upload, data)
     return data, upload
 
@@ -162,7 +170,7 @@ def _discard_photos(urls: list[str]) -> None:
 
 @router.post("", response_model=VaccinationRecordResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("30/minute")
-async def add_vaccination(
+def add_vaccination(
     request: Request,
     pet_id: int,
     vaccine_code: str = Form(..., min_length=1, max_length=40),
@@ -182,7 +190,7 @@ async def add_vaccination(
     problem = validate_dose_date(pet, date_given)
     if problem:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=problem)
-    data, upload = await _read_photo(image, rules[vaccine_code].name)
+    data, upload = _read_photo(image, rules[vaccine_code].name)
 
     def clean(v: str | None) -> str | None:
         v = (v or "").strip()
@@ -253,7 +261,7 @@ def delete_vaccination(
 
 @router.post("/{record_id}/image", response_model=VaccinationRecordResponse)
 @limiter.limit("20/minute")
-async def upload_vaccination_image(
+def upload_vaccination_image(
     request: Request,
     pet_id: int,
     record_id: int,
@@ -264,7 +272,7 @@ async def upload_vaccination_image(
     """Attach a photo of the vaccine card. The URL comes only from our own upload, never from the client."""
     pet = _own_pet(db, pet_id, current_user)
     record = _own_record(db, pet, record_id)
-    file_bytes = await image.read()
+    file_bytes = image.file.read()
     validate_image_file(image, file_bytes)
     storage = get_storage_provider()
     old = record.image_url
