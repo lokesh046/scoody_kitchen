@@ -225,6 +225,8 @@ export const ProfileStatsMatrix = memo(function ProfileStatsMatrix({
 });
 
 interface AccountHubMenuProps {
+  /** The My Orders row (and the divider under it) shows only while the My Orders switch is on. */
+  showOrders: boolean;
   ordersCount: number;
   petsCount: number;
   supportUnreadCount: number;
@@ -239,6 +241,7 @@ interface AccountHubMenuProps {
 }
 
 export const AccountHubMenu = memo(function AccountHubMenu({
+  showOrders,
   ordersCount,
   petsCount,
   supportUnreadCount,
@@ -255,6 +258,8 @@ export const AccountHubMenu = memo(function AccountHubMenu({
     <View style={profileCardStyles.menuCard}>
       <Text style={profileCardStyles.menuHeading}>Account Hub</Text>
 
+      {showOrders && (
+        <>
       {/* Orders Hub Item */}
       <TouchableOpacity
         style={profileCardStyles.menuItem}
@@ -267,9 +272,6 @@ export const AccountHubMenu = memo(function AccountHubMenu({
           </View>
           <View style={{ flex: 1 }}>
             <Text style={profileCardStyles.menuItemTitle}>My Orders</Text>
-            <Text style={profileCardStyles.menuItemSub}>
-              Track live deliveries and view past receipts
-            </Text>
           </View>
         </View>
         <View style={profileCardStyles.menuItemRight}>
@@ -281,6 +283,8 @@ export const AccountHubMenu = memo(function AccountHubMenu({
       </TouchableOpacity>
 
       <View style={profileCardStyles.menuDivider} />
+        </>
+      )}
 
       {/* Pets Registry Item */}
       <TouchableOpacity
@@ -294,9 +298,6 @@ export const AccountHubMenu = memo(function AccountHubMenu({
           </View>
           <View style={{ flex: 1 }}>
             <Text style={profileCardStyles.menuItemTitle}>Registered Pets</Text>
-            <Text style={profileCardStyles.menuItemSub}>
-              Health metrics, allergies, and breed profiles
-            </Text>
           </View>
         </View>
         <View style={profileCardStyles.menuItemRight}>
@@ -335,9 +336,6 @@ export const AccountHubMenu = memo(function AccountHubMenu({
                     </View>
                   )}
                 </View>
-                <Text style={profileCardStyles.menuItemSub}>
-                  Book clinics and review medical records
-                </Text>
               </View>
             </View>
             <ChevronRight size={18} color={COLORS.textLight} />
@@ -359,9 +357,6 @@ export const AccountHubMenu = memo(function AccountHubMenu({
           </View>
           <View style={{ flex: 1 }}>
             <Text style={profileCardStyles.menuItemTitle}>Support</Text>
-            <Text style={profileCardStyles.menuItemSub}>
-              Order issues, questions, or anything else
-            </Text>
           </View>
         </View>
         <View style={profileCardStyles.menuItemRight}>
@@ -386,9 +381,6 @@ export const AccountHubMenu = memo(function AccountHubMenu({
           </View>
           <View style={{ flex: 1 }}>
             <Text style={profileCardStyles.menuItemTitle}>Privacy Policy</Text>
-            <Text style={profileCardStyles.menuItemSub}>
-              How we collect, use, and protect your data
-            </Text>
           </View>
         </View>
         <View style={profileCardStyles.menuItemRight}>
@@ -408,9 +400,6 @@ export const AccountHubMenu = memo(function AccountHubMenu({
           </View>
           <View style={{ flex: 1 }}>
             <Text style={profileCardStyles.menuItemTitle}>Terms & Conditions</Text>
-            <Text style={profileCardStyles.menuItemSub}>
-              The terms that govern using Hearth & One
-            </Text>
           </View>
         </View>
         <View style={profileCardStyles.menuItemRight}>

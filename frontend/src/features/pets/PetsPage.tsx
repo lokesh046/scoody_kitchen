@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useFeatureFlag, useFeatureFlagFallback } from '../../hooks/useFeatureFlag';
 import { AddPetWizard, type PetDraft } from './AddPetWizard';
+import { PhotoAdjustModal } from './PhotoAdjustModal';
 import { VaccinationsPanel } from './VaccinationsPanel';
 import './PetProfileDetails.css';
 import { BreedInput, DogCategoryField, SpeciesDropdown } from './PetFormFields';
@@ -89,6 +90,9 @@ export const PetsPage: React.FC = () => {
   const [visionError, setVisionError] = useState<string | null>(null);
   const [previewScanUrl, setPreviewScanUrl] = useState<string | null>(null);
   const [selectedScanFile, setSelectedScanFile] = useState<File | null>(null);
+  // The photo exactly as it was chosen: adjusting always starts from this, so nothing is lost by moving or zooming twice.
+  const [originalPhotoFile, setOriginalPhotoFile] = useState<File | null>(null);
+  const [showPhotoAdjust, setShowPhotoAdjust] = useState(false);
   const scanVersionRef = React.useRef(0);
   const scanOnSelectionRef = React.useRef(false);
   const cameraInputRef = React.useRef<HTMLInputElement>(null);
@@ -206,6 +210,8 @@ export const PetsPage: React.FC = () => {
     scanVersionRef.current += 1;
     setPreviewScanUrl(null);
     setSelectedScanFile(null);
+    setOriginalPhotoFile(null);
+    setShowPhotoAdjust(false);
     setPetImageUrl('');
     setVisionResult(null);
     setVisionError(null);
@@ -223,8 +229,20 @@ export const PetsPage: React.FC = () => {
     }
     resetScan();
     setSelectedScanFile(file);
+    setOriginalPhotoFile(file);
     setPreviewScanUrl(URL.createObjectURL(file));
     if (scanAfterSelection) void handleScanImage(file);
+  };
+
+  // The owner moved or zoomed the photo to fit the circle: use the adjusted picture from now on. Anything uploaded from the
+  // earlier version is dropped, so the adjusted one is what gets saved with the pet.
+  const applyAdjustedPhoto = (adjusted: File) => {
+    scanVersionRef.current += 1;
+    setIsUploadingRegImage(false);
+    setPetImageUrl('');
+    setSelectedScanFile(adjusted);
+    setPreviewScanUrl(URL.createObjectURL(adjusted));
+    setShowPhotoAdjust(false);
   };
 
   const handleScanImage = async (file: File) => {
@@ -256,7 +274,7 @@ export const PetsPage: React.FC = () => {
             if (scanVersionRef.current === scanVersion) setIsUploadingRegImage(false);
           });
       } else {
-        setVisionError(res.error_message || 'No dog or cat detected. Please take a clear photo of your companion!');
+        setVisionError(res.error_message || 'No dog or cat detected. Please take a clear photo of your pet!');
       }
     } catch (err: any) {
       setVisionError(err.message || 'We couldn’t scan this photo. Please check your connection and try again.');
@@ -588,8 +606,8 @@ export const PetsPage: React.FC = () => {
               </h2>
               <p className="font-body text-xs text-ink opacity-80 leading-relaxed">
                 {knowYourPetFallback === 'coming_soon'
-                  ? 'Our companion health passport & pet registry is launching soon. Check back shortly!'
-                  : 'The companion pet ledger is temporarily undergoing maintenance.'}
+                  ? 'Our pet health passport & pet registry is launching soon. Check back shortly!'
+                  : 'The pet ledger is temporarily undergoing maintenance.'}
               </p>
             </div>
             <div className="pt-2">
@@ -631,7 +649,7 @@ export const PetsPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="font-display font-black text-2xl sm:text-4xl text-ink tracking-tight">
-                Companion Pet Profiles
+                Pet Profiles
               </h1>
             </div>
             <div className="shrink-0">
@@ -643,12 +661,12 @@ export const PetsPage: React.FC = () => {
                 {activeSection === 'ledger' ? (
                   <>
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Add New Companion</span>
+                    <span>Add New Pet</span>
                   </>
                 ) : (
                   <>
                     <ArrowLeft className="w-3.5 h-3.5" />
-                    <span>View Companion Ledger</span>
+                    <span>View Pet Ledger</span>
                   </>
                 )}
               </button>
@@ -683,7 +701,7 @@ export const PetsPage: React.FC = () => {
             }`}
           >
             <Plus className="w-4 h-4 text-herb" />
-            <span>Register Companion</span>
+            <span>Register Pet</span>
           </button>
         </div>
 
@@ -694,7 +712,7 @@ export const PetsPage: React.FC = () => {
               <div className="py-20 text-center space-y-4">
                 <Loader2 className="w-8 h-8 text-turmeric animate-spin mx-auto" />
                 <p className="font-mono text-[11px] uppercase tracking-wider text-herb font-bold">
-                  Reading companion ledger...
+                  Reading pet ledger...
                 </p>
               </div>
             ) : error ? (
@@ -709,9 +727,9 @@ export const PetsPage: React.FC = () => {
               <div className="border border-cardboard border-dashed bg-paperLight p-12 rounded-sm text-center space-y-4">
                 <PawPrint className="w-12 h-12 text-cardboard mx-auto stroke-1" />
                 <div>
-                  <h4 className="font-display font-bold text-lg text-ink">No Registered Companions</h4>
+                  <h4 className="font-display font-bold text-lg text-ink">No Registered Pets</h4>
                   <p className="font-body text-xs text-ink opacity-70 max-w-sm mx-auto mt-1">
-                    Your profile ledger is currently blank. Register your companion pet to unlock customized meal plans and clinical health tracking!
+                    Your profile ledger is currently blank. Register your pet to unlock customized meal plans and clinical health tracking!
                   </p>
                 </div>
                 <button
@@ -719,7 +737,7 @@ export const PetsPage: React.FC = () => {
                   onClick={() => setActiveSection('register')}
                   className="bg-herb hover:bg-herb/90 text-white font-body font-bold text-xs uppercase px-5 py-2.5 rounded-sm tracking-wider transition-colors cursor-pointer shadow-xs"
                 >
-                  Register Companion Pet 🐾
+                  Register Pet 🐾
                 </button>
               </div>
             ) : (
@@ -882,6 +900,7 @@ export const PetsPage: React.FC = () => {
               onCamera={() => { scanOnSelectionRef.current = false; void startCamera('environment'); }}
               onSelectPhoto={(file) => { scanOnSelectionRef.current = false; selectScanImage(file); }}
               onRemovePhoto={resetScan}
+              onAdjustPhoto={selectedScanFile ? () => setShowPhotoAdjust(true) : undefined}
               onScan={() => {
                 if (selectedScanFile) void handleScanImage(selectedScanFile);
                 else { scanOnSelectionRef.current = true; galleryInputRef.current?.click(); }
@@ -890,6 +909,13 @@ export const PetsPage: React.FC = () => {
               onScanCamera={() => { scanOnSelectionRef.current = true; void startCamera('environment'); }}
               onSave={handleAddPet}
             />
+            {showPhotoAdjust && (originalPhotoFile || selectedScanFile) && (
+              <PhotoAdjustModal
+                file={(originalPhotoFile || selectedScanFile) as File}
+                onApply={applyAdjustedPhoto}
+                onClose={() => setShowPhotoAdjust(false)}
+              />
+            )}
           </>
         )}
 
@@ -905,7 +931,7 @@ export const PetsPage: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <Camera className="w-4 h-4 text-turmeric" />
                 <span className="font-mono text-xs uppercase font-bold tracking-wider text-ink">
-                  Companion Live Camera
+                  Pet Live Camera
                 </span>
               </div>
               <button
@@ -931,7 +957,7 @@ export const PetsPage: React.FC = () => {
               {/* Pet Framing Guide Outline */}
               <div className="absolute inset-8 border border-dashed border-white/50 rounded-sm pointer-events-none flex items-center justify-center">
                 <span className="font-mono text-[10px] text-white bg-black/60 px-2.5 py-1 rounded-sm uppercase tracking-wider">
-                  Align Companion Inside Frame
+                  Align Pet Inside Frame
                 </span>
               </div>
             </div>
@@ -1496,13 +1522,13 @@ export const PetsPage: React.FC = () => {
 
             <div className="space-y-2">
               <span className="font-mono text-[9px] uppercase tracking-widest text-herb font-bold block">
-                COMPANION ENTRY VERIFIED
+                PET ENTRY VERIFIED
               </span>
               <h3 className="font-display font-black text-2xl text-ink">
                 Welcome, {lastCreatedPet.name}!
               </h3>
               <p className="font-body text-xs text-ink opacity-80 leading-relaxed max-w-xs">
-                Your companion has been registered in your profile ledger. We've customized your food nutrition calculations!
+                Your pet has been registered in your profile ledger. We've customized your food nutrition calculations!
               </p>
             </div>
 

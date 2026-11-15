@@ -588,7 +588,7 @@ export const DoctorDashboard: React.FC = () => {
                               </td>
                               <td className="p-3.5">
                                 <div className="flex items-center space-x-1.5">
-                                  <div className="font-bold text-ink text-sm">🐾 {c.pet?.name || 'Companion Patient'}</div>
+                                  <div className="font-bold text-ink text-sm">🐾 {c.pet?.name || 'Pet Patient'}</div>
                                   <button
                                     onClick={() => setInspectingPetId(c.pet_id)}
                                     className="text-herb hover:underline uppercase font-bold text-[9px] tracking-wider cursor-pointer"
@@ -1743,7 +1743,7 @@ export const DoctorDashboard: React.FC = () => {
                 <FileText className="w-8 h-8 text-cardboard mx-auto stroke-1 mb-2" />
                 <h4 className="font-display font-bold text-ink text-sm">No Prior Medical Records</h4>
                 <p className="font-body text-xs text-ink opacity-70 max-w-xs mx-auto mt-1">
-                  This companion pet has no recorded history entries in our platform ledger yet.
+                  This pet has no recorded history entries in our platform ledger yet.
                 </p>
               </div>
             ) : (

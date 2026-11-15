@@ -1036,7 +1036,7 @@ export default function VetScreen({ navigation, route }: any) {
   if (vet.blocked) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <ScreenHeader title="Vet care" />
+        <ScreenHeader title="Locate Your Vet" />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <Text style={{ fontSize: 24, fontFamily: FONT_BODY_BOLD, color: COLORS.textCoffee, textAlign: 'center' }}>
             {vet.blockedVariant === 'coming_soon' ? 'Coming Soon' : 'Unavailable'}
@@ -1056,7 +1056,7 @@ export default function VetScreen({ navigation, route }: any) {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Compact toolbar with the clinic / video consultation switch. */}
       <ScreenHeader
-        title="Vet care"
+        title="Locate Your Vet"
         rightContent={
           otherSide === 'hide' ? undefined : (
           <TouchableOpacity

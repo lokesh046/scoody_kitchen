@@ -295,7 +295,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
         } else {
           // Welcome message if fresh session
           const petGreeting = activePet
-            ? ` I'm personalized for **${activePet.name}** (${activePet.breed || 'Dog'}, ${activePet.weight_kg ? activePet.weight_kg + 'kg' : 'companion'}).`
+            ? ` I'm personalized for **${activePet.name}** (${activePet.breed || 'Dog'}, ${activePet.weight_kg ? activePet.weight_kg + 'kg' : 'pet'}).`
             : '';
 
           setMessages([
@@ -663,7 +663,7 @@ export default function ChatbotScreen({ navigation, route }: any) {
                 {isSending
                   ? 'typing...'
                   : activePet
-                  ? `Companion: ${activePet.name} (${activePet.breed || 'Dog'})`
+                  ? `Pet: ${activePet.name} (${activePet.breed || 'Dog'})`
                   : 'Nutrition & everyday care'}
               </Text>
             </View>

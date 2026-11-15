@@ -29,6 +29,8 @@ export default function TabNavigator() {
   const insets = useSafeAreaInsets();
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
   const isShopEnabled = useFeatureFlag('shop_checkout', true);
+  // Same switch as the website's My Orders link: off hides the Orders tab, the Profile row and the Shop header icon.
+  const showOrders = useFeatureFlag('header_my_orders', true);
   // The VET tab depends on two flags (online consultations and nearby clinics): see utils/vetAccess.ts.
   const vet = useVetAccess();
   const chatbotFallback = useFeatureFlagFallback('ai_chatbot');
@@ -112,7 +114,8 @@ export default function TabNavigator() {
           name="Consult"
           component={VetScreen}
           options={{
-            tabBarLabel: 'VET',
+            tabBarLabel: 'LYV', // Locate Your Vet
+            tabBarAccessibilityLabel: 'Locate Your Vet',
             tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/vet-3d.webp')} focused={focused} />,
             ...(!vet.navVisible
               ? { tabBarItemStyle: { display: 'none' } }
@@ -122,7 +125,7 @@ export default function TabNavigator() {
           }}
           listeners={
             vet.navVisible && vet.navFallback
-              ? disabledTabListeners(vet.navFallback, 'Vet Consult')
+              ? disabledTabListeners(vet.navFallback, 'Locate Your Vet')
               : undefined
           }
         />
@@ -148,6 +151,7 @@ export default function TabNavigator() {
           options={{
             tabBarLabel: 'Orders',
             tabBarIcon: ({ focused }) => <TabIcon source={require('../../assets/nav/orders.webp')} focused={focused} />,
+            ...(showOrders ? {} : { tabBarItemStyle: { display: 'none' as const } }),
           }}
         />
 

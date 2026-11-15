@@ -15,6 +15,7 @@ import {
   Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
@@ -141,6 +142,10 @@ export default function HomeScreen({ navigation }: any) {
   // hidden or marked coming soon -- the same rule as the website's home page, so the app and the site agree.
   // ("Unavailable" keeps the normal cards with their own label.)
   const isRecipeTeaser = isRecipeComingSoon || (!isShopEnabled && shopFallback !== 'unavailable');
+  // Until the app knows the flags (first launch only, once they are saved on the phone) the recipe cards show as soft
+  // placeholders, so a price and an Add button never flash up for a moment and then turn into "Coming soon".
+  const flagsLoaded = useFeatureFlagStore((state) => state.isLoaded);
+  const recipeCardsHidden = isRecipeTeaser || !flagsLoaded;
   // The Add button itself always shows a disabled state when ordering is
   // off, whatever the fallback — 'hide' only applies to secondary elements
   // like the "View Full Product Ledger" link below, never to leaving the
@@ -325,16 +330,11 @@ export default function HomeScreen({ navigation }: any) {
       setLoadingProducts(true);
     }
     try {
-      const [bannersRes, productsRes, reviewsRes, unreadRes] = await Promise.allSettled([
-        fetchActiveBanners(),
-        fetchProducts({ limit: 6 }),
-        fetchRecentReviews(100),
-        user ? fetchUnreadCount() : Promise.resolve(null),
-      ]);
-
-      // 1. Process Banners
-      if (bannersRes.status === 'fulfilled' && bannersRes.value && bannersRes.value.length > 0) {
-        const mapped: HeroBanner[] = bannersRes.value.map((b) => {
+      // Apply banners as soon as their request finishes. Other home requests
+      // can be much slower, especially authenticated notifications at startup.
+      const bannersRequest = fetchActiveBanners().then((activeBanners) => {
+        if (!activeBanners?.length) return;
+        const mapped: HeroBanner[] = activeBanners.map((b) => {
           const isConsultation = (b.link_url || '').includes('consult');
           return {
             id: String(b.id),
@@ -348,7 +348,14 @@ export default function HomeScreen({ navigation }: any) {
           };
         });
         setBanners(mapped);
-      }
+      });
+
+      const [productsRes, reviewsRes, unreadRes] = await Promise.allSettled([
+        fetchProducts({ limit: 6 }),
+        fetchRecentReviews(100),
+        user ? fetchUnreadCount() : Promise.resolve(null),
+        bannersRequest,
+      ]);
 
       // 2. Process Products
       if (productsRes.status === 'fulfilled' && productsRes.value?.items?.length) {
@@ -620,19 +627,19 @@ export default function HomeScreen({ navigation }: any) {
     };
   }, [accessToken, user]);
 
-  // Reset to initial real item (index 1) whenever banners list updates
+  // Reset both multi-slide and single-slide responses. A single server banner
+  // must return to index 0 instead of keeping the fallback carousel's index 1.
   useEffect(() => {
-    if (banners.length > 1) {
-      currentIndexRef.current = 1;
-      setActiveBannerIndex(0);
-      const timer = setTimeout(() => {
-        bannerListRef.current?.scrollToOffset({
-          offset: carouselWidth,
-          animated: false,
-        });
-      }, 60);
-      return () => clearTimeout(timer);
-    }
+    const initialIndex = banners.length > 1 ? 1 : 0;
+    currentIndexRef.current = initialIndex;
+    setActiveBannerIndex(0);
+    const timer = setTimeout(() => {
+      bannerListRef.current?.scrollToOffset({
+        offset: initialIndex * carouselWidth,
+        animated: false,
+      });
+    }, 60);
+    return () => clearTimeout(timer);
   }, [banners, carouselWidth]);
 
   // Infinite auto-advance carousel forward every 4 seconds (pauses when unfocused)
@@ -815,7 +822,7 @@ export default function HomeScreen({ navigation }: any) {
             accessibilityLabel="Profile"
           >
             {user?.profile_image_url ? (
-              <Image source={{ uri: user.profile_image_url }} style={styles.avatarImg} />
+              <Image source={{ uri: getOptimizedImageUrl(user.profile_image_url, IMAGE_SIZE.avatarThumb) }} style={styles.avatarImg} cachePolicy="memory-disk" />
             ) : (
               <View style={styles.avatarFallback}>
                 <Text style={styles.avatarInitial}>
@@ -856,6 +863,7 @@ export default function HomeScreen({ navigation }: any) {
         {/* 4. Hero Banner Carousel with Infinite Loop & Progress Bar */}
         <View style={styles.bannerCarouselContainer}>
           <FlatList
+            key={`hero-${banners.length}-${carouselWidth}`}
             ref={bannerListRef}
             data={extendedBanners}
             keyExtractor={bannerKeyExtractor}
@@ -1051,8 +1059,8 @@ export default function HomeScreen({ navigation }: any) {
             {products.map((product) => (
               <View key={product.id}>
                 <View
-                  pointerEvents={isRecipeTeaser ? 'none' : 'auto'}
-                  style={isRecipeTeaser ? styles.comingSoonDimmed : undefined}
+                  pointerEvents={recipeCardsHidden ? 'none' : 'auto'}
+                  style={recipeCardsHidden ? styles.comingSoonDimmed : undefined}
                 >
                   <ProductFavoriteCard
                     product={product}
@@ -1064,6 +1072,7 @@ export default function HomeScreen({ navigation }: any) {
                     onRemoveItem={handleRemoveCartItem}
                     onSelectProduct={handleSelectProduct}
                     orderingDisabledLabel={isRecipeTeaser ? 'Coming Soon' : shopDisabledLabel}
+                    blurred={recipeCardsHidden}
                   />
                 </View>
                 {isRecipeTeaser && (
@@ -1289,9 +1298,10 @@ export default function HomeScreen({ navigation }: any) {
       <PetVisionModal
         visible={petVisionVisible}
         onClose={() => setPetVisionVisible(false)}
-        onApplyPetDetails={() => {
+        onApplyPetDetails={(details) => {
           setPetVisionVisible(false);
-          handleNavigateScreen('Pets');
+          // Hand the scan result to the Pets tab, which opens the Add Pet form pre-filled with it.
+          handleNavigateScreen('Pets', { visionDetails: details, visionNonce: Date.now() });
         }}
       />
 
@@ -1555,6 +1565,10 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
+    // The recipe card has a shadow (elevation 2). On Android that draws the card OVER a sibling without one, which hid
+    // this band, so the band gets a higher elevation than the card.
+    zIndex: 10,
+    elevation: 10,
   },
   comingSoonBand: {
     width: '100%',
@@ -1669,6 +1683,7 @@ const styles = StyleSheet.create({
 
   /* 4. Hero Banner Carousel */
   bannerCarouselContainer: {
+    height: 240,
     marginBottom: 20,
   },
   paginationDotsWrapper: {

@@ -1,9 +1,11 @@
 import React, { useEffect, useCallback } from 'react';
-import { StatusBar, View, Text, TouchableOpacity, AppState, InteractionManager, Animated, Easing, StyleSheet } from 'react-native';
+import { StatusBar, View, Text, TouchableOpacity, AppState, ActivityIndicator, Animated, Easing, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+import { Image } from 'expo-image';
 import { Sentry, isSentryEnabled } from './src/services/sentry';
 import { FONT_DISPLAY, FONT_BODY, FONT_BODY_BOLD } from './src/theme/typography';
 import { useAuthStore } from './src/store/authStore';
@@ -28,62 +30,79 @@ import OfflineBanner from './src/components/OfflineBanner';
 import { PhoneVerificationGate } from './src/components/PhoneVerificationGate';
 import { COLORS } from './src/theme/colors';
 import { FONT_ASSETS } from './src/theme/typography';
-import { BrandFullLogo, BRAND_CREAM } from './src/components/BrandLogo';
 
 const Stack = createNativeStackNavigator();
 export const navigationRef = createNavigationContainerRef();
 
-// The OS launch splash is a plain cream screen (no logo of its own), so there is only
-// ever ONE logo: this one, at its full size, fading in as soon as the app starts. A
-// shared value keeps the loading screen and the cross-fade overlay on the same frame.
-const LOGO_FULL_SIZE = 280;
-const logoOpacity = new Animated.Value(0);
-let logoFadeStarted = false;
-let logoShownAt = 0;
-function SplashLogo() {
-  useEffect(() => {
-    if (logoFadeStarted) return;
-    logoFadeStarted = true;
-    logoShownAt = Date.now();
-    Animated.timing(logoOpacity, { toValue: 1, duration: 450, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
-  }, []);
-  return (
-    <Animated.View style={{ opacity: logoOpacity }}>
-      <BrandFullLogo size={LOGO_FULL_SIZE} />
-    </Animated.View>
-  );
-}
+// Keep the native logo visible until its React counterpart has rendered.
+void SplashScreen.preventAutoHideAsync().catch(() => {});
 
-/**
- * Fades the real screens in while a copy of the loading logo fades out on top, so
- * the app never cuts abruptly from the loading screen to its content.
- */
-function CrossFadeIn({ children }: { children: React.ReactNode }) {
+const LOGO_SIZE = 194;
+const LAUNCH_BACKGROUND = '#FEFEFE';
+
+function CrossFadeIn({ ready, children }: { ready: boolean; children: React.ReactNode }) {
   const opacity = React.useRef(new Animated.Value(1)).current;
   const [gone, setGone] = React.useState(false);
+  const [logoReady, setLogoReady] = React.useState(false);
+  const [contentLaidOut, setContentLaidOut] = React.useState(false);
+
   useEffect(() => {
-    // Wait until the screens have finished their first render before revealing
-    // them, so the fade shows finished content instead of a blank or dark gap.
-    let cancelled = false;
-    const handle = InteractionManager.runAfterInteractions(() => {
-      if (cancelled) return;
-      // keep the logo on screen for at least ~1.3s so it is actually seen
-      const hold = Math.max(450, 1300 - (logoShownAt ? Date.now() - logoShownAt : 0));
-      Animated.timing(opacity, { toValue: 0, duration: 500, delay: hold, useNativeDriver: true }).start(
-        () => setGone(true),
-      );
+    if (!logoReady) return;
+    void SplashScreen.hideAsync().catch(() => {});
+  }, [logoReady]);
+
+  useEffect(() => {
+    if (!ready || !logoReady || !contentLaidOut) return;
+    // Layout confirms a screen is underneath the overlay. Start on the next
+    // frame without waiting for unrelated navigation or background work.
+    const frame = requestAnimationFrame(() => {
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+        isInteraction: false,
+      }).start(({ finished }) => {
+        if (finished) setGone(true);
+      });
     });
-    return () => { cancelled = true; handle.cancel(); };
-  }, [opacity]);
+    return () => {
+      cancelAnimationFrame(frame);
+      opacity.stopAnimation();
+    };
+  }, [ready, logoReady, contentLaidOut, opacity]);
+
   return (
-    <View style={{ flex: 1, backgroundColor: BRAND_CREAM }}>
-      {children}
+    <View style={{ flex: 1, backgroundColor: LAUNCH_BACKGROUND }}>
+      {ready && (
+        <View
+          style={{ flex: 1 }}
+          onLayout={() => setContentLaidOut(true)}
+          accessibilityElementsHidden={!gone}
+          importantForAccessibility={gone ? 'auto' : 'no-hide-descendants'}
+        >
+          {children}
+        </View>
+      )}
       {!gone && (
         <Animated.View
-          pointerEvents="none"
-          style={[StyleSheet.absoluteFill, { opacity, backgroundColor: BRAND_CREAM, alignItems: 'center', justifyContent: 'center' }]}
+          style={[StyleSheet.absoluteFill, { opacity, backgroundColor: LAUNCH_BACKGROUND, alignItems: 'center', justifyContent: 'center' }]}
+          accessibilityLabel="Loading Hearth & One"
+          accessibilityRole="progressbar"
         >
-          <SplashLogo />
+          <Image
+            source={require('./assets/launch-logo.png')}
+            style={{ width: LOGO_SIZE, height: LOGO_SIZE }}
+            contentFit="contain"
+            transition={0}
+            onLoadEnd={() => setLogoReady(true)}
+          />
+          <ActivityIndicator
+            size="small"
+            color={COLORS.brandGold}
+            accessible={false}
+            style={{ position: 'absolute', top: '50%', marginTop: LOGO_SIZE / 2 + 24, alignSelf: 'center' }}
+          />
         </Animated.View>
       )}
     </View>
@@ -93,13 +112,16 @@ function CrossFadeIn({ children }: { children: React.ReactNode }) {
 function App() {
   const { user, isGuest, isHydrated, hydrateAuth, updateUser } = useAuthStore();
   const fetchFlags = useFeatureFlagStore((state) => state.fetchFlags);
+  const hydrateFlags = useFeatureFlagStore((state) => state.hydrateFlags);
   const initNetwork = useNetworkStore((state) => state.init);
-  const [fontsLoaded] = useFonts(FONT_ASSETS);
+  const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
+  const ready = isHydrated && (fontsLoaded || !!fontError);
 
   useEffect(() => {
     hydrateAuth();
+    hydrateFlags();
     fetchFlags();
-  }, [hydrateAuth, fetchFlags]);
+  }, [hydrateAuth, hydrateFlags, fetchFlags]);
 
   // The signed-in profile is cached locally (AsyncStorage) so the app opens
   // instantly, but that means changes made elsewhere -- the website, an
@@ -170,68 +192,52 @@ function App() {
     });
   }, []);
 
-  // Hold the same loading screen until both auth AND the brand fonts are
-  // ready — rendering before fonts load would flash every screen in the OS
-  // system font, then reflow once Outfit/Quicksand/Courier Prime swap in.
-  if (!isHydrated || !fontsLoaded) {
-    return (
-      <SafeAreaProvider>
-        <View style={{ flex: 1, backgroundColor: BRAND_CREAM, alignItems: 'center', justifyContent: 'center' }}>
-          <SplashLogo />
-        </View>
-      </SafeAreaProvider>
-    );
-  }
-
-  // If not logged in and not exploring as guest, gate behind Auth
-  if (!user && !isGuest) {
-    return (
-      <SafeAreaProvider>
-        <CrossFadeIn>
-          <OfflineBanner />
-          <AuthScreen />
-        </CrossFadeIn>
-      </SafeAreaProvider>
-    );
-  }
-
   return (
     <SafeAreaProvider>
-      <CrossFadeIn>
-      <OfflineBanner />
-      <PhoneVerificationGate />
-      <NavigationContainer ref={navigationRef}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.canvas} />
-        <Stack.Navigator
-          screenOptions={{
-            headerShown: false,
-            animation: 'slide_from_right',
-          }}
-        >
-          {/* A doctor account gets an entirely separate tab set (Queue,
-              Availability, Profile) — none of the pet-parent tabs
-              (Home/Kitchen/Cart/Pets) apply to them. Decided once here,
-              from the role the login response already returns, rather
-              than threading a role check through every pet-parent screen. */}
-          <Stack.Screen
-            name="MainTabs"
-            component={user?.role === 'doctor' ? DoctorTabNavigator : TabNavigator}
-          />
-          <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
-          <Stack.Screen name="Chatbot" component={ChatbotScreen} />
-          <Stack.Screen name="MealPlanner" component={MealPlannerScreen} />
-          <Stack.Screen name="DoctorConsultationDetail" component={DoctorConsultationDetailScreen} />
-          <Stack.Screen name="Support" component={SupportScreen} />
-          <Stack.Screen name="SupportTicket" component={SupportTicketScreen} />
-          <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-          <Stack.Screen name="Terms" component={TermsScreen} />
-          <Stack.Screen
-            name="VideoCall"
-            component={VideoCallScreen}
-            options={{ gestureEnabled: false }}
-          />
-        </Stack.Navigator>
-      </NavigationContainer>
+      <CrossFadeIn ready={ready}>
+        {!user && !isGuest ? (
+          <>
+            <OfflineBanner />
+            <AuthScreen />
+          </>
+        ) : (
+          <>
+            <OfflineBanner />
+            <PhoneVerificationGate />
+            <NavigationContainer ref={navigationRef}>
+              <StatusBar barStyle="dark-content" backgroundColor={COLORS.canvas} />
+              <Stack.Navigator
+                screenOptions={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              >
+                {/* A doctor account gets an entirely separate tab set (Queue,
+                    Availability, Profile) — none of the pet-parent tabs
+                    (Home/Kitchen/Cart/Pets) apply to them. Decided once here,
+                    from the role the login response already returns, rather
+                    than threading a role check through every pet-parent screen. */}
+                <Stack.Screen
+                  name="MainTabs"
+                  component={user?.role === 'doctor' ? DoctorTabNavigator : TabNavigator}
+                />
+                <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+                <Stack.Screen name="Chatbot" component={ChatbotScreen} />
+                <Stack.Screen name="MealPlanner" component={MealPlannerScreen} />
+                <Stack.Screen name="DoctorConsultationDetail" component={DoctorConsultationDetailScreen} />
+                <Stack.Screen name="Support" component={SupportScreen} />
+                <Stack.Screen name="SupportTicket" component={SupportTicketScreen} />
+                <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+                <Stack.Screen name="Terms" component={TermsScreen} />
+                <Stack.Screen
+                  name="VideoCall"
+                  component={VideoCallScreen}
+                  options={{ gestureEnabled: false }}
+                />
+              </Stack.Navigator>
+            </NavigationContainer>
+          </>
+        )}
       </CrossFadeIn>
     </SafeAreaProvider>
   );

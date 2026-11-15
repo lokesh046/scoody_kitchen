@@ -36,6 +36,7 @@ const SupportTicketPage = lazy(() => import('./features/support/SupportTicketPag
 const DoctorDashboard = lazy(() => import('./features/doctor/DoctorDashboard').then((m) => ({ default: m.DoctorDashboard })));
 const ProfilePage = lazy(() => import('./features/profile/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const ApplyDoctorPage = lazy(() => import('./features/consultations/ApplyDoctorPage'));
+const ContactPage = lazy(() => import('./features/contact/ContactPage'));
 const OnboardingPage = lazy(() => import('./features/onboarding/OnboardingPage').then((m) => ({ default: m.OnboardingPage })));
 const BlogListPage = lazy(() => import('./features/blog/BlogListPage').then((m) => ({ default: m.BlogListPage })));
 const BlogPostPage = lazy(() => import('./features/blog/BlogPostPage').then((m) => ({ default: m.BlogPostPage })));
@@ -187,7 +188,7 @@ export default function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/shop" element={<HideWhenHidden flag="shop_checkout"><ShopLandingPage /></HideWhenHidden>} />
               <Route path="/shop/app" element={<ShopPage />} />
-              <Route path="/recipe-calculator" element={<HideWhenHidden flag="shop_meal_planner"><RecipeCalculatorPage /></HideWhenHidden>} />
+              <Route path="/recipe-calculator" element={<HideWhenHidden flag="shop_calorie_counter"><RecipeCalculatorPage /></HideWhenHidden>} />
               <Route path="/login" element={<AuthPage />} />
               <Route path="/auth/verify" element={<VerifyCallback />} />
               <Route path="/auth/magic-link/verify" element={<VerifyCallback />} />
@@ -202,10 +203,11 @@ export default function App() {
               <Route path="/consultations/:id" element={<RequireAuth><ConsultationsPage /></RequireAuth>} />
               <Route path="/consultations/:id/call" element={<RequireAuth><VideoCallPage /></RequireAuth>} />
               <Route path="/consultations/room/:id" element={<RequireAuth><VideoCallPage /></RequireAuth>} />
-              <Route path="/apply-doctor" element={<RequireAuth><ApplyDoctorPage /></RequireAuth>} />
+              <Route path="/apply-doctor" element={<RequireAuth><HideWhenHidden flag="doctor_apply"><ApplyDoctorPage /></HideWhenHidden></RequireAuth>} />
               <Route path="/onboarding" element={<OnboardingPage />} />
               <Route path="/blog" element={<FlagRouteGate flag="journal" name="Journal" activeTab="blog"><BlogListPage /></FlagRouteGate>} />
               <Route path="/blog/:slug" element={<FlagRouteGate flag="journal" name="Journal" activeTab="blog"><BlogPostPage /></FlagRouteGate>} />
+              <Route path="/contact" element={<ContactPage />} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/delete-account" element={<DeleteAccountPage />} />

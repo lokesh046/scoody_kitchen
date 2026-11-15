@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
+import { getOptimizedImageUrl, IMAGE_SIZE } from '../../utils/cloudinaryImage';
 import {
   X,
   Stethoscope,
@@ -191,7 +192,7 @@ export function BookingModal({
                         onPress={() => onSelectPet(p.id)}
                       >
                         {p.profile_image_url ? (
-                          <Image source={{ uri: p.profile_image_url }} style={styles.petAvatarImg} />
+                          <Image source={{ uri: getOptimizedImageUrl(p.profile_image_url, IMAGE_SIZE.avatarThumb) }} style={styles.petAvatarImg} cachePolicy="memory-disk" />
                         ) : (
                           <View style={[styles.petAvatarBox, isChosen && styles.petAvatarBoxSelected]}>
                             <PawPrint size={16} color={isChosen ? '#FFFFFF' : COLORS.brandGold} />

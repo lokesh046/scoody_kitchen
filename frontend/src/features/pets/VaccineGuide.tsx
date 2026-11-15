@@ -113,32 +113,45 @@ export function VaccineGuide({ petId, petName, vaccines, onUpdate }: {
               Due dates worked out from {petName}'s birth date. A dose turns <strong>Done</strong> when you record it above.
             </p>
             <Legend />
-            <div className="overflow-x-auto rounded-[12px] border border-cardboard/60">
-              <table className="w-full text-left font-body text-sm leading-relaxed text-ink min-w-[560px]">
+            <div className="hidden md:block rounded-[12px] border border-cardboard/60 overflow-hidden">
+              <table className="w-full text-left font-body text-sm leading-relaxed text-ink">
                 <thead>
-                  <tr className="border-b border-cardboard font-body text-xs font-semibold">
-                    <th className="py-3 pr-2">Dose</th><th className="py-3 pr-2">Vaccine</th>
-                    <th className="py-3 pr-2">Planned age</th><th className="py-3 pr-2">Due date</th><th className="py-3 pr-2">Date given</th><th className="py-3">Status</th>
+                  <tr className="bg-paper border-b border-cardboard font-body text-xs font-semibold">
+                    <th className="py-3 px-3">Dose</th><th className="py-3 pr-3">Vaccine</th>
+                    <th className="py-3 pr-3">Planned age</th><th className="py-3 pr-3">Due date</th><th className="py-3 pr-3">Date given</th><th className="py-3 pr-3">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.planner.map((p, i) => (
-                    <tr key={i} className={`border-b border-cardboard/40 align-top ${ROW_CLASS[p.status]}`}>
-                      <td className="py-3 px-1.5 whitespace-nowrap">{p.dose}</td>
-                      <td className="py-3 pr-2">
+                    <tr key={i} className={`border-b border-cardboard/40 last:border-b-0 align-top ${ROW_CLASS[p.status]}`}>
+                      <td className="py-3.5 px-3 whitespace-nowrap">{p.dose}</td>
+                      <td className="py-3.5 pr-3">
                         {p.vaccine}
                         {updateLinks(p.vaccine_codes)}
                         {p.note && <span className="block text-[11px] opacity-60">{p.note}</span>}
                       </td>
-                      <td className="py-3 pr-2 whitespace-nowrap">{p.planned_age}</td>
-                      <td className="py-3 pr-2 whitespace-nowrap">{fmt(p.due_date)}</td>
-                      <td className="py-3 pr-2 whitespace-nowrap">{fmt(p.date_given)}</td>
-                      <td className="py-3 pr-1.5"><StatusBadge status={p.status} /></td>
+                      <td className="py-3.5 pr-3">{p.planned_age}</td>
+                      <td className="py-3.5 pr-3 whitespace-nowrap">{fmt(p.due_date)}</td>
+                      <td className="py-3.5 pr-3 whitespace-nowrap">{fmt(p.date_given)}</td>
+                      <td className="py-3.5 pr-3"><StatusBadge status={p.status} /></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            <ul className="md:hidden space-y-3">
+              {data.planner.map((p, i) => (
+                <li key={i} className={`rounded-[12px] border border-cardboard/60 p-4 font-body text-sm text-ink ${ROW_CLASS[p.status]}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0"><strong>{p.vaccine}</strong><span className="block text-xs opacity-70">{p.dose} · {p.planned_age}</span></div>
+                    <StatusBadge status={p.status} />
+                  </div>
+                  <div className="mt-2 text-xs opacity-80">Due {fmt(p.due_date)}{p.date_given ? ` · Given ${fmt(p.date_given)}` : ''}</div>
+                  {p.note && <div className="mt-1 text-[11px] opacity-60">{p.note}</div>}
+                  {updateLinks(p.vaccine_codes)}
+                </li>
+              ))}
+            </ul>
             {data.planner_note && <p className="font-body text-xs text-ink/75 leading-relaxed">{data.planner_note}</p>}
           </div>
         ) : (
@@ -162,30 +175,49 @@ export function VaccineGuide({ petId, petName, vaccines, onUpdate }: {
           {data.date_of_birth_known ? <Legend /> : (
             <p className="font-body text-xs text-ink opacity-75">Add {petName}'s date of birth to see status, last dose and next due for each line.</p>
           )}
-          <div className="overflow-x-auto rounded-[12px] border border-cardboard/60">
-            <table className="w-full text-left font-body text-sm leading-relaxed text-ink min-w-[820px]">
+          <div className="hidden md:block rounded-[12px] border border-cardboard/60 overflow-hidden">
+            <table className="w-full text-left font-body text-sm leading-relaxed text-ink">
               <thead>
                 <tr className="bg-ink text-paper font-body text-xs font-semibold">
-                  <th className="py-3 px-2">Sno</th><th className="py-3 pr-2">Age</th><th className="py-3 pr-2">Vaccine</th>
-                  <th className="py-3 pr-2">Status</th><th className="py-3 pr-2">Last dose</th><th className="py-3 pr-2">Next due</th>
-                  <th className="py-3 pr-2">Notes</th>
+                  <th className="py-3 px-3 w-[22%]">Age</th><th className="py-3 pr-3">Vaccine &amp; notes</th>
+                  <th className="py-3 pr-3 w-[11%]">Status</th><th className="py-3 pr-3 w-[11%]">Last dose</th><th className="py-3 pr-3 w-[11%]">Next due</th>
                 </tr>
               </thead>
               <tbody>
                 {data.schedule.map((s) => (
-                  <tr key={s.sno} className={`border-b border-cardboard/40 align-top ${s.status ? ROW_CLASS[s.status] : ''}`}>
-                    <td className="py-3 px-2 font-bold">{s.sno}</td>
-                    <td className="py-3 pr-2 font-bold">{s.age}</td>
-                    <td className="py-3 pr-2">{s.vaccine}{updateLinks(s.vaccine_codes)}</td>
-                    <td className="py-3 pr-2"><StatusBadge status={s.status} /></td>
-                    <td className="py-3 pr-2 whitespace-nowrap">{fmt(s.last_dose)}</td>
-                    <td className="py-3 pr-2 whitespace-nowrap">{fmt(s.next_due)}</td>
-                    <td className="py-3 pr-2 opacity-80">{s.notes}</td>
+                  <tr key={s.sno} className={`border-b border-cardboard/40 last:border-b-0 align-top ${s.status ? ROW_CLASS[s.status] : ''}`}>
+                    <td className="py-3.5 px-3 font-bold">{s.age}</td>
+                    <td className="py-3.5 pr-3">
+                      <span className="font-semibold">{s.vaccine}</span>
+                      {updateLinks(s.vaccine_codes)}
+                      {s.protects && <span className="block text-xs opacity-70 mt-1">Protects against: {s.protects}</span>}
+                      {s.notes && <span className="block text-xs opacity-70 mt-1">{s.notes}</span>}
+                    </td>
+                    <td className="py-3.5 pr-3"><StatusBadge status={s.status} /></td>
+                    <td className="py-3.5 pr-3 whitespace-nowrap">{fmt(s.last_dose) || <span className="opacity-40">—</span>}</td>
+                    <td className="py-3.5 pr-3 whitespace-nowrap">{fmt(s.next_due) || <span className="opacity-40">—</span>}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <ul className="md:hidden space-y-3">
+            {data.schedule.map((s) => (
+              <li key={s.sno} className={`rounded-[12px] border border-cardboard/60 p-4 font-body text-sm text-ink ${s.status ? ROW_CLASS[s.status] : ''}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs font-bold uppercase tracking-wide opacity-70">{s.age}</span>
+                  <StatusBadge status={s.status} />
+                </div>
+                <div className="mt-1 font-semibold">{s.vaccine}</div>
+                {updateLinks(s.vaccine_codes)}
+                {(s.last_dose || s.next_due) && (
+                  <div className="mt-1 text-xs opacity-80">{s.last_dose ? `Last dose ${fmt(s.last_dose)}` : ''}{s.last_dose && s.next_due ? ' · ' : ''}{s.next_due ? `Next due ${fmt(s.next_due)}` : ''}</div>
+                )}
+                {s.protects && <div className="mt-1 text-xs opacity-70">Protects against: {s.protects}</div>}
+                {s.notes && <div className="mt-1 text-xs opacity-70">{s.notes}</div>}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

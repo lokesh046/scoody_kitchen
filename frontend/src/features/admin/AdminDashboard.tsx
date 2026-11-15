@@ -917,7 +917,7 @@ export const AdminDashboard: React.FC = () => {
               {/* Card 4: Registered Pets */}
               <div className="border border-cardboard bg-paperLight p-6 rounded-none relative overflow-hidden flex flex-col justify-between">
                 <div className="space-y-1">
-                  <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Registered Companions</span>
+                  <span className="font-mono text-[9px] uppercase font-bold text-herb tracking-wide block">Registered Pets</span>
                   <h4 className="font-display font-bold text-2xl text-ink tracking-tight">
                     {totalRegisteredPets}
                   </h4>

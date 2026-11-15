@@ -10,12 +10,9 @@ export EXPO_PUBLIC_API_URL="https://api-beta.hearthandone.com"
 export EXPO_PUBLIC_CHATBOT_URL="https://api-beta.hearthandone.com/chatbot"
 # No beta vision service exists yet; falls back to production's.
 export EXPO_PUBLIC_VISION_URL="https://hearthandone.com/vision"
-# Shows every flagged feature regardless of the backend's real flag state,
-# so beta testing isn't limited by what's currently toggled on in
-# production (or beta, which mirrors production's flags). Never set in
-# scripts/build-production.sh -- see useFeatureFlag.ts for why that means
-# production can never pick this up.
-export EXPO_PUBLIC_FORCE_FLAGS_ENABLED="true"
+# Beta follows the beta backend's real flags, exactly like production
+# (hide / coming soon / unavailable all work). Flip flags in the beta admin
+# to test; do NOT set EXPO_PUBLIC_FORCE_FLAGS_ENABLED here.
 
 cd "$(dirname "$0")/../android"
 SENTRY_DISABLE_AUTO_UPLOAD=true ./gradlew installBetaRelease "$@"

@@ -41,6 +41,7 @@ import {
   HealthRecord,
 } from '../api/pets';
 import { uploadAvatarImage } from '../api/auth';
+import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 import { useAuthStore } from '../store/authStore';
 import { usePetStore } from '../store/petStore';
 import { tabPrefetchCache } from '../services/tabPrefetch';
@@ -74,7 +75,7 @@ const FONT_BODY = 'Quicksand_400Regular';
 const FONT_BODY_BOLD = 'Quicksand_700Bold';
 // --- Main Pets Screen ---
 
-export default function PetsScreen({ navigation }: any) {
+export default function PetsScreen({ navigation, route }: any) {
   // Loads the brand faces once; Text using FONT_DISPLAY/FONT_BODY renders in
   // the system font until this resolves, then re-renders automatically.
   useFonts({ Outfit_700Bold, Outfit_600SemiBold, Quicksand_400Regular, Quicksand_700Bold });
@@ -271,6 +272,16 @@ export default function PetsScreen({ navigation }: any) {
     setTimeout(() => setIsModalVisible(true), 350);
   }, []);
 
+  // A scan started from the Home screen ("Identify Your Pet") arrives here as route params:
+  // open the Add Pet form pre-filled with the scanned breed, then clear the params so it only runs once.
+  const homeVisionDetails = route?.params?.visionDetails;
+  const homeVisionNonce = route?.params?.visionNonce;
+  useEffect(() => {
+    if (!homeVisionDetails) return;
+    handleApplyVisionDetails(homeVisionDetails);
+    navigation.setParams?.({ visionDetails: undefined, visionNonce: undefined });
+  }, [homeVisionNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const saveDirectPhoto = useCallback(async (pet: PetProfile, uri: string) => {
     try {
       const uploadRes = await uploadAvatarImage(uri);
@@ -426,14 +437,14 @@ export default function PetsScreen({ navigation }: any) {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Compact toolbar; the pet roster scrolls with the page. */}
       <ScreenHeader
-        title="My pets"
+        title="Know Your Pet"
         rightContent={
           <TouchableOpacity
             style={[styles.addPetBtn, headerActionStyle]}
             onPress={openAddModal}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Register a new companion"
+            accessibilityLabel="Register a new pet"
           >
             <Plus size={20} color={HEADER_GOLD} strokeWidth={2.5} />
           </TouchableOpacity>
@@ -462,9 +473,10 @@ export default function PetsScreen({ navigation }: any) {
                   >
                     {p.profile_image_url ? (
                       <Image
-                        source={{ uri: p.profile_image_url }}
+                        source={{ uri: getOptimizedImageUrl(p.profile_image_url, IMAGE_SIZE.avatarThumb) }}
                         style={styles.rosterAvatarImg}
                         contentFit="cover"
+                        cachePolicy="memory-disk"
                       />
                     ) : (
                       <View style={styles.rosterAvatarFallback}>
@@ -482,7 +494,7 @@ export default function PetsScreen({ navigation }: any) {
         {loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={COLORS.forestGreen} />
-            <Text style={styles.loadingText}>Fetching companion registry...</Text>
+            <Text style={styles.loadingText}>Fetching pet registry...</Text>
           </View>
         ) : errorMsg ? (
           <View style={styles.errorContainer}>
@@ -502,7 +514,7 @@ export default function PetsScreen({ navigation }: any) {
             <View style={styles.emptyIconCircle}>
               <PawPrint size={36} color={COLORS.brandGold} fill={COLORS.brandGold} />
             </View>
-            <Text style={styles.emptyTitle}>No Companions Registered</Text>
+            <Text style={styles.emptyTitle}>No Pets Registered</Text>
             <Text style={styles.emptySub}>
               Register your dog to monitor clinical health history, calculate daily metabolic targets, and tailor kitchen recipes.
             </Text>
@@ -511,10 +523,10 @@ export default function PetsScreen({ navigation }: any) {
               onPress={openAddModal}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Register companion pet"
+              accessibilityLabel="Register pet"
             >
               <Plus size={16} color="#FFFFFF" strokeWidth={2.5} />
-              <Text style={styles.primaryAddBtnText}>Register Companion Pet</Text>
+              <Text style={styles.primaryAddBtnText}>Register Pet</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

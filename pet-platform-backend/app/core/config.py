@@ -95,6 +95,8 @@ class Setting(BaseSettings):
     SMTP_USER: str | None = None
     SMTP_PASSWORD: str | None = None
     EMAILS_FROM: str | None = None
+    # Where Contact page ("Get in touch") messages are emailed.
+    CONTACT_INBOX_EMAIL: str = "support@hearthandone.com"
     FRONTEND_URL: str = "http://127.0.0.1:8000"
 
     # EasyPost Shipping Configuration

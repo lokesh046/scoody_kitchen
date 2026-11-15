@@ -1,3 +1,4 @@
+import html
 import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -547,4 +548,75 @@ def send_account_deletion_email(to_email: str, first_name: str | None, scheduled
         return True
     except Exception as exc:
         logger.error("Failed to prepare account deletion email for %s: %s", to_email, exc)
+        return False
+
+
+CONTACT_REASON_LABELS = {
+    "general": "General query",
+    "sales": "Sales",
+    "promotion": "Promotion",
+    "investment": "Investment",
+    "partnership": "Partnership",
+    "other": "Other",
+}
+
+
+def send_contact_inquiry_email(inquiry) -> bool:
+    """Emails a Contact page message to the team inbox. Reply-To is the visitor, so replying answers them."""
+    esc = html.escape
+    reason_label = CONTACT_REASON_LABELS.get(inquiry.reason, inquiry.reason)
+    to_email = settings.CONTACT_INBOX_EMAIL
+    subject = f"[Contact · {reason_label}] {inquiry.name}"
+    phone = esc(inquiry.phone) if inquiry.phone else "Not given"
+
+    content = f"""
+        <h2 style="color: #362820; font-size: 18px; font-weight: 800; margin: 0 0 12px 0; text-transform: uppercase;">
+            New message: {esc(reason_label)}
+        </h2>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="6" border="0" style="font-size: 13px; color: #4A3B32; margin-bottom: 16px;">
+            <tr><td width="90" style="font-weight: 700;">Name</td><td>{esc(inquiry.name)}</td></tr>
+            <tr><td style="font-weight: 700;">Email</td><td>{esc(inquiry.email)}</td></tr>
+            <tr><td style="font-weight: 700;">Phone</td><td>{phone}</td></tr>
+        </table>
+        <p style="font-size: 13px; line-height: 1.6; color: #4A3B32; margin: 0; white-space: pre-wrap;">{esc(inquiry.notes)}</p>
+    """
+    html_content = _get_base_email_template("New contact message", content)
+
+    logger.info(f"CONTACT INQUIRY #{inquiry.id} ({inquiry.reason}) from {inquiry.email}")
+
+    if not settings.SMTP_HOST or not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        logger.warning("SMTP settings not configured. Contact message was saved but not emailed.")
+        return True
+
+    try:
+        sender_email = settings.EMAILS_FROM or settings.SMTP_USER
+        from_header = f"Hearth & One <{sender_email}>" if "<" not in (sender_email or "") else sender_email
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = from_header
+        msg["To"] = to_email
+        msg["Reply-To"] = inquiry.email
+
+        msg.attach(MIMEText(
+            f"{reason_label}\nName: {inquiry.name}\nEmail: {inquiry.email}\nPhone: {inquiry.phone or 'Not given'}\n\n{inquiry.notes}",
+            "plain",
+        ))
+        msg.attach(MIMEText(html_content, "html"))
+
+        def _send():
+            try:
+                with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+                    server.starttls()
+                    server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                    server.send_message(msg)
+                logger.info(f"Contact inquiry #{inquiry.id} emailed to the team inbox")
+            except Exception as exc:
+                logger.error(f"Failed to email contact inquiry #{inquiry.id}: {exc}")
+
+        import threading
+        threading.Thread(target=_send, daemon=True).start()
+        return True
+    except Exception as exc:
+        logger.error(f"Failed to prepare contact inquiry email #{inquiry.id}: {exc}")
         return False

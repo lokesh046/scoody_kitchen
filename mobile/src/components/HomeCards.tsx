@@ -151,7 +151,16 @@ export const BannerSlideItem = memo(function BannerSlideItem({
   );
 });
 
+// Behind the "Coming soon" band the card shows soft grey bars where the name, price and button text would be, so nothing
+// readable (no price) shows through, like the website's blurred card. (A text-glow trick did not hide the words on Android.)
+const PLACEHOLDER = 'rgba(54, 40, 32, 0.12)';
+const PlaceholderBar = ({ width, height }: { width: number | `${number}%`; height: number }) => (
+  <View style={{ width, height, borderRadius: height / 2, backgroundColor: PLACEHOLDER }} />
+);
+
 interface ProductFavoriteCardProps {
+  /** Shows the card blurred, for the "Coming soon" band that sits over it. */
+  blurred?: boolean;
   product: Product;
   inCartItem?: { id: number; quantity: number };
   isFav: boolean;
@@ -176,13 +185,18 @@ export const ProductFavoriteCard = memo(function ProductFavoriteCard({
   onRemoveItem,
   onSelectProduct,
   orderingDisabledLabel,
+  blurred = false,
 }: ProductFavoriteCardProps) {
   const hasReviews = !!product.review_count && product.review_count > 0;
   const hasStockInfo = product.available_stock !== null && product.available_stock !== undefined;
   const isOutOfStock = hasStockInfo && product.available_stock === 0;
 
   return (
-    <View style={homeCardStyles.favoriteCard}>
+    <View
+      style={homeCardStyles.favoriteCard}
+      accessibilityElementsHidden={blurred}
+      importantForAccessibility={blurred ? 'no-hide-descendants' : 'auto'}
+    >
       {/* Product Image & Badges */}
       <TouchableOpacity
         style={homeCardStyles.cardImageContainer}
@@ -199,10 +213,11 @@ export const ProductFavoriteCard = memo(function ProductFavoriteCard({
           }}
           style={homeCardStyles.cardProductImage}
           contentFit="cover"
+          blurRadius={blurred ? 16 : 0}
         />
 
         {/* Stock Badge — reflects the product's real available_stock, hidden when unknown */}
-        {hasStockInfo && (
+        {hasStockInfo && !blurred && (
           <View style={[homeCardStyles.stockTag, isOutOfStock && homeCardStyles.stockTagOut]}>
             <Text style={[homeCardStyles.stockTagText, isOutOfStock && homeCardStyles.stockTagTextOut]}>
               {isOutOfStock ? 'OUT OF STOCK' : 'IN STOCK'}
@@ -212,7 +227,7 @@ export const ProductFavoriteCard = memo(function ProductFavoriteCard({
 
         {/* Heart Button */}
         <TouchableOpacity
-          style={homeCardStyles.heartCircle}
+          style={[homeCardStyles.heartCircle, blurred && { opacity: 0.3 }]}
           onPress={() => onToggleFavorite(product.id)}
           activeOpacity={0.8}
           hitSlop={{ top: 9, bottom: 9, left: 9, right: 9 }}
@@ -236,7 +251,7 @@ export const ProductFavoriteCard = memo(function ProductFavoriteCard({
           accessibilityLabel={`View ${product.name}`}
         >
           {/* Rating (only shown once the recipe has real reviews) */}
-          {hasReviews && (
+          {hasReviews && !blurred && (
             <View style={homeCardStyles.ratingRow}>
               <Star size={13} color={COLORS.accentGold} fill={COLORS.accentGold} />
               <Text style={homeCardStyles.ratingText}>
@@ -249,29 +264,51 @@ export const ProductFavoriteCard = memo(function ProductFavoriteCard({
           )}
 
           {/* Product Title & Subtitle */}
-          <Text style={homeCardStyles.cardTitle} numberOfLines={1}>
-            {product.name}
-          </Text>
-          <Text style={homeCardStyles.cardSubtitle} numberOfLines={1}>
-            {product.description || 'Digestive comfort & gentle fiber balance'}
-          </Text>
+          {blurred ? (
+            <View style={{ gap: 8, marginTop: 6, marginBottom: 6 }}>
+              <PlaceholderBar width="68%" height={14} />
+              <PlaceholderBar width="92%" height={10} />
+            </View>
+          ) : (
+            <>
+              <Text style={homeCardStyles.cardTitle} numberOfLines={1}>
+                {product.name}
+              </Text>
+              <Text style={homeCardStyles.cardSubtitle} numberOfLines={1}>
+                {product.description || 'Digestive comfort & gentle fiber balance'}
+              </Text>
+            </>
+          )}
         </TouchableOpacity>
 
         {/* Batch & Price + Add Button */}
         <View style={homeCardStyles.cardFooter}>
           <View style={homeCardStyles.cardFooterLeft}>
-            {product.sku && (
-              <Text style={homeCardStyles.batchLabel} numberOfLines={1}>
-                SKU: {product.sku}
-              </Text>
+            {blurred ? (
+              <View style={{ gap: 7 }}>
+                <PlaceholderBar width={64} height={8} />
+                <PlaceholderBar width={84} height={16} />
+              </View>
+            ) : (
+              <>
+                {product.sku && (
+                  <Text style={homeCardStyles.batchLabel} numberOfLines={1}>
+                    SKU: {product.sku}
+                  </Text>
+                )}
+                <Text style={homeCardStyles.cardPrice}>₹{product.price}</Text>
+              </>
             )}
-            <Text style={homeCardStyles.cardPrice}>₹{product.price}</Text>
           </View>
 
           {orderingDisabledLabel ? (
-            <View style={homeCardStyles.cardAddBtnDisabled}>
-              <Text style={homeCardStyles.cardAddDisabledText}>{orderingDisabledLabel}</Text>
-            </View>
+            blurred ? (
+              <View style={{ width: 90, height: 34, borderRadius: 17, backgroundColor: PLACEHOLDER }} />
+            ) : (
+              <View style={homeCardStyles.cardAddBtnDisabled}>
+                <Text style={homeCardStyles.cardAddDisabledText}>{orderingDisabledLabel}</Text>
+              </View>
+            )
           ) : inCartItem && inCartItem.quantity > 0 ? (
             /* Connected Quantity Stepper */
             <View style={homeCardStyles.stepperContainer}>

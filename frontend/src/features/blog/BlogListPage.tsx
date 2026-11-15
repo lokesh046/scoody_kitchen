@@ -10,6 +10,7 @@ import { BlogOrbitGallery } from '../../components/BlogOrbitGallery';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { getOptimizedImageUrl, IMAGE_WIDTH, originalOnError } from '../../utils/cloudinaryImage';
+import { CompanionToolsSection } from '../../components/CompanionToolsSection';
 
 const FALLBACK_COVER =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260" viewBox="0 0 400 260"><rect width="400" height="260" fill="%23FAF6EC"/><path d="M 0,30 L 400,30 M 0,60 L 400,60 M 0,90 L 400,90 M 0,120 L 400,120 M 0,150 L 400,150 M 0,180 L 400,180 M 0,210 L 400,210" stroke="%23C9BB9C" stroke-width="0.5" stroke-dasharray="2,2"/><text x="50%" y="52%" font-family="monospace" font-size="13" font-weight="bold" fill="%232E2418" dominant-baseline="middle" text-anchor="middle">🐾 HEARTH & ONE 🐾</text><text x="50%" y="62%" font-family="monospace" font-size="9" fill="%234B6B3A" dominant-baseline="middle" text-anchor="middle">Journal Entry</text></svg>';
@@ -140,6 +141,8 @@ export const BlogListPage: React.FC = () => {
           <NewsletterSignup source="blog_list" />
         </div>
       </div>
+
+      <CompanionToolsSection />
 
       <footer className="mt-auto border-t border-cardboard py-8 text-center text-ink opacity-60 w-full">
         <p className="font-mono text-[11px] uppercase tracking-wider text-ink text-opacity-80">

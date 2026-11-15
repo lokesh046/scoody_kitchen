@@ -543,7 +543,7 @@ export const ConsultationsPage: React.FC = () => {
     setFormError('');
 
     if (!selectedPetId) {
-      setFormError('Please select a companion patient profile.');
+      setFormError('Please select a pet patient profile.');
       return;
     }
     if (!selectedDoctorId) {
@@ -736,7 +736,7 @@ export const ConsultationsPage: React.FC = () => {
           }`}
         >
           <Stethoscope className="w-3.5 h-3.5" />
-          Practices &amp; Hospitals
+          Clinics and Hospitals
           {nearbyCategory === 'clinic' && hasSearchedNearby && <span className="opacity-80">({nearbyClinics.length})</span>}
         </button>
         <button
@@ -802,7 +802,7 @@ export const ConsultationsPage: React.FC = () => {
               ) : (
                 <>
                   <Navigation className="w-4 h-4" />
-                  <span>Detect My Current Position</span>
+                  <span>Detect my current location</span>
                 </>
               )}
             </button>
@@ -1030,7 +1030,7 @@ export const ConsultationsPage: React.FC = () => {
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1.5 bg-paper border border-cardboard text-ink font-mono text-[9px] uppercase font-bold px-3.5 py-2 rounded-full">
-                              View Full Schedule
+                              See availability
                               <ChevronRight className="w-3 h-3" />
                             </span>
                           )}
@@ -1110,15 +1110,11 @@ export const ConsultationsPage: React.FC = () => {
               </h1>
               {pageMode === 'consult' && (
                 <p className="font-body text-xs sm:text-sm text-ink opacity-75 max-w-2xl mt-1">
-                  Schedule one-on-one live video consultations with verified companion nutritionists and veterinary doctors.
+                  Schedule one-on-one live video consultations with verified pet nutritionists and veterinary doctors.
                 </p>
               )}
             </div>
             <div className="flex items-center space-x-2 shrink-0">
-              <span className="inline-flex items-center px-3 py-1.5 rounded-sm text-xs font-mono font-bold bg-herb/10 text-herb border border-herb/30">
-                <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
-                <span>100% Board Certified Vets</span>
-              </span>
               {(() => {
                 // The switch points at the OTHER side. If that side is off, show it disabled with
                 // its tag ("Coming soon" / "Unavailable"), or hide it when its fallback is "hide".
@@ -1463,7 +1459,7 @@ export const ConsultationsPage: React.FC = () => {
                                 <span className="font-bold text-ink">{formatNaiveDateTime(consult.scheduled_at).full}</span>
                               </div>
                               <div>
-                                <span className="text-[9px] uppercase text-paprika font-bold block">Companion Patient</span>
+                                <span className="text-[9px] uppercase text-paprika font-bold block">Pet Patient</span>
                                 <span className="font-bold text-ink">🐾 {consult.pet?.name || 'Pet'} ({consult.pet?.species || 'Canine'})</span>
                               </div>
                               <div>
@@ -1672,7 +1668,7 @@ export const ConsultationsPage: React.FC = () => {
                   <div>
                     <h4 className="font-display font-bold text-base text-ink">No Pets Registered Yet</h4>
                     <p className="font-body text-xs text-ink opacity-75 max-w-xs mx-auto mt-1">
-                      Please create a companion profile before scheduling a veterinary review.
+                      Please create a pet profile before scheduling a veterinary review.
                     </p>
                   </div>
                   <button
@@ -1689,8 +1685,8 @@ export const ConsultationsPage: React.FC = () => {
                   {bookingStep === 1 && (
                     <div className="space-y-4 animate-fade-in">
                       <div className="space-y-1">
-                        <Eyebrow label="STEP 1 OF 5 // COMPANION IDENTIFIER" />
-                        <h3 className="font-display font-black text-xl text-ink">Choose Companion Patient</h3>
+                        <Eyebrow label="STEP 1 OF 5 // PET IDENTIFIER" />
+                        <h3 className="font-display font-black text-xl text-ink">Choose Pet Patient</h3>
                         <p className="font-body text-xs text-ink opacity-70">
                           Select which pet this veterinary consultation dossier is scheduled for:
                         </p>
@@ -2346,7 +2342,7 @@ export const ConsultationsPage: React.FC = () => {
 
                               <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
                                 <div>
-                                  <span className="text-[9px] uppercase text-paprika font-bold block">Patient Companion</span>
+                                  <span className="text-[9px] uppercase text-paprika font-bold block">Patient Pet</span>
                                   <span className="font-bold text-ink">🐾 {selectedPet?.name || 'Pet'} ({selectedPet?.species || 'Canine'})</span>
                                 </div>
                                 <div>
@@ -2867,7 +2863,7 @@ export const ConsultationsPage: React.FC = () => {
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] font-mono text-ink">
                     <div>
-                      <span className="text-[9px] uppercase text-paprika font-bold block">Patient Companion</span>
+                      <span className="text-[9px] uppercase text-paprika font-bold block">Patient Pet</span>
                       <span className="font-bold">🐾 {consultationDetails.pet?.name || 'Pet'} ({consultationDetails.pet?.species})</span>
                     </div>
                     <div>

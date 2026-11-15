@@ -76,7 +76,7 @@ export function PetGettingStarted() {
       <div className="mx-auto max-w-7xl">
         <div className="mx-auto mb-8 max-w-2xl text-center">
           <h2 id="pet-getting-started-heading" className="font-script text-3xl font-normal tracking-normal leading-snug sm:text-4xl lg:text-5xl">Getting started is simple</h2>
-          <p className="mx-auto mt-4 max-w-lg font-body text-base sm:text-lg leading-relaxed text-paper/90">Start with the basics and build a more complete picture of your companion over time.</p>
+          <p className="mx-auto mt-7 md:mt-8 max-w-2xl font-body text-base sm:text-lg leading-relaxed text-paper/90">Start with the basics and build a more complete picture of your pet over time.</p>
         </div>
         <motion.ol onViewportEnter={() => setHasEntered(true)} viewport={{ once: true, amount: 0.25 }} className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
           {STEPS.map((step, index) => (

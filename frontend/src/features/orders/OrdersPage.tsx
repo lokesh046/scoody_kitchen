@@ -7,6 +7,7 @@ import { submitProductReview } from '../../api/reviews';
 import { Eyebrow } from '../../components/Eyebrow';
 import { CartDrawer } from '../../components/CartDrawer';
 import { Header } from '../../components/Header';
+import { CompanionToolsSection } from '../../components/CompanionToolsSection';
 import { 
   ArrowLeft, 
   Clock, XCircle, Loader2, AlertCircle,
@@ -463,6 +464,8 @@ export const OrdersPage: React.FC = () => {
 
       </main>
 
+      <CompanionToolsSection />
+
       {/* Tracking Journey Modal */}
       {selectedTrackingOrderId !== null && (
         <div className="fixed inset-0 bg-ink/50 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
@@ -720,7 +723,7 @@ export const OrdersPage: React.FC = () => {
                   Rate Sourced Formulations
                 </h3>
                 <p className="font-body text-xs text-ink opacity-70">
-                  Share your companion's experience with the meals in Order #{reviewingOrder.id}.
+                  Share your pet's experience with the meals in Order #{reviewingOrder.id}.
                 </p>
               </div>
               <button 
@@ -820,7 +823,7 @@ export const OrdersPage: React.FC = () => {
 
                             <div>
                               <label className="font-mono text-[9px] uppercase font-bold text-cardboard block mb-1">
-                                Companion's Feedback
+                                Pet's Feedback
                               </label>
                               <textarea
                                 value={reviewComment}

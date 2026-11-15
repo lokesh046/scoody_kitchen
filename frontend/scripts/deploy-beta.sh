@@ -16,8 +16,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 export SITE_URL="${SITE_URL:-https://beta.hearthandone.com}"
-export VITE_FORCE_FLAGS_ENABLED=true
+unset VITE_FORCE_FLAGS_ENABLED  # beta now follows its real flags, like production
 
-echo "Building beta frontend with VITE_FORCE_FLAGS_ENABLED=true, SITE_URL=$SITE_URL ..."
+echo "Building beta frontend following real flags (no force override), SITE_URL=$SITE_URL ..."
 npm run build
 echo "Done."

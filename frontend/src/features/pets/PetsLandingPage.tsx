@@ -9,10 +9,9 @@ import {
 } from 'lucide-react';
 import { PetGettingStarted } from './PetGettingStarted';
 import { SiteFooter } from '../../components/SiteFooter';
-import { ToolCarousel } from '../../components/ToolCarousel';
+import { CompanionToolsSection } from '../../components/CompanionToolsSection';
 import { Header } from '../../components/Header';
 import { CartDrawer } from '../../components/CartDrawer';
-import { useFeatureFlag, useVetEntryEnabled } from '../../hooks/useFeatureFlag';
 import { useDocumentMetadata } from '../../hooks/useDocumentMetadata';
 import { useStructuredData } from '../../hooks/useStructuredData';
 import { useLandingFaqs, useLandingHero } from '../../hooks/useAdminContent';
@@ -35,7 +34,7 @@ const PROFILE_DETAILS = [
 const DEFAULT_HERO = {
   image: DEFAULT_HERO_IMAGE,
   title: 'Everything about your pet, in one place',
-  subtitle: "Build a profile that captures your companion's essential details, unique characteristics, and everyday needs.",
+  subtitle: "Build a profile that captures your pet's essential details, unique characteristics, and everyday needs.",
 };
 
 const DEFAULT_FAQS = [
@@ -49,7 +48,7 @@ const DEFAULT_FAQS = [
   },
   {
     q: 'Can I create profiles for multiple pets?',
-    a: "Yes — Know Your Pet supports multiple pet profiles, so you can keep every companion's details in one place.",
+    a: "Yes — Know Your Pet supports multiple pet profiles, so you can keep every pet's details in one place.",
   },
   {
     q: "Can I update my pet's information later?",
@@ -60,48 +59,6 @@ const DEFAULT_FAQS = [
     a: 'No. Know Your Pet is intended to help you organise information and learn about your pet. It does not replace advice, diagnosis, or treatment from a qualified veterinarian.',
   },
 ];
-
-function OtherToolsSection() {
-  const isShopEnabled = useFeatureFlag('shop_checkout', true);
-  const isConsultationsEnabled = useVetEntryEnabled();
-  const isMealPlannerEnabled = useFeatureFlag('shop_meal_planner', true);
-  const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
-
-  const tools = [
-    ...(isShopEnabled ? [{ label: 'Shop Recipes', image: '/images/toolkit/shop-recipes.webp', text: 'Human-grade meals built around what your pet actually needs.', path: '/shop' }] : []),
-    ...(isConsultationsEnabled ? [{ label: 'Vet Consults', image: '/images/toolkit/vet-consults.webp', text: 'Book time with a veterinarian when something needs a professional look.', path: '/consultations' }] : []),
-    ...(isMealPlannerEnabled ? [{ label: 'Count Their Calories', image: '/images/toolkit/meal-planner.webp', text: "Estimate your pet's daily energy needs from their profile.", path: '/recipe-calculator#fit-calculator' }] : []),
-    ...(isChatbotEnabled ? [{ label: 'AI Assistant', image: '/images/toolkit/ai-assistant.webp', text: 'Ask questions about nutrition and everyday pet care.', path: '/assistant' }] : []),
-  ];
-
-  if (tools.length === 0) return null;
-
-  return (
-    <section className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-midnight text-paper">
-      <div className="max-w-7xl mx-auto">
-        <div className="max-w-6xl mx-auto text-center space-y-3 mb-8">
-          <h2 className="font-script font-normal text-3xl sm:text-4xl lg:text-[clamp(2rem,3.7vw,3.75rem)] lg:whitespace-nowrap tracking-normal leading-snug">
-            <span className="sr-only">One companion Different aspects of their care</span>
-            <span aria-hidden="true">
-              {'One companion Different aspects of their care'.split(' ').map((word, index) => (
-                <span key={index}>
-                  {index > 0 ? ' ' : ''}
-                  <span className="pet-profile-heading-word inline-block" style={{ animationDelay: `${index * 160}ms` }}>
-                    {word}
-                  </span>
-                </span>
-              ))}
-            </span>
-          </h2>
-          <p className="mx-auto max-w-2xl pt-4 md:pt-5 font-body text-base sm:text-lg text-paper opacity-90 leading-relaxed">
-            Explore the tools designed to support different parts of the pet-parent journey.
-          </p>
-        </div>
-        <ToolCarousel items={tools} matchStepCards />
-      </div>
-    </section>
-  );
-}
 
 export function PetsLandingPage() {
   // Remember that this landing page has been opened, so the home-page card can go straight to the feature next time.
@@ -189,9 +146,9 @@ export function PetsLandingPage() {
           <div className="max-w-2xl mx-auto text-center space-y-4 mb-8">
             <p className="font-script font-normal text-[clamp(1.125rem,4.6vw,2.5rem)] whitespace-nowrap tracking-normal leading-snug text-turmeric">Your Pet's Profile</p>
             <h2 id="pet-profile-heading" className="font-body font-normal text-base sm:text-lg text-paper opacity-90 tracking-normal leading-relaxed">
-              <span className="sr-only">A clearer picture of the companion you know by heart</span>
+              <span className="sr-only">A clearer picture of the pet you know by heart</span>
               <span aria-hidden="true">
-                {'A clearer picture of the companion you know by heart'.split(' ').map((word, index) => (
+                {'A clearer picture of the pet you know by heart'.split(' ').map((word, index) => (
                   <span key={index}>
                     {index > 0 ? ' ' : ''}
                     <span
@@ -233,12 +190,12 @@ export function PetsLandingPage() {
               className="relative isolate overflow-hidden min-h-[280px] sm:col-span-2 lg:min-h-[380px] lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:row-span-4 bg-midnightCard"
             >
               <img
-                src="/images/pet-profile/owner-and-dog.webp"
-                alt="A smiling pet parent hugging their golden retriever while looking at a tablet together"
-                width={1000}
-                height={1500}
+                src="/images/pet-profile/street-dog.webp"
+                alt="A white and tan dog standing on a quiet road and looking straight at the camera"
+                width={720}
+                height={1280}
                 loading="lazy"
-                className="absolute inset-0 h-full w-full object-cover object-[50%_38%]"
+                className="absolute inset-0 h-full w-full object-cover object-[50%_52%]"
               />
             </motion.div>
 
@@ -267,7 +224,7 @@ export function PetsLandingPage() {
       <PetGettingStarted />
 
       {/* One companion, different aspects of care -- cross-promo */}
-      <OtherToolsSection />
+      <CompanionToolsSection exclude="pets" />
 
       {/* Closing CTA */}
       <section aria-labelledby="pet-cta-heading" className="px-4 sm:px-6 md:px-8 py-8 md:py-10 bg-gradient-to-b from-midnight via-midnightCard to-midnight text-paper text-center">
@@ -275,7 +232,7 @@ export function PetsLandingPage() {
           <h2 id="pet-cta-heading" className="font-script font-normal text-4xl sm:text-5xl md:text-6xl tracking-normal leading-snug lg:whitespace-nowrap">
             Get to know them a little better
           </h2>
-          <p className="max-w-xl mx-auto mt-6 sm:mt-8 font-body text-base sm:text-lg text-paper/90 leading-relaxed">
+          <p className="max-w-xl mx-auto mt-7 md:mt-8 font-body text-base sm:text-lg text-paper/90 leading-relaxed">
             Start building a clearer picture of your pet, one detail at a time.
           </p>
           <button

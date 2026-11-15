@@ -23,6 +23,17 @@ const STATUS_COLOR: Record<VaccineStatus, { bg: string; fg: string }> = {
   complete: { bg: '#E8F3EA', fg: COLORS.successGreen },
 };
 
+// "Max needs a DHPPi vaccination." / "Max needs DHPPi and Rabies vaccinations." plus what to do next.
+const vaccineArticle = (name: string) => (/^[aeiou]/i.test(name) || /^[FHLMNRSX][A-Z]{2,}/.test(name) ? 'an' : 'a');
+const joinNames = (names: string[]) => (names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`);
+function vaccinationNeedMessage(petName: string, names: string[]) {
+  const one = names.length === 1;
+  return {
+    lead: one ? `${petName} needs ${vaccineArticle(names[0])} ${names[0]} vaccination.` : `${petName} needs ${joinNames(names)} vaccinations.`,
+    rest: one ? 'Consult your veterinarian to schedule the vaccination and update the record.' : 'Consult your veterinarian to schedule the vaccinations and update the records.',
+  };
+}
+
 export default function VaccinationsModal({ visible, petId, petName, dob, onClose, onFindVet }: {
   visible: boolean; petId: number; petName: string; dob: string | null; onClose: () => void; onFindVet: () => void;
 }) {
@@ -59,6 +70,7 @@ export default function VaccinationsModal({ visible, petId, petName, dob, onClos
   };
 
   const needsVet = (data?.items ?? []).filter((i) => i.category === 'core' && (i.status === 'overdue' || i.status === 'not_started'));
+  const needMessage = vaccinationNeedMessage(petName, needsVet.map((i) => i.name.replace(/\s*\(.*\)$/, '')));
   const nameOf = (code: string) => data?.items.find((i) => i.code === code)?.name ?? code;
 
   return (
@@ -80,7 +92,7 @@ export default function VaccinationsModal({ visible, petId, petName, dob, onClos
               {needsVet.length > 0 && (
                 <View style={styles.vetCard} accessibilityRole="alert">
                   <Text style={styles.vetText}>
-                    <Text style={{ fontWeight: '800' }}>{petName} needs a vet visit</Text> for {needsVet.map((i) => i.name.replace(/\s*\(.*\)$/, '')).join(', ')}. A vet can vaccinate and note it on the card.
+                    <Text style={{ fontWeight: '800' }}>{needMessage.lead}</Text> {needMessage.rest}
                   </Text>
                   {vet.gps === 'on' ? (
                     <TouchableOpacity style={styles.vetBtn} onPress={onFindVet} accessibilityRole="button" accessibilityLabel="Find a vet near me">

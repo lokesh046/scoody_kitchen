@@ -37,6 +37,7 @@ from app.api.banner import router as banners_router
 from app.api.faq import router as faqs_router
 from app.api.blog import router as blog_router
 from app.api.newsletter import router as newsletter_router
+from app.api.contact import router as contact_router
 from app.api.notification import router as notification_router
 from app.api.reviews import router as reviews_router
 from app.api.feature_flags import router as feature_flags_router
@@ -219,6 +220,7 @@ app.include_router(banners_router)
 app.include_router(faqs_router)
 app.include_router(blog_router)
 app.include_router(newsletter_router)
+app.include_router(contact_router)
 app.include_router(notification_router)
 app.include_router(reviews_router)
 app.include_router(feature_flags_router)

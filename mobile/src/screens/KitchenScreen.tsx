@@ -57,7 +57,7 @@ import {
   ReviewEligibilityResponse,
 } from '../api/reviews';
 import { useResponsive } from '../hooks/useResponsive';
-import { useFlagEntry } from '../hooks/useFeatureFlag';
+import { useFeatureFlag, useFlagEntry } from '../hooks/useFeatureFlag';
 import ResponsiveContainer from '../components/ResponsiveContainer';
 import { getOptimizedImageUrl, IMAGE_SIZE } from '../utils/cloudinaryImage';
 
@@ -382,6 +382,7 @@ const RecipeReviewCard = memo(function RecipeReviewCard({
 });
 
 export default function KitchenScreen({ navigation, route }: any) {
+  const showOrders = useFeatureFlag('header_my_orders', true);
   // Loads the brand faces once; Text using FONT_DISPLAY/FONT_BODY renders in the
   // system font until this resolves, then re-renders automatically — no gate needed.
   useFonts({ Outfit_700Bold, Outfit_600SemiBold, Quicksand_400Regular, Quicksand_700Bold });
@@ -653,7 +654,7 @@ export default function KitchenScreen({ navigation, route }: any) {
   };
 
   const handlePickReviewImage = async () => {
-    Alert.alert('Attach Photo', 'Share a photo of your companion or recipe bowl', [
+    Alert.alert('Attach Photo', 'Share a photo of your pet or recipe bowl', [
       {
         text: 'Take Photo',
         onPress: async () => {
@@ -944,6 +945,7 @@ export default function KitchenScreen({ navigation, route }: any) {
       {/* Header */}
       <ScreenHeader title="Shop recipes" rightContent={
         <>
+          {showOrders && (
           <TouchableOpacity
             style={[styles.iconCircleBtn, headerActionStyle]}
             onPress={() => navigation.navigate('Orders')}
@@ -954,6 +956,7 @@ export default function KitchenScreen({ navigation, route }: any) {
           >
             <RNImage source={require('../../assets/toolkit/my-orders.webp')} style={styles.headerOrdersIcon} resizeMode="contain" />
           </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.avatarBtn}
             onPress={() => navigation.navigate('Profile')}
@@ -963,7 +966,7 @@ export default function KitchenScreen({ navigation, route }: any) {
             accessibilityLabel="Open your profile"
           >
             {user?.profile_image_url ? (
-              <Image source={{ uri: user.profile_image_url }} style={styles.avatarImg} />
+              <Image source={{ uri: getOptimizedImageUrl(user.profile_image_url, IMAGE_SIZE.avatarThumb) }} style={styles.avatarImg} cachePolicy="memory-disk" />
             ) : (
               <View style={styles.avatarFallback}>
                 <Text style={styles.avatarInitial}>
@@ -1522,7 +1525,7 @@ export default function KitchenScreen({ navigation, route }: any) {
                   activeOpacity={0.8}
                 >
                   <Camera size={18} color={COLORS.forestGreen} />
-                  <Text style={styles.reviewAttachImageText}>Add Photo of Companion / Recipe</Text>
+                  <Text style={styles.reviewAttachImageText}>Add Photo of Pet / Recipe</Text>
                 </TouchableOpacity>
               )}
 

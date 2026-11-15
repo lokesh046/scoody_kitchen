@@ -53,7 +53,7 @@ const PassportContent = forwardRef<View, PassportContentProps>(
                   Official Canine & Feline Registry
                 </Text>
                 <Text style={[styles.headerTitle, isStory && styles.headerTitleStory]}>
-                  Companion Heritage Passport
+                  Pet Heritage Passport
                 </Text>
               </View>
             </View>

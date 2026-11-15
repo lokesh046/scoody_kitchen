@@ -44,6 +44,7 @@ module.exports = {
         backgroundColor: "#F8F5EF",
       },
       package: "com.scooby.kitchen",
+      versionCode: 3,
       config: {
         googleMaps: {
           // Real key lives in .env (gitignored) locally, and in EAS
@@ -88,9 +89,10 @@ module.exports = {
       [
         "expo-splash-screen",
         {
-          image: "./assets/splash-blank.png",
+          image: "./assets/launch-logo.png",
+          imageWidth: 194,
           resizeMode: "contain",
-          backgroundColor: "#F8F5EF",
+          backgroundColor: "#FEFEFE",
         },
       ],
       [

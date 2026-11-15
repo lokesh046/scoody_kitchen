@@ -34,7 +34,7 @@ export const PetHeritagePassport: React.FC<PetHeritagePassportProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
-  const displayName = petName?.trim() || 'Honored Companion';
+  const displayName = petName?.trim() || 'Honored Pet';
   const passportCode = `SK-PASSPORT-${Math.abs(breedName.split('').reduce((acc, c) => acc + c.charCodeAt(0), 1000))}-${new Date().getFullYear()}`;
 
   // Export passport card to High-Resolution Canvas PNG (2400x1600 4K print-ready)
@@ -71,7 +71,7 @@ export const PetHeritagePassport: React.FC<PetHeritagePassportProps> = ({
     // Header Text
     ctx.fillStyle = '#D99B26';
     ctx.font = 'bold 28px serif';
-    ctx.fillText("OFFICIAL COMPANION HERITAGE PASSPORT", 70, 85);
+    ctx.fillText("OFFICIAL PET HERITAGE PASSPORT", 70, 85);
 
     ctx.fillStyle = '#F8F4EE';
     ctx.font = 'bold 13px monospace';
@@ -307,7 +307,7 @@ export const PetHeritagePassport: React.FC<PetHeritagePassportProps> = ({
                 Official Canine & Feline Registry
               </span>
               <h3 className="font-display font-black text-xl sm:text-2xl uppercase tracking-tight text-ink">
-                Companion Heritage Passport
+                Pet Heritage Passport
               </h3>
             </div>
           </div>
