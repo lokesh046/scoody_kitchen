@@ -22,7 +22,7 @@ import { useLandingFaqs, useLandingHero } from '../../hooks/useAdminContent';
 import { markLandingSeen } from '../../utils/landingSeen';
 import { getOptimizedImageUrl, IMAGE_WIDTH, originalOnError } from '../../utils/cloudinaryImage';
 
-const DEFAULT_HERO_IMAGE = 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg';
+const DEFAULT_HERO_IMAGE = '/images/hound/hound-1.webp';
 
 const CLOSER_LOOK = [
   {

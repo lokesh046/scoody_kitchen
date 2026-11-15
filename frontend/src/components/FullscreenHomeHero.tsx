@@ -24,7 +24,7 @@ const fallbackBanners = [
     title: 'Honest Ingredients Zero Filler',
     subtitle:
       'Every single recipe batch contains zero corn, wheat, soy, or rendering byproducts. Certified and tested by pet nutrition specialists.',
-    image_url: 'https://res.cloudinary.com/utnenyxi/image/upload/v1788521353/scooby_kitchen/l0pkroz1l1dt6d0filb9.jpg',
+    image_url: '/images/hound/hound-1.webp',
     link_url: '/shop',
   },
   {
