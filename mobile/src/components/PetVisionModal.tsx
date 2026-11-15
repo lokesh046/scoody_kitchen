@@ -121,7 +121,7 @@ export default function PetVisionModal({
       if (useCamera) {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission Denied', 'Camera permission is required to scan your companion.');
+          Alert.alert('Permission Denied', 'Camera permission is required to scan your pet.');
           return;
         }
         const res = await ImagePicker.launchCameraAsync({
@@ -165,7 +165,7 @@ export default function PetVisionModal({
       if (!data.success || !data.is_pet) {
         setScanError(
           data.error_message ||
-            'No companion detected in the photo. Please snap a clear photo showing your dog or cat.'
+            'No pet detected in the photo. Please snap a clear photo showing your dog or cat.'
         );
       }
     } catch (err: any) {
@@ -416,7 +416,7 @@ export default function PetVisionModal({
                 <View style={styles.matchHeaderRow}>
                   <View style={styles.speciesBadge}>
                     <Text style={styles.speciesBadgeText}>
-                      {result.species?.toUpperCase() || 'COMPANION'}
+                      {result.species?.toUpperCase() || 'PET'}
                     </Text>
                   </View>
                   <View style={styles.confidencePill}>
@@ -701,7 +701,7 @@ export default function PetVisionModal({
             <PassportContent
               ref={passportRef}
               format={exportFormat}
-              petName="Honored Companion"
+              petName="Honored Pet"
               breedName={result.primary_breed || 'Mixed Breed'}
               species={result.species || 'Dog'}
               photoUri={selectedImageUri}

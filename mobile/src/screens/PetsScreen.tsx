@@ -437,14 +437,14 @@ export default function PetsScreen({ navigation, route }: any) {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Compact toolbar; the pet roster scrolls with the page. */}
       <ScreenHeader
-        title="My pets"
+        title="Know Your Pet"
         rightContent={
           <TouchableOpacity
             style={[styles.addPetBtn, headerActionStyle]}
             onPress={openAddModal}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Register a new companion"
+            accessibilityLabel="Register a new pet"
           >
             <Plus size={20} color={HEADER_GOLD} strokeWidth={2.5} />
           </TouchableOpacity>
@@ -494,7 +494,7 @@ export default function PetsScreen({ navigation, route }: any) {
         {loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={COLORS.forestGreen} />
-            <Text style={styles.loadingText}>Fetching companion registry...</Text>
+            <Text style={styles.loadingText}>Fetching pet registry...</Text>
           </View>
         ) : errorMsg ? (
           <View style={styles.errorContainer}>
@@ -514,7 +514,7 @@ export default function PetsScreen({ navigation, route }: any) {
             <View style={styles.emptyIconCircle}>
               <PawPrint size={36} color={COLORS.brandGold} fill={COLORS.brandGold} />
             </View>
-            <Text style={styles.emptyTitle}>No Companions Registered</Text>
+            <Text style={styles.emptyTitle}>No Pets Registered</Text>
             <Text style={styles.emptySub}>
               Register your dog to monitor clinical health history, calculate daily metabolic targets, and tailor kitchen recipes.
             </Text>
@@ -523,10 +523,10 @@ export default function PetsScreen({ navigation, route }: any) {
               onPress={openAddModal}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Register companion pet"
+              accessibilityLabel="Register pet"
             >
               <Plus size={16} color="#FFFFFF" strokeWidth={2.5} />
-              <Text style={styles.primaryAddBtnText}>Register Companion Pet</Text>
+              <Text style={styles.primaryAddBtnText}>Register Pet</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

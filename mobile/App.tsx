@@ -112,14 +112,16 @@ function CrossFadeIn({ ready, children }: { ready: boolean; children: React.Reac
 function App() {
   const { user, isGuest, isHydrated, hydrateAuth, updateUser } = useAuthStore();
   const fetchFlags = useFeatureFlagStore((state) => state.fetchFlags);
+  const hydrateFlags = useFeatureFlagStore((state) => state.hydrateFlags);
   const initNetwork = useNetworkStore((state) => state.init);
   const [fontsLoaded, fontError] = useFonts(FONT_ASSETS);
   const ready = isHydrated && (fontsLoaded || !!fontError);
 
   useEffect(() => {
     hydrateAuth();
+    hydrateFlags();
     fetchFlags();
-  }, [hydrateAuth, fetchFlags]);
+  }, [hydrateAuth, hydrateFlags, fetchFlags]);
 
   // The signed-in profile is cached locally (AsyncStorage) so the app opens
   // instantly, but that means changes made elsewhere -- the website, an

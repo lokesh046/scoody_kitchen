@@ -237,7 +237,7 @@ export default function VideoCallScreen({ navigation, route }: any) {
               <View style={styles.historyEmptyBox}>
                 <FileText size={28} color={COLORS.textLight} />
                 <Text style={styles.historyEmptyText}>
-                  No previous health records for this companion yet.
+                  No previous health records for this pet yet.
                 </Text>
               </View>
             ) : (

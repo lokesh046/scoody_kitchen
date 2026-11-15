@@ -764,12 +764,12 @@ export const PetDossierModal = memo(function PetDossierModal({
           <View style={petCardStyles.modalHeader}>
             <View>
               <Text style={petCardStyles.modalTitle}>
-                {mode === 'add' ? 'Register Companion' : 'Edit Pet Profile'}
+                {mode === 'add' ? 'Register Pet' : 'Edit Pet Profile'}
               </Text>
               <Text style={petCardStyles.modalSubtitle}>
                 {mode === 'add'
                   ? 'Calculate nutritional targets and synchronize clinical records'
-                  : `Update ${initialPet?.name || 'companion'}'s biological details`}
+                  : `Update ${initialPet?.name || 'pet'}'s biological details`}
               </Text>
             </View>
             <TouchableOpacity
@@ -914,7 +914,7 @@ export const PetDossierModal = memo(function PetDossierModal({
 
             {/* Form Fields */}
             <View style={petCardStyles.fieldGroup} onLayout={(e) => { fieldY.current.name = e.nativeEvent.layout.y; }}>
-              <Text style={petCardStyles.fieldLabel}>COMPANION NAME *</Text>
+              <Text style={petCardStyles.fieldLabel}>PET NAME *</Text>
               <View style={petCardStyles.inputContainer}>
                 <PawPrint size={15} color={COLORS.textLight} />
                 <TextInput
@@ -1141,8 +1141,8 @@ export const PetDossierModal = memo(function PetDossierModal({
                 saving
                   ? 'Saving…'
                   : mode === 'add'
-                  ? 'Confirm companion registration'
-                  : 'Save companion ledger'
+                  ? 'Confirm pet registration'
+                  : 'Save pet ledger'
               }
               accessibilityState={{ disabled: saving || isUploadingPhoto, busy: saving }}
             >
@@ -1153,8 +1153,8 @@ export const PetDossierModal = memo(function PetDossierModal({
                   <Check size={18} color="#FFFFFF" strokeWidth={2.5} />
                   <Text style={petCardStyles.submitButtonText}>
                     {mode === 'add'
-                      ? 'Confirm Companion Registration'
-                      : 'Save Companion Ledger'}
+                      ? 'Confirm Pet Registration'
+                      : 'Save Pet Ledger'}
                   </Text>
                 </>
               )}

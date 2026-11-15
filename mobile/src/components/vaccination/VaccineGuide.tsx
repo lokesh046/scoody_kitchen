@@ -135,7 +135,7 @@ export default function VaccineGuide({ petId, petName, refreshKey, vaccines, onU
             return (
               <View key={s.sno} style={[styles.schedCard, col && { backgroundColor: col.tint }]}>
                 <View style={styles.schedTop}>
-                  <Text style={[styles.age, { flex: 1 }]}>{s.sno}. {s.age}</Text>
+                  <Text style={[styles.age, { flex: 1 }]}>{s.age}</Text>
                   {showBadge && col && s.status && (
                     <View style={[styles.badge, { backgroundColor: col.badge }]}><Text style={[styles.badgeText, { color: col.badgeText }]}>{STATUS_LABEL[s.status]}</Text></View>
                   )}

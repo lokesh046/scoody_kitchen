@@ -36,7 +36,6 @@ import {
   ProfileHeroCard,
   ProfileStatsMatrix,
   AccountHubMenu,
-  NutritionPledgeCard,
   EditProfileModal,
 } from '../components/ProfileCards';
 
@@ -47,6 +46,7 @@ import {
 export default function ProfileScreen({ navigation }: any) {
   const { user, logout, updateUser } = useAuthStore();
   const isChatbotEnabled = useFeatureFlag('ai_chatbot', true);
+  const showOrders = useFeatureFlag('header_my_orders', true);
   const chatbotFallback = useFeatureFlagFallback('ai_chatbot');
   const { pets, setPets } = usePetStore();
 
@@ -278,6 +278,7 @@ export default function ProfileScreen({ navigation }: any) {
 
           {/* Account Hub Menu */}
           <AccountHubMenu
+            showOrders={showOrders}
             ordersCount={orders.length}
             petsCount={pets.length}
             supportUnreadCount={supportUnreadCount}
@@ -290,9 +291,6 @@ export default function ProfileScreen({ navigation }: any) {
             isConsultationsEnabled={isConsultationsEnabled}
             consultationsFallback={consultationsFallback}
           />
-
-          {/* Veterinary Quality Commitment */}
-          <NutritionPledgeCard />
 
           {/* Dev-only: manual Sentry verification trigger. __DEV__ is a
               compile-time constant, so this whole block is stripped out of
