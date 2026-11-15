@@ -100,10 +100,17 @@ class UserRateLimiter:
                 headers={"Retry-After": str(retry_after)}
             )
 
+        member = str(now)
         pipe = daily_scan_redis_client.pipeline()
-        pipe.zadd(key, {str(now): now})
+        pipe.zadd(key, {member: now})
         pipe.expire(key, self.window_seconds)
         pipe.execute()
+        return member
+
+    def refund(self, user_key: str, member: str | None):
+        """Takes one request back out of the window (used when the scan failed on our side)."""
+        if member:
+            daily_scan_redis_client.zrem(f"vision_burst:{user_key}", member)
 
 
 # Global singleton rate limiter (4 requests per minute per user) — guards
@@ -126,16 +133,20 @@ class DailyScanLimiter:
         self.window_seconds = window_seconds
 
     def check_and_increment(self, user_key: str):
+        # Counts first and checks after, in one step, so two scans sent at the same moment cannot both slip
+        # past the cap (the old check-then-count order allowed that once scans run in parallel).
         count_key = f"vision_scan_count:{user_key}"
 
         pipe = daily_scan_redis_client.pipeline()
-        pipe.get(count_key)
+        pipe.incr(count_key)
         pipe.ttl(count_key)
-        current_count, ttl = pipe.execute()
+        new_count, ttl = pipe.execute()
+        if new_count == 1 or ttl is None or ttl < 0:
+            daily_scan_redis_client.expire(count_key, self.window_seconds)
+            ttl = self.window_seconds
 
-        current_count = int(current_count) if current_count is not None else 0
-
-        if current_count >= self.max_scans:
+        if new_count > self.max_scans:
+            daily_scan_redis_client.decr(count_key)
             wait_minutes = max(1, ttl // 60) if ttl and ttl > 0 else 24 * 60
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -146,11 +157,11 @@ class DailyScanLimiter:
                 headers={"Retry-After": str(ttl if ttl and ttl > 0 else self.window_seconds)},
             )
 
-        pipe = daily_scan_redis_client.pipeline()
-        pipe.incr(count_key)
-        if current_count == 0:
-            pipe.expire(count_key, self.window_seconds)
-        pipe.execute()
+    def refund(self, user_key: str):
+        """Gives one scan back (the scan failed on our side, or no AI call was made)."""
+        count_key = f"vision_scan_count:{user_key}"
+        if daily_scan_redis_client.decr(count_key) < 0:
+            daily_scan_redis_client.set(count_key, 0, keepttl=True)
 
 
 # Global singleton daily cap (7 scans per rolling 24 hours per user)
