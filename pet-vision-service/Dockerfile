@@ -18,4 +18,5 @@ COPY main.py ./
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8003
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003"]
+# Two workers: one per CPU core, so a scan that is busy in Python never holds up the other worker.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8003", "--workers", "2"]

@@ -9,6 +9,10 @@ from app.services.pipeline import get_pipeline
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Pre-warm ONNX session into RAM on startup
+    # Each scan runs in its own thread while it waits for the AI provider: allow a few more threads than the busy limit.
+    import anyio
+    from app.api.routes import MAX_IN_FLIGHT
+    anyio.to_thread.current_default_thread_limiter().total_tokens = MAX_IN_FLIGHT + 10
     print("🐾 Initializing Pet Vision Pipeline & ONNX runtime...")
     pipeline = get_pipeline()
     print(f"✅ Pet Vision Pipeline ready! Inputs: {pipeline.input_name} -> Outputs: {pipeline.output_name}")
