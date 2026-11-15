@@ -31,6 +31,11 @@ celery_app.conf.update(
             "schedule": 86400.0,
         },
         # Account deletion: purge accounts past their 15-day grace period, then trim the archive.
+        # Old login tokens (expired or used up, over 7 days old) are removed so those tables do not grow forever.
+        "prune-old-login-tokens-daily": {
+            "task": "app.tasks.notification_tasks.prune_old_login_tokens_task",
+            "schedule": 86400.0,
+        },
         "vaccination-reminders-daily": {
             "task": "app.tasks.notification_tasks.send_vaccination_reminders_task",
             "schedule": 86400.0,

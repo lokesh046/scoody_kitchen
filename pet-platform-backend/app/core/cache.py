@@ -1,8 +1,9 @@
 import json
 import logging
 import os
+import threading
 import time
-from typing import Any
+from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -176,3 +177,29 @@ class RedisCacheManager:
 
 
 cache = RedisCacheManager()
+
+
+_single_flight_locks: dict[str, threading.Lock] = {}
+_single_flight_guard = threading.Lock()
+
+
+def cached_once(key: str, build: Callable[[], Any], ttl_seconds: int | None = None) -> Any:
+    """Returns the cached value, or builds it ONCE even when many requests arrive at the same moment.
+
+    Without this, when a cached list is empty (after a restart, or right after it was cleared because something
+    changed) every request that arrives in that moment runs the same slow database queries together. Here the first
+    request builds it while the others wait a moment for the result, so a busy page costs one rebuild, not dozens.
+    (The lock is per worker process, so at worst each worker rebuilds it once.)
+    """
+    value = cache.get(key)
+    if value is not None:
+        return value
+    with _single_flight_guard:
+        lock = _single_flight_locks.setdefault(key, threading.Lock())
+    with lock:
+        value = cache.get(key)  # another request may have filled it while this one waited
+        if value is not None:
+            return value
+        value = build()
+        cache.set(key, value, ttl_seconds=ttl_seconds)
+        return value
