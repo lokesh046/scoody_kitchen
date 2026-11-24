@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchActiveBanners } from '../api/banners';
 import { getOptimizedImageUrl, IMAGE_WIDTH, originalOnError } from '../utils/cloudinaryImage';
+import { APP_DOWNLOAD_CTA_SENTINEL } from '../constants/appLinks';
+import { DownloadAppModal } from './DownloadAppModal';
 
 // Same real banner images used by the normal contained carousel, so the
 // full-screen hero shows genuine content rather than placeholder art even
@@ -40,6 +42,7 @@ export const FullscreenHomeHero: React.FC = () => {
   const navigate = useNavigate();
   const [index, setIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: banners, isLoading } = useQuery({
@@ -110,10 +113,16 @@ export const FullscreenHomeHero: React.FC = () => {
           {slide.link_url && (
             <div className="pt-2">
               <button
-                onClick={() => navigate(slide.link_url!)}
+                onClick={() =>
+                  slide.link_url === APP_DOWNLOAD_CTA_SENTINEL
+                    ? setShowDownloadModal(true)
+                    : navigate(slide.link_url!)
+                }
                 className="pet-profile-cta cta-glow relative isolate overflow-hidden bg-turmeric text-ink font-body font-bold text-xs uppercase px-8 py-4 tracking-wider rounded-[4px] border border-[#E5BB8E] hover:-translate-y-0.5 active:translate-y-[1px] transition-transform duration-300 cursor-pointer motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
               >
-                <span className="relative">Explore Shop Recipes</span>
+                <span className="relative">
+                  {slide.link_url === APP_DOWNLOAD_CTA_SENTINEL ? 'Download the App' : 'Explore Shop Recipes'}
+                </span>
               </button>
             </div>
           )}
@@ -155,6 +164,7 @@ export const FullscreenHomeHero: React.FC = () => {
       {/* Blend the bottom of the banner into the section below so there is no hard edge. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-40 md:h-56 bg-gradient-to-t from-midnight via-midnight/70 to-transparent" />
       <HeroScrollHint />
+      <DownloadAppModal open={showDownloadModal} onClose={() => setShowDownloadModal(false)} />
     </section>
   );
 };

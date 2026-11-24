@@ -7,6 +7,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchActiveBanners } from '../api/banners';
 import { useFeatureFlag, useVetEntryEnabled } from '../hooks/useFeatureFlag';
 import { getOptimizedImageUrl, IMAGE_WIDTH, originalOnError } from '../utils/cloudinaryImage';
+import { APP_DOWNLOAD_CTA_SENTINEL } from '../constants/appLinks';
+import { DownloadAppModal } from './DownloadAppModal';
 
 // Default fallback banners matching the user's custom designs with 4K ultra-high resolution
 const fallbackBanners: any[] = [
@@ -56,6 +58,7 @@ const fallbackBanners: any[] = [
 export const HomeBannerCarousel: React.FC = () => {
   const navigate = useNavigate();
   const trackRef = useRef<HTMLDivElement>(null);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(1); // Start at 1 (first real banner)
   const [transitionEnabled, setTransitionEnabled] = useState(true);
   // The track is positioned instantly the first time it appears; slide animations
@@ -307,7 +310,8 @@ export const HomeBannerCarousel: React.FC = () => {
                 key={`${slide.id}-${idx}`}
                 onClick={() => {
                   if (isActive) {
-                    if (slide.link_url) navigate(slide.link_url);
+                    if (slide.link_url === APP_DOWNLOAD_CTA_SENTINEL) setShowDownloadModal(true);
+                    else if (slide.link_url) navigate(slide.link_url);
                   } else if (isPrev) {
                     handlePrev();
                   } else if (isNext) {
@@ -380,11 +384,14 @@ export const HomeBannerCarousel: React.FC = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(slide.link_url);
+                              if (slide.link_url === APP_DOWNLOAD_CTA_SENTINEL) setShowDownloadModal(true);
+                              else navigate(slide.link_url);
                             }}
                             className="pet-profile-cta cta-glow [--cta-glow:239_68_68] relative isolate overflow-hidden inline-flex items-center space-x-1.5 bg-[#b91c1c] hover:bg-[#991b1b] active:scale-95 text-white font-mono text-[9px] sm:text-[10px] font-bold uppercase px-4 sm:px-5 py-2 sm:py-2.5 rounded-[6px] border border-red-400/40 transition-all cursor-pointer motion-reduce:transform-none"
                           >
-                            <span className="relative">{slide.button_text || 'Know More'}</span>
+                            <span className="relative">
+                              {slide.link_url === APP_DOWNLOAD_CTA_SENTINEL ? 'Download the App' : (slide.button_text || 'Know More')}
+                            </span>
                           </button>
                         </div>
                       )}
@@ -447,6 +454,7 @@ export const HomeBannerCarousel: React.FC = () => {
         </div>
       )}
       <HeroScrollHint light />
+      <DownloadAppModal open={showDownloadModal} onClose={() => setShowDownloadModal(false)} />
     </div>
   );
 };

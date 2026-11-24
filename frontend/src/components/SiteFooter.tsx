@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useFeatureFlag, useFlagEntry, useVetEntryEnabled } from '../hooks/useFeatureFlag';
+import { AppStoreBadges } from './AppStoreBadges';
 
 export function SiteFooter({ className = 'bg-midnight' }: { className?: string }) {
   const navigate = useNavigate();
@@ -20,6 +21,8 @@ export function SiteFooter({ className = 'bg-midnight' }: { className?: string }
   return (
     <footer className={`text-paper px-4 sm:px-6 md:px-8 ${className}`}>
       <div className="max-w-7xl mx-auto pt-16 pb-10 border-b border-paper border-opacity-10">
+        <AppStoreBadges className="flex flex-wrap items-center justify-center gap-3 mb-8" />
+
         <div className="flex flex-col items-center text-center space-y-4 mb-14">
           <div className="w-16 h-16 sm:w-20 sm:h-20 logo-medallion flex items-center justify-center p-1 overflow-hidden shadow-lg">
             <img
@@ -83,19 +86,21 @@ export function SiteFooter({ className = 'bg-midnight' }: { className?: string }
         <p className="font-mono text-[10px] uppercase tracking-wider text-paper opacity-50 text-center sm:text-left">
           © {new Date().getFullYear()} Hearth & One. Crafted with care for pet parents everywhere.
         </p>
-        <a
-          href="https://www.instagram.com/hearth__and__hound/"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Hearth & One on Instagram"
-          className="flex items-center justify-center w-9 h-9 rounded-full border border-paper border-opacity-15 text-paper opacity-70 hover:opacity-100 hover:text-turmeric hover:border-turmeric transition-colors"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-          </svg>
-        </a>
+        <div className="flex items-center gap-3">
+          <a
+            href="https://www.instagram.com/hearth__and__hound/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Hearth & One on Instagram"
+            className="flex items-center justify-center w-9 h-9 rounded-full border border-paper border-opacity-15 text-paper opacity-70 hover:opacity-100 hover:text-turmeric hover:border-turmeric transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+            </svg>
+          </a>
+        </div>
       </div>
     </footer>
   );

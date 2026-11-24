@@ -44,6 +44,7 @@ const PrivacyPolicyPage = lazy(() => import('./features/legal/PrivacyPolicyPage'
 const TermsPage = lazy(() => import('./features/legal/TermsPage').then((m) => ({ default: m.TermsPage })));
 const DeleteAccountPage = lazy(() => import('./features/legal/DeleteAccountPage').then((m) => ({ default: m.DeleteAccountPage })));
 const NotFoundPage = lazy(() => import('./components/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
+const DownloadAppPage = lazy(() => import('./components/DownloadAppPage').then((m) => ({ default: m.DownloadAppPage })));
 
 // The dark landing pages. Their loading screens must be dark too, or every visit flashes a
 // cream screen before the dark hero. Keep this list in sync with the inline script in index.html.
@@ -211,6 +212,7 @@ export default function App() {
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/delete-account" element={<DeleteAccountPage />} />
+              <Route path="/download" element={<DownloadAppPage />} />
               <Route path="/assistant" element={<RequireAuth><AssistantPage /></RequireAuth>} />
               <Route path="/support" element={<RequireAuth><SupportPage /></RequireAuth>} />
               <Route path="/support/:ticketId" element={<RequireAuth><SupportTicketPage /></RequireAuth>} />
