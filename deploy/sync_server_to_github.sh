@@ -56,8 +56,11 @@ is_release_leftover() {
 }
 
 # ---- 1. back up every changed / new file -------------------------------------------------------
+# A file git shows as changed but that no longer exists on disk (locally deleted) has nothing to
+# back up here -- its last content is already safe in git history -- and step 3 below explicitly
+# stops on any such deletion anyway, so skip it here rather than letting tar hard-fail on it.
 LIST=$(mktemp)
-git status --porcelain -uall | cut -c4- | grep -v -E "^frontend/dist\.(old-|bad|new-|realflags)" > "$LIST" || true
+git status --porcelain -uall | cut -c4- | grep -v -E "^frontend/dist\.(old-|bad|new-|realflags)" | while IFS= read -r f; do [ -f "$f" ] && echo "$f"; done > "$LIST" || true
 COUNT=$(wc -l < "$LIST" | tr -d ' ')
 if [ "$COUNT" -gt 0 ]; then
   BK="$BACKUP_DIR/${TAG}-pre-sync-$STAMP.tgz"
