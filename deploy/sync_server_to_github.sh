@@ -88,7 +88,16 @@ done < <(git status --porcelain -uall)
 BAD=0
 for f in "${MODIFIED[@]+"${MODIFIED[@]}"}"; do
   in_list "$f" $KEEP_MODIFIED && { echo "   keep   (server-only) $f"; continue; }
-  if [ ! -f "$f" ]; then echo "   STOP   deleted file not expected: $f"; BAD=1; continue; fi
+  if [ ! -f "$f" ]; then
+    # Locally deleted here -- if the target branch has ALSO already dropped this file, that is
+    # the expected, already-agreed-on state, not a server-only edit to flag.
+    if ! git cat-file -e "$TARGET:$f" 2>/dev/null; then
+      echo "   ok     also deleted on $TARGET: $f"
+    else
+      echo "   STOP   deleted file not expected: $f"; BAD=1
+    fi
+    continue
+  fi
   found=0
   for c in $(git log --format=%H "$TARGET" -- "$f"); do
     if git show "$c:$f" 2>/dev/null | cmp -s - "$f"; then found=1; break; fi
