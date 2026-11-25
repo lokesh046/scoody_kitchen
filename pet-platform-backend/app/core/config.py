@@ -97,6 +97,16 @@ class Setting(BaseSettings):
     EMAILS_FROM: str | None = None
     # Where Contact page ("Get in touch") messages are emailed.
     CONTACT_INBOX_EMAIL: str = "support@hearthandone.com"
+
+    # Dedicated SMTP for the login OTP / magic-link email only (e.g. Google SMTP via
+    # connect@hearthandone...). Every other email (invoices, order updates, newsletter,
+    # contact form) keeps using SMTP_HOST/SMTP_USER/SMTP_PASSWORD/EMAILS_FROM above.
+    # Falls back to those same settings when left unset.
+    OTP_SMTP_HOST: str | None = None
+    OTP_SMTP_PORT: int = 587
+    OTP_SMTP_USER: str | None = None
+    OTP_SMTP_PASSWORD: str | None = None
+    OTP_EMAILS_FROM: str | None = None
     FRONTEND_URL: str = "http://127.0.0.1:8000"
 
     # EasyPost Shipping Configuration

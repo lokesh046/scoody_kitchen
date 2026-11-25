@@ -123,7 +123,16 @@ def send_magic_link_email(
 
     html_content = _get_base_email_template("Hearth & One Login", content)
 
-    smtp_configured = bool(settings.SMTP_HOST and settings.SMTP_USER and settings.SMTP_PASSWORD)
+    # OTP/magic-link mail goes through its own dedicated SMTP (e.g. Google SMTP via
+    # connect@hearthandone...), separate from the SMTP used for every other email.
+    # Falls back to the shared SMTP_* settings when OTP_SMTP_* isn't set.
+    otp_smtp_host = settings.OTP_SMTP_HOST or settings.SMTP_HOST
+    otp_smtp_port = settings.OTP_SMTP_PORT or settings.SMTP_PORT
+    otp_smtp_user = settings.OTP_SMTP_USER or settings.SMTP_USER
+    otp_smtp_password = settings.OTP_SMTP_PASSWORD or settings.SMTP_PASSWORD
+    otp_emails_from = settings.OTP_EMAILS_FROM or settings.EMAILS_FROM or otp_smtp_user
+
+    smtp_configured = bool(otp_smtp_host and otp_smtp_user and otp_smtp_password)
 
     # Log the raw token/OTP only in local dev, or as a last-resort fallback
     # when SMTP isn't configured anywhere (including production) and this
@@ -138,11 +147,13 @@ def send_magic_link_email(
         logger.info("==================================================")
 
     if not smtp_configured:
-        logger.warning("SMTP settings not configured. Magic link logged to console above.")
+        logger.warning("OTP SMTP settings not configured. Magic link logged to console above.")
         return True
 
+    assert otp_smtp_host and otp_smtp_user and otp_smtp_password
+
     try:
-        sender_email = settings.EMAILS_FROM or settings.SMTP_USER
+        sender_email = otp_emails_from
         from_header = f"Hearth & One <{sender_email}>" if "<" not in (sender_email or "") else sender_email
 
         msg = MIMEMultipart("alternative")
@@ -156,9 +167,9 @@ def send_magic_link_email(
 
         def _send():
             try:
-                with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+                with smtplib.SMTP(otp_smtp_host, otp_smtp_port, timeout=10) as server:
                     server.starttls()
-                    server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                    server.login(otp_smtp_user, otp_smtp_password)
                     server.send_message(msg)
                 logger.info(f"Magic link email successfully sent to {to_email}")
             except Exception as exc:

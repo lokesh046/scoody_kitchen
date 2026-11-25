@@ -81,29 +81,22 @@ def request_magic_link(
     clean_email = email.strip().lower()
     user = get_user_by_email(db, clean_email)
 
-    if user is None:
-        user = User(
-            email=clean_email,
-            first_name=first_name,
-            last_name=last_name,
-            role=UserRole.CUSTOMER,
-            auth_provider="magic_link",
-            is_email_verified=False,
-            is_active=True,
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-
-    if not user.is_active:
+    if user is not None and not user.is_active:
         raise ValueError("User account is inactive")
 
     is_review_account = _is_review_account(clean_email)
     raw_token = secrets.token_urlsafe(32)
     otp_code = settings.REVIEW_ACCOUNT_CODE if is_review_account else f"{random.randint(100000, 999999)}"
 
+    # An existing (already-verified-at-least-once) account just gets a new token. A brand-new
+    # email gets no `user` row yet -- only a pending token holding what we'll need to create
+    # one once it's actually verified. This keeps a never-verified request from permanently
+    # burning a `user.id`.
     magic_token = MagicLinkToken(
-        user_id=user.id,
+        user_id=user.id if user is not None else None,
+        email=None if user is not None else clean_email,
+        pending_first_name=None if user is not None else first_name,
+        pending_last_name=None if user is not None else last_name,
         token_hash=hash_token(raw_token),
         code_hash=hash_token(otp_code),
         expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
@@ -122,6 +115,46 @@ def request_magic_link(
     )
 
 
+def _resolve_user_for_token(db: Session, token_record: MagicLinkToken) -> User:
+    """Loads the token's existing user, or creates+verifies the real user for a pending
+    signup (first time this email has ever completed verification)."""
+    if token_record.user_id is not None:
+        user = db.get(User, token_record.user_id)
+        if user is None or not user.is_active:
+            raise ValueError("User account is inactive or not found")
+        user.is_email_verified = True
+        return user
+
+    # A pending (user_id is None) token always has email set -- request_magic_link is the
+    # only place that creates one, and only with an email attached.
+    assert token_record.email is not None
+
+    # Two codes can be requested for the same brand-new email before either is used (e.g. a
+    # "resend code" tap). If an earlier one already created the user, attach to it instead of
+    # colliding on the unique email constraint.
+    existing = get_user_by_email(db, token_record.email)
+    if existing is not None:
+        if not existing.is_active:
+            raise ValueError("User account is inactive or not found")
+        existing.is_email_verified = True
+        token_record.user_id = existing.id
+        return existing
+
+    user = User(
+        email=token_record.email,
+        first_name=token_record.pending_first_name,
+        last_name=token_record.pending_last_name,
+        role=UserRole.CUSTOMER,
+        auth_provider="magic_link",
+        is_email_verified=True,
+        is_active=True,
+    )
+    db.add(user)
+    db.flush()
+    token_record.user_id = user.id
+    return user
+
+
 def verify_magic_link_token(db: Session, raw_token: str) -> User:
     incoming_hash = hash_token(raw_token)
     statement = select(MagicLinkToken).where(
@@ -135,30 +168,38 @@ def verify_magic_link_token(db: Session, raw_token: str) -> User:
         raise ValueError("Invalid or expired magic link")
 
     token_record.used = True
-    user = db.get(User, token_record.user_id)
-    if user is None or not user.is_active:
-        raise ValueError("User account is inactive or not found")
-
-    user.is_email_verified = True
+    user = _resolve_user_for_token(db, token_record)
     db.commit()
     db.refresh(user)
     return user
 
 
 def verify_magic_link_code(db: Session, email: str, code: str) -> User:
-    user = get_user_by_email(db, email)
-    if user is None:
-        raise ValueError("Invalid or expired login code")
+    clean_email = email.strip().lower()
+    user = get_user_by_email(db, clean_email)
 
-    statement = (
-        select(MagicLinkToken)
-        .where(
-            MagicLinkToken.user_id == user.id,
-            MagicLinkToken.used.is_(False),
-            MagicLinkToken.expires_at > datetime.now(timezone.utc),
+    if user is not None:
+        statement = (
+            select(MagicLinkToken)
+            .where(
+                MagicLinkToken.user_id == user.id,
+                MagicLinkToken.used.is_(False),
+                MagicLinkToken.expires_at > datetime.now(timezone.utc),
+            )
+            .order_by(MagicLinkToken.created_at.desc())
         )
-        .order_by(MagicLinkToken.created_at.desc())
-    )
+    else:
+        # No account yet -- this must be a pending, never-verified-before signup.
+        statement = (
+            select(MagicLinkToken)
+            .where(
+                MagicLinkToken.user_id.is_(None),
+                MagicLinkToken.email == clean_email,
+                MagicLinkToken.used.is_(False),
+                MagicLinkToken.expires_at > datetime.now(timezone.utc),
+            )
+            .order_by(MagicLinkToken.created_at.desc())
+        )
     token_record = db.scalar(statement)
 
     if token_record is None:
@@ -180,7 +221,7 @@ def verify_magic_link_code(db: Session, email: str, code: str) -> User:
         raise ValueError("Invalid login code")
 
     token_record.used = True
-    user.is_email_verified = True
+    user = _resolve_user_for_token(db, token_record)
     if _is_review_account(user.email.strip().lower()):
         # The app blocks every signed-in user behind a phone-verification screen. Store
         # reviewers have no phone number to verify, so the review account skips it.
@@ -349,6 +390,9 @@ def authenticate_apple_user(
 
 def cleanup_unverified_users(db: Session, max_age_hours: int = 24) -> int:
     cutoff = datetime.now(timezone.utc) - timedelta(hours=max_age_hours)
+
+    # Legacy ghost users: pre-dates deferring user creation to verify-time. Kept so any
+    # such rows still around from before that change keep getting swept.
     statement = select(User).where(
         User.is_email_verified.is_(False),
         User.created_at <= cutoff,
@@ -359,6 +403,19 @@ def cleanup_unverified_users(db: Session, max_age_hours: int = 24) -> int:
 
     for u in unverified_users:
         db.delete(u)
+
+    # Pending signups that were never verified never got a `user` row at all -- just the
+    # stale token needs clearing out.
+    stale_pending = db.scalars(
+        select(MagicLinkToken).where(
+            MagicLinkToken.user_id.is_(None),
+            MagicLinkToken.created_at <= cutoff,
+        )
+    ).all()
+    count += len(stale_pending)
+
+    for t in stale_pending:
+        db.delete(t)
 
     if count > 0:
         db.commit()
