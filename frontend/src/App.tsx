@@ -109,6 +109,23 @@ function AuthEventListener() {
     };
   }, [clearAuth, clearCart, navigate]);
 
+  // Logging out only clears this tab's own state. The `storage` event fires automatically in
+  // every OTHER open tab (never the one that made the change) the moment clearAuth() removes
+  // `scooby_logged_in`, so they can follow suit instead of staying signed in until something
+  // else happens to fail.
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== 'scooby_logged_in' || event.newValue !== null) return;
+      if (!useAuthStore.getState().user) return; // this tab wasn't signed in anyway
+      clearAuth();
+      clearCart();
+      navigate('/login', { replace: true });
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [clearAuth, clearCart, navigate]);
+
   return null;
 }
 
