@@ -9,6 +9,7 @@ import { RequireAuth } from './components/RequireAuth';
 import { ChatbotWidget } from './components/ChatbotWidget';
 import { PhoneVerificationGate } from './components/PhoneVerificationGate';
 import { ScrollToTop } from './components/ScrollToTop';
+import { ChunkErrorBoundary } from './components/ChunkErrorBoundary';
 
 // Route-level code splitting via React.lazy
 const HomePage = lazy(() => import('./features/home/HomePage'));
@@ -184,6 +185,7 @@ export default function App() {
           <DarkLandingBackground />
           <WebSocketNotificationListener />
           <PhoneVerificationGate />
+          <ChunkErrorBoundary>
           <Suspense fallback={<RouteLoadingFallback />}>
             <Routes>
               <Route path="/" element={<HomePage />} />
@@ -226,6 +228,7 @@ export default function App() {
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
+          </ChunkErrorBoundary>
           <ChatbotWidget />
         </SessionProvider>
       </BrowserRouter>

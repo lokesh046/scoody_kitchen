@@ -190,8 +190,8 @@ export function PetsLandingPage() {
               className="relative isolate overflow-hidden min-h-[280px] sm:col-span-2 lg:min-h-[380px] lg:col-span-1 lg:col-start-2 lg:row-start-1 lg:row-span-4 bg-midnightCard"
             >
               <img
-                src="/images/pet-profile/street-dog.webp"
-                alt="A white and tan dog standing on a quiet road and looking straight at the camera"
+                src="/images/pet-profile/owner-and-dog.webp"
+                alt="A smiling pet parent hugging their golden retriever while looking at a tablet together"
                 width={720}
                 height={1280}
                 loading="lazy"
