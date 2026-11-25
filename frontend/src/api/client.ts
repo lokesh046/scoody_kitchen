@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useAuthStore } from '../store/auth';
+import { useAuthStore, type User } from '../store/auth';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -46,14 +46,81 @@ const processQueue = (error: any, token: string | null = null) => {
 
 let refreshPromise: Promise<string> | null = null;
 
-// Exported refresh helper that shares the same promise for concurrent requests
-export const refreshToken = (): Promise<string> => {
-  if (refreshPromise) {
-    return refreshPromise;
-  }
+// The backend rotates the refresh token on every use (the old one is revoked as soon as a new one
+// is issued). If two tabs each call /auth/refresh around the same moment, the loser sends a token
+// that's already been revoked by the winner and gets logged out for no real reason. The lock +
+// broadcast below make only one tab actually call the endpoint; the rest just wait for its result.
+const REFRESH_CHANNEL_NAME = 'scooby-auth-refresh';
+const REFRESH_LOCK_KEY = 'scooby_refresh_lock';
+const REFRESH_LOCK_TTL_MS = 5000; // stale-lock cutoff, in case the leader tab crashed/closed without releasing it
+const REFRESH_WAIT_TIMEOUT_MS = 4000;
 
+type RefreshBroadcastMessage =
+  | { type: 'refresh-success'; accessToken: string; user: User | null }
+  | { type: 'refresh-failure' };
+
+let refreshChannel: BroadcastChannel | null = null;
+try {
+  refreshChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(REFRESH_CHANNEL_NAME) : null;
+} catch {
+  refreshChannel = null;
+}
+
+function tryAcquireRefreshLock(): boolean {
+  try {
+    const raw = localStorage.getItem(REFRESH_LOCK_KEY);
+    if (raw) {
+      const { ts } = JSON.parse(raw) as { ts: number };
+      if (Date.now() - ts < REFRESH_LOCK_TTL_MS) return false; // another tab is actively refreshing
+    }
+    localStorage.setItem(REFRESH_LOCK_KEY, JSON.stringify({ ts: Date.now() }));
+    return true;
+  } catch {
+    return true; // storage unavailable - don't block, just behave like before
+  }
+}
+
+function releaseRefreshLock() {
+  try {
+    localStorage.removeItem(REFRESH_LOCK_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+// Waits for the tab currently holding the lock to broadcast its result. Falls back to doing the
+// refresh itself if nothing arrives in time (e.g. that tab was closed mid-request).
+function waitForBroadcastRefresh(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!refreshChannel) {
+      reject(new Error('no-broadcast-channel'));
+      return;
+    }
+    const timeout = setTimeout(() => {
+      refreshChannel?.removeEventListener('message', onMessage);
+      reject(new Error('refresh-wait-timeout'));
+    }, REFRESH_WAIT_TIMEOUT_MS);
+
+    const onMessage = (event: MessageEvent<RefreshBroadcastMessage>) => {
+      if (event.data.type === 'refresh-success') {
+        clearTimeout(timeout);
+        refreshChannel?.removeEventListener('message', onMessage);
+        const currentUser = useAuthStore.getState().user;
+        useAuthStore.getState().setAuth(event.data.user ?? currentUser, event.data.accessToken);
+        resolve(event.data.accessToken);
+      } else if (event.data.type === 'refresh-failure') {
+        clearTimeout(timeout);
+        refreshChannel?.removeEventListener('message', onMessage);
+        reject(new Error('refresh-failed-in-other-tab'));
+      }
+    };
+    refreshChannel.addEventListener('message', onMessage);
+  });
+}
+
+function performRefresh(): Promise<string> {
   isRefreshing = true;
-  refreshPromise = axios.post(
+  return axios.post(
     `${API_BASE_URL}/auth/refresh`,
     {},
     { withCredentials: true }
@@ -67,6 +134,8 @@ export const refreshToken = (): Promise<string> => {
 
       // Save new token and user in Zustand store
       useAuthStore.getState().setAuth(user, newAccessToken);
+      refreshChannel?.postMessage({ type: 'refresh-success', accessToken: newAccessToken, user } satisfies RefreshBroadcastMessage);
+      releaseRefreshLock();
 
       // Process queue of waiting requests
       processQueue(null, newAccessToken);
@@ -75,6 +144,8 @@ export const refreshToken = (): Promise<string> => {
     .catch((refreshError) => {
       refreshPromise = null;
       isRefreshing = false;
+      refreshChannel?.postMessage({ type: 'refresh-failure' } satisfies RefreshBroadcastMessage);
+      releaseRefreshLock();
       processQueue(refreshError, null);
 
       const wasLoggedIn = localStorage.getItem('scooby_logged_in') === 'true';
@@ -87,7 +158,29 @@ export const refreshToken = (): Promise<string> => {
 
       throw refreshError;
     });
+}
 
+// Exported refresh helper that shares the same promise for concurrent requests within this tab,
+// and defers to another tab's in-flight refresh (see above) instead of racing it.
+export const refreshToken = (): Promise<string> => {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  if (!tryAcquireRefreshLock()) {
+    refreshPromise = waitForBroadcastRefresh()
+      .then((token) => {
+        refreshPromise = null;
+        return token;
+      })
+      .catch(() => {
+        refreshPromise = null;
+        return performRefresh();
+      });
+    return refreshPromise;
+  }
+
+  refreshPromise = performRefresh();
   return refreshPromise;
 };
 
