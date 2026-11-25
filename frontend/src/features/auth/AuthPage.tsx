@@ -149,6 +149,7 @@ export const AuthPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const user = useAuthStore((state) => state.user);
 
   // Toggle register vs login
   const [isRegister, setIsRegister] = useState(false);
@@ -171,6 +172,16 @@ export const AuthPage: React.FC = () => {
   const queryParams = new URLSearchParams(location.search);
   const redirectParam = queryParams.get('redirect');
   const from = redirectParam ? `/${redirectParam}` : ((location.state as any)?.from?.pathname || '/');
+
+  // Landing here already signed in - e.g. another tab logged in and this tab's session refresh
+  // (SessionProvider, App.tsx) picked that up before this page even rendered. Leave instead of
+  // showing the login form again.
+  useEffect(() => {
+    if (user) {
+      navigate(from, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Shared by the Google and Apple buttons: exchange the provider's token, load the profile, save a pending pet.
   const completeSocialSignIn = async (getTokens: () => Promise<{ access_token: string }>, failMsg: string) => {
