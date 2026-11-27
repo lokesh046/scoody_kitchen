@@ -1,0 +1,100 @@
+name: Deploy web/backend
+
+# Automates exactly the two scripts used by hand all session (deploy/sync_server_to_github.sh
+# then deploy/release_server.sh), over SSH to the one VPS that runs both beta and production.
+#
+# - push to feature/vaccination-records -> auto-deploys to BETA only.
+# - manual run (workflow_dispatch, environment: production) -> deploys to PRODUCTION. Never
+#   auto-triggered. Gated by the "production" GitHub Environment -- add required reviewers
+#   there (repo Settings -> Environments) if you want an extra approval step in the Actions UI.
+#
+# Known, intentional limitation: if a genuinely new server-only file shows up on either server,
+# sync_server_to_github.sh STOPs and this fails loudly rather than overwriting it -- exactly like
+# it did for us by hand. When that happens, add the file to the matching KEEP_MODIFIED /
+# KEEP_UNTRACKED list below in a follow-up commit.
+
+on:
+  push:
+    branches: [feature/vaccination-records]
+    paths:
+      - "pet-platform-backend/**"
+      - "frontend/**"
+      - ".github/workflows/deploy-web-backend.yml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Which environment to deploy"
+        required: true
+        default: beta
+        type: choice
+        options: [beta, production]
+
+jobs:
+  deploy-beta:
+    if: github.event_name == 'push' || inputs.environment == 'beta'
+    runs-on: ubuntu-latest
+    env:
+      REPO: /var/www/scooby_pets-beta
+      MODE: ff
+      TAG: beta
+      KEEP_MODIFIED: "chatbot-service/agents/supervisor.py chatbot-service/graph/workflow.py frontend/.env.production frontend/package-lock.json pet-platform-backend/app/services/feature_flag_service.py pet-vision-service/app/services/pipeline.py"
+      KEEP_UNTRACKED: "chatbot-service/agents/greeting_agent.py docker-compose.beta.yml"
+      COMPOSE_FILE: docker-compose.beta.yml
+      BACKEND_SERVICE: backend-beta
+      BACKEND_CONTAINER: pet_platform_backend_beta
+      HEALTH_URL: https://api-beta.hearthandone.com/health
+      SITE_URL: https://beta.hearthandone.com
+      FORCE_FLAGS: "true"
+    steps:
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Sync server checkout to GitHub
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new root@${{ secrets.VPS_HOST }} \
+            "REPO='$REPO' MERGE_FROM=feature/vaccination-records MODE='$MODE' \
+             KEEP_MODIFIED='$KEEP_MODIFIED' KEEP_UNTRACKED='$KEEP_UNTRACKED' TAG='$TAG' \
+             bash '$REPO/deploy/sync_server_to_github.sh'"
+
+      - name: Release (rebuild backend + website)
+        run: |
+          ssh root@${{ secrets.VPS_HOST }} \
+            "ROOT='$REPO' COMPOSE_FILE='$COMPOSE_FILE' BACKEND_SERVICE='$BACKEND_SERVICE' \
+             BACKEND_CONTAINER='$BACKEND_CONTAINER' HEALTH_URL='$HEALTH_URL' SITE_URL='$SITE_URL' \
+             FORCE_FLAGS='$FORCE_FLAGS' bash '$REPO/deploy/release_server.sh'"
+
+  deploy-production:
+    if: github.event_name == 'workflow_dispatch' && inputs.environment == 'production'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      REPO: /var/www/scooby_pets
+      MODE: merge
+      TAG: prod
+      KEEP_MODIFIED: "chatbot-service/agents/supervisor.py chatbot-service/graph/workflow.py frontend/package-lock.json frontend/src/components/SiteFooter.tsx pet-vision-service/app/services/pipeline.py"
+      KEEP_UNTRACKED: "chatbot-service/agents/greeting_agent.py docker-compose.prod.yml"
+      COMPOSE_FILE: docker-compose.prod.yml
+      BACKEND_SERVICE: backend
+      BACKEND_CONTAINER: pet_platform_backend
+      HEALTH_URL: https://api.hearthandone.com/health
+      SITE_URL: https://hearthandone.com
+      FORCE_FLAGS: ""
+    steps:
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Sync server checkout to GitHub
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new root@${{ secrets.VPS_HOST }} \
+            "REPO='$REPO' MERGE_FROM=feature/vaccination-records MODE='$MODE' \
+             KEEP_MODIFIED='$KEEP_MODIFIED' KEEP_UNTRACKED='$KEEP_UNTRACKED' TAG='$TAG' \
+             bash '$REPO/deploy/sync_server_to_github.sh'"
+
+      - name: Release (rebuild backend + website)
+        run: |
+          ssh root@${{ secrets.VPS_HOST }} \
+            "ROOT='$REPO' COMPOSE_FILE='$COMPOSE_FILE' BACKEND_SERVICE='$BACKEND_SERVICE' \
+             BACKEND_CONTAINER='$BACKEND_CONTAINER' HEALTH_URL='$HEALTH_URL' SITE_URL='$SITE_URL' \
+             FORCE_FLAGS='$FORCE_FLAGS' bash '$REPO/deploy/release_server.sh'"

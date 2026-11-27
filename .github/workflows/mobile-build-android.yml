@@ -1,0 +1,100 @@
+name: Mobile build (Android)
+
+# Builds signed, release .aab files straight from current source on every push — the
+# thing that was missing on 2026-11-21's Play Store upload, where the native
+# DateTimePicker module wasn't actually linked into the binary that got submitted.
+# This never submits anywhere by itself; see mobile-submit-android.yml for that.
+
+on:
+  push:
+    branches: [feature/vaccination-records]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/mobile-build-android.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # GitHub's ubuntu-latest runners already ship an Android SDK; just make sure the
+      # specific NDK version this project pins (see android/build.gradle) is present.
+      - name: Ensure the pinned NDK version is installed
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.1.12297006"
+
+      # None of these are committed (same as on every dev machine) — rebuilt here from secrets.
+      - name: Reconstruct signing + Firebase config from secrets
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+          cat > android/keystore.properties <<EOF
+          storeFile=release.keystore
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+          echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 -d > google-services.json
+
+      # EAS's eas.json uses appVersionSource: remote (EAS manages it); a plain Gradle
+      # build here has no such counter, so this run number stands in for one. 100 is
+      # comfortably above whatever's live today (6) — bump it only if that ever stops
+      # being true.
+      - name: Set an always-increasing versionCode for this build
+        run: |
+          CODE=$((100 + ${{ github.run_number }}))
+          sed -i "s/versionCode [0-9]\+/versionCode $CODE/" android/app/build.gradle
+          echo "versionCode=$CODE" >> "$GITHUB_ENV"
+
+      - name: Build production + beta release bundles
+        working-directory: mobile/android
+        env:
+          SENTRY_DISABLE_AUTO_UPLOAD: "true"
+        run: ./gradlew bundleProductionRelease bundleBetaRelease
+
+      - name: Confirm the native DateTimePicker module actually compiled in
+        working-directory: mobile/android
+        # The exact failure mode from 2026-11-21: autolinking can silently omit a
+        # package (e.g. a bad npm install) while the overall bundle build still
+        # "succeeds" without it. Explicitly re-running this task fails loudly
+        # ("task not found") if that ever happens again, instead of shipping an
+        # .aab that crashes every user on launch.
+        run: ./gradlew :react-native-community_datetimepicker:compileReleaseKotlin --rerun-tasks
+
+      - name: Upload production bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-production-release-${{ env.versionCode }}.aab
+          path: android/app/build/outputs/bundle/productionRelease/app-production-release.aab
+          retention-days: 90
+
+      - name: Upload beta bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-beta-release-${{ env.versionCode }}.aab
+          path: android/app/build/outputs/bundle/betaRelease/app-beta-release.aab
+          retention-days: 90
+
+      - name: Clean up decoded keystore
+        if: always()
+        run: shred -u android/app/release.keystore android/keystore.properties 2>/dev/null || true

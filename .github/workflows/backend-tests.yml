@@ -2,7 +2,9 @@ name: Backend tests
 
 on:
   push:
-    branches: [main]
+    # feature/vaccination-records is the real trunk today — main is stale. Keep main
+    # listed too so this starts working for free whenever that gets cleaned up.
+    branches: [main, feature/vaccination-records]
     paths:
       - "pet-platform-backend/**"
       - ".github/workflows/backend-tests.yml"

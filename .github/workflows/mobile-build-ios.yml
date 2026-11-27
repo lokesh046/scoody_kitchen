@@ -1,0 +1,89 @@
+name: Mobile build (iOS)
+
+# Builds a signed .ipa straight from current source on every push. Never submits
+# anywhere by itself; see mobile-submit-ios.yml for that.
+
+on:
+  push:
+    branches: [feature/vaccination-records]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/mobile-build-ios.yml"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Not committed (same as google-services.json for Android) — rebuilt here from secrets.
+      - name: Reconstruct Firebase config and App Store Connect API key from secrets
+        # ~/.appstoreconnect/private_keys is the conventional location Apple's own
+        # tooling (altool, notarytool) searches by default -- used even though
+        # xcodebuild here takes an explicit -authenticationKeyPath, so the same
+        # file works unmodified for mobile-submit-ios.yml's altool call too.
+        run: |
+          echo "${{ secrets.IOS_GOOGLE_SERVICES_PLIST_BASE64 }}" | base64 -d > ios/HearthOne/GoogleService-Info.plist
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "${{ secrets.IOS_ASC_API_KEY_BASE64 }}" | base64 -d > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.IOS_ASC_API_KEY_ID }}.p8
+
+      - name: Install CocoaPods dependencies
+        working-directory: mobile/ios
+        run: pod install
+
+      # The project already uses CODE_SIGN_STYLE = Automatic and ExportOptions.plist
+      # already has method: app-store-connect / teamID: N8RKWD4Z3S (committed in the
+      # previous commit) -- -allowProvisioningUpdates lets Xcode manage certificates
+      # and provisioning profiles itself via the API key, no manually exported .p12
+      # or profile needed.
+      - name: Archive
+        working-directory: mobile/ios
+        run: |
+          xcodebuild archive \
+            -workspace HearthOne.xcworkspace \
+            -scheme HearthOne \
+            -configuration Release \
+            -archivePath "$RUNNER_TEMP/HearthOne.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.IOS_ASC_API_KEY_ID }}.p8 \
+            -authenticationKeyID "${{ secrets.IOS_ASC_API_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.IOS_ASC_API_ISSUER_ID }}"
+
+      - name: Export .ipa
+        working-directory: mobile/ios
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/HearthOne.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.IOS_ASC_API_KEY_ID }}.p8 \
+            -authenticationKeyID "${{ secrets.IOS_ASC_API_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.IOS_ASC_API_ISSUER_ID }}"
+
+      - name: Upload .ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: HearthOne-${{ github.run_number }}.ipa
+          path: ${{ runner.temp }}/export/*.ipa
+          retention-days: 90
+
+      - name: Clean up decoded secrets
+        if: always()
+        run: |
+          rm -f ios/HearthOne/GoogleService-Info.plist
+          rm -rf ~/.appstoreconnect/private_keys

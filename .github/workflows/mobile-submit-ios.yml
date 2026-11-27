@@ -1,0 +1,81 @@
+name: Mobile submit (iOS)
+
+# The manual go-ahead gate for iOS, mirroring mobile-submit-android.yml. Never runs
+# on its own -- only when someone explicitly runs it from the Actions tab. Rebuilds
+# fresh rather than trusting a possibly-stale artifact, then uploads the build to
+# App Store Connect / TestFlight. Submitting that build for App Store *review* stays
+# a manual step in App Store Connect itself -- review needs screenshots/metadata
+# decisions that don't belong in a pipeline.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  submit:
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Reconstruct Firebase config and App Store Connect API key from secrets
+        run: |
+          echo "${{ secrets.IOS_GOOGLE_SERVICES_PLIST_BASE64 }}" | base64 -d > ios/HearthOne/GoogleService-Info.plist
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "${{ secrets.IOS_ASC_API_KEY_BASE64 }}" | base64 -d > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.IOS_ASC_API_KEY_ID }}.p8
+
+      - name: Install CocoaPods dependencies
+        working-directory: mobile/ios
+        run: pod install
+
+      - name: Archive
+        working-directory: mobile/ios
+        run: |
+          xcodebuild archive \
+            -workspace HearthOne.xcworkspace \
+            -scheme HearthOne \
+            -configuration Release \
+            -archivePath "$RUNNER_TEMP/HearthOne.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.IOS_ASC_API_KEY_ID }}.p8 \
+            -authenticationKeyID "${{ secrets.IOS_ASC_API_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.IOS_ASC_API_ISSUER_ID }}"
+
+      - name: Export .ipa
+        working-directory: mobile/ios
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/HearthOne.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.IOS_ASC_API_KEY_ID }}.p8 \
+            -authenticationKeyID "${{ secrets.IOS_ASC_API_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.IOS_ASC_API_ISSUER_ID }}"
+
+      - name: Upload to App Store Connect / TestFlight
+        working-directory: mobile/ios
+        run: |
+          IPA=$(find "$RUNNER_TEMP/export" -name "*.ipa" | head -1)
+          xcrun altool --upload-app \
+            -f "$IPA" \
+            -t ios \
+            --apiKey "${{ secrets.IOS_ASC_API_KEY_ID }}" \
+            --apiIssuer "${{ secrets.IOS_ASC_API_ISSUER_ID }}"
+
+      - name: Clean up decoded secrets
+        if: always()
+        run: |
+          rm -f ios/HearthOne/GoogleService-Info.plist
+          rm -rf ~/.appstoreconnect/private_keys

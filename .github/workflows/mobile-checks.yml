@@ -2,7 +2,10 @@ name: Mobile checks
 
 on:
   push:
-    branches: [main]
+    # feature/vaccination-records is the real trunk today — main is stale and doesn't
+    # even contain mobile/. Keep main listed too so this starts working for free
+    # whenever that gets cleaned up.
+    branches: [main, feature/vaccination-records]
     paths:
       - "mobile/**"
       - ".github/workflows/mobile-checks.yml"
