@@ -78,7 +78,18 @@ mobile/.expo/
 chatbot-service/design_review_screens/
 chatbot-service/ARCHITECTURE_REVIEW.html
 chatbot-service/Scooby-Chatbot-Architecture.pdf
-mobile/android/
-mobile/ios/
+# Native project folders are tracked (CI needs them to actually build) --
+# only their build output, caches, and real secrets are excluded.
+mobile/android/.gradle/
+mobile/android/.cxx/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/local.properties
+mobile/android/keystore.properties
+mobile/android/app/release.keystore
+mobile/ios/build/
+mobile/ios/Pods/
+mobile/ios/**/xcuserdata/
 mobile/google-services.json
-mobile/GoogleService-Info.plist
+mobile/android/app/google-services.json
+mobile/ios/HearthOne/GoogleService-Info.plist

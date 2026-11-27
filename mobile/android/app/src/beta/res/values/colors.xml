@@ -1,0 +1,7 @@
+<resources>
+  <!-- Overrides src/main/res/values/colors.xml's cream (#F9F6F0) for this
+       flavor only, so the beta app icon is unmistakably different from
+       production's at a glance in the launcher, even with the same
+       foreground artwork. -->
+  <color name="iconBackground">#C2410C</color>
+</resources>
